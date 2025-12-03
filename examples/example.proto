@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package example.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "example.com/api/v1";
+option java_package = "com.example.api.v1";
+
+// Example message representing a user
+message User {
+  // Unique identifier for the user
+  string id = 1;
+
+  // User's display name
+  string name = 2;
+
+  // User's email address
+  string email = 3;
+
+  // User's status
+  UserStatus status = 4;
+
+  // Creation timestamp
+  google.protobuf.Timestamp created_at = 5;
+
+  // User's address
+  Address address = 6;
+
+  // User's tags
+  repeated string tags = 7;
+
+  // User's metadata
+  map<string, string> metadata = 8;
+
+  // Contact information - only one can be set
+  oneof contact {
+    string phone = 9;
+    string mobile = 10;
+  }
+
+  reserved 100, 101, 200 to 299;
+  reserved "old_field", "legacy_id";
+}
+
+// Nested address message
+message Address {
+  string street = 1;
+  string city = 2;
+  string state = 3;
+  string zip_code = 4;
+  string country = 5;
+}
+
+// User status enumeration
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;
+  USER_STATUS_ACTIVE = 1;
+  USER_STATUS_INACTIVE = 2;
+  USER_STATUS_BANNED = 3;
+}
+
+// User service definition
+service UserService {
+  // Get a user by ID
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+
+  // List all users
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+
+  // Create a new user
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+
+  // Update an existing user
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+
+  // Delete a user
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+
+  // Stream user updates
+  rpc StreamUsers(StreamUsersRequest) returns (stream User);
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message ListUsersRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  string next_page_token = 2;
+}
+
+message CreateUserRequest {
+  User user = 1;
+}
+
+message CreateUserResponse {
+  User user = 1;
+}
+
+message UpdateUserRequest {
+  User user = 1;
+}
+
+message UpdateUserResponse {
+  User user = 1;
+}
+
+message DeleteUserRequest {
+  string id = 1;
+}
+
+message DeleteUserResponse {
+  bool success = 1;
+}
+
+message StreamUsersRequest {
+  UserStatus filter_status = 1;
+}

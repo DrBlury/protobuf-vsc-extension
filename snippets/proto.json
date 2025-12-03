@@ -1,0 +1,170 @@
+{
+  "proto3 syntax": {
+    "prefix": "syntax3",
+    "body": [
+      "syntax = \"proto3\";",
+      "",
+      "package ${1:package_name};",
+      "",
+      "$0"
+    ],
+    "description": "Proto3 syntax declaration with package"
+  },
+  "proto2 syntax": {
+    "prefix": "syntax2",
+    "body": [
+      "syntax = \"proto2\";",
+      "",
+      "package ${1:package_name};",
+      "",
+      "$0"
+    ],
+    "description": "Proto2 syntax declaration with package"
+  },
+  "edition 2023": {
+    "prefix": "edition2023",
+    "body": ["edition = \"2023\";", "", "package ${1:package_name};", "", "$0"],
+    "description": "Edition 2023 declaration with package"
+  },
+  "message": {
+    "prefix": "message",
+    "body": ["message ${1:MessageName} {", "  $0", "}"],
+    "description": "Message declaration"
+  },
+  "enum": {
+    "prefix": "enum",
+    "body": ["enum ${1:EnumName} {", "  ${2:UNKNOWN} = 0;", "  $0", "}"],
+    "description": "Enum declaration"
+  },
+  "service": {
+    "prefix": "service",
+    "body": ["service ${1:ServiceName} {", "  $0", "}"],
+    "description": "Service declaration"
+  },
+  "rpc": {
+    "prefix": "rpc",
+    "body": ["rpc ${1:MethodName}(${2:Request}) returns (${3:Response});"],
+    "description": "RPC method declaration"
+  },
+  "rpc with body": {
+    "prefix": "rpcbody",
+    "body": [
+      "rpc ${1:MethodName}(${2:Request}) returns (${3:Response}) {",
+      "  $0",
+      "}"
+    ],
+    "description": "RPC method declaration with body for options"
+  },
+  "rpc stream": {
+    "prefix": "rpcstream",
+    "body": [
+      "rpc ${1:MethodName}(stream ${2:Request}) returns (stream ${3:Response});"
+    ],
+    "description": "Bidirectional streaming RPC"
+  },
+  "oneof": {
+    "prefix": "oneof",
+    "body": ["oneof ${1:name} {", "  $0", "}"],
+    "description": "Oneof declaration"
+  },
+  "import": {
+    "prefix": "import",
+    "body": ["import \"${1:path}\";"],
+    "description": "Import statement"
+  },
+  "import public": {
+    "prefix": "importpublic",
+    "body": ["import public \"${1:path}\";"],
+    "description": "Public import statement"
+  },
+  "package": {
+    "prefix": "package",
+    "body": ["package ${1:name};"],
+    "description": "Package declaration"
+  },
+  "extend": {
+    "prefix": "extend",
+    "body": ["extend ${1:MessageName} {", "  $0", "}"],
+    "description": "Extend declaration"
+  },
+  "option": {
+    "prefix": "option",
+    "body": ["option ${1:name} = ${2:value};"],
+    "description": "Option declaration"
+  },
+  "field string": {
+    "prefix": "fstring",
+    "body": ["string ${1:field_name} = ${2:1};"],
+    "description": "String field"
+  },
+  "field int32": {
+    "prefix": "fint32",
+    "body": ["int32 ${1:field_name} = ${2:1};"],
+    "description": "Int32 field"
+  },
+  "field int64": {
+    "prefix": "fint64",
+    "body": ["int64 ${1:field_name} = ${2:1};"],
+    "description": "Int64 field"
+  },
+  "field bool": {
+    "prefix": "fbool",
+    "body": ["bool ${1:field_name} = ${2:1};"],
+    "description": "Bool field"
+  },
+  "field bytes": {
+    "prefix": "fbytes",
+    "body": ["bytes ${1:field_name} = ${2:1};"],
+    "description": "Bytes field"
+  },
+  "field double": {
+    "prefix": "fdouble",
+    "body": ["double ${1:field_name} = ${2:1};"],
+    "description": "Double field"
+  },
+  "field float": {
+    "prefix": "ffloat",
+    "body": ["float ${1:field_name} = ${2:1};"],
+    "description": "Float field"
+  },
+  "field repeated": {
+    "prefix": "frepeated",
+    "body": ["repeated ${1:type} ${2:field_name} = ${3:1};"],
+    "description": "Repeated field"
+  },
+  "field map": {
+    "prefix": "fmap",
+    "body": ["map<${1:key_type}, ${2:value_type}> ${3:field_name} = ${4:1};"],
+    "description": "Map field"
+  },
+  "reserved numbers": {
+    "prefix": "reservedn",
+    "body": ["reserved ${1:2}, ${2:15}, ${3:9} to ${4:11};"],
+    "description": "Reserved field numbers"
+  },
+  "reserved names": {
+    "prefix": "reserveds",
+    "body": ["reserved \"${1:field_name}\";"],
+    "description": "Reserved field names"
+  },
+  "option go_package": {
+    "prefix": "optgopackage",
+    "body": ["option go_package = \"${1:path}\";"],
+    "description": "Go package option"
+  },
+  "option java_package": {
+    "prefix": "optjavapackage",
+    "body": ["option java_package = \"${1:com.example}\";"],
+    "description": "Java package option"
+  },
+  "option java_outer_classname": {
+    "prefix": "optjavaclass",
+    "body": ["option java_outer_classname = \"${1:ClassName}\";"],
+    "description": "Java outer classname option"
+  },
+  "option deprecated": {
+    "prefix": "optdeprecated",
+    "body": ["[deprecated = true]"],
+    "description": "Deprecated field option"
+  }
+}

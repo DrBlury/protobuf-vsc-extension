@@ -1,0 +1,543 @@
+{
+  "name": "protobuf-vsc",
+  "displayName": "Protobuf VSC",
+  "description": "Comprehensive Protocol Buffers support for VS Code with syntax highlighting, IntelliSense, diagnostics, formatting, protoc compilation, breaking change detection, and more",
+  "version": "1.0.0",
+  "publisher": "DrBlury",
+  "author": {
+    "name": "Julian Bensch",
+    "url": "https://github.com/DrBlury"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DrBlury/protobuf-vsc"
+  },
+  "bugs": {
+    "url": "https://github.com/DrBlury/protobuf-vsc/issues"
+  },
+  "homepage": "https://github.com/DrBlury/protobuf-vsc#readme",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Formatters",
+    "Snippets"
+  ],
+  "keywords": [
+    "protobuf",
+    "proto",
+    "protocol buffers",
+    "grpc",
+    "proto3",
+    "proto2",
+    "textproto",
+    "pbtxt"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "proto",
+        "aliases": [
+          "Protocol Buffers",
+          "protobuf",
+          "proto3",
+          "proto"
+        ],
+        "extensions": [
+          ".proto"
+        ],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "textproto",
+        "aliases": [
+          "Protocol Buffers Text Format",
+          "textproto",
+          "pbtxt"
+        ],
+        "extensions": [
+          ".textproto",
+          ".pbtxt",
+          ".prototxt",
+          ".txtpb",
+          ".textpb",
+          ".pb.txt"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "proto",
+        "scopeName": "source.proto",
+        "path": "./syntaxes/proto.tmLanguage.json"
+      },
+      {
+        "language": "textproto",
+        "scopeName": "source.textproto",
+        "path": "./syntaxes/textproto.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "proto",
+        "path": "./snippets/proto.json"
+      }
+    ],
+    "configuration": {
+      "title": "Protobuf",
+      "properties": {
+        "protobuf.formatterEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable the formatter"
+        },
+        "protobuf.formatOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically format proto files on save"
+        },
+        "protobuf.indentSize": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 8,
+          "description": "Number of spaces for indentation"
+        },
+        "protobuf.useTabIndent": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use tabs instead of spaces"
+        },
+        "protobuf.maxLineLength": {
+          "type": "number",
+          "default": 120,
+          "minimum": 80,
+          "maximum": 200,
+          "description": "Maximum line length for formatting"
+        },
+        "protobuf.includes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Additional paths to search for imports"
+        },
+        "protobuf.renumber.startNumber": {
+          "type": "number",
+          "default": 1,
+          "minimum": 1,
+          "description": "Starting field number when renumbering"
+        },
+        "protobuf.renumber.increment": {
+          "type": "number",
+          "default": 1,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Increment between field numbers when renumbering"
+        },
+        "protobuf.renumber.preserveReserved": {
+          "type": "boolean",
+          "default": true,
+          "description": "Skip reserved field numbers when renumbering"
+        },
+        "protobuf.renumber.skipInternalRange": {
+          "type": "boolean",
+          "default": true,
+          "description": "Skip the internal reserved range (19000-19999) when renumbering"
+        },
+        "protobuf.renumber.autoSuggestNext": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically suggest the next available field number in completions"
+        },
+        "protobuf.renumber.onFormat": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically renumber fields sequentially when formatting (removes gaps like 1,2,3,5,6 -> 1,2,3,4,5)"
+        },
+        "protobuf.diagnostics.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable all diagnostics"
+        },
+        "protobuf.diagnostics.namingConventions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check naming conventions (PascalCase for messages/enums, snake_case for fields)"
+        },
+        "protobuf.diagnostics.referenceChecks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check for undefined references"
+        },
+        "protobuf.diagnostics.importChecks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Validate import statements"
+        },
+        "protobuf.diagnostics.fieldTagChecks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check for field tag issues (duplicates, reserved, out of range)"
+        },
+        "protobuf.diagnostics.duplicateFieldChecks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check for duplicate field names"
+        },
+        "protobuf.diagnostics.discouragedConstructs": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn about discouraged patterns"
+        },
+        "protobuf.diagnostics.severity.namingConventions": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warning",
+            "information",
+            "hint"
+          ],
+          "default": "warning",
+          "description": "Severity level for naming convention violations"
+        },
+        "protobuf.diagnostics.severity.referenceErrors": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warning",
+            "information",
+            "hint"
+          ],
+          "default": "error",
+          "description": "Severity level for undefined reference errors"
+        },
+        "protobuf.diagnostics.severity.fieldTagIssues": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warning",
+            "information",
+            "hint"
+          ],
+          "default": "error",
+          "description": "Severity level for field tag issues"
+        },
+        "protobuf.diagnostics.severity.discouragedConstructs": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warning",
+            "information",
+            "hint"
+          ],
+          "default": "warning",
+          "description": "Severity level for discouraged constructs"
+        },
+        "protobuf.completion.autoImport": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically add import statements when completing types from other files"
+        },
+        "protobuf.completion.includeGoogleTypes": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include Google well-known types in completions"
+        },
+        "protobuf.hover.showFieldNumbers": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show field numbers in hover information"
+        },
+        "protobuf.hover.showDocumentation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show documentation comments in hover information"
+        },
+        "protobuf.protoc.path": {
+          "type": "string",
+          "default": "protoc",
+          "description": "Path to the protoc compiler. Defaults to 'protoc' in PATH"
+        },
+        "protobuf.protoc.compileOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically compile proto files on save"
+        },
+        "protobuf.protoc.compileAllPath": {
+          "type": "string",
+          "default": "",
+          "description": "Search path for 'Compile All Protos' action. Defaults to workspace root"
+        },
+        "protobuf.protoc.useAbsolutePath": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use absolute paths when compiling"
+        },
+        "protobuf.protoc.options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Additional protoc compiler options (e.g., ['--proto_path=protos', '--java_out=gen/java'])",
+          "examples": [
+            [
+              "--proto_path=${workspaceFolder}/protos",
+              "--java_out=${workspaceFolder}/gen/java",
+              "--go_out=${workspaceFolder}/gen/go"
+            ]
+          ]
+        },
+        "protobuf.breaking.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable breaking change detection"
+        },
+        "protobuf.breaking.againstStrategy": {
+          "type": "string",
+          "enum": [
+            "git",
+            "file",
+            "none"
+          ],
+          "default": "git",
+          "description": "Strategy for breaking change detection baseline"
+        },
+        "protobuf.breaking.againstGitRef": {
+          "type": "string",
+          "default": "HEAD~1",
+          "description": "Git reference to compare against (e.g., 'HEAD~1', 'main', 'origin/main')"
+        },
+        "protobuf.breaking.againstFilePath": {
+          "type": "string",
+          "default": "",
+          "description": "File path to compare against (when strategy is 'file')"
+        },
+        "protobuf.externalLinter.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable external linter integration (buf or protolint)"
+        },
+        "protobuf.externalLinter.linter": {
+          "type": "string",
+          "enum": [
+            "buf",
+            "protolint",
+            "none"
+          ],
+          "default": "none",
+          "description": "External linter to use"
+        },
+        "protobuf.externalLinter.bufPath": {
+          "type": "string",
+          "default": "buf",
+          "description": "Path to the buf CLI"
+        },
+        "protobuf.externalLinter.protolintPath": {
+          "type": "string",
+          "default": "protolint",
+          "description": "Path to the protolint CLI"
+        },
+        "protobuf.externalLinter.bufConfigPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to buf.yaml configuration file"
+        },
+        "protobuf.externalLinter.protolintConfigPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to .protolint.yaml configuration file"
+        },
+        "protobuf.externalLinter.runOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run external linter on file save"
+        },
+        "protobuf.clangFormat.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use clang-format for formatting instead of built-in formatter"
+        },
+        "protobuf.clangFormat.path": {
+          "type": "string",
+          "default": "clang-format",
+          "description": "Path to clang-format executable"
+        },
+        "protobuf.clangFormat.style": {
+          "type": "string",
+          "default": "Google",
+          "description": "clang-format style (LLVM, Google, Chromium, Mozilla, WebKit, Microsoft, GNU, or file)"
+        },
+        "protobuf.clangFormat.fallbackStyle": {
+          "type": "string",
+          "default": "Google",
+          "description": "Fallback style when 'file' style is used but no .clang-format file is found"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "protobuf.formatDocument",
+        "title": "Format Document",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.goToDefinition",
+        "title": "Go to Definition",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.findReferences",
+        "title": "Find All References",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.renumberDocument",
+        "title": "Renumber All Fields in Document",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.renumberMessage",
+        "title": "Renumber Fields in Message",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.renumberFromCursor",
+        "title": "Renumber Fields from Cursor",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.renumberEnum",
+        "title": "Renumber Enum Values",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.compileFile",
+        "title": "Compile This Proto",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.compileAll",
+        "title": "Compile All Protos",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.checkBreakingChanges",
+        "title": "Check for Breaking Changes",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.runExternalLinter",
+        "title": "Run External Linter",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.showAvailableLintRules",
+        "title": "Show Available Lint Rules",
+        "category": "Protobuf"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "protobuf.renumberMessage",
+          "when": "resourceLangId == proto",
+          "group": "1_modification"
+        },
+        {
+          "command": "protobuf.renumberFromCursor",
+          "when": "resourceLangId == proto",
+          "group": "1_modification"
+        },
+        {
+          "command": "protobuf.compileFile",
+          "when": "resourceLangId == proto",
+          "group": "2_compilation"
+        },
+        {
+          "command": "protobuf.checkBreakingChanges",
+          "when": "resourceLangId == proto",
+          "group": "3_validation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "protobuf.formatDocument",
+          "when": "resourceLangId == proto"
+        },
+        {
+          "command": "protobuf.renumberDocument",
+          "when": "resourceLangId == proto"
+        },
+        {
+          "command": "protobuf.renumberMessage",
+          "when": "resourceLangId == proto"
+        },
+        {
+          "command": "protobuf.renumberFromCursor",
+          "when": "resourceLangId == proto"
+        },
+        {
+          "command": "protobuf.renumberEnum",
+          "when": "resourceLangId == proto"
+        },
+        {
+          "command": "protobuf.compileFile",
+          "when": "resourceLangId == proto"
+        },
+        {
+          "command": "protobuf.compileAll"
+        },
+        {
+          "command": "protobuf.checkBreakingChanges",
+          "when": "resourceLangId == proto"
+        },
+        {
+          "command": "protobuf.runExternalLinter",
+          "when": "resourceLangId == proto"
+        },
+        {
+          "command": "protobuf.showAvailableLintRules"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -b",
+    "watch": "tsc -b -w",
+    "lint": "eslint src --ext ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
+    "typescript": "^5.3.2"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.11",
+    "vscode-uri": "^3.1.0"
+  }
+}

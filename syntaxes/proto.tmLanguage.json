@@ -1,0 +1,335 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Protocol Buffers",
+  "scopeName": "source.proto",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#syntax" },
+    { "include": "#edition" },
+    { "include": "#package" },
+    { "include": "#import" },
+    { "include": "#option" },
+    { "include": "#message" },
+    { "include": "#enum" },
+    { "include": "#service" },
+    { "include": "#extend" },
+    { "include": "#reserved" },
+    { "include": "#extensions" },
+    { "include": "#oneof" },
+    { "include": "#map" },
+    { "include": "#field" },
+    { "include": "#rpc" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#constants" },
+    { "include": "#types" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.proto",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.proto",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "syntax": {
+      "match": "\\b(syntax)\\s*=\\s*(\"proto[23]\")",
+      "captures": {
+        "1": { "name": "keyword.control.syntax.proto" },
+        "2": { "name": "string.quoted.double.proto" }
+      }
+    },
+    "edition": {
+      "match": "\\b(edition)\\s*=\\s*(\"[^\"]+\")",
+      "captures": {
+        "1": { "name": "keyword.control.edition.proto" },
+        "2": { "name": "string.quoted.double.proto" }
+      }
+    },
+    "package": {
+      "match": "\\b(package)\\s+([\\w.]+)\\s*;",
+      "captures": {
+        "1": { "name": "keyword.control.package.proto" },
+        "2": { "name": "entity.name.namespace.proto" }
+      }
+    },
+    "import": {
+      "match": "\\b(import)\\s+(weak|public)?\\s*(\"[^\"]+\")\\s*;",
+      "captures": {
+        "1": { "name": "keyword.control.import.proto" },
+        "2": { "name": "keyword.other.import.modifier.proto" },
+        "3": { "name": "string.quoted.double.proto" }
+      }
+    },
+    "option": {
+      "patterns": [
+        {
+          "begin": "\\b(option)\\s+",
+          "end": ";",
+          "beginCaptures": {
+            "1": { "name": "keyword.other.option.proto" }
+          },
+          "patterns": [
+            { "include": "#optionName" },
+            { "include": "#strings" },
+            { "include": "#numbers" },
+            { "include": "#constants" }
+          ]
+        }
+      ]
+    },
+    "optionName": {
+      "patterns": [
+        {
+          "match": "\\(([\\w.]+)\\)",
+          "captures": {
+            "1": { "name": "variable.other.option.proto" }
+          }
+        },
+        {
+          "match": "\\b(java_package|java_outer_classname|java_multiple_files|java_generate_equals_and_hash|java_string_check_utf8|optimize_for|go_package|cc_generic_services|java_generic_services|py_generic_services|php_generic_services|deprecated|cc_enable_arenas|objc_class_prefix|csharp_namespace|swift_prefix|php_class_prefix|php_namespace|php_metadata_namespace|ruby_package|features|unverified_lazy|debug_redact|retention|targets|edition_defaults|uninterpreted_option)\\b",
+          "name": "support.other.option.proto"
+        }
+      ]
+    },
+    "message": {
+      "begin": "\\b(message)\\s+(\\w+)\\s*\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "1": { "name": "keyword.declaration.message.proto" },
+        "2": { "name": "entity.name.type.message.proto" }
+      },
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#option" },
+        { "include": "#message" },
+        { "include": "#enum" },
+        { "include": "#oneof" },
+        { "include": "#map" },
+        { "include": "#reserved" },
+        { "include": "#extensions" },
+        { "include": "#extend" },
+        { "include": "#field" }
+      ]
+    },
+    "enum": {
+      "begin": "\\b(enum)\\s+(\\w+)\\s*\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "1": { "name": "keyword.declaration.enum.proto" },
+        "2": { "name": "entity.name.type.enum.proto" }
+      },
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#option" },
+        { "include": "#enumValue" },
+        { "include": "#reserved" }
+      ]
+    },
+    "enumValue": {
+      "match": "\\b(\\w+)\\s*=\\s*(-?\\d+)",
+      "captures": {
+        "1": { "name": "variable.other.enummember.proto" },
+        "2": { "name": "constant.numeric.proto" }
+      }
+    },
+    "service": {
+      "begin": "\\b(service)\\s+(\\w+)\\s*\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "1": { "name": "keyword.declaration.service.proto" },
+        "2": { "name": "entity.name.type.service.proto" }
+      },
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#option" },
+        { "include": "#rpc" }
+      ]
+    },
+    "rpc": {
+      "begin": "\\b(rpc)\\s+(\\w+)\\s*\\(",
+      "end": ";|\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.declaration.rpc.proto" },
+        "2": { "name": "entity.name.function.rpc.proto" }
+      },
+      "patterns": [
+        { "include": "#comments" },
+        {
+          "match": "\\b(stream)\\b",
+          "name": "keyword.other.stream.proto"
+        },
+        {
+          "match": "\\b(returns)\\b",
+          "name": "keyword.control.returns.proto"
+        },
+        {
+          "match": "\\b([A-Z]\\w*)\\b",
+          "name": "entity.name.type.proto"
+        }
+      ]
+    },
+    "oneof": {
+      "begin": "\\b(oneof)\\s+(\\w+)\\s*\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "1": { "name": "keyword.declaration.oneof.proto" },
+        "2": { "name": "variable.other.oneof.proto" }
+      },
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#option" },
+        { "include": "#field" }
+      ]
+    },
+    "extend": {
+      "begin": "\\b(extend)\\s+([\\w.]+)\\s*\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "1": { "name": "keyword.declaration.extend.proto" },
+        "2": { "name": "entity.name.type.proto" }
+      },
+      "patterns": [{ "include": "#comments" }, { "include": "#field" }]
+    },
+    "reserved": {
+      "match": "\\b(reserved)\\s+(.+);",
+      "captures": {
+        "1": { "name": "keyword.other.reserved.proto" },
+        "2": {
+          "patterns": [
+            { "include": "#strings" },
+            { "include": "#numbers" },
+            {
+              "match": "\\bto\\b",
+              "name": "keyword.other.to.proto"
+            },
+            {
+              "match": "\\bmax\\b",
+              "name": "keyword.other.max.proto"
+            }
+          ]
+        }
+      }
+    },
+    "extensions": {
+      "match": "\\b(extensions)\\s+(.+);",
+      "captures": {
+        "1": { "name": "keyword.other.extensions.proto" },
+        "2": {
+          "patterns": [
+            { "include": "#numbers" },
+            {
+              "match": "\\bto\\b",
+              "name": "keyword.other.to.proto"
+            },
+            {
+              "match": "\\bmax\\b",
+              "name": "keyword.other.max.proto"
+            }
+          ]
+        }
+      }
+    },
+    "map": {
+      "match": "\\b(map)\\s*<\\s*(\\w+)\\s*,\\s*([\\w.]+)\\s*>\\s+(\\w+)\\s*=\\s*(\\d+)",
+      "captures": {
+        "1": { "name": "keyword.other.map.proto" },
+        "2": { "name": "storage.type.proto" },
+        "3": { "name": "entity.name.type.proto" },
+        "4": { "name": "variable.other.field.proto" },
+        "5": { "name": "constant.numeric.proto" }
+      }
+    },
+    "field": {
+      "patterns": [
+        {
+          "match": "\\b(optional|required|repeated)\\s+([\\w.]+)\\s+(\\w+)\\s*=\\s*(\\d+)",
+          "captures": {
+            "1": { "name": "keyword.other.modifier.proto" },
+            "2": {
+              "patterns": [
+                { "include": "#types" },
+                { "match": "[\\w.]+", "name": "entity.name.type.proto" }
+              ]
+            },
+            "3": { "name": "variable.other.field.proto" },
+            "4": { "name": "constant.numeric.proto" }
+          }
+        },
+        {
+          "match": "\\b([\\w.]+)\\s+(\\w+)\\s*=\\s*(\\d+)",
+          "captures": {
+            "1": {
+              "patterns": [
+                { "include": "#types" },
+                { "match": "[\\w.]+", "name": "entity.name.type.proto" }
+              ]
+            },
+            "2": { "name": "variable.other.field.proto" },
+            "3": { "name": "constant.numeric.proto" }
+          }
+        }
+      ]
+    },
+    "types": {
+      "match": "\\b(double|float|int32|int64|uint32|uint64|sint32|sint64|fixed32|fixed64|sfixed32|sfixed64|bool|string|bytes)\\b",
+      "name": "storage.type.proto"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.proto",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.proto",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.proto",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.proto",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.proto",
+          "match": "\\b0[xX][0-9a-fA-F]+\\b"
+        },
+        {
+          "name": "constant.numeric.octal.proto",
+          "match": "\\b0[0-7]+\\b"
+        },
+        {
+          "name": "constant.numeric.float.proto",
+          "match": "\\b\\d+\\.\\d+([eE][+-]?\\d+)?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.proto",
+          "match": "\\b-?\\d+\\b"
+        }
+      ]
+    },
+    "constants": {
+      "match": "\\b(true|false|inf|nan)\\b",
+      "name": "constant.language.proto"
+    }
+  }
+}
