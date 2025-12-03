@@ -59,7 +59,7 @@ export class ProtocCompiler {
         shell: true
       });
 
-      proc.on('close', (code) => {
+      proc.on('close', (code: number | null) => {
         resolve(code === 0);
       });
 
@@ -79,11 +79,11 @@ export class ProtocCompiler {
       });
 
       let output = '';
-      proc.stdout?.on('data', (data) => {
+      proc.stdout?.on('data', (data: Buffer) => {
         output += data.toString();
       });
 
-      proc.on('close', (code) => {
+      proc.on('close', (code: number | null) => {
         if (code === 0) {
           const match = output.match(/libprotoc\s+([\d.]+)/);
           resolve(match ? match[1] : output.trim());
@@ -176,7 +176,7 @@ export class ProtocCompiler {
     return value
       .replace(/\$\{workspaceRoot\}/g, this.workspaceRoot)
       .replace(/\$\{workspaceFolder\}/g, this.workspaceRoot)
-      .replace(/\$\{env\.(\w+)\}/g, (_, name) => process.env[name] || '')
+      .replace(/\$\{env\.(\w+)\}/g, (_: string, name: string) => process.env[name] || '')
       .replace(/\$\{config\.(\w+)\}/g, () => ''); // Config variables would need VS Code context
   }
 
@@ -192,15 +192,15 @@ export class ProtocCompiler {
       let stdout = '';
       let stderr = '';
 
-      proc.stdout?.on('data', (data) => {
+      proc.stdout?.on('data', (data: Buffer) => {
         stdout += data.toString();
       });
 
-      proc.stderr?.on('data', (data) => {
+      proc.stderr?.on('data', (data: Buffer) => {
         stderr += data.toString();
       });
 
-      proc.on('close', (code) => {
+      proc.on('close', (code: number | null) => {
         const errors = this.parseErrors(stderr);
         resolve({
           success: code === 0,
@@ -210,7 +210,7 @@ export class ProtocCompiler {
         });
       });
 
-      proc.on('error', (err) => {
+      proc.on('error', (err: Error) => {
         resolve({
           success: false,
           stdout: '',

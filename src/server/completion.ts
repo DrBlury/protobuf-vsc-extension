@@ -23,7 +23,7 @@ export class CompletionProvider {
     uri: string,
     position: Position,
     lineText: string,
-    triggerCharacter?: string,
+    _triggerCharacter?: string,
     documentText?: string
   ): CompletionItem[] {
     const completions: CompletionItem[] = [];
@@ -184,7 +184,7 @@ export class CompletionProvider {
     return completions;
   }
 
-  private findNextFieldNumber(protoFile: ProtoFile, position: Position, documentText: string): number {
+  private findNextFieldNumber(_protoFile: ProtoFile, position: Position, documentText: string): number {
     const lines = documentText.split('\n');
 
     // Alternative approach: scan the document text directly to find field numbers

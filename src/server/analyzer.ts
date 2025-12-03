@@ -35,6 +35,7 @@ export class SemanticAnalyzer {
   };
 
   // Configured import paths to search for proto files
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private importPaths: string[] = [];
 
   setImportPaths(paths: string[]): void {

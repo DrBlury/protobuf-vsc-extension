@@ -38,7 +38,7 @@ export class ClangFormatProvider {
     return new Promise((resolve) => {
       const proc = spawn(this.settings.path, ['--version'], { shell: true });
 
-      proc.on('close', (code) => resolve(code === 0));
+      proc.on('close', (code: number | null) => resolve(code === 0));
       proc.on('error', () => resolve(false));
     });
   }
@@ -175,11 +175,11 @@ export class ClangFormatProvider {
       let stdout = '';
       let stderr = '';
 
-      proc.stdout?.on('data', (data) => {
+      proc.stdout?.on('data', (data: Buffer) => {
         stdout += data.toString();
       });
 
-      proc.stderr?.on('data', (data) => {
+      proc.stderr?.on('data', (data: Buffer) => {
         stderr += data.toString();
       });
 
@@ -192,7 +192,7 @@ export class ClangFormatProvider {
         }
       });
 
-      proc.on('error', (err) => {
+      proc.on('error', (err: Error) => {
         console.error(`clang-format error: ${err.message}`);
         resolve(null);
       });

@@ -35,6 +35,7 @@ interface Token {
 export class ProtoParser {
   private tokens: Token[] = [];
   private pos = 0;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private text = '';
   private lines: string[] = [];
 

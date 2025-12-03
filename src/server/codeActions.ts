@@ -449,7 +449,7 @@ export class CodeActionsProvider {
     }];
   }
 
-  private findNextAvailableFieldNumber(file: ProtoFile, documentText: string, range: Range): number {
+  private findNextAvailableFieldNumber(_file: ProtoFile, documentText: string, range: Range): number {
     const lines = documentText.split('\n');
     const usedNumbers = new Set<number>();
 

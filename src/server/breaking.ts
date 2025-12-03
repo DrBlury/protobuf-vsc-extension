@@ -128,16 +128,16 @@ export class BreakingChangeDetector {
 
       let content = '';
 
-      proc.stdout?.on('data', (data) => {
+      proc.stdout?.on('data', (data: Buffer) => {
         content += data.toString();
       });
 
-      proc.stderr?.on('data', (data) => {
+      proc.stderr?.on('data', (data: Buffer) => {
         // Capture stderr for debugging purposes (not currently used)
         data.toString();
       });
 
-      proc.on('close', (code) => {
+      proc.on('close', (code: number | null) => {
         if (code === 0) {
           resolve(content);
         } else {

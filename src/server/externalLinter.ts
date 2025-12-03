@@ -67,7 +67,7 @@ export class ExternalLinterProvider {
     return new Promise((resolve) => {
       const proc = spawn(linterPath, ['--version'], { shell: true });
 
-      proc.on('close', (code) => resolve(code === 0));
+      proc.on('close', (code: number | null) => resolve(code === 0));
       proc.on('error', () => resolve(false));
     });
   }

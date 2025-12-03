@@ -33,8 +33,8 @@ import {
   TextEdit
 } from 'vscode-languageserver/node';
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import * as fs from 'fs';
+import * as path from 'path';
 import { URI } from 'vscode-uri';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
@@ -81,7 +81,6 @@ const clangFormat = new ClangFormatProvider();
 
 // Configuration
 let hasConfigurationCapability = false;
-let _hasWorkspaceFolderCapability = false;
 
 interface Settings {
   protobuf: {
@@ -232,11 +231,10 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
   const capabilities = params.capabilities;
 
   hasConfigurationCapability = !!(capabilities.workspace && !!capabilities.workspace.configuration);
-  _hasWorkspaceFolderCapability = !!(capabilities.workspace && !!capabilities.workspace.workspaceFolders);
 
   // Store workspace folders for scanning
   if (params.workspaceFolders) {
-    workspaceFolders = params.workspaceFolders.map(folder => URI.parse(folder.uri).fsPath);
+    workspaceFolders = params.workspaceFolders.map((folder: { uri: string; name: string }) => URI.parse(folder.uri).fsPath);
   } else if (params.rootUri) {
     workspaceFolders = [URI.parse(params.rootUri).fsPath];
   } else if (params.rootPath) {
@@ -327,7 +325,7 @@ function scanWorkspaceForProtoFiles(): void {
         analyzer.updateFile(uri, file);
       } catch (e) {
         // Ignore parse errors during initial scan
-        console.error(`Failed to parse ${filePath}: ${e}`);
+        connection.console.error(`Failed to parse ${filePath}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
   }
@@ -355,7 +353,7 @@ connection.onDidChangeWatchedFiles((params: DidChangeWatchedFilesParams) => {
   }
 });
 
-connection.onDidChangeConfiguration(change => {
+connection.onDidChangeConfiguration((change: { settings: typeof globalSettings }) => {
   if (hasConfigurationCapability) {
     // Update settings
     globalSettings = change.settings || defaultSettings;
@@ -434,11 +432,11 @@ connection.onDidChangeConfiguration(change => {
 });
 
 // Document events
-documents.onDidChangeContent(change => {
+documents.onDidChangeContent((change: { document: TextDocument }) => {
   validateDocument(change.document);
 });
 
-documents.onDidClose(event => {
+documents.onDidClose((event: { document: TextDocument }) => {
   analyzer.removeFile(event.document.uri);
   connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] });
 });

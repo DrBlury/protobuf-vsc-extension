@@ -492,7 +492,7 @@ export class DiagnosticsProvider {
     }
   }
 
-  private validateImports(uri: string, file: ProtoFile, diagnostics: Diagnostic[]): void {
+  private validateImports(_uri: string, file: ProtoFile, diagnostics: Diagnostic[]): void {
     // Basic import validation - check for empty paths
     for (const imp of file.imports) {
       if (!imp.path || imp.path.trim() === '') {
