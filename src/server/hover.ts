@@ -3,7 +3,7 @@
  */
 
 import { Hover, MarkupContent, MarkupKind, Position } from 'vscode-languageserver/node';
-import { ProtoFile, BUILTIN_TYPES, SymbolKind } from './ast';
+import { BUILTIN_TYPES, SymbolKind, SymbolInfo } from './ast';
 import { SemanticAnalyzer } from './analyzer';
 
 export class HoverProvider {
@@ -16,7 +16,9 @@ export class HoverProvider {
   getHover(uri: string, position: Position, lineText: string): Hover | null {
     // Extract word at position
     const word = this.getWordAtPosition(lineText, position.character);
-    if (!word) return null;
+    if (!word) {
+      return null;
+    }
 
     // Check for built-in types
     if (BUILTIN_TYPES.includes(word)) {
@@ -54,7 +56,9 @@ export class HoverProvider {
       end++;
     }
 
-    if (start === end) return null;
+    if (start === end) {
+      return null;
+    }
     return line.substring(start, end);
   }
 
@@ -89,7 +93,7 @@ export class HoverProvider {
     return { contents: content };
   }
 
-  private getSymbolHover(symbol: any): Hover {
+  private getSymbolHover(symbol: SymbolInfo): Hover {
     const kindLabels: Record<string, string> = {
       [SymbolKind.Message]: 'message',
       [SymbolKind.Enum]: 'enum',

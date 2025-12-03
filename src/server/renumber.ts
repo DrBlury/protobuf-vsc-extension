@@ -8,13 +8,10 @@ import {
   Range,
   CodeAction,
   CodeActionKind,
-  Position,
-  WorkspaceEdit,
-  TextDocumentEdit,
-  OptionalVersionedTextDocumentIdentifier
+  Position
 } from 'vscode-languageserver/node';
 
-import { ProtoFile, MessageDefinition, EnumDefinition } from './ast';
+import { ProtoFile, MessageDefinition, EnumDefinition, FieldDefinition, MapFieldDefinition, EnumValue, Range as AstRange } from './ast';
 import { ProtoParser } from './parser';
 
 export interface RenumberSettings {
@@ -323,13 +320,17 @@ export class RenumberProvider {
     return edits;
   }
 
-  private createFieldNumberEdit(lines: string[], field: any, newNumber: number): TextEdit | null {
+  private createFieldNumberEdit(lines: string[], field: FieldDefinition | MapFieldDefinition, newNumber: number): TextEdit | null {
     const line = lines[field.range.start.line];
-    if (!line) return null;
+    if (!line) {
+      return null;
+    }
 
     // Find the field number pattern: = <number>
     const match = line.match(/=\s*(\d+)/);
-    if (!match) return null;
+    if (!match) {
+      return null;
+    }
 
     const numberStart = line.indexOf(match[1], line.indexOf('='));
     const numberEnd = numberStart + match[1].length;
@@ -343,13 +344,17 @@ export class RenumberProvider {
     };
   }
 
-  private createEnumValueEdit(lines: string[], value: any, newNumber: number): TextEdit | null {
+  private createEnumValueEdit(lines: string[], value: EnumValue, newNumber: number): TextEdit | null {
     const line = lines[value.range.start.line];
-    if (!line) return null;
+    if (!line) {
+      return null;
+    }
 
     // Find the value number pattern: = <number>
-    const match = line.match(/=\s*(-?\d+)/);
-    if (!match) return null;
+    const match = line.match(/=\\s*(-?\\d+)/);
+    if (!match) {
+      return null;
+    }
 
     const numberStart = line.indexOf(match[1], line.indexOf('='));
     const numberEnd = numberStart + match[1].length;
@@ -467,7 +472,7 @@ export class RenumberProvider {
     return null;
   }
 
-  private isPositionInRange(position: Position, range: any): boolean {
+  private isPositionInRange(position: Position, range: AstRange): boolean {
     if (position.line < range.start.line || position.line > range.end.line) {
       return false;
     }

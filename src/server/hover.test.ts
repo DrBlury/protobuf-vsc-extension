@@ -2,6 +2,7 @@
  * Tests for Hover Provider
  */
 
+import { Hover, MarkupContent } from 'vscode-languageserver/node';
 import { ProtoParser } from './parser';
 import { SemanticAnalyzer } from './analyzer';
 import { HoverProvider } from './hover';
@@ -30,10 +31,10 @@ message User {
       const lineText = '  string name = 1;';
       const position = { line: 2, character: 4 };
 
-      const hover = provider.getHover('file:///test.proto', position, lineText);
+      const hover = provider.getHover('file:///test.proto', position, lineText) as Hover;
 
       expect(hover).not.toBeNull();
-      expect((hover as any).contents.value).toContain('string');
+      expect((hover.contents as MarkupContent).value).toContain('string');
     });
 
     it('should return hover for message types', () => {
@@ -55,11 +56,11 @@ message GetUserResponse {
       const lineText = '  User user = 1;';
       const position = { line: 8, character: 3 };
 
-      const hover = provider.getHover('file:///test.proto', position, lineText);
+      const hover = provider.getHover('file:///test.proto', position, lineText) as Hover;
 
       expect(hover).not.toBeNull();
-      expect((hover as any).contents.value).toContain('message');
-      expect((hover as any).contents.value).toContain('User');
+      expect((hover.contents as MarkupContent).value).toContain('message');
+      expect((hover.contents as MarkupContent).value).toContain('User');
     });
 
     it('should return hover for enum types', () => {
@@ -82,10 +83,10 @@ message User {
       const lineText = '  Status status = 1;';
       const position = { line: 9, character: 4 };
 
-      const hover = provider.getHover('file:///test.proto', position, lineText);
+      const hover = provider.getHover('file:///test.proto', position, lineText) as Hover;
 
       expect(hover).not.toBeNull();
-      expect((hover as any).contents.value).toContain('enum');
+      expect((hover.contents as MarkupContent).value).toContain('enum');
     });
 
     it('should return null when not on a type', () => {

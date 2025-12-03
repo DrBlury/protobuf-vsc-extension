@@ -102,7 +102,7 @@ export class CompletionProvider {
     return completions;
   }
 
-  private getKeywordCompletions(context: string): CompletionItem[] {
+  private getKeywordCompletions(_context: string): CompletionItem[] {
     const completions: CompletionItem[] = [];
 
     // Top-level keywords
@@ -200,7 +200,9 @@ export class CompletionProvider {
     for (let i = currentLine; i >= 0; i--) {
       const line = lines[i];
       for (let j = line.length - 1; j >= 0; j--) {
-        if (line[j] === '}') braceCount++;
+        if (line[j] === '}') {
+          braceCount++;
+        }
         if (line[j] === '{') {
           braceCount--;
           if (braceCount < 0) {
@@ -209,7 +211,9 @@ export class CompletionProvider {
           }
         }
       }
-      if (containerStartLine >= 0) break;
+      if (containerStartLine >= 0) {
+        break;
+      }
     }
 
     // Find container end
@@ -217,7 +221,9 @@ export class CompletionProvider {
     for (let i = containerStartLine + 1; i < lines.length; i++) {
       const line = lines[i];
       for (let j = 0; j < line.length; j++) {
-        if (line[j] === '{') braceCount++;
+        if (line[j] === '{') {
+          braceCount++;
+        }
         if (line[j] === '}') {
           braceCount--;
           if (braceCount === 0) {
@@ -226,7 +232,9 @@ export class CompletionProvider {
           }
         }
       }
-      if (containerEndLine >= 0) break;
+      if (containerEndLine >= 0) {
+        break;
+      }
     }
 
     if (containerStartLine < 0) {
@@ -235,7 +243,7 @@ export class CompletionProvider {
 
     // Extract field numbers from lines within this container
     const usedNumbers = new Set<number>();
-    const fieldNumberRegex = /=\s*(\d+)\s*[;\[]/;
+    const fieldNumberRegex = /=\s*(\d+)\s*[;[]/;  // eslint-disable-line no-useless-escape
 
     // Track nested brace level to only get direct children
     let nestedLevel = 0;
@@ -245,8 +253,12 @@ export class CompletionProvider {
 
       // Track brace level
       for (const char of line) {
-        if (char === '{') nestedLevel++;
-        if (char === '}') nestedLevel--;
+        if (char === '{') {
+          nestedLevel++;
+        }
+        if (char === '}') {
+          nestedLevel--;
+        }
       }
 
       // Only collect from direct level (nestedLevel should be 0 after processing the line if it's a direct child)

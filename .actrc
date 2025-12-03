@@ -1,0 +1,14 @@
+# Default platform for act on macOS (Apple Silicon compatible)
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+-P ubuntu-22.04=catthehacker/ubuntu:act-22.04
+-P ubuntu-20.04=catthehacker/ubuntu:act-20.04
+
+# Use medium size images (good balance of size and features)
+# For smaller images, use: catthehacker/ubuntu:act-latest
+# For larger/full images, use: catthehacker/ubuntu:full-latest
+
+# Reuse containers for faster subsequent runs
+--reuse
+
+# Set artifact server path
+--artifact-server-path=/tmp/act-artifacts

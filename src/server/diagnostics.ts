@@ -20,8 +20,7 @@ import {
   MIN_FIELD_NUMBER,
   MAX_FIELD_NUMBER,
   RESERVED_RANGE_START,
-  RESERVED_RANGE_END,
-  ReservedRange
+  RESERVED_RANGE_END
 } from './ast';
 import { SemanticAnalyzer } from './analyzer';
 
@@ -293,7 +292,15 @@ export class DiagnosticsProvider {
 
   private validateMapField(
     uri: string,
-    mapField: any,
+    mapField: {
+      keyType: string;
+      valueType: string;
+      name: string;
+      number: number;
+      range: Range;
+      nameRange: Range;
+      valueTypeRange: Range;
+    },
     containerName: string,
     diagnostics: Diagnostic[],
     reservedNumbers: Set<number>,
@@ -511,7 +518,7 @@ export class DiagnosticsProvider {
     return /^[A-Z][A-Z0-9_]*$/.test(name);
   }
 
-  private toRange(range: any): Range {
+  private toRange(range: { start: { line: number; character: number }; end: { line: number; character: number } }): Range {
     return {
       start: { line: range.start.line, character: range.start.character },
       end: { line: range.end.line, character: range.end.character }

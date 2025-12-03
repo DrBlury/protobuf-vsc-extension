@@ -177,7 +177,7 @@ export class ProtocCompiler {
       .replace(/\$\{workspaceRoot\}/g, this.workspaceRoot)
       .replace(/\$\{workspaceFolder\}/g, this.workspaceRoot)
       .replace(/\$\{env\.(\w+)\}/g, (_, name) => process.env[name] || '')
-      .replace(/\$\{config\.(\w+)\}/g, (_, name) => ''); // Config variables would need VS Code context
+      .replace(/\$\{config\.(\w+)\}/g, () => ''); // Config variables would need VS Code context
   }
 
   private async runProtoc(args: string[], cwd: string): Promise<CompilationResult> {

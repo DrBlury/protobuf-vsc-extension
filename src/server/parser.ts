@@ -23,7 +23,6 @@ import {
   ExtensionsStatement,
   ReservedRange,
   Range,
-  Position,
   FieldOption
 } from './ast';
 
@@ -39,7 +38,7 @@ export class ProtoParser {
   private text = '';
   private lines: string[] = [];
 
-  parse(text: string, uri: string): ProtoFile {
+  parse(text: string, _uri: string): ProtoFile {
     this.text = text;
     this.lines = text.split('\n');
     this.tokens = this.tokenize(text);
@@ -283,7 +282,9 @@ export class ProtoParser {
 
   private parseTopLevel(file: ProtoFile): void {
     const token = this.peek();
-    if (!token) return;
+    if (!token) {
+      return;
+    }
 
     switch (token.value) {
       case 'syntax':
@@ -449,7 +450,9 @@ export class ProtoParser {
 
     while (!this.isAtEnd() && !this.match('punctuation', '}')) {
       const token = this.peek();
-      if (!token) break;
+      if (!token) {
+        break;
+      }
 
       switch (token.value) {
         case 'message':
@@ -607,7 +610,9 @@ export class ProtoParser {
 
     while (!this.isAtEnd() && !this.match('punctuation', '}')) {
       const token = this.peek();
-      if (!token) break;
+      if (!token) {
+        break;
+      }
 
       if (token.value === 'option') {
         this.parseOption(); // Consume but don't store
@@ -641,7 +646,9 @@ export class ProtoParser {
 
     while (!this.isAtEnd() && !this.match('punctuation', '}')) {
       const token = this.peek();
-      if (!token) break;
+      if (!token) {
+        break;
+      }
 
       if (token.value === 'option') {
         enumDef.options.push(this.parseOption());
@@ -693,7 +700,9 @@ export class ProtoParser {
 
     while (!this.isAtEnd() && !this.match('punctuation', '}')) {
       const token = this.peek();
-      if (!token) break;
+      if (!token) {
+        break;
+      }
 
       if (token.value === 'rpc') {
         service.rpcs.push(this.parseRpc());
@@ -784,7 +793,9 @@ export class ProtoParser {
 
     while (!this.isAtEnd() && !this.match('punctuation', '}')) {
       const token = this.peek();
-      if (!token) break;
+      if (!token) {
+        break;
+      }
 
       if (token.type === 'identifier') {
         extend.fields.push(this.parseField());

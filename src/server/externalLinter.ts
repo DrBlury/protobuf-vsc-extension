@@ -6,7 +6,6 @@
 import { spawn } from 'child_process';
 import { Diagnostic, DiagnosticSeverity, Range } from 'vscode-languageserver/node';
 import * as path from 'path';
-import * as fs from 'fs';
 
 export type ExternalLinter = 'buf' | 'protolint' | 'none';
 

@@ -3,8 +3,8 @@
  * Provides go-to-definition functionality
  */
 
-import { Location, Position } from 'vscode-languageserver/node';
-import { ProtoFile, BUILTIN_TYPES } from './ast';
+import { Location, Position, Range } from 'vscode-languageserver/node';
+import { ProtoFile, BUILTIN_TYPES, MessageDefinition } from './ast';
 import { SemanticAnalyzer } from './analyzer';
 import * as path from 'path';
 
@@ -18,7 +18,9 @@ export class DefinitionProvider {
   getDefinition(uri: string, position: Position, lineText: string): Location | Location[] | null {
     // Extract word at position (including dots for fully qualified names)
     const word = this.getWordAtPosition(lineText, position.character);
-    if (!word) return null;
+    if (!word) {
+      return null;
+    }
 
     // Built-in types don't have definitions
     if (BUILTIN_TYPES.includes(word)) {
@@ -40,7 +42,7 @@ export class DefinitionProvider {
     const currentContext = this.findContextAtPosition(file, position);
 
     // Try to resolve the type with various scopes
-    let symbol = this.resolveTypeWithContext(word, uri, packageName, currentContext);
+    const symbol = this.resolveTypeWithContext(word, uri, packageName, currentContext);
 
     if (symbol) {
       return symbol.location;
@@ -60,12 +62,16 @@ export class DefinitionProvider {
   ): { location: Location } | undefined {
     // 1. Try exact match
     let symbol = this.analyzer.resolveType(typeName, uri, packageName);
-    if (symbol) return symbol;
+    if (symbol) {
+      return symbol;
+    }
 
     // 2. If we're inside a message, try resolving relative to that message
     if (currentContext) {
       symbol = this.analyzer.resolveType(typeName, uri, currentContext);
-      if (symbol) return symbol;
+      if (symbol) {
+        return symbol;
+      }
     }
 
     // 3. Try to resolve by searching all accessible symbols
@@ -92,24 +98,30 @@ export class DefinitionProvider {
    * Find the current context (message/enum name) at the given position
    */
   private findContextAtPosition(file: ProtoFile | undefined, position: Position): string | undefined {
-    if (!file) return undefined;
+    if (!file) {
+      return undefined;
+    }
 
     for (const message of file.messages) {
       const context = this.findContextInMessage(message, position, file.package?.name || '');
-      if (context) return context;
+      if (context) {
+        return context;
+      }
     }
 
     return file.package?.name;
   }
 
-  private findContextInMessage(message: any, position: Position, prefix: string): string | undefined {
+  private findContextInMessage(message: MessageDefinition, position: Position, prefix: string): string | undefined {
     const fullName = prefix ? `${prefix}.${message.name}` : message.name;
 
     if (this.isPositionInRange(position, message.range)) {
       // Check nested messages first for more specific context
       for (const nested of message.nestedMessages || []) {
         const nestedContext = this.findContextInMessage(nested, position, fullName);
-        if (nestedContext) return nestedContext;
+        if (nestedContext) {
+          return nestedContext;
+        }
       }
       return fullName;
     }
@@ -117,8 +129,10 @@ export class DefinitionProvider {
     return undefined;
   }
 
-  private isPositionInRange(position: Position, range: any): boolean {
-    if (!range) return false;
+  private isPositionInRange(position: Position, range: Range): boolean {
+    if (!range) {
+      return false;
+    }
     if (position.line < range.start.line || position.line > range.end.line) {
       return false;
     }
@@ -144,7 +158,9 @@ export class DefinitionProvider {
       end++;
     }
 
-    if (start === end) return null;
+    if (start === end) {
+      return null;
+    }
 
     const word = line.substring(start, end);
 
@@ -166,7 +182,7 @@ export class DefinitionProvider {
     }
 
     // Fallback: Try to find the imported file in the workspace
-    for (const [fileUri, _] of this.analyzer.getAllFiles()) {
+    for (const [fileUri] of this.analyzer.getAllFiles()) {
       const normalizedUri = fileUri.replace(/\\/g, '/');
       const normalizedImport = importPath.replace(/\\/g, '/');
 
@@ -187,7 +203,7 @@ export class DefinitionProvider {
     const currentDir = path.dirname(currentUri.replace('file://', ''));
     const resolvedPath = path.resolve(currentDir, importPath);
 
-    for (const [fileUri, _] of this.analyzer.getAllFiles()) {
+    for (const [fileUri] of this.analyzer.getAllFiles()) {
       const normalizedFileUri = fileUri.replace(/\\/g, '/').replace('file://', '');
       const normalizedResolved = resolvedPath.replace(/\\/g, '/');
 

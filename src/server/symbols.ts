@@ -11,11 +11,11 @@ import {
 } from 'vscode-languageserver/node';
 
 import {
-  ProtoFile,
   MessageDefinition,
   EnumDefinition,
   ServiceDefinition,
-  SymbolKind
+  SymbolKind,
+  Range as AstRange
 } from './ast';
 import { SemanticAnalyzer } from './analyzer';
 
@@ -28,7 +28,9 @@ export class SymbolProvider {
 
   getDocumentSymbols(uri: string): DocumentSymbol[] {
     const file = this.analyzer.getFile(uri);
-    if (!file) return [];
+    if (!file) {
+      return [];
+    }
 
     const symbols: DocumentSymbol[] = [];
 
@@ -218,7 +220,7 @@ export class SymbolProvider {
     }
   }
 
-  private toRange(range: any): Range {
+  private toRange(range: AstRange): Range {
     return {
       start: { line: range.start.line, character: range.start.character },
       end: { line: range.end.line, character: range.end.character }

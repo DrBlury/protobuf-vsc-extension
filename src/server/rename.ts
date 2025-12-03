@@ -6,10 +6,9 @@
 import {
   Range,
   Position,
-  TextEdit,
-  WorkspaceEdit
+  TextEdit
 } from 'vscode-languageserver/node';
-import { ProtoFile, SymbolKind, BUILTIN_TYPES, MessageDefinition, EnumDefinition, ServiceDefinition } from './ast';
+import { ProtoFile, BUILTIN_TYPES, MessageDefinition } from './ast';
 import { SemanticAnalyzer } from './analyzer';
 
 export interface RenameResult {
@@ -32,7 +31,9 @@ export class RenameProvider {
     lineText: string
   ): { range: Range; placeholder: string } | null {
     const word = this.getWordAtPosition(lineText, position.character);
-    if (!word) return null;
+    if (!word) {
+      return null;
+    }
 
     // Can't rename built-in types
     if (BUILTIN_TYPES.includes(word.text)) {
@@ -76,7 +77,9 @@ export class RenameProvider {
     };
 
     const word = this.getWordAtPosition(lineText, position.character);
-    if (!word) return result;
+    if (!word) {
+      return result;
+    }
 
     // Validate new name
     if (!this.isValidIdentifier(newName)) {
@@ -125,12 +128,16 @@ export class RenameProvider {
     name: string,
     position: Position
   ): { kind: string; range: Range } | null {
-    if (!file) return null;
+    if (!file) {
+      return null;
+    }
 
     // Search in messages
     for (const message of file.messages) {
       const result = this.findInMessage(message, name, position);
-      if (result) return result;
+      if (result) {
+        return result;
+      }
     }
 
     // Search in enums
@@ -181,7 +188,9 @@ export class RenameProvider {
     // Check nested messages
     for (const nested of message.nestedMessages) {
       const result = this.findInMessage(nested, name, position);
-      if (result) return result;
+      if (result) {
+        return result;
+      }
     }
 
     // Check nested enums
@@ -204,13 +213,15 @@ export class RenameProvider {
     file: ProtoFile | undefined,
     oldName: string,
     newName: string,
-    position: Position
+    _position: Position
   ): RenameResult {
     const result: RenameResult = {
       changes: new Map()
     };
 
-    if (!file) return result;
+    if (!file) {
+      return result;
+    }
 
     // Find all occurrences of this name in the file
     const edits: TextEdit[] = [];
@@ -348,7 +359,9 @@ export class RenameProvider {
       end++;
     }
 
-    if (start === end) return null;
+        if (start === end) {
+      return null;
+    }
 
     return {
       text: line.substring(start, end),

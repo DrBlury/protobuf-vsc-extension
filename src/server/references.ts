@@ -4,7 +4,7 @@
  */
 
 import { Location, Position } from 'vscode-languageserver/node';
-import { ProtoFile, BUILTIN_TYPES } from './ast';
+import { BUILTIN_TYPES } from './ast';
 import { SemanticAnalyzer } from './analyzer';
 
 export class ReferencesProvider {
@@ -22,7 +22,9 @@ export class ReferencesProvider {
   ): Location[] {
     // Extract word at position
     const word = this.getWordAtPosition(lineText, position.character);
-    if (!word) return [];
+    if (!word) {
+      return [];
+    }
 
     // Built-in types don't have references
     if (BUILTIN_TYPES.includes(word)) {
@@ -34,7 +36,9 @@ export class ReferencesProvider {
     const packageName = file?.package?.name || '';
     const symbol = this.analyzer.resolveType(word, uri, packageName);
 
-    if (!symbol) return [];
+        if (!symbol) {
+      return [];
+    }
 
     // Get all references
     const references = this.analyzer.findReferences(symbol.name);
@@ -59,7 +63,9 @@ export class ReferencesProvider {
       end++;
     }
 
-    if (start === end) return null;
+        if (start === end) {
+      return null;
+    }
     return line.substring(start, end);
   }
 }

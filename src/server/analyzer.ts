@@ -8,12 +8,9 @@ import {
   MessageDefinition,
   EnumDefinition,
   ServiceDefinition,
-  FieldDefinition,
-  RpcDefinition,
   SymbolInfo,
   SymbolKind,
   Location,
-  Range,
   BUILTIN_TYPES
 } from './ast';
 import * as path from 'path';
@@ -82,7 +79,9 @@ export class SemanticAnalyzer {
   private resolveImportPath(currentUri: string, importPath: string): string | undefined {
     // Check if already resolved
     const existing = this.workspace.importResolutions.get(importPath);
-    if (existing) return existing;
+    if (existing) {
+      return existing;
+    }
 
     // Try to find the file in workspace
     for (const [fileUri, _] of this.workspace.files) {
@@ -310,7 +309,9 @@ export class SemanticAnalyzer {
   }
 
   private collectAccessibleSymbols(uri: string, symbols: SymbolInfo[], visitedUris: Set<string>): void {
-    if (visitedUris.has(uri)) return;
+    if (visitedUris.has(uri)) {
+      return;
+    }
     visitedUris.add(uri);
 
     // Add symbols from this file
@@ -338,16 +339,19 @@ export class SemanticAnalyzer {
 
     // Try exact match first (fully qualified name)
     let symbol = this.workspace.symbols.get(typeName);
-    if (symbol) return symbol;
+    if (symbol) {
+      return symbol;
+    }
 
     // Get the current file to check its imports
-    const currentFile = this.workspace.files.get(currentUri);
     const importedUris = this.getImportedFileUris(currentUri);
 
     // Try with current package prefix
     if (currentPackage) {
       symbol = this.workspace.symbols.get(`${currentPackage}.${typeName}`);
-      if (symbol) return symbol;
+      if (symbol) {
+        return symbol;
+      }
     }
 
     // Try searching in parent scopes (for nested types)
@@ -355,7 +359,9 @@ export class SemanticAnalyzer {
     while (parts.length > 0) {
       const prefix = parts.join('.');
       symbol = this.workspace.symbols.get(`${prefix}.${typeName}`);
-      if (symbol) return symbol;
+      if (symbol) {
+        return symbol;
+      }
       parts.pop();
     }
 
@@ -368,7 +374,9 @@ export class SemanticAnalyzer {
         // Try with imported package prefix
         if (importedPackage) {
           symbol = this.workspace.symbols.get(`${importedPackage}.${typeName}`);
-          if (symbol) return symbol;
+          if (symbol) {
+            return symbol;
+          }
         }
 
         // Try finding symbol in imported file by simple name
@@ -492,7 +500,7 @@ export class SemanticAnalyzer {
   /**
    * Get completion items for the current context
    */
-  getTypeCompletions(currentUri: string, currentPackage?: string): SymbolInfo[] {
+  getTypeCompletions(currentUri: string, _currentPackage?: string): SymbolInfo[] {
     const completions: SymbolInfo[] = [];
     const seenNames = new Set<string>();
 

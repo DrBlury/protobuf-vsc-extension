@@ -5,7 +5,6 @@
 
 import { Diagnostic, DiagnosticSeverity, Range } from 'vscode-languageserver/node';
 import { ProtoFile, MessageDefinition, EnumDefinition, ServiceDefinition, FieldDefinition, RpcDefinition } from './ast';
-import { SemanticAnalyzer } from './analyzer';
 import { spawn } from 'child_process';
 import * as path from 'path';
 
@@ -90,7 +89,7 @@ export class BreakingChangeDetector {
   detectBreakingChanges(
     currentFile: ProtoFile,
     baselineFile: ProtoFile | null,
-    currentUri: string
+    _currentUri: string
   ): Diagnostic[] {
     if (!this.settings.enabled || !baselineFile) {
       return [];
@@ -128,14 +127,14 @@ export class BreakingChangeDetector {
       });
 
       let content = '';
-      let error = '';
 
       proc.stdout?.on('data', (data) => {
         content += data.toString();
       });
 
       proc.stderr?.on('data', (data) => {
-        error += data.toString();
+        // Capture stderr for debugging purposes (not currently used)
+        data.toString();
       });
 
       proc.on('close', (code) => {

@@ -11,7 +11,7 @@ import {
   TextEdit,
   Position
 } from 'vscode-languageserver/node';
-import { ProtoFile, BUILTIN_TYPES } from './ast';
+import { ProtoFile } from './ast';
 import { SemanticAnalyzer } from './analyzer';
 
 export interface CodeActionContext {
@@ -207,7 +207,9 @@ export class CodeActionsProvider {
     const lines = documentText.split('\n');
     const line = lines[range.start.line];
 
-    if (!line) return actions;
+    if (!line) {
+      return actions;
+    }
 
     // Extract message refactoring
     const messageMatch = line.match(/^\s*(message)\s+(\w+)/);
@@ -282,7 +284,9 @@ export class CodeActionsProvider {
     for (const symbol of matchingSymbols) {
       // Get the file path for import
       const symbolUri = symbol.location.uri;
-      if (symbolUri === uri) continue; // Don't suggest importing from same file
+      if (symbolUri === uri) {
+        continue; // Don't suggest importing from same file
+      }
 
       const fileName = symbolUri.split('/').pop() || symbolUri;
 
@@ -423,7 +427,9 @@ export class CodeActionsProvider {
       }
     }
 
-    if (braceLineIndex < 0) return [];
+    if (braceLineIndex < 0) {
+      return [];
+    }
 
     // Get the enum name for generating the UNKNOWN value name
     const enumMatch = lines[braceLineIndex].match(/enum\s+(\w+)/);
@@ -454,7 +460,9 @@ export class CodeActionsProvider {
     for (let i = range.start.line; i >= 0; i--) {
       const line = lines[i];
       for (let j = line.length - 1; j >= 0; j--) {
-        if (line[j] === '}') braceCount++;
+        if (line[j] === '}') {
+          braceCount++;
+        }
         if (line[j] === '{') {
           braceCount--;
           if (braceCount < 0) {
@@ -463,7 +471,9 @@ export class CodeActionsProvider {
           }
         }
       }
-      if (messageStartLine >= 0) break;
+      if (messageStartLine >= 0) {
+        break;
+      }
     }
 
     // Collect used field numbers in the message
@@ -473,13 +483,17 @@ export class CodeActionsProvider {
 
       // Track nesting
       for (const char of line) {
-        if (char === '{') braceCount++;
-        if (char === '}') braceCount--;
+        if (char === '{') {
+          braceCount++;
+        }
+        if (char === '}') {
+          braceCount--;
+        }
       }
 
       // Only look at direct children (braceCount === 1)
       if (braceCount === 1) {
-        const numberMatch = line.match(/=\s*(\d+)\s*[;\[]/);
+        const numberMatch = line.match(/=\s*(\d+)\s*[;[]/);  // eslint-disable-line no-useless-escape
         if (numberMatch) {
           usedNumbers.add(parseInt(numberMatch[1], 10));
         }
@@ -502,7 +516,9 @@ export class CodeActionsProvider {
   private getWordAtRange(documentText: string, range: Range): string | null {
     const lines = documentText.split('\n');
     const line = lines[range.start.line];
-    if (!line) return null;
+    if (!line) {
+      return null;
+    }
 
     return line.substring(range.start.character, range.end.character);
   }
@@ -514,8 +530,12 @@ export class CodeActionsProvider {
     for (let i = 0; i < lineNumber; i++) {
       const line = lines[i];
       for (const char of line) {
-        if (char === '{') braceCount++;
-        if (char === '}') braceCount--;
+        if (char === '{') {
+          braceCount++;
+        }
+        if (char === '}') {
+          braceCount--;
+        }
       }
     }
 

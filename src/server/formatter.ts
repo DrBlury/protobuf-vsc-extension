@@ -2,7 +2,7 @@
  * Code Formatter for Protocol Buffers
  */
 
-import { TextEdit, Range, Position } from 'vscode-languageserver/node';
+import { TextEdit, Range } from 'vscode-languageserver/node';
 
 export interface FormatterSettings {
   indentSize: number;
@@ -30,12 +30,12 @@ export class ProtoFormatter {
 
   format(text: string): string {
     const lines = text.split('\n');
-    let formattedLines: string[] = [];
+    const formattedLines: string[] = [];
     let indentLevel = 0;
     let inBlockComment = false;
 
     for (let i = 0; i < lines.length; i++) {
-      let line = lines[i];
+      const line = lines[i];
       const trimmedLine = line.trim();
 
       // Handle block comments
@@ -306,7 +306,7 @@ export class ProtoFormatter {
         const fieldMatch = line.match(/^(\s*)((?:optional|required|repeated)\s+)?(.+?)\s+(\w+)\s*=\s*(\d+)(.*?)(;.*)$/);
 
         if (fieldMatch) {
-          const [, indent, modifier, fieldType, fieldName, oldNumber, options, ending] = fieldMatch;
+          const [, indent, modifier, fieldType, fieldName, _oldNumber, options, ending] = fieldMatch;
           const newNumber = currentContext.fieldCounter;
 
           // Skip internal reserved range
@@ -328,7 +328,7 @@ export class ProtoFormatter {
         const mapMatch = line.match(/^(\s*)map\s*<\s*(\w+)\s*,\s*(\S+)\s*>\s+(\w+)\s*=\s*(\d+)(.*?)(;.*)$/);
 
         if (mapMatch) {
-          const [, indent, keyType, valueType, fieldName, oldNumber, options, ending] = mapMatch;
+          const [, indent, keyType, valueType, fieldName, _oldNumber, options, ending] = mapMatch;
           const newNumber = currentContext.fieldCounter;
 
           let finalNumber = newNumber;
@@ -349,7 +349,7 @@ export class ProtoFormatter {
           const enumMatch = line.match(/^(\s*)(\w+)\s*=\s*(-?\d+)(.*?)(;.*)$/);
 
           if (enumMatch && !trimmedLine.startsWith('option')) {
-            const [, indent, valueName, oldNumber, options, ending] = enumMatch;
+            const [, indent, valueName, _oldNumber, options, ending] = enumMatch;
             const newNumber = currentContext.fieldCounter;
 
             line = `${indent}${valueName} = ${newNumber}${options}${ending}`;

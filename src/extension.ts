@@ -374,7 +374,7 @@ export function activate(context: vscode.ExtensionContext) {
       try {
         const result = await client.sendRequest('protobuf/runExternalLinter', {
           uri: editor.document.uri.toString()
-        }) as { success: boolean; diagnostics?: any[]; error?: string };
+        }) as { success: boolean; diagnostics?: unknown[]; error?: string };
 
         if (result.success) {
           const count = result.diagnostics?.length || 0;

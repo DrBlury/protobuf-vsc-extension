@@ -2,6 +2,7 @@
  * Tests for Definition Provider
  */
 
+import { Location } from 'vscode-languageserver/node';
 import { ProtoParser } from './parser';
 import { SemanticAnalyzer } from './analyzer';
 import { DefinitionProvider } from './definition';
@@ -37,11 +38,11 @@ message GetUserResponse {
       const lineText = '  User user = 1;';
       const position = { line: 8, character: 3 };
 
-      const def = provider.getDefinition('file:///test.proto', position, lineText);
+      const def = provider.getDefinition('file:///test.proto', position, lineText) as Location;
 
       expect(def).not.toBeNull();
-      expect((def as any).uri).toBe('file:///test.proto');
-      expect((def as any).range.start.line).toBe(3); // Line where "message User" is defined
+      expect(def.uri).toBe('file:///test.proto');
+      expect(def.range.start.line).toBe(3); // Line where "message User" is defined
     });
 
     it('should return null for builtin types', () => {
@@ -80,10 +81,10 @@ message User {
       const lineText = '  Status status = 1;';
       const position = { line: 9, character: 4 };
 
-      const def = provider.getDefinition('file:///test.proto', position, lineText);
+      const def = provider.getDefinition('file:///test.proto', position, lineText) as Location;
 
       expect(def).not.toBeNull();
-      expect((def as any).range.start.line).toBe(3); // Line where "enum Status" is defined
+      expect(def.range.start.line).toBe(3); // Line where "enum Status" is defined
     });
 
     it('should find definition in RPC input type', () => {
@@ -109,10 +110,10 @@ service UserService {
       const lineText = '  rpc GetUser(GetUserRequest) returns (GetUserResponse);';
       const position = { line: 12, character: 16 };
 
-      const def = provider.getDefinition('file:///test.proto', position, lineText);
+      const def = provider.getDefinition('file:///test.proto', position, lineText) as Location;
 
       expect(def).not.toBeNull();
-      expect((def as any).range.start.line).toBe(3);
+      expect(def.range.start.line).toBe(3);
     });
 
     it('should find definition in RPC output type', () => {
@@ -138,10 +139,10 @@ service UserService {
       const lineText = '  rpc GetUser(GetUserRequest) returns (GetUserResponse);';
       const position = { line: 12, character: 42 };
 
-      const def = provider.getDefinition('file:///test.proto', position, lineText);
+      const def = provider.getDefinition('file:///test.proto', position, lineText) as Location;
 
       expect(def).not.toBeNull();
-      expect((def as any).range.start.line).toBe(7);
+      expect(def.range.start.line).toBe(7);
     });
 
     it('should find definition across files', () => {
@@ -169,10 +170,10 @@ message User {
       const lineText = '  Timestamp created_at = 1;';
       const position = { line: 5, character: 4 };
 
-      const def = provider.getDefinition('file:///user.proto', position, lineText);
+      const def = provider.getDefinition('file:///user.proto', position, lineText) as Location;
 
       expect(def).not.toBeNull();
-      expect((def as any).uri).toBe('file:///common.proto');
+      expect(def.uri).toBe('file:///common.proto');
     });
 
     it('should find definition of nested message', () => {
@@ -192,10 +193,10 @@ message Outer {
       const lineText = '  Inner inner = 1;';
       const position = { line: 7, character: 4 };
 
-      const def = provider.getDefinition('file:///test.proto', position, lineText);
+      const def = provider.getDefinition('file:///test.proto', position, lineText) as Location;
 
       expect(def).not.toBeNull();
-      expect((def as any).range.start.line).toBe(4); // Line where Inner is defined
+      expect(def.range.start.line).toBe(4); // Line where Inner is defined
     });
 
     it('should handle fully qualified type names', () => {
@@ -214,10 +215,10 @@ message Container {
       const lineText = '  test.v1.User user = 1;';
       const position = { line: 6, character: 10 };
 
-      const def = provider.getDefinition('file:///test.proto', position, lineText);
+      const def = provider.getDefinition('file:///test.proto', position, lineText) as Location;
 
       expect(def).not.toBeNull();
-      expect((def as any).range.start.line).toBe(3);
+      expect(def.range.start.line).toBe(3);
     });
 
     it('should return null for unknown types', () => {
@@ -256,11 +257,11 @@ message User {}`;
       const lineText = 'import "common.proto";';
       const position = { line: 1, character: 10 };
 
-      const def = provider.getDefinition('file:///main.proto', position, lineText);
+      const def = provider.getDefinition('file:///main.proto', position, lineText) as Location;
 
       // Should navigate to the imported file
       expect(def).not.toBeNull();
-      expect((def as any).uri).toBe('file:///common.proto');
+      expect(def.uri).toBe('file:///common.proto');
     });
 
     it('should handle repeated field types', () => {
@@ -279,10 +280,10 @@ message UserList {
       const lineText = '  repeated User users = 1;';
       const position = { line: 6, character: 12 };
 
-      const def = provider.getDefinition('file:///test.proto', position, lineText);
+      const def = provider.getDefinition('file:///test.proto', position, lineText) as Location;
 
       expect(def).not.toBeNull();
-      expect((def as any).range.start.line).toBe(3);
+      expect(def.range.start.line).toBe(3);
     });
 
     it('should handle map value types', () => {
@@ -302,10 +303,10 @@ message Container {
       const lineText = '  map<string, Value> items = 1;';
       const position = { line: 6, character: 15 }; // On "Value"
 
-      const def = provider.getDefinition('file:///test.proto', position, lineText);
+      const def = provider.getDefinition('file:///test.proto', position, lineText) as Location;
 
       expect(def).not.toBeNull();
-      expect((def as any).range.start.line).toBe(3);
+      expect(def.range.start.line).toBe(3);
     });
 
     it('should find definition of fully qualified imported type', () => {
@@ -335,11 +336,11 @@ message Order {
       const lineText = '  common.v1.Money total = 1;';
       const position = { line: 5, character: 12 };
 
-      const def = provider.getDefinition('file:///order.proto', position, lineText);
+      const def = provider.getDefinition('file:///order.proto', position, lineText) as Location;
 
       expect(def).not.toBeNull();
-      expect((def as any).uri).toBe('file:///common.proto');
-      expect((def as any).range.start.line).toBe(3); // Line where Money is defined
+      expect(def.uri).toBe('file:///common.proto');
+      expect(def.range.start.line).toBe(3); // Line where Money is defined
     });
 
     it('should find definition when clicking on package part of qualified name', () => {
@@ -368,11 +369,11 @@ message Order {
       const lineText = '  common.v1.Money total = 1;';
       const position = { line: 5, character: 4 };
 
-      const def = provider.getDefinition('file:///order.proto', position, lineText);
+      const def = provider.getDefinition('file:///order.proto', position, lineText) as Location;
 
       // Should still resolve the full qualified name
       expect(def).not.toBeNull();
-      expect((def as any).uri).toBe('file:///common.proto');
+      expect(def.uri).toBe('file:///common.proto');
     });
 
     it('should find definition for imported type without package prefix', () => {
@@ -403,10 +404,10 @@ message Order {
       const lineText = '  Date created = 1;';
       const position = { line: 5, character: 4 };
 
-      const def = provider.getDefinition('file:///order.proto', position, lineText);
+      const def = provider.getDefinition('file:///order.proto', position, lineText) as Location;
 
       expect(def).not.toBeNull();
-      expect((def as any).uri).toBe('file:///common.proto');
+      expect(def.uri).toBe('file:///common.proto');
     });
   });
 });

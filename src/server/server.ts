@@ -29,19 +29,20 @@ import {
   RenameParams,
   PrepareRenameParams,
   CodeActionParams,
-  CodeAction
+  CodeAction,
+  TextEdit
 } from 'vscode-languageserver/node';
 
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { URI } from 'vscode-uri';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
 import { ProtoParser } from './parser';
 import { SemanticAnalyzer } from './analyzer';
-import { DiagnosticsProvider, DiagnosticsSettings } from './diagnostics';
-import { ProtoFormatter, FormatterSettings } from './formatter';
+import { DiagnosticsProvider } from './diagnostics';
+import { ProtoFormatter } from './formatter';
 import { CompletionProvider } from './completion';
 import { HoverProvider } from './hover';
 import { DefinitionProvider } from './definition';
@@ -54,6 +55,7 @@ import { ProtocCompiler } from './protoc';
 import { BreakingChangeDetector } from './breaking';
 import { ExternalLinterProvider } from './externalLinter';
 import { ClangFormatProvider } from './clangFormat';
+import { MessageDefinition, EnumDefinition, Range as AstRange } from './ast';
 
 // Create connection and document manager
 const connection = createConnection(ProposedFeatures.all);
@@ -79,7 +81,7 @@ const clangFormat = new ClangFormatProvider();
 
 // Configuration
 let hasConfigurationCapability = false;
-let hasWorkspaceFolderCapability = false;
+let _hasWorkspaceFolderCapability = false;
 
 interface Settings {
   protobuf: {
@@ -229,12 +231,8 @@ let workspaceFolders: string[] = [];
 connection.onInitialize((params: InitializeParams): InitializeResult => {
   const capabilities = params.capabilities;
 
-  hasConfigurationCapability = !!(
-    capabilities.workspace && !!capabilities.workspace.configuration
-  );
-  hasWorkspaceFolderCapability = !!(
-    capabilities.workspace && !!capabilities.workspace.workspaceFolders
-  );
+  hasConfigurationCapability = !!(capabilities.workspace && !!capabilities.workspace.configuration);
+  _hasWorkspaceFolderCapability = !!(capabilities.workspace && !!capabilities.workspace.workspaceFolders);
 
   // Store workspace folders for scanning
   if (params.workspaceFolders) {
@@ -479,7 +477,9 @@ async function validateDocument(document: TextDocument): Promise<void> {
 // Completion
 connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] => {
   const document = documents.get(params.textDocument.uri);
-  if (!document) return [];
+  if (!document) {
+    return [];
+  }
 
   const documentText = document.getText();
   const lines = documentText.split('\n');
@@ -497,7 +497,9 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] =
 // Hover
 connection.onHover((params: HoverParams) => {
   const document = documents.get(params.textDocument.uri);
-  if (!document) return null;
+  if (!document) {
+    return null;
+  }
 
   const lines = document.getText().split('\n');
   const lineText = lines[params.position.line] || '';
@@ -512,7 +514,9 @@ connection.onHover((params: HoverParams) => {
 // Definition
 connection.onDefinition((params: DefinitionParams) => {
   const document = documents.get(params.textDocument.uri);
-  if (!document) return null;
+  if (!document) {
+    return null;
+  }
 
   const lines = document.getText().split('\n');
   const lineText = lines[params.position.line] || '';
@@ -527,7 +531,9 @@ connection.onDefinition((params: DefinitionParams) => {
 // References
 connection.onReferences((params: ReferenceParams) => {
   const document = documents.get(params.textDocument.uri);
-  if (!document) return [];
+  if (!document) {
+    return [];
+  }
 
   const lines = document.getText().split('\n');
   const lineText = lines[params.position.line] || '';
@@ -557,7 +563,9 @@ connection.onDocumentFormatting((params: DocumentFormattingParams) => {
   }
 
   const document = documents.get(params.textDocument.uri);
-  if (!document) return [];
+  if (!document) {
+    return [];
+  }
 
   return formatter.formatDocument(document.getText());
 });
@@ -568,7 +576,9 @@ connection.onDocumentRangeFormatting((params: DocumentRangeFormattingParams) => 
   }
 
   const document = documents.get(params.textDocument.uri);
-  if (!document) return [];
+  if (!document) {
+    return [];
+  }
 
   return formatter.formatRange(document.getText(), params.range);
 });
@@ -576,7 +586,9 @@ connection.onDocumentRangeFormatting((params: DocumentRangeFormattingParams) => 
 // Folding Ranges
 connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
   const document = documents.get(params.textDocument.uri);
-  if (!document) return [];
+  if (!document) {
+    return [];
+  }
 
   const text = document.getText();
   const lines = text.split('\n');
@@ -628,40 +640,50 @@ connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
 // Custom request handlers for renumbering
 connection.onRequest('protobuf/renumberDocument', (params: { uri: string }) => {
   const document = documents.get(params.uri);
-  if (!document) return [];
+  if (!document) {
+    return [];
+  }
 
   return renumberProvider.renumberDocument(document.getText(), params.uri);
 });
 
 connection.onRequest('protobuf/renumberMessage', (params: { uri: string; messageName: string }) => {
   const document = documents.get(params.uri);
-  if (!document) return [];
+  if (!document) {
+    return [];
+  }
 
   return renumberProvider.renumberMessage(document.getText(), params.uri, params.messageName);
 });
 
 connection.onRequest('protobuf/renumberFromPosition', (params: { uri: string; position: { line: number; character: number } }) => {
   const document = documents.get(params.uri);
-  if (!document) return [];
+  if (!document) {
+    return [];
+  }
 
   return renumberProvider.renumberFromField(document.getText(), params.uri, params.position);
 });
 
 connection.onRequest('protobuf/renumberEnum', (params: { uri: string; enumName: string }) => {
   const document = documents.get(params.uri);
-  if (!document) return [];
+  if (!document) {
+    return [];
+  }
 
   return renumberProvider.renumberEnum(document.getText(), params.uri, params.enumName);
 });
 
 connection.onRequest('protobuf/getMessages', (params: { uri: string }) => {
   const document = documents.get(params.uri);
-  if (!document) return [];
+  if (!document) {
+    return [];
+  }
 
   const file = parser.parse(document.getText(), params.uri);
   const messages: string[] = [];
 
-  function collectMessages(msgs: any[], prefix: string = '') {
+  function collectMessages(msgs: MessageDefinition[], prefix: string = '') {
     for (const msg of msgs) {
       const fullName = prefix ? `${prefix}.${msg.name}` : msg.name;
       messages.push(fullName);
@@ -677,19 +699,21 @@ connection.onRequest('protobuf/getMessages', (params: { uri: string }) => {
 
 connection.onRequest('protobuf/getEnums', (params: { uri: string }) => {
   const document = documents.get(params.uri);
-  if (!document) return [];
+  if (!document) {
+    return [];
+  }
 
   const file = parser.parse(document.getText(), params.uri);
   const enums: string[] = [];
 
-  function collectEnums(enumList: any[], prefix: string = '') {
+  function collectEnums(enumList: EnumDefinition[], prefix: string = '') {
     for (const e of enumList) {
       const fullName = prefix ? `${prefix}.${e.name}` : e.name;
       enums.push(fullName);
     }
   }
 
-  function collectFromMessages(msgs: any[], prefix: string = '') {
+  function collectFromMessages(msgs: MessageDefinition[], prefix: string = '') {
     for (const msg of msgs) {
       const fullName = prefix ? `${prefix}.${msg.name}` : msg.name;
       if (msg.nestedEnums) {
@@ -708,18 +732,22 @@ connection.onRequest('protobuf/getEnums', (params: { uri: string }) => {
 
 connection.onRequest('protobuf/getMessageAtPosition', (params: { uri: string; position: { line: number; character: number } }) => {
   const document = documents.get(params.uri);
-  if (!document) return null;
+  if (!document) {
+    return null;
+  }
 
   const file = parser.parse(document.getText(), params.uri);
 
-  function findMessageAtPosition(msgs: any[], prefix: string = ''): string | null {
+  function findMessageAtPosition(msgs: MessageDefinition[], prefix: string = ''): string | null {
     for (const msg of msgs) {
       const fullName = prefix ? `${prefix}.${msg.name}` : msg.name;
       if (isPositionInRange(params.position, msg.range)) {
         // Check nested messages first
         if (msg.nestedMessages) {
           const nested = findMessageAtPosition(msg.nestedMessages, fullName);
-          if (nested) return nested;
+          if (nested) {
+            return nested;
+          }
         }
         return fullName;
       }
@@ -727,10 +755,16 @@ connection.onRequest('protobuf/getMessageAtPosition', (params: { uri: string; po
     return null;
   }
 
-  function isPositionInRange(pos: { line: number; character: number }, range: any): boolean {
-    if (pos.line < range.start.line || pos.line > range.end.line) return false;
-    if (pos.line === range.start.line && pos.character < range.start.character) return false;
-    if (pos.line === range.end.line && pos.character > range.end.character) return false;
+  function isPositionInRange(pos: { line: number; character: number }, range: AstRange): boolean {
+    if (pos.line < range.start.line || pos.line > range.end.line) {
+      return false;
+    }
+    if (pos.line === range.start.line && pos.character < range.start.character) {
+      return false;
+    }
+    if (pos.line === range.end.line && pos.character > range.end.character) {
+      return false;
+    }
     return true;
   }
 
@@ -739,7 +773,9 @@ connection.onRequest('protobuf/getMessageAtPosition', (params: { uri: string; po
 
 connection.onRequest('protobuf/getNextFieldNumber', (params: { uri: string; messageName: string }) => {
   const document = documents.get(params.uri);
-  if (!document) return 1;
+  if (!document) {
+    return 1;
+  }
 
   return renumberProvider.getNextFieldNumber(document.getText(), params.uri, params.messageName);
 });
@@ -747,7 +783,9 @@ connection.onRequest('protobuf/getNextFieldNumber', (params: { uri: string; mess
 // Rename - Prepare
 connection.onPrepareRename((params: PrepareRenameParams) => {
   const document = documents.get(params.textDocument.uri);
-  if (!document) return null;
+  if (!document) {
+    return null;
+  }
 
   const lines = document.getText().split('\n');
   const lineText = lines[params.position.line] || '';
@@ -758,7 +796,9 @@ connection.onPrepareRename((params: PrepareRenameParams) => {
     lineText
   );
 
-  if (!result) return null;
+  if (!result) {
+    return null;
+  }
 
   // Adjust range to correct line
   return {
@@ -773,7 +813,9 @@ connection.onPrepareRename((params: PrepareRenameParams) => {
 // Rename - Execute
 connection.onRenameRequest((params: RenameParams) => {
   const document = documents.get(params.textDocument.uri);
-  if (!document) return null;
+  if (!document) {
+    return null;
+  }
 
   const lines = document.getText().split('\n');
   const lineText = lines[params.position.line] || '';
@@ -785,10 +827,12 @@ connection.onRenameRequest((params: RenameParams) => {
     params.newName
   );
 
-  if (result.changes.size === 0) return null;
+  if (result.changes.size === 0) {
+    return null;
+  }
 
   // Convert to WorkspaceEdit format
-  const changes: { [uri: string]: any[] } = {};
+  const changes: { [uri: string]: TextEdit[] } = {};
   for (const [uri, edits] of result.changes) {
     changes[uri] = edits;
   }
@@ -799,7 +843,9 @@ connection.onRenameRequest((params: RenameParams) => {
 // Code Actions
 connection.onCodeAction((params: CodeActionParams): CodeAction[] => {
   const document = documents.get(params.textDocument.uri);
-  if (!document) return [];
+  if (!document) {
+    return [];
+  }
 
   return codeActionsProvider.getCodeActions(
     params.textDocument.uri,
@@ -858,7 +904,9 @@ connection.onRequest('protobuf/getAvailableLintRules', async () => {
 // Custom request handlers for breaking change detection
 connection.onRequest('protobuf/checkBreakingChanges', async (params: { uri: string }) => {
   const document = documents.get(params.uri);
-  if (!document) return [];
+  if (!document) {
+    return [];
+  }
 
   const filePath = URI.parse(params.uri).fsPath;
   const currentFile = parser.parse(document.getText(), params.uri);
