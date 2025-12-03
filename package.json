@@ -11,12 +11,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/DrBlury/protobuf-vsc"
+    "url": "https://github.com/DrBlury/protobuf-vsc-extension"
   },
   "bugs": {
-    "url": "https://github.com/DrBlury/protobuf-vsc/issues"
+    "url": "https://github.com/DrBlury/protobuf-vsc-extension/issues"
   },
-  "homepage": "https://github.com/DrBlury/protobuf-vsc#readme",
+  "homepage": "https://github.com/DrBlury/protobuf-vsc-extension#readme",
   "icon": "logo.png",
   "galleryBanner": {
     "color": "#1e1e1e",
@@ -30,6 +30,10 @@
     "Linters",
     "Formatters",
     "Snippets"
+  ],
+  "activationEvents": [
+    "onLanguage:proto",
+    "onLanguage:textproto"
   ],
   "keywords": [
     "protobuf",

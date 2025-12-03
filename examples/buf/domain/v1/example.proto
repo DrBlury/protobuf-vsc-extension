@@ -10,9 +10,9 @@ import "domain/v1/date.proto";
 message ExampleRecord {
   string record_id = 1;
   string title = 2;
-  string description = 3;
-  ExampleMeta meta = 4;
-  repeated string tags = 5;
+  string description = 4;
+  ExampleMeta meta = 6;
+  repeated string tags = 7;
 }
 
 // ExampleMeta groups together additional sample fields.
