@@ -1,6 +1,7 @@
 /**
  * Definition Provider for Protocol Buffers
  * Provides go-to-definition functionality
+ * Supports both standard protobuf and buf-style imports
  */
 
 import { Location, Position, Range } from 'vscode-languageserver/node';
@@ -27,7 +28,7 @@ export class DefinitionProvider {
       return null;
     }
 
-    // Check if this is an import statement
+    // Check if this is an import statement - navigate to the imported file
     const importMatch = lineText.match(/import\s+(weak|public)?\s*"([^"]+)"/);
     if (importMatch) {
       const importPath = importMatch[2];
@@ -53,6 +54,7 @@ export class DefinitionProvider {
 
   /**
    * Resolve type reference considering the current context
+   * Tries multiple resolution strategies to handle different import styles
    */
   private resolveTypeWithContext(
     typeName: string,
@@ -60,7 +62,7 @@ export class DefinitionProvider {
     packageName: string,
     currentContext?: string
   ): { location: Location } | undefined {
-    // 1. Try exact match
+    // 1. Try exact match using the analyzer's resolveType
     let symbol = this.analyzer.resolveType(typeName, uri, packageName);
     if (symbol) {
       return symbol;
@@ -74,7 +76,16 @@ export class DefinitionProvider {
       }
     }
 
-    // 3. Try to resolve by searching all accessible symbols
+    // 3. For fully qualified names starting with a dot, strip the dot and try again
+    if (typeName.startsWith('.')) {
+      const strippedName = typeName.substring(1);
+      symbol = this.analyzer.resolveType(strippedName, uri, packageName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    // 4. Try to resolve by searching all accessible symbols
     const allSymbols = this.analyzer.getAllSymbols();
 
     // Try simple name match
@@ -84,9 +95,17 @@ export class DefinitionProvider {
       }
     }
 
-    // Try suffix match for qualified names
+    // Try suffix match for qualified names (handles both "pkg.Type" and "Type" queries)
     for (const sym of allSymbols) {
       if (sym.fullName.endsWith(`.${typeName}`) || sym.fullName === typeName) {
+        return sym;
+      }
+    }
+
+    // 5. Handle the case where typeName might be a partial qualified name
+    // e.g., "v1.Date" when the full name is "domain.v1.Date"
+    for (const sym of allSymbols) {
+      if (sym.fullName.includes(`.${typeName}`) || sym.fullName.endsWith(typeName)) {
         return sym;
       }
     }
@@ -145,11 +164,15 @@ export class DefinitionProvider {
     return true;
   }
 
+  /**
+   * Extract the word at the given position, including dots for fully qualified names
+   */
   private getWordAtPosition(line: string, character: number): string | null {
     let start = character;
     let end = character;
 
     // Include dots for fully qualified names like "google.protobuf.Timestamp"
+    // Also include leading dot for absolute references like ".google.protobuf.Timestamp"
     while (start > 0 && /[a-zA-Z0-9_.]/.test(line[start - 1])) {
       start--;
     }
@@ -164,10 +187,17 @@ export class DefinitionProvider {
 
     const word = line.substring(start, end);
 
-    // Remove leading/trailing dots
-    return word.replace(/^\.+|\.+$/g, '');
+    // Remove trailing dots but keep leading dots (they're significant in protobuf)
+    return word.replace(/\.+$/g, '');
   }
 
+  /**
+   * Resolve an import path to a file location
+   * Supports multiple import styles:
+   * - Relative: "./file.proto", "../dir/file.proto"
+   * - Absolute from proto root: "domain/v1/file.proto" (buf style)
+   * - Google well-known types: "google/protobuf/timestamp.proto"
+   */
   private resolveImportLocation(currentUri: string, importPath: string): Location | null {
     // First, try using the analyzer's import resolution
     const resolvedUri = this.analyzer.resolveImportToUri(currentUri, importPath);
@@ -181,14 +211,27 @@ export class DefinitionProvider {
       };
     }
 
-    // Fallback: Try to find the imported file in the workspace
+    const normalizedImport = importPath.replace(/\\/g, '/');
+
+    // Fallback: Try to find the imported file in the workspace using multiple strategies
     for (const [fileUri] of this.analyzer.getAllFiles()) {
       const normalizedUri = fileUri.replace(/\\/g, '/');
-      const normalizedImport = importPath.replace(/\\/g, '/');
 
-      if (normalizedUri.endsWith(normalizedImport) ||
-          normalizedUri.endsWith('/' + normalizedImport) ||
-          normalizedUri.includes(normalizedImport)) {
+      // Strategy 1: Direct suffix match
+      if (normalizedUri.endsWith('/' + normalizedImport) ||
+          normalizedUri.endsWith(normalizedImport)) {
+        return {
+          uri: fileUri,
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 0 }
+          }
+        };
+      }
+
+      // Strategy 2: Check if URI contains the import path at a directory boundary
+      const uriPath = normalizedUri.replace('file://', '');
+      if (uriPath.includes('/' + normalizedImport)) {
         return {
           uri: fileUri,
           range: {
@@ -199,16 +242,15 @@ export class DefinitionProvider {
       }
     }
 
-    // Try relative path resolution
-    const currentDir = path.dirname(currentUri.replace('file://', ''));
-    const resolvedPath = path.resolve(currentDir, importPath);
+    // Strategy 3: Try relative path resolution from current file
+    const currentPath = currentUri.replace('file://', '').replace(/\\/g, '/');
+    const currentDir = path.dirname(currentPath);
+    const resolvedPath = path.resolve(currentDir, normalizedImport).replace(/\\/g, '/');
 
     for (const [fileUri] of this.analyzer.getAllFiles()) {
       const normalizedFileUri = fileUri.replace(/\\/g, '/').replace('file://', '');
-      const normalizedResolved = resolvedPath.replace(/\\/g, '/');
 
-      if (normalizedFileUri === normalizedResolved ||
-          normalizedFileUri.endsWith(normalizedResolved)) {
+      if (normalizedFileUri === resolvedPath) {
         return {
           uri: fileUri,
           range: {
@@ -216,6 +258,23 @@ export class DefinitionProvider {
             end: { line: 0, character: 0 }
           }
         };
+      }
+    }
+
+    // Strategy 4: Filename-only match for simple imports
+    const importFileName = path.basename(normalizedImport);
+    if (!normalizedImport.includes('/')) {
+      for (const [fileUri] of this.analyzer.getAllFiles()) {
+        const uriFileName = path.basename(fileUri);
+        if (uriFileName === importFileName) {
+          return {
+            uri: fileUri,
+            range: {
+              start: { line: 0, character: 0 },
+              end: { line: 0, character: 0 }
+            }
+          };
+        }
       }
     }
 

@@ -246,6 +246,7 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
     protocCompiler.setWorkspaceRoot(workspaceFolders[0]);
     breakingChangeDetector.setWorkspaceRoot(workspaceFolders[0]);
     externalLinter.setWorkspaceRoot(workspaceFolders[0]);
+    analyzer.setWorkspaceRoots(workspaceFolders);
   }
 
   return {

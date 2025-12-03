@@ -1,6 +1,7 @@
 /**
  * Semantic Analyzer for Protocol Buffers
  * Provides symbol resolution and cross-file analysis
+ * Supports both standard protobuf and buf-style imports
  */
 
 import {
@@ -34,12 +35,21 @@ export class SemanticAnalyzer {
     importResolutions: new Map()
   };
 
-  // Configured import paths to search for proto files
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // Configured import paths to search for proto files (e.g., from protobuf.includes setting)
   private importPaths: string[] = [];
+
+  // Workspace roots (from VS Code workspace folders)
+  private workspaceRoots: string[] = [];
+
+  // Detected proto roots (directories containing buf.yaml, buf.work.yaml, or being common ancestors)
+  private protoRoots: Set<string> = new Set();
 
   setImportPaths(paths: string[]): void {
     this.importPaths = paths;
+  }
+
+  setWorkspaceRoots(roots: string[]): void {
+    this.workspaceRoots = roots.map(r => r.replace(/\\/g, '/'));
   }
 
   updateFile(uri: string, file: ProtoFile): void {
@@ -58,6 +68,9 @@ export class SemanticAnalyzer {
       this.resolveImportPath(uri, importPath);
     }
 
+    // Re-resolve any unresolved imports from other files that might now match this new file
+    this.resolveUnresolvedImports(uri);
+
     // Extract symbols
     const packageName = file.package?.name || '';
 
@@ -75,7 +88,69 @@ export class SemanticAnalyzer {
   }
 
   /**
+   * When a new file is added, check if it resolves any pending imports from other files
+   */
+  private resolveUnresolvedImports(newFileUri: string): void {
+    const normalizedNewUri = this.normalizeUri(newFileUri);
+
+    // Check all files' imports to see if any can now be resolved to this new file
+    for (const [fileUri, importPaths] of this.workspace.imports) {
+      if (fileUri === newFileUri) continue;
+
+      for (const importPath of importPaths) {
+        // Skip if already resolved
+        if (this.workspace.importResolutions.has(importPath)) {
+          continue;
+        }
+
+        // Try to match this import to the new file
+        if (this.doesFileMatchImport(normalizedNewUri, importPath)) {
+          this.workspace.importResolutions.set(importPath, newFileUri);
+        }
+      }
+    }
+  }
+
+  /**
+   * Normalize a URI for consistent comparison
+   */
+  private normalizeUri(uri: string): string {
+    return uri.replace(/\\/g, '/');
+  }
+
+  /**
+   * Check if a file URI matches an import path
+   * Supports multiple import styles:
+   * - Relative: "date.proto", "../common/date.proto"
+   * - Absolute from proto root: "domain/v1/date.proto" (buf style)
+   * - Google well-known types: "google/protobuf/timestamp.proto"
+   */
+  private doesFileMatchImport(normalizedUri: string, importPath: string): boolean {
+    const normalizedImport = importPath.replace(/\\/g, '/');
+
+    // Direct suffix match (most common case)
+    if (normalizedUri.endsWith('/' + normalizedImport) ||
+        normalizedUri.endsWith(normalizedImport)) {
+      return true;
+    }
+
+    // Filename-only match for simple imports like "date.proto"
+    const importFileName = path.basename(normalizedImport);
+    const uriFileName = path.basename(normalizedUri);
+    if (importFileName === uriFileName && !normalizedImport.includes('/')) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
    * Resolve an import path to a workspace file URI
+   * Handles multiple import conventions:
+   * 1. Relative imports: "./file.proto", "../dir/file.proto"
+   * 2. Absolute imports from proto root: "domain/v1/file.proto" (buf style)
+   * 3. Package-based imports: "google/protobuf/timestamp.proto"
+   * 4. Simple filename imports: "file.proto"
    */
   private resolveImportPath(currentUri: string, importPath: string): string | undefined {
     // Check if already resolved
@@ -84,37 +159,69 @@ export class SemanticAnalyzer {
       return existing;
     }
 
-    // Try to find the file in workspace
-    for (const [fileUri, _] of this.workspace.files) {
-      // Check if the file URI ends with the import path
-      const normalizedUri = fileUri.replace(/\\/g, '/');
-      const normalizedImport = importPath.replace(/\\/g, '/');
+    const normalizedImport = importPath.replace(/\\/g, '/');
 
-      if (normalizedUri.endsWith(normalizedImport) ||
-          normalizedUri.endsWith('/' + normalizedImport)) {
-        this.workspace.importResolutions.set(importPath, fileUri);
-        return fileUri;
-      }
+    // Strategy 1: Direct path matching (works for buf-style and absolute imports)
+    for (const [fileUri] of this.workspace.files) {
+      const normalizedUri = this.normalizeUri(fileUri);
 
-      // Check by filename only
-      const fileName = path.basename(normalizedImport);
-      const uriFileName = path.basename(normalizedUri);
-      if (fileName === uriFileName) {
+      if (this.doesFileMatchImport(normalizedUri, importPath)) {
         this.workspace.importResolutions.set(importPath, fileUri);
         return fileUri;
       }
     }
 
-    // Try relative path from current file
-    const currentDir = path.dirname(currentUri.replace('file://', ''));
-    const resolvedPath = path.resolve(currentDir, importPath);
+    // Strategy 2: Relative path from current file
+    const currentPath = currentUri.replace('file://', '').replace(/\\/g, '/');
+    const currentDir = path.dirname(currentPath);
+    const resolvedPath = path.resolve(currentDir, normalizedImport).replace(/\\/g, '/');
     const resolvedUri = 'file://' + resolvedPath;
 
-    for (const [fileUri, _] of this.workspace.files) {
-      const normalizedFileUri = fileUri.replace(/\\/g, '/');
-      const normalizedResolved = resolvedUri.replace(/\\/g, '/');
+    for (const [fileUri] of this.workspace.files) {
+      const normalizedFileUri = this.normalizeUri(fileUri);
+      if (normalizedFileUri === resolvedUri) {
+        this.workspace.importResolutions.set(importPath, fileUri);
+        return fileUri;
+      }
+    }
 
-      if (normalizedFileUri === normalizedResolved) {
+    // Strategy 3: Search in configured import paths
+    for (const importRoot of this.importPaths) {
+      const searchPath = path.join(importRoot, normalizedImport).replace(/\\/g, '/');
+      const searchUri = 'file://' + searchPath;
+
+      for (const [fileUri] of this.workspace.files) {
+        const normalizedFileUri = this.normalizeUri(fileUri);
+        if (normalizedFileUri === searchUri || normalizedFileUri.endsWith(searchPath)) {
+          this.workspace.importResolutions.set(importPath, fileUri);
+          return fileUri;
+        }
+      }
+    }
+
+    // Strategy 4: Search in workspace roots (for buf-style imports like "domain/v1/file.proto")
+    for (const workspaceRoot of this.workspaceRoots) {
+      const searchPath = path.join(workspaceRoot, normalizedImport).replace(/\\/g, '/');
+      const searchUri = 'file://' + searchPath;
+
+      for (const [fileUri] of this.workspace.files) {
+        const normalizedFileUri = this.normalizeUri(fileUri);
+        if (normalizedFileUri === searchUri || normalizedFileUri.endsWith('/' + searchPath)) {
+          this.workspace.importResolutions.set(importPath, fileUri);
+          return fileUri;
+        }
+      }
+    }
+
+    // Strategy 5: Try to find by matching the import path as a suffix at any directory level
+    // This handles cases where the proto root isn't at the workspace root
+    for (const [fileUri] of this.workspace.files) {
+      const normalizedUri = this.normalizeUri(fileUri);
+      const uriPath = normalizedUri.replace('file://', '');
+
+      // Check if the file path contains the import path at a directory boundary
+      const importPathWithSlash = '/' + normalizedImport;
+      if (uriPath.includes(importPathWithSlash)) {
         this.workspace.importResolutions.set(importPath, fileUri);
         return fileUri;
       }
@@ -123,10 +230,43 @@ export class SemanticAnalyzer {
     return undefined;
   }
 
+  /**
+   * Detect proto roots from workspace files
+   * Proto roots are directories that serve as the base for absolute imports
+   */
+  detectProtoRoots(): void {
+    // Find common parent directories that could be proto roots
+    const allPaths: string[] = [];
+    for (const [fileUri] of this.workspace.files) {
+      const filePath = fileUri.replace('file://', '').replace(/\\/g, '/');
+      allPaths.push(path.dirname(filePath));
+    }
+
+    // Add unique parent directories as potential proto roots
+    const seen = new Set<string>();
+    for (const p of allPaths) {
+      let current = p;
+      while (current && current !== '/' && current !== '.') {
+        if (!seen.has(current)) {
+          seen.add(current);
+          this.protoRoots.add(current);
+        }
+        current = path.dirname(current);
+      }
+    }
+  }
+
   removeFile(uri: string): void {
     this.removeFileSymbols(uri);
     this.workspace.files.delete(uri);
     this.workspace.imports.delete(uri);
+
+    // Clean up import resolutions that pointed to this file
+    for (const [importPath, resolvedUri] of this.workspace.importResolutions) {
+      if (resolvedUri === uri) {
+        this.workspace.importResolutions.delete(importPath);
+      }
+    }
   }
 
   private removeFileSymbols(uri: string): void {

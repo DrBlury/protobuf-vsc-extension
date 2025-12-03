@@ -14,7 +14,7 @@ import {
 
 let client: LanguageClient;
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   // Server module path
   const serverModule = context.asAbsolutePath(path.join('out', 'server', 'server.js'));
 
@@ -53,8 +53,46 @@ export function activate(context: vscode.ExtensionContext) {
     clientOptions
   );
 
-  // Start the client (also starts the server)
-  client.start();
+  // Start the client (also starts the server) and wait for it to be ready
+  await client.start();
+  console.log('Protobuf Language Server started successfully');
+
+  // Register debug command to test definition
+  context.subscriptions.push(
+    vscode.commands.registerCommand('protobuf.debugDefinition', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor || editor.document.languageId !== 'proto') {
+        vscode.window.showWarningMessage('Please open a .proto file first');
+        return;
+      }
+
+      const position = editor.selection.active;
+      const line = editor.document.lineAt(position.line).text;
+
+      vscode.window.showInformationMessage(
+        `Debug: Line ${position.line}, Char ${position.character}, Text: "${line}"`
+      );
+
+      // Try to trigger go to definition
+      try {
+        const definitions = await vscode.commands.executeCommand<vscode.Location[]>(
+          'vscode.executeDefinitionProvider',
+          editor.document.uri,
+          position
+        );
+
+        if (definitions && definitions.length > 0) {
+          vscode.window.showInformationMessage(
+            `Found ${definitions.length} definition(s): ${definitions.map(d => d.uri.fsPath + ':' + d.range.start.line).join(', ')}`
+          );
+        } else {
+          vscode.window.showWarningMessage('No definitions found');
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(`Error: ${error}`);
+      }
+    })
+  );
 
   // Register format command
   context.subscriptions.push(

@@ -2,7 +2,7 @@
   "name": "protobuf-vsc",
   "displayName": "Protobuf VSC",
   "description": "Comprehensive Protocol Buffers support for VS Code with syntax highlighting, IntelliSense, diagnostics, formatting, protoc compilation, breaking change detection, and more",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "DrBlury",
   "author": {
     "name": "Julian Bensch",
@@ -388,6 +388,11 @@
       }
     },
     "commands": [
+      {
+        "command": "protobuf.debugDefinition",
+        "title": "Debug: Test Definition Provider",
+        "category": "Protobuf"
+      },
       {
         "command": "protobuf.formatDocument",
         "title": "Format Document",

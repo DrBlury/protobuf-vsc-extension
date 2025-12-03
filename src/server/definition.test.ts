@@ -409,5 +409,76 @@ message Order {
       expect(def).not.toBeNull();
       expect(def.uri).toBe('file:///common.proto');
     });
+
+    it('should find definition with buf-style imports (domain/v1/file.proto)', () => {
+      // Simulating buf-style imports where the import path includes directory structure
+      const dateContent = `syntax = "proto3";
+package domain.v1;
+
+message Date {
+  int32 year = 1;
+  int32 month = 2;
+  int32 day = 3;
+}`;
+
+      const exampleContent = `syntax = "proto3";
+package domain.v1;
+import "domain/v1/date.proto";
+
+message ExampleMeta {
+  string requested_by = 1;
+  Date desired_start_date = 2;
+}`;
+
+      // Files have paths like /workspace/buf/domain/v1/date.proto
+      const dateFile = parser.parse(dateContent, 'file:///workspace/buf/domain/v1/date.proto');
+      const exampleFile = parser.parse(exampleContent, 'file:///workspace/buf/domain/v1/example.proto');
+
+      // Add files in the order that would cause issues (importing file first)
+      analyzer.updateFile('file:///workspace/buf/domain/v1/example.proto', exampleFile);
+      analyzer.updateFile('file:///workspace/buf/domain/v1/date.proto', dateFile);
+
+      // Position on "Date"
+      const lineText = '  Date desired_start_date = 2;';
+      const position = { line: 5, character: 3 };
+
+      const def = provider.getDefinition('file:///workspace/buf/domain/v1/example.proto', position, lineText) as Location;
+
+      expect(def).not.toBeNull();
+      expect(def.uri).toBe('file:///workspace/buf/domain/v1/date.proto');
+    });
+
+    it('should resolve import when imported file is added after importing file', () => {
+      const commonContent = `syntax = "proto3";
+package common;
+message Data { string value = 1; }`;
+
+      const mainContent = `syntax = "proto3";
+import "common.proto";
+message Container { Data data = 1; }`;
+
+      const mainFile = parser.parse(mainContent, 'file:///main.proto');
+      const commonFile = parser.parse(commonContent, 'file:///common.proto');
+
+      // Add main.proto first (has the import)
+      analyzer.updateFile('file:///main.proto', mainFile);
+
+      // At this point, import cannot be resolved
+      expect(analyzer.getImportedFileUris('file:///main.proto')).toEqual([]);
+
+      // Now add common.proto
+      analyzer.updateFile('file:///common.proto', commonFile);
+
+      // Import should now be resolved
+      expect(analyzer.getImportedFileUris('file:///main.proto')).toEqual(['file:///common.proto']);
+
+      // Definition should work
+      const lineText = 'message Container { Data data = 1; }';
+      const position = { line: 2, character: 21 };
+      const def = provider.getDefinition('file:///main.proto', position, lineText) as Location;
+
+      expect(def).not.toBeNull();
+      expect(def.uri).toBe('file:///common.proto');
+    });
   });
 });
