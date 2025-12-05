@@ -119,27 +119,27 @@ export class SchemaGraphPanel {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Protobuf Schema Graph</title>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600&display=swap');
       :root {
-        --bg-1: #0f172a;
-        --bg-2: #111827;
-        --panel: #0b1220;
-        --border: #1f2937;
-        --text: #e5e7eb;
+        --bg-1: #0c1021;
+        --bg-2: #0f172a;
+        --panel: #0d1324;
+        --border: #1e293b;
+        --text: #e2e8f0;
         --muted: #94a3b8;
-        --accent: #38bdf8;
-        --accent-2: #f59e0b;
-        --surface: rgba(255, 255, 255, 0.04);
+        --accent: #7dd3fc;
+        --accent-2: #fbbf24;
+        --surface: rgba(255, 255, 255, 0.08);
+        --row-odd: rgba(255, 255, 255, 0.10);
+        --row-even: rgba(255, 255, 255, 0.07);
       }
 
       body {
         margin: 0;
         padding: 0;
-        font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+        font-family: 'Sora', 'Segoe UI', sans-serif;
         color: var(--text);
-        background: radial-gradient(circle at 20% 20%, #0b3b5a 0%, transparent 25%),
-                    radial-gradient(circle at 80% 0%, #2d1b69 0%, transparent 20%),
-                    linear-gradient(135deg, var(--bg-1), var(--bg-2));
+        background: linear-gradient(135deg, var(--bg-1), var(--bg-2));
         height: 100vh;
         display: flex;
         flex-direction: column;
@@ -183,9 +183,7 @@ export class SchemaGraphPanel {
         transform: translateY(-1px);
       }
 
-      button.refresh {
-        background: linear-gradient(120deg, rgba(56, 189, 248, 0.12), rgba(245, 158, 11, 0.12));
-      }
+      button.refresh { background: linear-gradient(120deg, rgba(125, 211, 252, 0.18), rgba(251, 191, 36, 0.18)); }
 
       #graph-container {
         position: relative;
@@ -201,7 +199,7 @@ export class SchemaGraphPanel {
         position: absolute;
         bottom: 12px;
         right: 12px;
-        background: rgba(12, 20, 34, 0.85);
+        background: rgba(13, 19, 36, 0.9);
         border: 1px solid var(--border);
         border-radius: 10px;
         padding: 10px 12px;
@@ -209,6 +207,7 @@ export class SchemaGraphPanel {
         color: var(--muted);
         display: grid;
         gap: 6px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
       }
 
       .legend-row {
@@ -255,6 +254,7 @@ export class SchemaGraphPanel {
     </div>
 
     <script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+    <script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/elkjs@0.9.0/lib/elk.bundled.js"></script>
     <script nonce="${nonce}">
       const vscode = acquireVsCodeApi();
       let sourceUri = ${JSON.stringify(graph.sourceUri || '')};
@@ -266,6 +266,10 @@ export class SchemaGraphPanel {
       if (typeof d3 === 'undefined') {
         setStatus('Failed to load d3 – check CSP or network.', true);
         throw new Error('d3 failed to load');
+      }
+      if (typeof ELK === 'undefined') {
+        setStatus('Failed to load ELK – check CSP or network.', true);
+        throw new Error('elk failed to load');
       }
 
       scopeSelect.value = graphData.scope || 'workspace';
@@ -313,10 +317,13 @@ export class SchemaGraphPanel {
 
       svg.call(zoomBehavior);
 
-      function render(data) {
+      const elk = new ELK();
+
+      async function render(data) {
         const nodes = (data.nodes || [])
           .filter(n => n && n.id)
           .map(n => ({ ...n, _w: 0, _h: 0 }));
+        const nodeMap = new Map(nodes.map(n => [n.id, n]));
 
         const nodeIds = new Set(nodes.map(n => n.id));
 
@@ -332,23 +339,101 @@ export class SchemaGraphPanel {
           setStatus(nodes.length + ' nodes, ' + links.length + ' links');
         }
 
+        const rowHeight = 18;
+        const fieldIndex = new Map();
+
         nodes.forEach(n => {
           const lines = [n.label];
           if (Array.isArray(n.fields)) {
-            for (const f of n.fields) {
+            const map = new Map();
+            for (const [i, f] of n.fields.entries()) {
               const flags = [];
               if (f.repeated) flags.push('repeated');
               if (f.optional) flags.push('optional');
-              const suffix = flags.length ? ' [' + flags.join(', ') + ']' : '';
-              lines.push(f.name + ': ' + f.type + suffix);
+              const suffix = flags.length ? ' · ' + flags.join(', ') : '';
+              lines.push(f.name + ' · ' + f.type + suffix);
+              map.set(f.name, i);
+              const tail = f.name.split('.').pop();
+              if (tail) map.set(tail, i);
             }
+            fieldIndex.set(n.id, map);
           }
-          const longest = lines.reduce((m, line) => Math.max(m, line.length), 8);
-          const width = Math.min(Math.max(longest * 7 + 28, 160), 320);
+          const longest = lines.reduce((m, line) => Math.max(m, line.length), 10);
+          const width = Math.min(Math.max(longest * 7 + 36, 200), 360);
           const fieldRows = n.fields ? n.fields.length : 0;
-          const height = 32 + fieldRows * 16 + 12;
+          const height = 38 + fieldRows * rowHeight + 14;
           n._w = width;
           n._h = height;
+        });
+
+        const elkGraph = {
+          id: 'root',
+          layoutOptions: {
+            'elk.algorithm': 'layered',
+            'elk.direction': 'RIGHT',
+            'elk.edgeRouting': 'ORTHOGONAL',
+            'elk.layered.spacing.nodeNodeBetweenLayers': '80',
+            'elk.spacing.nodeNode': '40',
+            'elk.spacing.edgeEdge': '18',
+            'elk.portConstraints': 'FIXED_POS'
+          },
+          children: nodes.map(n => {
+            const ports = [];
+            const fields = Array.isArray(n.fields) ? n.fields : [];
+            fields.forEach((f, i) => {
+              ports.push({
+                id: n.id + ':field:' + i,
+                x: n._w,
+                y: 32 + i * rowHeight + rowHeight / 2,
+                properties: {
+                  'elk.port.side': 'E',
+                  fieldName: f.name,
+                  fieldIndex: String(i)
+                }
+              });
+            });
+            // default inbound port on the left
+            ports.push({
+              id: n.id + ':in',
+              x: 0,
+              y: n._h / 2,
+              properties: { 'elk.port.side': 'W' }
+            });
+            return { id: n.id, width: n._w, height: n._h, ports };
+          }),
+          edges: links.map((e, idx) => {
+            const srcMap = fieldIndex.get(e.from);
+            const srcIdx = srcMap && (srcMap.get(e.label) ?? srcMap.get((e.label || '').split('.').pop()));
+            const sourcePort = srcIdx != null ? (e.from + ':field:' + srcIdx) : (e.from + ':in');
+            const targetPort = e.to + ':in';
+            return {
+              id: e.label + '-' + idx,
+              sources: [sourcePort],
+              targets: [targetPort]
+            };
+          })
+        };
+
+        let layout;
+        try {
+          layout = await elk.layout(elkGraph);
+        } catch (err) {
+          console.error('ELK layout failed', err);
+          setStatus('Layout failed: ' + (err?.message || err), true);
+          return;
+        }
+
+        // Prepare lookup tables for positioned nodes/ports
+        const nodePos = new Map();
+        const portPos = new Map();
+        (layout.children || []).forEach(child => {
+          nodePos.set(child.id, child);
+          (child.ports || []).forEach(p => {
+            portPos.set(child.id + ':' + p.id.split(':').slice(1).join(':'), {
+              x: (child.x || 0) + (p.x || 0),
+              y: (child.y || 0) + (p.y || 0)
+            });
+          });
         });
 
         const simulation = d3.forceSimulation(nodes)
@@ -357,136 +442,205 @@ export class SchemaGraphPanel {
           .force('center', d3.forceCenter(width() / 2, height() / 2))
           .force('collision', d3.forceCollide().radius(d => Math.max(d._w, d._h) / 2 + 18));
 
-        const link = linkGroup.selectAll('line').data(links, d => d.from + '-' + d.to + '-' + d.label);
+        const link = linkGroup.selectAll('path').data(layout.edges || [], d => d.id);
         link.exit().remove();
-        const linkEnter = link.enter().append('line').attr('stroke-width', 1.1).attr('stroke-dasharray', d => d.kind === 'nested' ? '3 3' : '');
+        const linkEnter = link.enter().append('path')
+          .attr('fill', 'none')
+          .attr('stroke-width', 1.15)
+          .attr('stroke-dasharray', d => d.kind === 'nested' ? '3 3' : '')
+          .attr('stroke-linecap', 'round');
         const linkMerged = linkEnter.merge(link);
 
-        const linkLabels = linkLabelGroup.selectAll('text').data(links, d => d.from + '-' + d.to + '-' + d.label);
+        const linkLabels = linkLabelGroup.selectAll('text').data(layout.edges || [], d => d.id);
         linkLabels.exit().remove();
-        const linkLabelEnter = linkLabels.enter().append('text').attr('text-anchor', 'middle').attr('dy', -4).text(d => decorateLabel(d));
+        const linkLabelEnter = linkLabels.enter().append('text')
+          .attr('text-anchor', 'middle')
+          .attr('dy', -4)
+          .attr('fill', '#cbd5e1')
+          .attr('font-size', 10)
+          .attr('opacity', 0.9)
+          .text(d => decorateFlags(d));
         const linkLabelMerged = linkLabelEnter.merge(linkLabels);
 
-        const node = nodeGroup.selectAll('g').data(nodes, d => d.id);
+        const node = nodeGroup.selectAll('g').data(layout.children || [], d => d.id);
         node.exit().remove();
-        const nodeEnter = node.enter().append('g').attr('class', 'node').call(d3.drag()
-          .on('start', dragstarted)
-          .on('drag', dragged)
-          .on('end', dragended));
+        const nodeEnter = node.enter().append('g').attr('class', 'node');
 
         nodeEnter.append('rect')
           .attr('class', 'node-box')
-          .attr('rx', 8)
-          .attr('ry', 8)
-          .attr('stroke', 'rgba(15, 23, 42, 0.9)')
-          .attr('stroke-width', 1.25);
+          .attr('rx', 6)
+          .attr('ry', 6)
+          .attr('stroke', 'rgba(226, 232, 240, 0.22)')
+          .attr('stroke-width', 1.1)
+          .attr('fill', '#0d1628')
+          .attr('filter', 'drop-shadow(0 10px 25px rgba(0,0,0,0.35))');
+
+        nodeEnter.append('rect')
+          .attr('class', 'node-header')
+          .attr('rx', 6)
+          .attr('ry', 6);
 
         nodeEnter.append('text')
           .attr('class', 'node-title')
           .attr('text-anchor', 'start')
           .attr('font-size', 12)
           .attr('font-weight', 600)
-          .attr('fill', '#0b1220');
+          .attr('fill', '#e2e8f0');
+
+        nodeEnter.append('text')
+          .attr('class', 'node-package')
+          .attr('text-anchor', 'start')
+          .attr('font-size', 10)
+          .attr('fill', '#cbd5e1');
 
         nodeEnter.append('g').attr('class', 'fields');
 
         const nodeMerged = nodeEnter.merge(node);
 
         nodeMerged.select('rect')
-          .attr('width', d => d._w)
-          .attr('height', d => d._h)
-          .attr('x', d => -d._w / 2)
-          .attr('y', d => -d._h / 2)
-          .attr('fill', d => d.kind === 'enum' ? 'rgba(245, 158, 11, 0.22)' : 'rgba(56, 189, 248, 0.18)');
+          .attr('width', d => d.width)
+          .attr('height', d => d.height)
+          .attr('x', d => -d.width / 2)
+          .attr('y', d => -d.height / 2)
+          .attr('fill', d => {
+            const original = nodeMap.get(d.id);
+            return original?.kind === 'enum' ? 'rgba(251, 191, 36, 0.08)' : 'rgba(125, 211, 252, 0.09)';
+          });
+
+        nodeMerged.select('.node-header')
+          .attr('width', d => d.width)
+          .attr('height', 28)
+          .attr('x', d => -d.width / 2)
+          .attr('y', d => -d.height / 2)
+          .attr('fill', d => {
+            const original = nodeMap.get(d.id);
+            return original?.kind === 'enum' ? 'rgba(251, 191, 36, 0.2)' : 'rgba(125, 211, 252, 0.25)';
+          });
 
         nodeMerged.select('.node-title')
-          .attr('x', d => -d._w / 2 + 10)
-          .attr('y', d => -d._h / 2 + 16)
-          .text(d => d.label + (d.package ? ' · ' + d.package : ''));
+          .attr('x', d => -d.width / 2 + 10)
+          .attr('y', d => -d.height / 2 + 17)
+          .text(d => nodeMap.get(d.id)?.label || d.id);
+
+        nodeMerged.select('.node-package')
+          .attr('x', d => -d.width / 2 + 10)
+          .attr('y', d => -d.height / 2 + 28)
+          .text(d => nodeMap.get(d.id)?.package || '');
 
         nodeMerged.select('.fields').each(function(nodeDatum) {
+          const original = nodeMap.get(nodeDatum.id) || { fields: [] };
           const group = d3.select(this);
-          const rows = group.selectAll('text').data(nodeDatum.fields || []);
+          const rows = group.selectAll('g.field-row').data(original.fields || []);
           rows.exit().remove();
-          const rowsEnter = rows.enter().append('text')
-            .attr('text-anchor', 'start')
-            .attr('font-size', 11)
-            .attr('fill', '#e5e7eb');
 
-          rowsEnter.merge(rows)
-            .attr('x', -nodeDatum._w / 2 + 10)
-            .attr('y', (_d, i) => -nodeDatum._h / 2 + 32 + i * 16)
+          const rowsEnter = rows.enter().append('g').attr('class', 'field-row');
+          rowsEnter.append('rect').attr('class', 'field-bg');
+          rowsEnter.append('text').attr('class', 'field-name').attr('font-weight', 500);
+          rowsEnter.append('text').attr('class', 'field-type').attr('text-anchor', 'end');
+
+          const merged = rowsEnter.merge(rows);
+
+          merged.select('.field-bg')
+            .attr('x', -nodeDatum.width / 2)
+            .attr('y', (_d, i) => -nodeDatum.height / 2 + 32 + i * rowHeight)
+            .attr('width', nodeDatum.width)
+            .attr('height', rowHeight)
+            .attr('fill', (_d, i) => i % 2 === 0 ? 'var(--row-odd)' : 'var(--row-even)');
+
+          merged.select('.field-name')
+            .attr('x', -nodeDatum.width / 2 + 12)
+            .attr('y', (_d, i) => -nodeDatum.height / 2 + 32 + i * rowHeight + 12)
+            .attr('font-size', 12)
+            .attr('fill', '#e7ecf4')
             .text(f => {
               const flags = [];
               if (f.repeated) flags.push('repeated');
               if (f.optional) flags.push('optional');
-              const suffix = flags.length ? ' [' + flags.join(', ') + ']' : '';
-              return f.name + ': ' + f.type + suffix;
+              const suffix = flags.length ? ' · ' + flags.join(', ') : '';
+              return f.name + suffix;
             });
+
+          merged.select('.field-type')
+            .attr('x', nodeDatum.width / 2 - 12)
+            .attr('y', (_d, i) => -nodeDatum.height / 2 + 32 + i * rowHeight + 12)
+            .attr('font-size', 11)
+            .attr('fill', '#cfd6e4')
+            .text(f => f.type);
         });
 
-        simulation.on('tick', () => {
-          linkMerged
-            .attr('x1', d => d.source.x)
-            .attr('y1', d => d.source.y)
-            .attr('x2', d => d.target.x)
-            .attr('y2', d => d.target.y);
-
-          linkLabelMerged
-            .attr('x', d => (d.source.x + d.target.x) / 2)
-            .attr('y', d => (d.source.y + d.target.y) / 2);
-
-          nodeMerged.attr('transform', d => 'translate(' + d.x + ',' + d.y + ')');
-        });
-
-        simulation.on('end', () => {
-          // Auto-zoom to fit contents after layout settles
-          const xs = nodes.map(n => n.x || 0);
-          const ys = nodes.map(n => n.y || 0);
-          if (!xs.length || !ys.length) {
-            return;
+        function fieldAnchor(node, edgeLabel, isSource) {
+          if (!node || !node._w || !node._h) {
+            return { x: node?.x || 0, y: node?.y || 0 };
           }
-          const minX = Math.min(...xs);
-          const maxX = Math.max(...xs);
-          const minY = Math.min(...ys);
-          const maxY = Math.max(...ys);
-          const padding = 60;
-          const w = width();
-          const h = height();
-          const bboxWidth = Math.max(1, maxX - minX + padding * 2);
-          const bboxHeight = Math.max(1, maxY - minY + padding * 2);
-          const scale = Math.min(w / bboxWidth, h / bboxHeight, 2);
-          const tx = w / 2 - (minX + maxX) / 2 * scale;
-          const ty = h / 2 - (minY + maxY) / 2 * scale;
-          const transform = d3.zoomIdentity.translate(tx, ty).scale(scale);
-          svg.transition().duration(300).call(zoomBehavior.transform, transform);
+          const fields = Array.isArray(node.fields) ? node.fields : [];
+          const labelTail = edgeLabel.split('.').pop() || edgeLabel;
+          const map = fieldIndex.get(node.id);
+          const matchIdx = map && map.has(edgeLabel)
+            ? map.get(edgeLabel)
+            : map && map.has(labelTail)
+              ? map.get(labelTail)
+              : fields.findIndex(f => f.name === edgeLabel || edgeLabel.endsWith('.' + f.name) || labelTail === f.name.split('.').pop());
+          if (matchIdx === -1) {
+            return { x: node.x || 0, y: node.y || 0 };
+          }
+          const baseY = (node.y || 0) - node._h / 2 + 32 + matchIdx * rowHeight + rowHeight / 2;
+          const x = (node.x || 0) + (isSource ? -node._w / 2 : node._w / 2);
+          return { x, y: baseY };
+        }
+
+        linkMerged.attr('d', d => {
+          if (!d.sections || !d.sections.length) return '';
+          const sec = d.sections[0];
+          const points = [sec.startPoint, ...(sec.bendPoints || []), sec.endPoint];
+          return points.reduce((path, p, i) => path + (i === 0 ? 'M' : ' L') + p.x + ' ' + p.y, '');
         });
 
-        function dragstarted(event, d) {
-          if (!event.active) simulation.alphaTarget(0.3).restart();
-          d.fx = d.x;
-          d.fy = d.y;
-        }
+        linkLabelMerged
+          .attr('x', d => {
+            if (!d.sections || !d.sections.length) return 0;
+            const sec = d.sections[0];
+            const pts = [sec.startPoint, ...(sec.bendPoints || []), sec.endPoint];
+            const mid = Math.floor(pts.length / 2);
+            const a = pts[mid - 1] || pts[0];
+            const b = pts[mid] || pts[pts.length - 1];
+            return (a.x + b.x) / 2;
+          })
+          .attr('y', d => {
+            if (!d.sections || !d.sections.length) return 0;
+            const sec = d.sections[0];
+            const pts = [sec.startPoint, ...(sec.bendPoints || []), sec.endPoint];
+            const mid = Math.floor(pts.length / 2);
+            const a = pts[mid - 1] || pts[0];
+            const b = pts[mid] || pts[pts.length - 1];
+            return (a.y + b.y) / 2 - 4;
+          })
+          .text(d => decorateFlags(d))
+          .attr('opacity', d => decorateFlags(d) ? 0.9 : 0);
 
-        function dragged(event, d) {
-          d.fx = event.x;
-          d.fy = event.y;
-        }
+        nodeMerged.attr('transform', d => {
+          const cx = (d.x || 0) + d.width / 2;
+          const cy = (d.y || 0) + d.height / 2;
+          return 'translate(' + cx + ',' + cy + ')';
+        });
 
-        function dragended(event, d) {
-          if (!event.active) simulation.alphaTarget(0);
-          d.fx = null;
-          d.fy = null;
+        // Fit viewBox to content
+        const xs = (layout.children || []).map(n => (n.x || 0)).concat((layout.children || []).map(n => (n.x || 0) + n.width));
+        const ys = (layout.children || []).map(n => (n.y || 0)).concat((layout.children || []).map(n => (n.y || 0) + n.height));
+        if (xs.length && ys.length) {
+          const minX = Math.min(...xs) - 40;
+          const maxX = Math.max(...xs) + 40;
+          const minY = Math.min(...ys) - 40;
+          const maxY = Math.max(...ys) + 40;
+          svg.attr('viewBox', [minX, minY, (maxX - minX), (maxY - minY)].join(' '));
         }
       }
 
-      function decorateLabel(edge) {
+      function decorateFlags(edge) {
         const flags = [];
+        if (edge.kind === 'map') flags.push('map');
         if (edge.repeated) flags.push('repeated');
         if (edge.optional) flags.push('optional');
-        if (edge.kind === 'map') flags.push('map');
-        if (edge.kind === 'nested') return 'nested';
-        return flags.length ? edge.label + ' [' + flags.join(', ') + ']' : edge.label;
+        return flags.join(' · ');
       }
 
       render(graphData);
