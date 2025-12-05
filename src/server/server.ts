@@ -35,6 +35,7 @@ import {
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { pathToFileURL } from 'url';
 import { URI } from 'vscode-uri';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
@@ -56,6 +57,7 @@ import { BreakingChangeDetector } from './breaking';
 import { ExternalLinterProvider } from './externalLinter';
 import { ClangFormatProvider } from './clangFormat';
 import { MessageDefinition, EnumDefinition, Range as AstRange } from './ast';
+import { GOOGLE_WELL_KNOWN_FILES, GOOGLE_WELL_KNOWN_PROTOS } from './googleWellKnown';
 
 // Create connection and document manager
 const connection = createConnection(ProposedFeatures.all);
@@ -90,6 +92,17 @@ const clangFormat = new ClangFormatProvider();
 
 // Configuration
 let hasConfigurationCapability = false;
+let wellKnownCacheDir: string | undefined;
+
+// Try to find real well-known proto includes (protoc install) so navigation
+// can open the actual files; fall back to bundled stubs if not found.
+const wellKnownIncludePath = discoverWellKnownIncludePath();
+
+// Initialization options from client will set wellKnownCacheDir later; we still
+// seed import paths with discovered include early.
+if (wellKnownIncludePath) {
+  analyzer.setImportPaths([wellKnownIncludePath]);
+}
 
 interface Settings {
   protobuf: {
@@ -241,6 +254,12 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
 
   hasConfigurationCapability = !!(capabilities.workspace && !!capabilities.workspace.configuration);
 
+  // Capture cache path from client initialization options
+  const initOpts = params.initializationOptions as { wellKnownCachePath?: string } | undefined;
+  if (initOpts?.wellKnownCachePath) {
+    wellKnownCacheDir = initOpts.wellKnownCachePath;
+  }
+
   // Store workspace folders for scanning
   if (params.workspaceFolders) {
     workspaceFolders = params.workspaceFolders.map((folder: { uri: string; name: string }) => URI.parse(folder.uri).fsPath);
@@ -257,6 +276,22 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
     externalLinter.setWorkspaceRoot(workspaceFolders[0]);
     analyzer.setWorkspaceRoots(workspaceFolders);
   }
+
+  // If cache dir is available, add it to import paths so built-in files can be resolved
+  const importPaths: string[] = [];
+  if (wellKnownIncludePath) {
+    importPaths.push(wellKnownIncludePath);
+  }
+  if (wellKnownCacheDir) {
+    importPaths.push(wellKnownCacheDir);
+  }
+  if (importPaths.length > 0) {
+    analyzer.setImportPaths(importPaths);
+  }
+
+  // Preload Google well-known protos after we know cache/include paths so
+  // go-to-definition uses real file URIs where possible.
+  preloadGoogleWellKnownProtos(wellKnownIncludePath);
 
   return {
     capabilities: {
@@ -348,6 +383,93 @@ function scanWorkspaceForProtoFiles(): void {
   analyzer.detectProtoRoots();
 }
 
+/**
+ * Add minimal built-in definitions for Google well-known protos.
+ * This avoids "Unknown type google.protobuf.*" when users import them
+ * without having the source files in their workspace.
+ */
+function preloadGoogleWellKnownProtos(discoveredIncludePath?: string): void {
+  const resourcesRoot = path.join(__dirname, '..', '..', 'resources');
+
+  for (const [importPath, fallbackContent] of Object.entries(GOOGLE_WELL_KNOWN_PROTOS)) {
+    const relativePath = GOOGLE_WELL_KNOWN_FILES[importPath];
+
+    // Order: discovered include path (user/system protoc), bundled resource, inline fallback
+    const fromDiscovered = discoveredIncludePath
+      ? path.join(discoveredIncludePath, importPath)
+      : undefined;
+    const fromResource = relativePath ? path.join(resourcesRoot, relativePath) : undefined;
+    const fromCache = wellKnownCacheDir ? path.join(wellKnownCacheDir, importPath) : undefined;
+
+    const firstExisting = [fromDiscovered, fromResource, fromCache].find(
+      p => p && fs.existsSync(p)
+    );
+
+    let filePath = firstExisting;
+    let content = filePath ? fs.readFileSync(filePath, 'utf-8') : fallbackContent;
+
+    // If nothing exists yet but we have a cache dir, materialize the fallback into cache
+    if (!filePath && fromCache) {
+      try {
+        fs.mkdirSync(path.dirname(fromCache), { recursive: true });
+        fs.writeFileSync(fromCache, fallbackContent, 'utf-8');
+        filePath = fromCache;
+        content = fallbackContent;
+      } catch (e) {
+        connection.console.error(
+          `Failed to write well-known cache ${fromCache}: ${e instanceof Error ? e.message : String(e)}`
+        );
+      }
+    }
+
+    const uri = filePath
+      ? pathToFileURL(filePath).toString()
+      : `builtin:///${importPath}`;
+
+    try {
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+    } catch (e) {
+      connection.console.error(
+        `Failed to preload ${importPath}: ${e instanceof Error ? e.message : String(e)}`
+      );
+    }
+  }
+}
+
+/**
+ * Locate a protoc include directory that contains google/protobuf/timestamp.proto.
+ * Checks env hint then common install locations.
+ */
+function discoverWellKnownIncludePath(): string | undefined {
+  const candidates: string[] = [];
+
+  if (process.env.PROTOC_INCLUDE) {
+    candidates.push(...process.env.PROTOC_INCLUDE.split(path.delimiter));
+  }
+
+  candidates.push(
+    '/usr/local/include',
+    '/opt/homebrew/include',
+    '/usr/include',
+    'C:/Program Files/protobuf/include',
+    'C:/Program Files (x86)/protobuf/include',
+    'C:/ProgramData/chocolatey/lib/protobuf/tools/include'
+  );
+
+  for (const base of candidates) {
+    if (!base) {
+      continue;
+    }
+    const testPath = path.join(base, 'google', 'protobuf', 'timestamp.proto');
+    if (fs.existsSync(testPath)) {
+      return base;
+    }
+  }
+
+  return undefined;
+}
+
 // Handle file changes from workspace file watcher
 connection.onDidChangeWatchedFiles((params: DidChangeWatchedFilesParams) => {
   for (const change of params.changes) {
@@ -404,7 +526,14 @@ connection.onDidChangeConfiguration((change: { settings: typeof globalSettings }
     });
 
     // Update analyzer with import paths
-    analyzer.setImportPaths(globalSettings.protobuf.includes || []);
+    const includePaths = [...(globalSettings.protobuf.includes || [])];
+    if (wellKnownIncludePath && !includePaths.includes(wellKnownIncludePath)) {
+      includePaths.push(wellKnownIncludePath);
+    }
+    if (wellKnownCacheDir && !includePaths.includes(wellKnownCacheDir)) {
+      includePaths.push(wellKnownCacheDir);
+    }
+    analyzer.setImportPaths(includePaths);
 
     // Update new providers
     const protocSettings = globalSettings.protobuf.protoc;

@@ -8,25 +8,25 @@ import "domain/v1/date.proto";
 
 // ExampleRecord demonstrates the payload this sample service works with.
 message ExampleRecord {
-  string record_id = 1;
-  string title = 2;
-  string description = 4;
-  ExampleMeta meta = 6;
-  repeated string tags = 7;
+	string record_id = 1;
+	string title = 2;
+	string description = 3;
+	ExampleMeta meta = 4;
+	repeated string tags = 5;
 }
 
 // ExampleMeta groups together additional sample fields.
 message ExampleMeta {
-  string requested_by = 1;
-  Date desired_start_date = 2;
-  bool requires_follow_up = 3;
-  int32 priority = 4;
+	string requested_by = 1;
+	Date desired_start_date = 2;
+	bool requires_follow_up = 3;
+	int32 priority = 4;
 }
 
 // ExampleResult is emitted by event handlers once the record was processed.
 message ExampleResult {
-  string record_id = 1;
-  string status = 2;
-  string note = 3;
-  Date processed_on = 4;
+	string record_id = 1;
+	string status = 2;
+	string note = 3;
+	Date processed_on = 4;
 }

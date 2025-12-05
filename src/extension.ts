@@ -46,6 +46,9 @@ export async function activate(context: vscode.ExtensionContext) {
       { scheme: 'file', language: 'proto' },
       { scheme: 'file', language: 'textproto' }
     ],
+    initializationOptions: {
+      wellKnownCachePath: context.globalStorageUri.fsPath
+    },
     synchronize: {
       configurationSection: 'protobuf',
       fileEvents: vscode.workspace.createFileSystemWatcher('**/*.{proto,textproto,pbtxt,prototxt}')

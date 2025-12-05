@@ -5,9 +5,9 @@ package domain.v1;
 option go_package = "drblury/event-driven-service/internal/domain";
 
 message Info {
-  string version = 1;
-  string build_date = 2;
-  string details = 3;
-  string commit_hash = 4;
-  string commit_date = 5;
+	string version = 1;
+	string build_date = 2;
+	string details = 3;
+	string commit_hash = 4;
+	string commit_date = 5;
 }
