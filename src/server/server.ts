@@ -61,6 +61,15 @@ import { MessageDefinition, EnumDefinition, Range as AstRange } from './ast';
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
 
+// Capture unexpected errors so the server doesn't silently die
+process.on('uncaughtException', err => {
+  connection.console.error(`uncaughtException: ${err instanceof Error ? err.stack || err.message : String(err)}`);
+});
+
+process.on('unhandledRejection', reason => {
+  connection.console.error(`unhandledRejection: ${reason instanceof Error ? reason.stack || reason.message : String(reason)}`);
+});
+
 // Create service instances
 const parser = new ProtoParser();
 const analyzer = new SemanticAnalyzer();
@@ -280,6 +289,10 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
   };
 });
 
+connection.onExit(() => {
+  connection.console.error('Language server process exiting');
+});
+
 connection.onInitialized(() => {
   if (hasConfigurationCapability) {
     connection.client.register(DidChangeConfigurationNotification.type, undefined);
@@ -330,6 +343,9 @@ function scanWorkspaceForProtoFiles(): void {
       }
     }
   }
+
+  // Refresh proto root hints after full scan
+  analyzer.detectProtoRoots();
 }
 
 // Handle file changes from workspace file watcher
@@ -438,7 +454,7 @@ documents.onDidChangeContent((change: { document: TextDocument }) => {
 });
 
 documents.onDidClose((event: { document: TextDocument }) => {
-  analyzer.removeFile(event.document.uri);
+  // Keep symbols cached so go-to-definition still works after the editor is closed
   connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] });
 });
 
@@ -512,20 +528,92 @@ connection.onHover((params: HoverParams) => {
 
 // Definition
 connection.onDefinition((params: DefinitionParams) => {
-  const document = documents.get(params.textDocument.uri);
-  if (!document) {
+  try {
+    const document = documents.get(params.textDocument.uri);
+    if (!document) {
+      return null;
+    }
+
+    const lines = document.getText().split('\n');
+    const lineText = lines[params.position.line] || '';
+
+    const word = extractWord(lineText, params.position.character);
+
+    // Refresh analyzer state for this document and its open imports to avoid stale symbols
+    const touchedUris: string[] = [];
+    try {
+      const parsed = parser.parse(document.getText(), params.textDocument.uri);
+      analyzer.updateFile(params.textDocument.uri, parsed);
+      touchedUris.push(params.textDocument.uri);
+
+      const imports = analyzer.getImportedFileUris(params.textDocument.uri);
+      for (const importUri of imports) {
+        const importedDoc = documents.get(importUri);
+        if (importedDoc) {
+          try {
+            const importedParsed = parser.parse(importedDoc.getText(), importUri);
+            analyzer.updateFile(importUri, importedParsed);
+            touchedUris.push(importUri);
+          } catch (importParseErr) {
+            connection.console.error(`definition import parse failed for ${importUri}: ${importParseErr instanceof Error ? importParseErr.message : String(importParseErr)}`);
+          }
+        }
+      }
+    } catch (parseErr) {
+      connection.console.error(`definition parse failed: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
+    }
+
+    // Log incoming definition request for diagnostics
+    connection.console.log(
+      `definition request uri=${params.textDocument.uri} line=${params.position.line} char=${params.position.character} word=${word || '<none>'} text="${lineText.trim()}"`
+    );
+
+    const result = definitionProvider.getDefinition(
+      params.textDocument.uri,
+      params.position,
+      lineText
+    );
+
+    if (result) {
+      const locations = Array.isArray(result) ? result : [result];
+      for (const loc of locations) {
+        connection.console.log(`definition resolved -> ${loc.uri}:${loc.range.start.line}:${loc.range.start.character}`);
+      }
+    } else {
+      connection.console.log(`definition resolved -> null (symbols=${analyzer.getAllSymbols().length}, touched=${touchedUris.length})`);
+    }
+    return result;
+  } catch (error) {
+    connection.console.error(`Definition handler failed: ${error instanceof Error ? error.stack || error.message : String(error)}`);
+    return null;
+  }
+});
+
+function extractWord(line: string, character: number): string | null {
+  const isIdentChar = (ch: string) => /[a-zA-Z0-9_.]/.test(ch) || ch === '_';
+
+  let start = character;
+  let end = character;
+
+  if (start > 0 && !isIdentChar(line[start]) && isIdentChar(line[start - 1])) {
+    start -= 1;
+    end = start;
+  }
+
+  while (start > 0 && isIdentChar(line[start - 1])) {
+    start--;
+  }
+
+  while (end < line.length && isIdentChar(line[end])) {
+    end++;
+  }
+
+  if (start === end) {
     return null;
   }
 
-  const lines = document.getText().split('\n');
-  const lineText = lines[params.position.line] || '';
-
-  return definitionProvider.getDefinition(
-    params.textDocument.uri,
-    params.position,
-    lineText
-  );
-});
+  return line.substring(start, end).replace(/\.+$/g, '');
+}
 
 // References
 connection.onReferences((params: ReferenceParams) => {
@@ -634,6 +722,11 @@ connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
   }
 
   return ranges;
+});
+
+// List imports with resolution status
+connection.onRequest('protobuf/listImports', (params: { uri: string }) => {
+  return analyzer.getImportsWithResolutions(params.uri);
 });
 
 // Custom request handlers for renumbering

@@ -2,7 +2,7 @@
   "name": "protobuf-vsc",
   "displayName": "Protobuf VSC",
   "description": "Comprehensive Protocol Buffers support for VS Code with syntax highlighting, IntelliSense, diagnostics, formatting, protoc compilation, breaking change detection, and more",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "publisher": "DrBlury",
   "author": {
     "name": "Julian Bensch",
@@ -413,6 +413,11 @@
         "category": "Protobuf"
       },
       {
+        "command": "protobuf.openImportedFile",
+        "title": "Open Imported Proto",
+        "category": "Protobuf"
+      },
+      {
         "command": "protobuf.renumberDocument",
         "title": "Renumber All Fields in Document",
         "category": "Protobuf"
@@ -496,6 +501,10 @@
         },
         {
           "command": "protobuf.renumberFromCursor",
+          "when": "resourceLangId == proto"
+        },
+        {
+          "command": "protobuf.openImportedFile",
           "when": "resourceLangId == proto"
         },
         {

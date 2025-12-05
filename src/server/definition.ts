@@ -49,6 +49,16 @@ export class DefinitionProvider {
       return symbol.location;
     }
 
+    // Debug: log when symbol resolution fails
+    const matches = this.analyzer.getAllSymbols()
+      .filter(s => s.name === word || s.fullName.endsWith(`.${word}`))
+      .map(s => `${s.fullName} @ ${s.location.uri}`);
+    if (matches.length > 0) {
+      console.log(`definition fallback candidates for ${word}: ${matches.join(', ')}`);
+    } else {
+      console.log(`definition no candidates found for ${word}`);
+    }
+
     return null;
   }
 
@@ -168,16 +178,23 @@ export class DefinitionProvider {
    * Extract the word at the given position, including dots for fully qualified names
    */
   private getWordAtPosition(line: string, character: number): string | null {
+    // Expand valid chars to include underscore (proto identifiers allow it)
+    const isIdentChar = (ch: string) => /[a-zA-Z0-9_.]/.test(ch) || ch === '_';
+
     let start = character;
     let end = character;
 
-    // Include dots for fully qualified names like "google.protobuf.Timestamp"
-    // Also include leading dot for absolute references like ".google.protobuf.Timestamp"
-    while (start > 0 && /[a-zA-Z0-9_.]/.test(line[start - 1])) {
+    // If cursor is on whitespace/non-word, step left once to catch the nearest symbol
+    if (start > 0 && !isIdentChar(line[start]) && isIdentChar(line[start - 1])) {
+      start -= 1;
+      end = start;
+    }
+
+    while (start > 0 && isIdentChar(line[start - 1])) {
       start--;
     }
 
-    while (end < line.length && /[a-zA-Z0-9_.]/.test(line[end])) {
+    while (end < line.length && isIdentChar(line[end])) {
       end++;
     }
 

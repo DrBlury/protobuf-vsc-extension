@@ -288,10 +288,10 @@ export class CodeActionsProvider {
         continue; // Don't suggest importing from same file
       }
 
-      const fileName = symbolUri.split('/').pop() || symbolUri;
+      const importPath = this.analyzer.getImportPathForFile(uri, symbolUri);
 
       actions.push({
-        title: `Add import "${fileName}"`,
+        title: `Add import "${importPath}"`,
         kind: CodeActionKind.QuickFix,
         edit: {
           changes: {
@@ -300,7 +300,7 @@ export class CodeActionsProvider {
                 start: insertPosition,
                 end: insertPosition
               },
-              newText: `import "${fileName}";\n`
+              newText: `import "${importPath}";\n`
             }]
           }
         }

@@ -15,5 +15,9 @@ examples/**
 !node_modules/vscode-languageserver-types/**
 !node_modules/vscode-languageserver-textdocument/**
 !node_modules/vscode-languageclient/**
+!node_modules/vscode-languageclient/node_modules/semver/**
+!node_modules/vscode-languageclient/node_modules/minimatch/**
 !node_modules/vscode-jsonrpc/**
 !node_modules/vscode-uri/**
+!node_modules/minimatch/**
+!node_modules/semver/**

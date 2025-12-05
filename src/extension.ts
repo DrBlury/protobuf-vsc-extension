@@ -9,14 +9,21 @@ import {
   LanguageClient,
   LanguageClientOptions,
   ServerOptions,
-  TransportKind
+  TransportKind,
+  Trace,
+  RevealOutputChannelOn
 } from 'vscode-languageclient/node';
 
 let client: LanguageClient;
+let outputChannel: vscode.OutputChannel;
 
 export async function activate(context: vscode.ExtensionContext) {
+  outputChannel = vscode.window.createOutputChannel('Protobuf VSC');
+  outputChannel.appendLine('Activating Protobuf extension...');
+
   // Server module path
   const serverModule = context.asAbsolutePath(path.join('out', 'server', 'server.js'));
+  outputChannel.appendLine(`Server module: ${serverModule}`);
 
   // Server options
   const serverOptions: ServerOptions = {
@@ -42,7 +49,10 @@ export async function activate(context: vscode.ExtensionContext) {
     synchronize: {
       configurationSection: 'protobuf',
       fileEvents: vscode.workspace.createFileSystemWatcher('**/*.{proto,textproto,pbtxt,prototxt}')
-    }
+    },
+    outputChannel,
+    outputChannelName: 'Protobuf VSC',
+    revealOutputChannelOn: RevealOutputChannelOn.Error
   };
 
   // Create the language client
@@ -53,9 +63,40 @@ export async function activate(context: vscode.ExtensionContext) {
     clientOptions
   );
 
+  // Enable verbose tracing to capture definition crashes
+  client.setTrace(Trace.Verbose);
+
+  client.onDidChangeState(e => {
+    outputChannel.appendLine(`Client state changed: ${e.oldState} -> ${e.newState}`);
+  });
+
+  client.onNotification('window/logMessage', (msg: { type: number; message: string }) => {
+    outputChannel.appendLine(`server log [${msg.type}]: ${msg.message}`);
+  });
+
+  client.onNotification('window/showMessage', (msg: { type: number; message: string }) => {
+    outputChannel.appendLine(`server message [${msg.type}]: ${msg.message}`);
+  });
+
+  client.onTelemetry((e: unknown) => {
+    outputChannel.appendLine(`telemetry: ${JSON.stringify(e)}`);
+  });
+
+  client.onNotification('$/logTrace', (params: { message?: string; verbose?: string }) => {
+    const msg = params.verbose || params.message || '(trace message without content)';
+    outputChannel.appendLine(`server trace: ${msg}`);
+  });
+
   // Start the client (also starts the server) and wait for it to be ready
-  await client.start();
-  console.log('Protobuf Language Server started successfully');
+  try {
+    await client.start();
+    outputChannel.appendLine('Language server started successfully');
+  } catch (err) {
+    const msg = `Failed to start language server: ${err instanceof Error ? err.message : String(err)}`;
+    outputChannel.appendLine(msg);
+    vscode.window.showErrorMessage(msg);
+    return;
+  }
 
   // Register debug command to test definition
   context.subscriptions.push(
@@ -110,6 +151,52 @@ export async function activate(context: vscode.ExtensionContext) {
       const editor = vscode.window.activeTextEditor;
       if (editor && editor.document.languageId === 'proto') {
         vscode.commands.executeCommand('editor.action.revealDefinition');
+      }
+    })
+  );
+
+  // Register open imported file picker
+  context.subscriptions.push(
+    vscode.commands.registerCommand('protobuf.openImportedFile', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor || editor.document.languageId !== 'proto') {
+        vscode.window.showWarningMessage('Please open a .proto file first');
+        return;
+      }
+
+      try {
+        const imports = await client.sendRequest<
+          { importPath: string; resolvedUri?: string; isResolved: boolean }[]
+        >('protobuf/listImports', { uri: editor.document.uri.toString() });
+
+        if (!imports || imports.length === 0) {
+          vscode.window.showInformationMessage('No imports found in this file');
+          return;
+        }
+
+        const pick = await vscode.window.showQuickPick(
+          imports.map(i => ({
+            label: i.importPath,
+            description: i.isResolved ? 'resolved' : 'unresolved',
+            detail: i.resolvedUri ? vscode.Uri.parse(i.resolvedUri).fsPath : undefined,
+            resolvedUri: i.resolvedUri
+          })),
+          { placeHolder: 'Select an import to open' }
+        );
+
+        if (!pick) {
+          return;
+        }
+
+        if (!pick.resolvedUri) {
+          vscode.window.showWarningMessage(`Import "${pick.label}" is not resolved.`);
+          return;
+        }
+
+        const docUri = vscode.Uri.parse(pick.resolvedUri);
+        await vscode.window.showTextDocument(docUri);
+      } catch (error) {
+        vscode.window.showErrorMessage(`Failed to list imports: ${error instanceof Error ? error.message : String(error)}`);
       }
     })
   );

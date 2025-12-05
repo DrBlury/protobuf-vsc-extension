@@ -85,6 +85,9 @@ export class SemanticAnalyzer {
     for (const service of file.services) {
       this.extractServiceSymbols(uri, service, packageName);
     }
+
+    // Keep proto root hints up to date for import resolution
+    this.detectProtoRoots();
   }
 
   /**
@@ -215,7 +218,21 @@ export class SemanticAnalyzer {
       }
     }
 
-    // Strategy 5: Try to find by matching the import path as a suffix at any directory level
+    // Strategy 5: Search in detected proto roots (more specific than generic suffix match)
+    for (const protoRoot of this.protoRoots) {
+      const searchPath = path.join(protoRoot, normalizedImport).replace(/\\/g, '/');
+      const searchUri = 'file://' + searchPath;
+
+      for (const [fileUri] of this.workspace.files) {
+        const normalizedFileUri = this.normalizeUri(fileUri);
+        if (normalizedFileUri === searchUri || normalizedFileUri.endsWith('/' + searchPath)) {
+          this.workspace.importResolutions.set(importPath, fileUri);
+          return fileUri;
+        }
+      }
+    }
+
+    // Strategy 6: Try to find by matching the import path as a suffix at any directory level
     // This handles cases where the proto root isn't at the workspace root
     for (const [fileUri] of this.workspace.files) {
       const normalizedUri = this.normalizeUri(fileUri);
@@ -415,6 +432,17 @@ export class SemanticAnalyzer {
 
   getAllSymbols(): SymbolInfo[] {
     return Array.from(this.workspace.symbols.values());
+  }
+
+  /**
+   * Returns imports for a file along with their resolution status.
+   */
+  getImportsWithResolutions(uri: string): { importPath: string; resolvedUri?: string; isResolved: boolean }[] {
+    const imports = this.workspace.imports.get(uri) || [];
+    return imports.map(importPath => {
+      const resolvedUri = this.workspace.importResolutions.get(importPath);
+      return { importPath, resolvedUri, isResolved: !!resolvedUri };
+    });
   }
 
   /**
@@ -716,6 +744,47 @@ export class SemanticAnalyzer {
    */
   resolveImportToUri(currentUri: string, importPath: string): string | undefined {
     return this.resolveImportPath(currentUri, importPath);
+  }
+
+  /**
+   * Compute a reasonable import path for targetUri from currentUri, preferring proto roots,
+   * then workspace roots, then relative path, and finally basename.
+   */
+  getImportPathForFile(currentUri: string, targetUri: string): string {
+    const currentPath = currentUri.replace('file://', '').replace(/\\/g, '/');
+    const targetPath = targetUri.replace('file://', '').replace(/\\/g, '/');
+
+    if (currentPath === targetPath) {
+      return path.basename(targetPath);
+    }
+
+    const candidates: string[] = [];
+
+    for (const root of this.protoRoots) {
+      if (targetPath.startsWith(root + '/')) {
+        candidates.push(path.posix.relative(root, targetPath));
+      }
+    }
+
+    for (const root of this.workspaceRoots) {
+      if (targetPath.startsWith(root + '/')) {
+        candidates.push(path.posix.relative(root, targetPath));
+      }
+    }
+
+    const relativeToCurrent = path.posix.relative(path.posix.dirname(currentPath), targetPath);
+    if (relativeToCurrent) {
+      candidates.push(relativeToCurrent);
+    }
+
+    candidates.push(path.basename(targetPath));
+
+    const cleaned = candidates
+      .map(c => c.replace(/\\/g, '/'))
+      .filter(Boolean)
+      .sort((a, b) => a.length - b.length);
+
+    return cleaned[0];
   }
 
   private findMessageDefinition(
