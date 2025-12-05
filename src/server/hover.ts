@@ -3,7 +3,16 @@
  */
 
 import { Hover, MarkupContent, MarkupKind, Position } from 'vscode-languageserver/node';
-import { BUILTIN_TYPES, SymbolKind, SymbolInfo } from './ast';
+import {
+  BUILTIN_TYPES,
+  SymbolKind,
+  SymbolInfo,
+  MessageDefinition,
+  EnumDefinition,
+  FieldDefinition,
+  MapFieldDefinition,
+  OneofDefinition
+} from './ast';
 import { SemanticAnalyzer } from './analyzer';
 
 export class HoverProvider {
@@ -117,6 +126,23 @@ export class HoverProvider {
       lines.push(`Defined in: \`${symbol.containerName}\``);
     }
 
+    // Add rich detail for messages and enums
+    if (symbol.kind === SymbolKind.Message) {
+      const message = this.analyzer.getMessageDefinition(symbol.fullName);
+      if (message) {
+        lines.push('', '```proto');
+        lines.push(...this.formatMessage(message));
+        lines.push('```');
+      }
+    } else if (symbol.kind === SymbolKind.Enum) {
+      const enumDef = this.analyzer.getEnumDefinition(symbol.fullName);
+      if (enumDef) {
+        lines.push('', '```proto');
+        lines.push(...this.formatEnum(enumDef));
+        lines.push('```');
+      }
+    }
+
     const content: MarkupContent = {
       kind: MarkupKind.Markdown,
       value: lines.join('\n')
@@ -164,5 +190,62 @@ export class HoverProvider {
     }
 
     return null;
+  }
+
+  private formatMessage(message: MessageDefinition): string[] {
+    const body: string[] = [];
+
+    for (const field of message.fields) {
+      body.push(this.formatField(field));
+    }
+
+    for (const mapField of message.maps) {
+      body.push(this.formatMapField(mapField));
+    }
+
+    for (const oneof of message.oneofs) {
+      body.push(...this.formatOneof(oneof));
+    }
+
+    // Show nested type names (summary only to keep hover compact)
+    for (const nestedMessage of message.nestedMessages) {
+      body.push(`  message ${nestedMessage.name} { ... }`);
+    }
+    for (const nestedEnum of message.nestedEnums) {
+      body.push(`  enum ${nestedEnum.name} { ... }`);
+    }
+
+    return [
+      `message ${message.name} {`,
+      ...body,
+      '}'
+    ];
+  }
+
+  private formatEnum(enumDef: EnumDefinition): string[] {
+    const values = enumDef.values.map(v => `  ${v.name} = ${v.number};`);
+    return [
+      `enum ${enumDef.name} {`,
+      ...values,
+      '}'
+    ];
+  }
+
+  private formatField(field: FieldDefinition): string {
+    const modifier = field.modifier ? `${field.modifier} ` : '';
+    return `  ${modifier}${field.fieldType} ${field.name} = ${field.number};`;
+  }
+
+  private formatMapField(field: MapFieldDefinition): string {
+    return `  map<${field.keyType}, ${field.valueType}> ${field.name} = ${field.number};`;
+  }
+
+  private formatOneof(oneof: OneofDefinition): string[] {
+    const lines = [`  oneof ${oneof.name} {`];
+    for (const field of oneof.fields) {
+      lines.push(this.formatField(field));
+    }
+    lines.push('  }');
+    return lines;
   }
 }

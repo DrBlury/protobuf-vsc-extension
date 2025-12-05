@@ -417,6 +417,40 @@ export class SemanticAnalyzer {
     return Array.from(this.workspace.symbols.values());
   }
 
+  /**
+   * Get the MessageDefinition for a fully qualified symbol name (package + nested names)
+   */
+  getMessageDefinition(fullName: string): MessageDefinition | undefined {
+    for (const [, file] of this.workspace.files) {
+      const pkg = file.package?.name || '';
+      const found = this.findMessageDefinition(file.messages, pkg, fullName);
+      if (found) {
+        return found;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Get the EnumDefinition for a fully qualified symbol name (package + nested names)
+   */
+  getEnumDefinition(fullName: string): EnumDefinition | undefined {
+    for (const [, file] of this.workspace.files) {
+      const pkg = file.package?.name || '';
+      const foundTop = this.findEnumDefinition(file.enums, pkg, fullName);
+      if (foundTop) {
+        return foundTop;
+      }
+
+      // Enums nested under messages
+      const nestedFound = this.findEnumInMessages(file.messages, pkg, fullName);
+      if (nestedFound) {
+        return nestedFound;
+      }
+    }
+    return undefined;
+  }
+
   getSymbolsInFile(uri: string): SymbolInfo[] {
     return Array.from(this.workspace.symbols.values())
       .filter(s => s.location.uri === uri);
@@ -682,6 +716,61 @@ export class SemanticAnalyzer {
    */
   resolveImportToUri(currentUri: string, importPath: string): string | undefined {
     return this.resolveImportPath(currentUri, importPath);
+  }
+
+  private findMessageDefinition(
+    messages: MessageDefinition[],
+    prefix: string,
+    target: string
+  ): MessageDefinition | undefined {
+    for (const message of messages) {
+      const current = prefix ? `${prefix}.${message.name}` : message.name;
+      if (current === target) {
+        return message;
+      }
+
+      const nestedPrefix = current;
+      const nested = this.findMessageDefinition(message.nestedMessages, nestedPrefix, target);
+      if (nested) {
+        return nested;
+      }
+    }
+    return undefined;
+  }
+
+  private findEnumDefinition(
+    enums: EnumDefinition[],
+    prefix: string,
+    target: string
+  ): EnumDefinition | undefined {
+    for (const e of enums) {
+      const current = prefix ? `${prefix}.${e.name}` : e.name;
+      if (current === target) {
+        return e;
+      }
+    }
+    return undefined;
+  }
+
+  private findEnumInMessages(
+    messages: MessageDefinition[],
+    prefix: string,
+    target: string
+  ): EnumDefinition | undefined {
+    for (const message of messages) {
+      const current = prefix ? `${prefix}.${message.name}` : message.name;
+
+      const enumMatch = this.findEnumDefinition(message.nestedEnums, current, target);
+      if (enumMatch) {
+        return enumMatch;
+      }
+
+      const nestedMessageMatch = this.findEnumInMessages(message.nestedMessages, current, target);
+      if (nestedMessageMatch) {
+        return nestedMessageMatch;
+      }
+    }
+    return undefined;
   }
 }
 
