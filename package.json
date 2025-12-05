@@ -408,6 +408,11 @@
         "category": "Protobuf"
       },
       {
+        "command": "protobuf.showSchemaGraph",
+        "title": "Show Schema Graph",
+        "category": "Protobuf"
+      },
+      {
         "command": "protobuf.findReferences",
         "title": "Find All References",
         "category": "Protobuf"
@@ -517,6 +522,10 @@
         },
         {
           "command": "protobuf.compileAll"
+        },
+        {
+          "command": "protobuf.showSchemaGraph",
+          "when": "resourceLangId == proto"
         },
         {
           "command": "protobuf.checkBreakingChanges",

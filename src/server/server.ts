@@ -57,6 +57,8 @@ import { BreakingChangeDetector } from './breaking';
 import { ExternalLinterProvider } from './externalLinter';
 import { ClangFormatProvider } from './clangFormat';
 import { MessageDefinition, EnumDefinition, Range as AstRange } from './ast';
+import { SchemaGraphProvider } from './schemaGraph';
+import { SchemaGraphRequest } from '../shared/schemaGraph';
 import { GOOGLE_WELL_KNOWN_FILES, GOOGLE_WELL_KNOWN_PROTOS } from './googleWellKnown';
 
 // Create connection and document manager
@@ -89,6 +91,7 @@ const protocCompiler = new ProtocCompiler();
 const breakingChangeDetector = new BreakingChangeDetector();
 const externalLinter = new ExternalLinterProvider();
 const clangFormat = new ClangFormatProvider();
+const schemaGraphProvider = new SchemaGraphProvider(analyzer);
 
 // Configuration
 let hasConfigurationCapability = false;
@@ -851,6 +854,41 @@ connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
   }
 
   return ranges;
+});
+
+// Schema graph
+connection.onRequest('protobuf/getSchemaGraph', (params: SchemaGraphRequest) => {
+  // Refresh analyzer state for current document and its open imports to avoid empty graphs
+  if (params.uri) {
+    const doc = documents.get(params.uri);
+    if (doc) {
+      try {
+        const parsed = parser.parse(doc.getText(), params.uri);
+        analyzer.updateFile(params.uri, parsed);
+      } catch (e) {
+        connection.console.error(`schema graph parse failed for ${params.uri}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+
+      // Refresh any open imported docs as well
+      const importedUris = analyzer.getImportedFileUris(params.uri);
+      for (const importedUri of importedUris) {
+        const importedDoc = documents.get(importedUri);
+        if (!importedDoc) {
+          continue;
+        }
+        try {
+          const importedParsed = parser.parse(importedDoc.getText(), importedUri);
+          analyzer.updateFile(importedUri, importedParsed);
+        } catch (importErr) {
+          connection.console.error(`schema graph import parse failed for ${importedUri}: ${importErr instanceof Error ? importErr.message : String(importErr)}`);
+        }
+      }
+    }
+  }
+
+  const graph = schemaGraphProvider.buildGraph(params);
+  connection.console.log(`schema-graph scope=${graph.scope} uri=${params.uri || '<none>'} nodes=${graph.nodes.length} edges=${graph.edges.length}`);
+  return graph;
 });
 
 // List imports with resolution status

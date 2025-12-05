@@ -13,6 +13,7 @@ import {
   Trace,
   RevealOutputChannelOn
 } from 'vscode-languageclient/node';
+import { SchemaGraphPanel } from './client/schemaGraphPanel';
 
 let client: LanguageClient;
 let outputChannel: vscode.OutputChannel;
@@ -155,6 +156,26 @@ export async function activate(context: vscode.ExtensionContext) {
       if (editor && editor.document.languageId === 'proto') {
         vscode.commands.executeCommand('editor.action.revealDefinition');
       }
+    })
+  );
+
+  // Register schema graph command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('protobuf.showSchemaGraph', () => {
+      if (!client) {
+        vscode.window.showErrorMessage('Language client is not ready yet.');
+        return;
+      }
+
+      const editor = vscode.window.activeTextEditor;
+      const uri = editor?.document.languageId === 'proto'
+        ? editor.document.uri.toString()
+        : undefined;
+
+      SchemaGraphPanel.createOrShow(context.extensionUri, client, {
+        uri,
+        scope: 'workspace'
+      });
     })
   );
 

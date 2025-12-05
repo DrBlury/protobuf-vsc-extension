@@ -24,6 +24,7 @@ A **comprehensive** and **feature-rich** Protocol Buffers (protobuf) extension f
 - 🔄 **Breaking Change Detection** - Prevent API breakage by comparing against git baselines
 - 🔧 **External Linter Support** - Integrate buf or protolint for enterprise-grade linting
 - 🚀 **Modern Proto Support** - Full support for proto2, proto3, and Edition 2023
+- 🗺️ **Visual Schema Graphs** - Explore how messages and enums connect with an interactive graph view
 
 Whether you're building microservices, defining gRPC APIs, or managing data schemas, Protobuf VSC streamlines your workflow and boosts productivity.
 
@@ -248,7 +249,7 @@ The extension detects duplicate field numbers and reserved number usage **in rea
 message User {
   string name = 1;
   int32 age = 1;  // ❌ Error: Duplicate field number 1
-  
+
   reserved 10 to 20;
   string email = 15;  // ❌ Error: Field number 15 is reserved
 }
@@ -292,6 +293,15 @@ message Product {
 }
 ```
 
+### Visual Schema Graphs
+
+Explore how your messages and enums connect at a glance:
+
+- Open **Protobuf: Show Schema Graph** from the Command Palette.
+- Toggle between **Workspace** or **Current file + imports** scopes.
+- Nodes are color-coded (messages vs enums) and edges are labeled with field names and cardinality.
+- Drag to rearrange, scroll to zoom, and refresh to pick up recent edits.
+
 ---
 
 ## 📖 Commands
@@ -303,6 +313,7 @@ Access these commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) o
 | `Protobuf: Format Document` | Format the current proto file | Editor context menu |
 | `Protobuf: Compile This Proto` | Compile the current file with protoc | Right-click in editor |
 | `Protobuf: Compile All Protos` | Compile all proto files in workspace | Command Palette |
+| `Protobuf: Show Schema Graph` | Visualize message/enum relationships in an interactive graph | Command Palette |
 | `Protobuf: Check for Breaking Changes` | Detect breaking changes against git baseline | Right-click in editor |
 | `Protobuf: Run External Linter` | Run buf or protolint on current file | Command Palette |
 | `Protobuf: Show Available Lint Rules` | Display available lint rules | Command Palette |
