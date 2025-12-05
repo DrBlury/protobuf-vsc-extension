@@ -35,7 +35,6 @@ interface Token {
 export class ProtoParser {
   private tokens: Token[] = [];
   private pos = 0;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private text = '';
   private lines: string[] = [];
 
@@ -62,7 +61,7 @@ export class ProtoParser {
     while (!this.isAtEnd()) {
       try {
         this.parseTopLevel(file);
-      } catch (e) {
+      } catch (_e) {
         // Skip to next statement on error
         this.skipToNextStatement();
       }

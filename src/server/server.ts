@@ -306,7 +306,7 @@ function findProtoFiles(dir: string, files: string[] = []): string[] {
         files.push(fullPath);
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // Ignore permission errors
   }
   return files;
@@ -346,7 +346,7 @@ connection.onDidChangeWatchedFiles((params: DidChangeWatchedFilesParams) => {
           const content = fs.readFileSync(filePath, 'utf-8');
           const file = parser.parse(content, uri);
           analyzer.updateFile(uri, file);
-        } catch (e) {
+        } catch (_e) {
           // Ignore errors
         }
       }
@@ -917,7 +917,7 @@ connection.onRequest('protobuf/checkBreakingChanges', async (params: { uri: stri
   if (baselineContent) {
     try {
       baselineFile = parser.parse(baselineContent, params.uri);
-    } catch (e) {
+    } catch (_e) {
       // Baseline file might not be valid proto
     }
   }

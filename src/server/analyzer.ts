@@ -95,7 +95,9 @@ export class SemanticAnalyzer {
 
     // Check all files' imports to see if any can now be resolved to this new file
     for (const [fileUri, importPaths] of this.workspace.imports) {
-      if (fileUri === newFileUri) continue;
+      if (fileUri === newFileUri) {
+        continue;
+      }
 
       for (const importPath of importPaths) {
         // Skip if already resolved
