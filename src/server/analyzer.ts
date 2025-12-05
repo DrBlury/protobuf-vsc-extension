@@ -751,8 +751,19 @@ export class SemanticAnalyzer {
    * then workspace roots, then relative path, and finally basename.
    */
   getImportPathForFile(currentUri: string, targetUri: string): string {
+    // Built-in virtual files (e.g., google well-known stubs)
+    if (targetUri.startsWith('builtin:///')) {
+      return targetUri.replace('builtin:///', '');
+    }
+
     const currentPath = currentUri.replace('file://', '').replace(/\\/g, '/');
     const targetPath = targetUri.replace('file://', '').replace(/\\/g, '/');
+
+    // If the target sits under a google/* well-known path, prefer the canonical import
+    const googleIndex = targetPath.lastIndexOf('/google/');
+    if (googleIndex >= 0) {
+      return targetPath.substring(googleIndex + 1); // drop leading slash
+    }
 
     if (currentPath === targetPath) {
       return path.basename(targetPath);

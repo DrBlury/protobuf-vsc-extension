@@ -34,10 +34,20 @@ export class CodeActionsProvider {
   ): CodeAction[] {
     const actions: CodeAction[] = [];
 
+    const requestedKinds = context.only;
+
     // Generate quick fixes for diagnostics
     for (const diagnostic of context.diagnostics) {
       const fixes = this.getQuickFixes(uri, diagnostic, documentText);
       actions.push(...fixes);
+    }
+
+    // Source-organize imports: add missing imports in one go so users can hook this to codeActionsOnSave
+    if (!requestedKinds || requestedKinds.some(k => k === CodeActionKind.SourceOrganizeImports || k.startsWith(CodeActionKind.SourceOrganizeImports))) {
+      const missingImports = this.extractMissingImportPaths(context.diagnostics, documentText);
+      if (missingImports.length > 0) {
+        actions.push(this.createAddMissingImportsAction(uri, missingImports, documentText));
+      }
     }
 
     // Add refactoring actions based on selection
@@ -101,6 +111,66 @@ export class CodeActionsProvider {
         const typeName = typeMatch[1];
         const importActions = this.suggestImportsForType(uri, typeName, documentText);
         fixes.push(...importActions);
+      }
+    }
+
+    // Missing import (detected by diagnostics provider)
+    if (message.includes('not imported')) {
+      const importMatch = diagnostic.message.match(/import "([^"]+)"/i);
+      const importPath = importMatch ? importMatch[1] : undefined;
+
+      if (importPath && !documentText.includes(`"${importPath}"`)) {
+        const insertPosition = this.findImportInsertPosition(documentText);
+        fixes.push({
+          title: `Add import "${importPath}"`,
+          kind: CodeActionKind.QuickFix,
+          isPreferred: true,
+          diagnostics: [diagnostic],
+          edit: {
+            changes: {
+              [uri]: [{
+                range: { start: insertPosition, end: insertPosition },
+                newText: `import "${importPath}";\n`
+              }]
+            }
+          }
+        });
+      }
+    }
+
+    // Incorrect import path for resolved type
+    if (message.includes('should be imported via')) {
+      const match = diagnostic.message.match(/via "([^"]+)" .*"([^"]+)"/i);
+      const expected = match ? match[1] : undefined;
+      const found = match ? match[2] : undefined;
+
+      if (expected && found) {
+        const insertPosition = this.findImportInsertPosition(documentText);
+
+        // Remove the wrong import line if present; simple replace strategy
+        const lines = documentText.split('\n');
+        const edits: TextEdit[] = [];
+        lines.forEach((line, idx) => {
+          if (line.includes(`"${found}"`)) {
+            edits.push({
+              range: { start: { line: idx, character: 0 }, end: { line: idx, character: line.length } },
+              newText: ''
+            });
+          }
+        });
+
+        edits.push({
+          range: { start: insertPosition, end: insertPosition },
+          newText: `import "${expected}";\n`
+        });
+
+        fixes.push({
+          title: `Replace import "${found}" with "${expected}"`,
+          kind: CodeActionKind.QuickFix,
+          isPreferred: true,
+          diagnostics: [diagnostic],
+          edit: { changes: { [uri]: edits } }
+        });
       }
     }
 
@@ -325,7 +395,25 @@ export class CodeActionsProvider {
       'Int64Value': 'google/protobuf/wrappers.proto',
       'StringValue': 'google/protobuf/wrappers.proto',
       'UInt32Value': 'google/protobuf/wrappers.proto',
-      'UInt64Value': 'google/protobuf/wrappers.proto'
+      'UInt64Value': 'google/protobuf/wrappers.proto',
+      // Additional google well-known-ish stubs
+      'Status': 'google/rpc/status.proto',
+      'Code': 'google/rpc/code.proto',
+      'RetryInfo': 'google/rpc/error_details.proto',
+      'Date': 'google/type/date.proto',
+      'TimeOfDay': 'google/type/timeofday.proto',
+      'DateTime': 'google/type/datetime.proto',
+      'LatLng': 'google/type/latlng.proto',
+      'Money': 'google/type/money.proto',
+      'Color': 'google/type/color.proto',
+      'PostalAddress': 'google/type/postal_address.proto',
+      'PhoneNumber': 'google/type/phone_number.proto',
+      'LocalizedText': 'google/type/localized_text.proto',
+      'Expr': 'google/type/expr.proto',
+      'Operation': 'google/longrunning/operations.proto',
+      'HttpRequest': 'google/logging/type/http_request.proto',
+      'LogSeverity': 'google/logging/type/log_severity.proto',
+      'AuditLog': 'google/cloud/audit/audit_log.proto'
     };
 
     // Check both with and without google.protobuf prefix
@@ -389,6 +477,41 @@ export class CodeActionsProvider {
     }
 
     return { line: insertLine, character: 0 };
+  }
+
+  private extractMissingImportPaths(diagnostics: Diagnostic[], documentText: string): string[] {
+    const imports = new Set<string>();
+    for (const diagnostic of diagnostics) {
+      if (!diagnostic.message.toLowerCase().includes('not imported')) {
+        continue;
+      }
+      const match = diagnostic.message.match(/import "([^"]+)"/i);
+      if (match) {
+        const path = match[1];
+        if (!documentText.includes(`"${path}"`)) {
+          imports.add(path);
+        }
+      }
+    }
+    return Array.from(imports);
+  }
+
+  private createAddMissingImportsAction(uri: string, importPaths: string[], documentText: string): CodeAction {
+    const insertPosition = this.findImportInsertPosition(documentText);
+    const edits: TextEdit[] = importPaths.map(p => ({
+      range: { start: insertPosition, end: insertPosition },
+      newText: `import "${p}";\n`
+    }));
+
+    return {
+      title: 'Add missing imports',
+      kind: CodeActionKind.SourceOrganizeImports,
+      edit: {
+        changes: {
+          [uri]: edits
+        }
+      }
+    };
   }
 
   private createQuickFix(

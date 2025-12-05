@@ -1,8 +1,8 @@
 syntax = "proto3";
 
 package example.v1;
-
 import "google/protobuf/timestamp.proto";
+import "google/type/date.proto";
 
 option go_package = "example.com/api/v1";
 option java_package = "com.example.api.v1";
@@ -15,14 +15,13 @@ message User {
 	// User's display name
 	string name = 2;
 
-	// User's email address
-	string email = 3;
-
 	// User's status
-	UserStatus status = 4;
+	UserStatus status = 3;
 
 	// Creation timestamp
-	google.protobuf.Timestamp created_at = 5;
+	google.protobuf.Timestamp created_at = 4;
+
+	google.type.Date test = 5;
 
 	// User's address
 	Address address = 6;

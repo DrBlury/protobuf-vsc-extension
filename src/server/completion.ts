@@ -30,6 +30,7 @@ export class CompletionProvider {
 
     // Determine context
     const beforeCursor = lineText.substring(0, position.character);
+    const typePrefix = this.getTypePrefix(beforeCursor);
 
     // Import path completion
     if (beforeCursor.includes('import') && beforeCursor.includes('"')) {
@@ -38,7 +39,7 @@ export class CompletionProvider {
 
     // Type completion after field modifier or for field type
     if (this.isTypeContext(beforeCursor)) {
-      completions.push(...this.getTypeCompletions(uri));
+      completions.push(...this.getTypeCompletions(uri, typePrefix));
     }
 
     // Keyword completions
@@ -60,9 +61,37 @@ export class CompletionProvider {
   }
 
   private isTypeContext(text: string): boolean {
-    return /^\s*(optional|required|repeated)?\s*$/.test(text) ||
-           /^\s*(optional|required|repeated)\s+\w*$/.test(text) ||
-           /^\s*\w*$/.test(text.trim());
+    const trimmed = text.trim();
+
+    if (trimmed === '') {
+      return true;
+    }
+
+    // Allow package-qualified type names like google.protobuf.Timestamp
+    const typeFragment = '[A-Za-z_][\\w.]*';
+
+    const withModifier = new RegExp(`^\\s*(?:optional|required|repeated)\\s+${typeFragment}$`);
+    const bareType = new RegExp(`^\\s*${typeFragment}$`);
+
+    return withModifier.test(text) || bareType.test(text);
+  }
+
+  private getTypePrefix(text: string): { qualifier?: string; partial?: string } | undefined {
+    const match = text.match(/([A-Za-z_][\w.]*)$/);
+    if (!match) {
+      return undefined;
+    }
+
+    const full = match[1];
+    const parts = full.split('.');
+
+    if (parts.length === 1) {
+      return { partial: parts[0] };
+    }
+
+    const partial = parts.pop() || '';
+    const qualifier = parts.join('.');
+    return { qualifier, partial };
   }
 
   private isKeywordContext(text: string): boolean {
@@ -72,28 +101,62 @@ export class CompletionProvider {
            /^\s*(message|enum|service|oneof)\s+\w+\s*\{?\s*$/.test(text);
   }
 
-  private getTypeCompletions(uri: string): CompletionItem[] {
+  private getTypeCompletions(
+    uri: string,
+    prefix?: { qualifier?: string; partial?: string }
+  ): CompletionItem[] {
     const completions: CompletionItem[] = [];
 
+    const qualifier = prefix?.qualifier?.toLowerCase();
+    const partial = prefix?.partial?.toLowerCase() || '';
+    const hasQualifier = !!qualifier;
+    const hasPartial = partial.length > 0;
+
     // Built-in types
-    for (const type of BUILTIN_TYPES) {
-      completions.push({
-        label: type,
-        kind: CompletionItemKind.Keyword,
-        detail: 'Built-in type',
-        sortText: '0' + type
-      });
+    if (!hasQualifier) {
+      for (const type of BUILTIN_TYPES) {
+        if (hasPartial && !type.toLowerCase().startsWith(partial)) {
+          continue;
+        }
+        completions.push({
+          label: type,
+          kind: CompletionItemKind.Keyword,
+          detail: 'Built-in type',
+          sortText: '0' + type
+        });
+      }
     }
 
     // Custom types from analyzer
     const typeSymbols = this.analyzer.getTypeCompletions(uri);
     for (const symbol of typeSymbols) {
+      const fullNameLower = symbol.fullName.toLowerCase();
+      const nameLower = symbol.name.toLowerCase();
+
+      if (hasQualifier) {
+        const qualifierWithDot = `${qualifier}.`;
+        if (!fullNameLower.startsWith(qualifierWithDot)) {
+          continue;
+        }
+
+        const remainder = fullNameLower.slice(qualifierWithDot.length);
+        if (hasPartial && !remainder.startsWith(partial)) {
+          continue;
+        }
+      } else if (hasPartial) {
+        if (!nameLower.startsWith(partial) && !fullNameLower.startsWith(partial)) {
+          continue;
+        }
+      }
+
       completions.push({
         label: symbol.name,
+        labelDetails: symbol.containerName ? { description: symbol.containerName } : undefined,
         kind: symbol.kind === SymbolKind.Message
           ? CompletionItemKind.Class
           : CompletionItemKind.Enum,
         detail: symbol.fullName,
+        filterText: `${symbol.fullName} ${symbol.name}`,
         documentation: `${symbol.kind} defined in ${symbol.containerName || 'root'}`,
         sortText: '1' + symbol.name
       });
@@ -357,7 +420,32 @@ export class CompletionProvider {
       'google/protobuf/struct.proto',
       'google/protobuf/timestamp.proto',
       'google/protobuf/type.proto',
-      'google/protobuf/wrappers.proto'
+      'google/protobuf/wrappers.proto',
+      // Additional common Google APIs
+      'google/rpc/code.proto',
+      'google/rpc/status.proto',
+      'google/rpc/error_details.proto',
+      'google/type/date.proto',
+      'google/type/timeofday.proto',
+      'google/type/datetime.proto',
+      'google/type/latlng.proto',
+      'google/type/money.proto',
+      'google/type/color.proto',
+      'google/type/postal_address.proto',
+      'google/type/phone_number.proto',
+      'google/type/localized_text.proto',
+      'google/type/expr.proto',
+      'google/api/http.proto',
+      'google/api/annotations.proto',
+      'google/api/field_behavior.proto',
+      'google/api/resource.proto',
+      'google/api/client.proto',
+      'google/api/launch_stage.proto',
+      'google/api/visibility.proto',
+      'google/longrunning/operations.proto',
+      'google/logging/type/http_request.proto',
+      'google/logging/type/log_severity.proto',
+      'google/cloud/audit/audit_log.proto'
     ];
 
     for (const path of googleTypes) {

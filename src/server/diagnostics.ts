@@ -274,6 +274,8 @@ export class DiagnosticsProvider {
           message: `Unknown type '${field.fieldType}'`,
           source: 'protobuf'
         });
+      } else {
+        this.ensureImported(uri, field.fieldType, symbol.location.uri, this.toRange(field.fieldTypeRange), diagnostics);
       }
     }
 
@@ -326,6 +328,8 @@ export class DiagnosticsProvider {
           message: `Unknown type '${mapField.valueType}'`,
           source: 'protobuf'
         });
+      } else {
+        this.ensureImported(uri, mapField.valueType, symbol.location.uri, this.toRange(mapField.valueTypeRange), diagnostics);
       }
     }
 
@@ -476,6 +480,8 @@ export class DiagnosticsProvider {
             message: `Unknown type '${rpc.inputType}'`,
             source: 'protobuf'
           });
+        } else {
+          this.ensureImported(uri, rpc.inputType, inputSymbol.location.uri, this.toRange(rpc.inputTypeRange), diagnostics);
         }
 
         // Check output type reference
@@ -487,6 +493,8 @@ export class DiagnosticsProvider {
             message: `Unknown type '${rpc.outputType}'`,
             source: 'protobuf'
           });
+        } else {
+          this.ensureImported(uri, rpc.outputType, outputSymbol.location.uri, this.toRange(rpc.outputTypeRange), diagnostics);
         }
       }
     }
@@ -516,6 +524,63 @@ export class DiagnosticsProvider {
 
   private isScreamingSnakeCase(name: string): boolean {
     return /^[A-Z][A-Z0-9_]*$/.test(name);
+  }
+
+  private ensureImported(
+    currentUri: string,
+    typeName: string,
+    definitionUri: string,
+    range: Range,
+    diagnostics: Diagnostic[]
+  ): void {
+    const imported = new Set(this.analyzer.getImportedFileUris(currentUri));
+    imported.add(currentUri);
+
+    const importsWithResolution = this.analyzer.getImportsWithResolutions(currentUri);
+    const importedVia = importsWithResolution.find(i => i.resolvedUri === definitionUri);
+    const suggestedImport = this.getSuggestedImportPath(currentUri, definitionUri);
+
+    // If the canonical path is already declared as an import (even if unresolved), don't flag it
+    if (suggestedImport && importsWithResolution.some(i => i.importPath === suggestedImport)) {
+      return;
+    }
+
+    // Already imported, but via a mismatched path (e.g., "date.proto" instead of "google/type/date.proto")
+    if (importedVia && suggestedImport && importedVia.importPath !== suggestedImport) {
+      diagnostics.push({
+        severity: DiagnosticSeverity.Error,
+        range,
+        message: `Type '${typeName}' should be imported via "${suggestedImport}" (found "${importedVia.importPath}")`,
+        source: 'protobuf'
+      });
+      return;
+    }
+
+    // Already imported correctly
+    if (imported.has(definitionUri)) {
+      return;
+    }
+
+    const suggestionText = suggestedImport ? ` Add: import "${suggestedImport}";` : '';
+
+    diagnostics.push({
+      severity: DiagnosticSeverity.Error,
+      range,
+      message: `Type '${typeName}' is not imported.${suggestionText}`.trim(),
+      source: 'protobuf'
+    });
+  }
+
+  private getSuggestedImportPath(currentUri: string, definitionUri: string): string | undefined {
+    if (definitionUri.startsWith('builtin:///')) {
+      return definitionUri.replace('builtin:///', '');
+    }
+
+    try {
+      return this.analyzer.getImportPathForFile(currentUri, definitionUri);
+    } catch (_e) {
+      return undefined;
+    }
   }
 
   private toRange(range: { start: { line: number; character: number }; end: { line: number; character: number } }): Range {

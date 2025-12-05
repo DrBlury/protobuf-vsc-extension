@@ -1,10 +1,9 @@
 syntax = "proto3";
 
 package domain.v1;
+import "google/type/date.proto";
 
 option go_package = "drblury/event-driven-service/internal/domain";
-
-import "domain/v1/date.proto";
 
 // ExampleRecord demonstrates the payload this sample service works with.
 message ExampleRecord {
@@ -18,7 +17,7 @@ message ExampleRecord {
 // ExampleMeta groups together additional sample fields.
 message ExampleMeta {
 	string requested_by = 1;
-	Date desired_start_date = 2;
+	google.type.Date desired_start_date = 2;
 	bool requires_follow_up = 3;
 	int32 priority = 4;
 }
@@ -28,5 +27,5 @@ message ExampleResult {
 	string record_id = 1;
 	string status = 2;
 	string note = 3;
-	Date processed_on = 4;
+	google.type.Date processed_on = 4;
 }
