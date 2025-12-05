@@ -493,7 +493,7 @@ export class CodeActionsProvider {
 
       // Only look at direct children (braceCount === 1)
       if (braceCount === 1) {
-        const numberMatch = line.match(/=\s*(\d+)\s*[;[]/);  // eslint-disable-line no-useless-escape
+        const numberMatch = line.match(/=\s*(\d+)\s*[;[]/);
         if (numberMatch) {
           usedNumbers.add(parseInt(numberMatch[1], 10));
         }

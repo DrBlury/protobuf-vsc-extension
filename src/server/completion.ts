@@ -243,7 +243,7 @@ export class CompletionProvider {
 
     // Extract field numbers from lines within this container
     const usedNumbers = new Set<number>();
-    const fieldNumberRegex = /=\s*(\d+)\s*[;[]/;  // eslint-disable-line no-useless-escape
+    const fieldNumberRegex = /=\s*(\d+)\s*[;[]/;
 
     // Track nested brace level to only get direct children
     let nestedLevel = 0;
