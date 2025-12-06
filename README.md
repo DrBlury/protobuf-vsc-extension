@@ -3,233 +3,101 @@
 [![CI](https://github.com/DrBlury/protobuf-vsc-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/DrBlury/protobuf-vsc-extension/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/visual-studio-marketplace/v/DrBlury.protobuf-vsc?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=DrBlury.protobuf-vsc)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/DrBlury.protobuf-vsc)](https://marketplace.visualstudio.com/items?itemName=DrBlury.protobuf-vsc)
-[![Rating](https://img.shields.io/visual-studio-marketplace/r/DrBlury.protobuf-vsc)](https://marketplace.visualstudio.com/items?itemName=DrBlury.protobuf-vsc)
-[![License](https://img.shields.io/github/license/DrBlury/protobuf-vsc-extension)](https://github.com/DrBlury/protobuf-vsc-extension/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/DrBlury/protobuf-vsc-extension)](LICENSE)
 
-A **comprehensive** and **feature-rich** Protocol Buffers (protobuf) extension for Visual Studio Code. Enhance your protobuf development with advanced language support, intelligent diagnostics, seamless compilation, and powerful tooling integrations.
+Full Protocol Buffers language support for VS Code: navigation, IntelliSense, diagnostics, formatting, compilation, linting, breaking-change checks, and schema graphs.
 
 **Author:** Julian Bensch ([@DrBlury](https://github.com/DrBlury))
 
 ---
 
-## ✨ Why Choose Protobuf VSC?
-
-**Protobuf VSC** is designed to make Protocol Buffers development in VS Code effortless and productive. Unlike basic syntax highlighters, this extension provides a complete development environment with:
-
-- 🎯 **Intelligent Code Navigation** - Jump to definitions, find references, and navigate imports instantly
-- 🔍 **Smart IntelliSense** - Context-aware completions for types, fields, and imports
-- 🛡️ **Advanced Diagnostics** - Catch errors before compilation with comprehensive validation
-- 🎨 **Professional Formatting** - Keep your protos clean with built-in or clang-format integration
-- ⚙️ **Integrated Compilation** - Compile directly from the editor with configurable protoc options
-- 🔄 **Breaking Change Detection** - Prevent API breakage by comparing against git baselines
-- 🔧 **External Linter Support** - Integrate buf or protolint for enterprise-grade linting
-- 🚀 **Modern Proto Support** - Full support for proto2, proto3, and Edition 2023
-- 🗺️ **Visual Schema Graphs** - Explore how messages and enums connect with an interactive graph view
-
-Whether you're building microservices, defining gRPC APIs, or managing data schemas, Protobuf VSC streamlines your workflow and boosts productivity.
-
-## 📋 Table of Contents
-
-- [Key Features](#-key-features)
-- [Installation](#-installation)
-- [Quick Start](#-quick-start)
-- [Feature Highlights](#-feature-highlights)
-- [Commands](#-commands)
-- [Configuration](#-configuration)
-- [Prerequisites](#-prerequisites-for-optional-features)
-- [Development](#-development)
-- [Contributing](#-contributing)
-- [License](#-license)
+**Contents:** [Quick Start](#quick-start) • [Install](#install) • [What You Get](#what-you-get) • [Common Tasks](#common-tasks) • [Settings Cheat Sheet](#settings-cheat-sheet) • [Optional Tools](#optional-tools) • [Development](#development) • [Support](#support) • [License](#license)
 
 ---
 
-## 🚀 Key Features
+## Quick Start
 
-### 🎨 Intelligent Code Editing
-
-**Syntax Highlighting**
-- Full syntax support for `.proto` files (proto2, proto3, Edition 2023)
-- Text Proto format support (`.textproto`, `.pbtxt`, `.prototxt`)
-- Theme-customizable highlighting for optimal readability
-
-**Smart IntelliSense**
-- Context-aware auto-completions for types, fields, and keywords
-- Intelligent suggestions from current file and imports
-- Import path completions with Google well-known types
-- Auto-import support for unknown types
-
-**Code Navigation**
-- **Go to Definition** - Jump to message, enum, service, and RPC definitions instantly
-- **Find All References** - Locate all usages across your workspace
-- **Import Navigation** - Navigate directly to imported `.proto` files
-- **Document Outline** - Bird's-eye view of all symbols in your file
-- **Workspace Symbols** - Search and jump to any symbol across all protos
-
-*Why it matters:* Navigate large codebases effortlessly. Find dependencies, understand data flows, and refactor with confidence.
-
-### 🛡️ Advanced Diagnostics & Validation
-
-Catch errors **before** compilation with comprehensive real-time diagnostics:
-
-- ✅ **Syntax Validation** - Invalid protobuf syntax detection
-- ✅ **Naming Conventions** - Enforce PascalCase for messages/enums, snake_case for fields
-- ✅ **Reference Checking** - Detect undefined message or enum references
-- ✅ **Import Validation** - Identify missing or invalid import paths
-- ✅ **Field Tag Analysis**:
-  - Duplicate field numbers
-  - Reserved field number conflicts
-  - Field numbers outside valid range (1-536,870,911)
-- ✅ **Duplicate Detection** - Catch duplicate field names
-- ✅ **Best Practices** - Warnings for discouraged patterns
-
-*Why it matters:* Save time debugging compilation errors. Maintain consistent code quality across your team. Enforce organizational standards automatically.
-
-### 🎨 Professional Code Formatting
-
-- **Built-in Formatter** - Fast, configurable formatting out of the box
-- **clang-format Integration** - Use industry-standard clang-format for consistent styling
-- **Format on Save** - Automatically format on file save
-- **Format Selection** - Format only the code you select
-- **Customizable Rules** - Configure indentation, line length, tabs vs spaces
-
-*Why it matters:* Consistent formatting across your team. No more style debates. Focus on logic, not formatting.
-
-### ⚙️ Seamless Protoc Compilation
-
-- **Single File Compilation** - Compile the current proto file with one command
-- **Batch Compilation** - Compile all workspace protos at once
-- **Flexible Configuration** - Custom protoc options and output directories
-- **Compile on Save** - Automatic compilation when you save
-- **Variable Expansion** - Use `${workspaceRoot}` and `${env.*}` in paths
-
-*Why it matters:* Stay in your editor. No context switching to terminal. See compilation errors instantly alongside your code.
-
-### 🔄 Breaking Change Detection
-
-Prevent API breakage **before** it reaches production:
-
-- Compare current protos against git baseline (branch, tag, commit)
-- Detect field number changes and deletions
-- Identify type modifications
-- Catch message/enum deletions
-- Monitor RPC signature changes
-- Track enum value modifications
-- Detailed violation reports with exact line locations
-
-*Why it matters:* Protect your API consumers. Catch breaking changes in code review. Maintain backward compatibility automatically.
-
-### 🔧 External Linter Integration
-
-**Buf Integration**
-- Enterprise-grade linting with [Buf](https://buf.build)
-- Configurable via `buf.yaml`
-- Run on save or on-demand
-- View available lint rules
-
-**Protolint Integration**
-- Extensible linting with [Protolint](https://github.com/yoheimuta/protolint)
-- Custom rule configuration via `.protolint.yaml`
-- Automatic linting on save
-
-*Why it matters:* Enforce organizational style guides. Integrate with existing toolchains. Leverage community-maintained rule sets.
-
-### 💡 Smart Code Actions & Quick Fixes
-
-- **Auto-fix Naming** - Convert names to proper conventions with one click
-- **Add Import** - Automatically import unknown types
-- **Fix Field Numbers** - Get suggestions for next available field number
-- **Update Required Fields** - Convert deprecated proto2 `required` to `optional`
-
-*Why it matters:* Fix issues instantly without manual editing. Speed up development. Learn best practices through suggestions.
-
-### ✏️ Powerful Refactoring
-
-- **Rename Symbol** - Safely rename messages, enums, fields, services across workspace
-- **Field Renumbering** - Renumber fields in messages or entire documents
-- **Preview Changes** - See what will change before applying
-
-*Why it matters:* Refactor with confidence. Update hundreds of references instantly. Prevent broken references.
-
-### 📝 Productivity Boosters
-
-**Code Snippets**
-- Quick declarations for proto2, proto3, Edition 2023
-- Message, enum, service templates
-- RPC method scaffolding
-- Field and import snippets
-
-**Editor Enhancements**
-- Code folding for messages, enums, services
-- Bracket matching and auto-closing
-- Smart comment toggling
-
-*Why it matters:* Write code faster. Reduce boilerplate. Focus on your data model, not syntax.
-
----
-
-## 📦 Installation
-
-### From VS Code Marketplace
-
-1. Open VS Code
-2. Press `Ctrl+P` / `Cmd+P`
-3. Type: `ext install DrBlury.protobuf-vsc`
-4. Press Enter
-
-Or search for **"Protobuf VSC"** in the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+X`)
-
-[![Install from Marketplace](https://img.shields.io/badge/Install-VS%20Code%20Marketplace-blue?style=for-the-badge&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=DrBlury.protobuf-vsc)
-
-### From Source
-
-```bash
-git clone https://github.com/DrBlury/protobuf-vsc-extension.git
-cd protobuf-vsc-extension
-npm install
-npm run compile
-# Press F5 to launch Extension Development Host
-```
-
----
-
-## 🚦 Quick Start
-
-1. **Install the extension** from the VS Code Marketplace
-2. **Open a `.proto` file** - syntax highlighting activates automatically
-3. **Start typing** - IntelliSense provides smart completions
-4. **Hover over types** - see documentation and type information
-5. **Right-click** to access commands like "Compile This Proto" or "Check for Breaking Changes"
-6. **Configure settings** in VS Code settings (`protobuf.*`) to customize behavior
-
-### Optional: Set up compilation
+1) Install **Protobuf VSC** from the Marketplace.
+2) Open a `.proto` or `.textproto` file; IntelliSense, diagnostics, and formatting are on (proto2 + proto3 supported).
+3) Use the Command Palette (`Cmd/Ctrl+Shift+P`) and run `Protobuf: Compile This Proto` or `Protobuf: Show Schema Graph`.
+4) Install `protoc` (and optional tools below) if you need compilation/linting.
+5) Add a minimal config if you want compilation output:
 
 ```jsonc
 // .vscode/settings.json
 {
   "protobuf.protoc.path": "protoc",
-  "protobuf.protoc.options": [
-    "--proto_path=${workspaceFolder}/protos",
-    "--java_out=${workspaceFolder}/gen/java",
-    "--go_out=${workspaceFolder}/gen/go"
-  ],
-  "protobuf.protoc.compileOnSave": true
+  "protobuf.protoc.options": ["--proto_path=${workspaceFolder}", "--go_out=${workspaceFolder}/gen/go"]
 }
 ```
 
-### Optional: Enable breaking change detection
+---
+
+## Install
+
+- Marketplace: `ext install DrBlury.protobuf-vsc` or search "Protobuf VSC" in Extensions.
+- From source: `git clone`, `npm install`, `npm run compile`, then press `F5` to launch the Extension Development Host.
+
+---
+
+## What You Get
+
+- Navigation and IntelliSense: definitions, references, workspace symbols, import completion, auto-imports.
+- Diagnostics: syntax, imports, naming, duplicate tags/names, reserved ranges, undefined types.
+- Formatting: built-in or `clang-format`, format on save/selection.
+- Compilation: run protoc per file or all files, with custom options and variables.
+- Linting: Buf or Protolint on demand or on save.
+- Breaking-change check: compare against a git ref or file baseline.
+- Schema graph: interactive view of message/enum relationships (`Protobuf: Show Schema Graph`).
+- Refactors and fixes: rename, renumber fields/enums, quick fixes for imports and naming.
+
+---
+
+## Common Tasks
+
+- Format current file: `Protobuf: Format Document`.
+- Compile current file: `Protobuf: Compile This Proto`; compile all: `Protobuf: Compile All Protos`.
+- Check for breaking changes: `Protobuf: Check for Breaking Changes` (configure baseline in settings).
+- Run lint: `Protobuf: Run External Linter` (Buf/Protolint).
+- View schema: `Protobuf: Show Schema Graph`.
+- Renumber: `Protobuf: Renumber Fields/Enums` commands from palette or editor menu.
+
+---
+
+## Commands (Palette)
+
+| Command | What it does |
+| --- | --- |
+| `Protobuf: Compile This Proto` | Runs `protoc` on the active file using configured options/variables. |
+| `Protobuf: Compile All Protos` | Compiles every proto in the workspace. |
+| `Protobuf: Check for Breaking Changes` | Compares current schema to a configured git ref or file. |
+| `Protobuf: Show Schema Graph` | Opens an interactive graph of messages/enums and their relations. |
+| `Protobuf: Renumber Fields/Enums` | Rewrites tag numbers to close gaps or reorder. |
+| `Protobuf: Format Document` | Formats current proto via built-in or `clang-format`. |
+| `Protobuf: Run External Linter` | Runs Buf or Protolint with configured options. |
+| `Protobuf: Go to Definition / Find References` | Standard navigation for symbols and imports. |
+
+---
+
+## Settings Cheat Sheet
+
+Search for "protobuf" in VS Code settings. Common options:
+
+| Setting | Purpose | Default |
+| --- | --- | --- |
+| `protobuf.formatterEnabled` | Enable built-in formatter | `true` |
+| `protobuf.formatOnSave` | Format on save | `false` |
+| `protobuf.protoc.path` | Path to `protoc` | `"protoc"` |
+| `protobuf.protoc.options` | Extra `protoc` args | `[]` |
+| `protobuf.protoc.compileOnSave` | Compile on save | `false` |
+| `protobuf.breaking.enabled` | Turn on breaking-change checks | `false` |
+| `protobuf.breaking.againstGitRef` | Git ref baseline | `"HEAD~1"` |
+| `protobuf.externalLinter.linter` | `buf` or `protolint` | `"none"` |
+| `protobuf.clangFormat.enabled` | Use `clang-format` | `false` |
+
+Example lint setup (Buf):
 
 ```jsonc
-// .vscode/settings.json
-{
-  "protobuf.breaking.enabled": true,
-  "protobuf.breaking.againstGitRef": "main"
-}
-```
-
-### Optional: Integrate with Buf
-
-```jsonc
-// .vscode/settings.json
 {
   "protobuf.externalLinter.enabled": true,
   "protobuf.externalLinter.linter": "buf",
@@ -237,284 +105,74 @@ npm run compile
 }
 ```
 
----
+More examples:
 
-## 🎯 Feature Highlights
-
-### Prevent Field Number Conflicts
-
-The extension detects duplicate field numbers and reserved number usage **in real-time**:
-
-```protobuf
-message User {
-  string name = 1;
-  int32 age = 1;  // ❌ Error: Duplicate field number 1
-
-  reserved 10 to 20;
-  string email = 15;  // ❌ Error: Field number 15 is reserved
-}
-```
-
-### Smart Import Management
-
-Get auto-completions for import paths, including Google well-known types:
-
-```protobuf
-import "google/protobuf/  // ← Press Ctrl+Space for completions
-```
-
-The extension also provides "Add Import" quick fixes when using undefined types.
-
-### Breaking Change Protection
-
-Before pushing changes, check for API breakage:
-
-```bash
-# Run: "Protobuf: Check for Breaking Changes"
-```
-
-The extension compares your current file against a git baseline and reports:
-- Field deletions or renumbering
-- Type changes
-- Message/enum deletions
-- RPC signature modifications
-
-### Intelligent Field Renumbering
-
-Renumber fields automatically while respecting reserved ranges:
-
-```protobuf
-message Product {
-  reserved 5 to 10;
-  string name = 1;
-  string desc = 3;
-  int32 price = 12;
-  // After renumbering: 1, 2, 11 (skips reserved 5-10)
-}
-```
-
-### Visual Schema Graphs
-
-Explore how your messages and enums connect at a glance:
-
-- Open **Protobuf: Show Schema Graph** from the Command Palette.
-- Toggle between **Workspace** or **Current file + imports** scopes.
-- Nodes are color-coded (messages vs enums) and edges are labeled with field names and cardinality.
-- Drag to rearrange, scroll to zoom, and refresh to pick up recent edits.
-
----
-
-## 📖 Commands
-
-Access these commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) or context menu:
-
-| Command | Description | Shortcut |
-|---------|-------------|----------|
-| `Protobuf: Format Document` | Format the current proto file | Editor context menu |
-| `Protobuf: Compile This Proto` | Compile the current file with protoc | Right-click in editor |
-| `Protobuf: Compile All Protos` | Compile all proto files in workspace | Command Palette |
-| `Protobuf: Show Schema Graph` | Visualize message/enum relationships in an interactive graph | Command Palette |
-| `Protobuf: Check for Breaking Changes` | Detect breaking changes against git baseline | Right-click in editor |
-| `Protobuf: Run External Linter` | Run buf or protolint on current file | Command Palette |
-| `Protobuf: Show Available Lint Rules` | Display available lint rules | Command Palette |
-| `Protobuf: Renumber All Fields in Document` | Renumber all field tags sequentially | Command Palette |
-| `Protobuf: Renumber Fields in Message` | Renumber fields in a specific message | Right-click in editor |
-| `Protobuf: Renumber Fields from Cursor` | Renumber fields starting from cursor position | Right-click in editor |
-| `Protobuf: Renumber Enum Values` | Renumber enum values sequentially | Command Palette |
-
----
-
-## ⚙️ Configuration
-
-All settings are configurable via VS Code settings (`File > Preferences > Settings` or `Cmd+,` / `Ctrl+,`). Search for "protobuf" to see all options.
-
-### General Settings
-
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `protobuf.formatterEnabled` | Enable/disable the formatter | `true` |
-| `protobuf.formatOnSave` | Format on save | `false` |
-| `protobuf.indentSize` | Number of spaces for indentation | `2` |
-| `protobuf.useTabIndent` | Use tabs instead of spaces | `false` |
-| `protobuf.maxLineLength` | Maximum line length | `120` |
-| `protobuf.includes` | Additional paths to search for imports | `[]` |
-
-### Diagnostics Settings
-
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `protobuf.diagnostics.enabled` | Enable/disable all diagnostics | `true` |
-| `protobuf.diagnostics.namingConventions` | Check naming conventions | `true` |
-| `protobuf.diagnostics.referenceChecks` | Check for undefined references | `true` |
-| `protobuf.diagnostics.importChecks` | Validate import statements | `true` |
-| `protobuf.diagnostics.fieldTagChecks` | Check for field tag issues | `true` |
-| `protobuf.diagnostics.duplicateFieldChecks` | Check for duplicate field names | `true` |
-| `protobuf.diagnostics.discouragedConstructs` | Warn about discouraged patterns | `true` |
-
-### Protoc Compilation Settings
-
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `protobuf.protoc.path` | Path to protoc compiler | `"protoc"` |
-| `protobuf.protoc.compileOnSave` | Compile on save | `false` |
-| `protobuf.protoc.compileAllPath` | Search path for compile all | `""` |
-| `protobuf.protoc.useAbsolutePath` | Use absolute paths | `false` |
-| `protobuf.protoc.options` | Additional protoc options | `[]` |
-
-Example protoc options:
-```json
+```jsonc
+// Use variables in protoc options
 {
   "protobuf.protoc.options": [
-    "--proto_path=${workspaceRoot}/protos",
-    "--java_out=${workspaceRoot}/gen/java",
-    "--go_out=${workspaceRoot}/gen/go"
+    "--proto_path=${workspaceFolder}",
+    "--descriptor_set_out=${workspaceFolder}/out/descriptor.pb",
+    "--include_imports"
   ]
+}
+
+// Breaking-change baseline against a file
+{
+  "protobuf.breaking.enabled": true,
+  "protobuf.breaking.againstFile": "${workspaceFolder}/schema.baseline.bin"
 }
 ```
 
-### Breaking Change Detection Settings
+---
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `protobuf.breaking.enabled` | Enable breaking change detection | `false` |
-| `protobuf.breaking.againstStrategy` | Baseline strategy (git/file/none) | `"git"` |
-| `protobuf.breaking.againstGitRef` | Git reference to compare against | `"HEAD~1"` |
-| `protobuf.breaking.againstFilePath` | File path for file strategy | `""` |
+## Optional Tools
 
-### External Linter Settings
-
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `protobuf.externalLinter.enabled` | Enable external linter | `false` |
-| `protobuf.externalLinter.linter` | Linter to use (buf/protolint/none) | `"none"` |
-| `protobuf.externalLinter.bufPath` | Path to buf CLI | `"buf"` |
-| `protobuf.externalLinter.protolintPath` | Path to protolint CLI | `"protolint"` |
-| `protobuf.externalLinter.bufConfigPath` | Path to buf.yaml | `""` |
-| `protobuf.externalLinter.protolintConfigPath` | Path to .protolint.yaml | `""` |
-| `protobuf.externalLinter.runOnSave` | Run linter on save | `true` |
-
-### clang-format Settings
-
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `protobuf.clangFormat.enabled` | Use clang-format for formatting | `false` |
-| `protobuf.clangFormat.path` | Path to clang-format | `"clang-format"` |
-| `protobuf.clangFormat.style` | Format style | `"Google"` |
-| `protobuf.clangFormat.fallbackStyle` | Fallback style if file not found | `"Google"` |
+- `protoc` for compilation: `brew install protobuf` (macOS) or download from releases.
+- Buf: `brew install bufbuild/buf/buf` or `npm install -g @bufbuild/buf`.
+- Protolint: `brew install protolint` or `go install github.com/yoheimuta/protolint/cmd/protolint@latest`.
+- `clang-format`: `brew install clang-format` (or via LLVM on Windows/Linux).
 
 ---
 
-## 🔧 Prerequisites for Optional Features
+## Development
 
-### Protoc Compilation
-Install the Protocol Buffers compiler:
-- **macOS**: `brew install protobuf`
-- **Ubuntu**: `apt-get install protobuf-compiler`
-- **Windows**: Download from [protobuf releases](https://github.com/protocolbuffers/protobuf/releases)
+Requirements: Node.js 18+, npm 9+, VS Code 1.85+.
 
-### Buf Linter
-Install the Buf CLI:
-```bash
-# macOS/Linux
-brew install bufbuild/buf/buf
+- Install deps: `npm install`
+- Build: `npm run compile`
+- Test: `npm run test`
+- Debug: open in VS Code and press `F5` to launch the Extension Development Host.
 
-# npm
-npm install -g @bufbuild/buf
-```
-
-### Protolint
-Install protolint:
-```bash
-# macOS
-brew install protolint
-
-# Go
-go install github.com/yoheimuta/protolint/cmd/protolint@latest
-```
-
-### clang-format
-Install clang-format:
-- **macOS**: `brew install clang-format`
-- **Ubuntu**: `apt-get install clang-format`
-- **Windows**: Included with LLVM/Clang installation
+If you want to explore, see `examples/` for sample protos and `resources/google-protos/` for well-known types used in tests.
 
 ---
 
-## 💻 Development
+## Support
 
-### Prerequisites
-- Node.js 18+
-- npm 9+
-- VS Code 1.85+
+- Report bugs or request features: [GitHub Issues](https://github.com/DrBlury/protobuf-vsc-extension/issues)
+- Discussions: [GitHub Discussions](https://github.com/DrBlury/protobuf-vsc-extension/discussions)
+- Marketplace page: [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=DrBlury.protobuf-vsc)
 
-### Building
-```bash
-npm install
-npm run compile
-```
-
-### Testing
-```bash
-npm run test
-```
-
-### Debugging
-1. Open this project in VS Code
-2. Press F5 to launch the Extension Development Host
-3. Open a `.proto` file to test the extension
+If you like the extension, please star the repo or rate it on the Marketplace.
 
 ---
 
-## 📚 Supported Versions & File Types
+## Troubleshooting
 
-### Protobuf Versions
-- ✅ **proto2** - Full support for Protocol Buffers version 2
-- ✅ **proto3** - Full support for Protocol Buffers version 3
-- ✅ **Edition 2023** - Support for the latest Edition 2023 syntax
-
-### File Types
-- `.proto` - Protocol Buffers definition files
-- `.textproto`, `.pbtxt`, `.prototxt`, `.txtpb`, `.textpb`, `.pb.txt` - Text Proto format files
+- `protoc: command not found`: install `protoc` and ensure it is on PATH, or set `protobuf.protoc.path` to the absolute binary path.
+- Buf/Protolint not found: install the tool and restart VS Code so the PATH is picked up.
+- Imports unresolved: confirm `--proto_path` covers your source roots; you can set multiple entries in `protobuf.protoc.options`.
+- Formatting issues: set `protobuf.clangFormat.enabled` when you want to delegate formatting to your local `clang-format` config.
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-Contributions are welcome! Whether it's bug reports, feature requests, or pull requests, we appreciate your help in making Protobuf VSC better.
-
-### How to Contribute
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
-
-### Reporting Issues
-
-Found a bug or have a feature request? [Open an issue](https://github.com/DrBlury/protobuf-vsc-extension/issues) on GitHub.
+Pull requests and issue reports are welcome. Please run `npm run compile` and `npm run test` before submitting.
 
 ---
 
-## 📄 License
+## License
 
-MIT License - Copyright (c) 2025 Julian Bensch
-
-See [LICENSE](LICENSE) file for details.
-
----
-
-## 🌟 Show Your Support
-
-If you find Protobuf VSC helpful, please:
-- ⭐ **Star** the repository on [GitHub](https://github.com/DrBlury/protobuf-vsc-extension)
-- ⭐ **Rate** it on the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=DrBlury.protobuf-vsc)
-- 🐦 **Share** it with your team and community
-
----
-
-## 📞 Connect
-
-- **GitHub**: [@DrBlury](https://github.com/DrBlury)
-- **Issues**: [Report bugs or request features](https://github.com/DrBlury/protobuf-vsc-extension/issues)
-- **Discussions**: [Join the conversation](https://github.com/DrBlury/protobuf-vsc-extension/discussions)
+MIT License © 2025 Julian Bensch. See `LICENSE` for details.
