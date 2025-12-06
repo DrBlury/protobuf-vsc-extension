@@ -3,6 +3,7 @@ import { CodeActionsProvider } from './codeActions';
 import { DiagnosticsProvider } from './diagnostics';
 import { ProtoParser } from './parser';
 import { SemanticAnalyzer } from './analyzer';
+import { RenumberProvider } from './renumber';
 import { GOOGLE_WELL_KNOWN_PROTOS } from './googleWellKnown';
 import { CodeActionKind } from 'vscode-languageserver/node';
 
@@ -10,7 +11,8 @@ describe('CodeActionsProvider missing import quickfix', () => {
   const parser = new ProtoParser();
   const analyzer = new SemanticAnalyzer();
   const diagnosticsProvider = new DiagnosticsProvider(analyzer);
-  const provider = new CodeActionsProvider(analyzer);
+  const renumberProvider = new RenumberProvider(parser);
+  const provider = new CodeActionsProvider(analyzer, renumberProvider);
 
   beforeAll(() => {
     const dateContent = GOOGLE_WELL_KNOWN_PROTOS['google/type/date.proto'];

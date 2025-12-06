@@ -859,8 +859,6 @@ export class CodeActionsProvider {
     const lines = documentText.split('\n');
     const lineIndex = range.start.line;
     const line = lines[lineIndex] || '';
-    const replacementType = 'google.protobuf.Empty';
-
     let newLine = line;
     if (which === 'request') {
       newLine = line.replace(/rpc\s+(\w+)\s*\(\s*\)/, 'rpc $1 (google.protobuf.Empty)');
@@ -995,8 +993,12 @@ export class CodeActionsProvider {
     let endLine = -1;
     for (let i = startLine; i < lines.length; i++) {
       for (const ch of lines[i]) {
-        if (ch === '{') braceDepth++;
-        if (ch === '}') braceDepth--;
+        if (ch === '{') {
+          braceDepth++;
+        }
+        if (ch === '}') {
+          braceDepth--;
+        }
       }
       if (braceDepth === 0 && i > startLine) {
         endLine = i;
