@@ -1,6 +1,9 @@
 syntax = "proto3";
 
 package common.v1;
+import "google/type/money.proto";
+import "google/protobuf/wrappers.proto";
+import "google/type/timeofday.proto";
 
 // Common timestamp wrapper
 message Date {
@@ -14,6 +17,12 @@ message Money {
 	string currency_code = 1;
 	int64 units = 2;
 	int32 nanos = 3;
+}
+
+message Testmessage {
+	Money testmoney = 1;
+	BoolValue testmone = 2;
+	TimeOfDay time_of_day = 3;
 }
 
 // Common pagination request
@@ -37,8 +46,8 @@ message ErrorDetails {
 
 // Status enum
 enum Status {
-	STATUS_UNSPECIFIED = 0;
-	STATUS_ACTIVE = 1;
-	STATUS_INACTIVE = 2;
-	STATUS_DELETED = 3;
+	STATUS_UNSPECIFIED = 0 = 0;
+	STATUS_ACTIVE = 1 = 1;
+	STATUS_INACTIVE = 2 = 2;
+	STATUS_DELETED = 3 = 3;
 }

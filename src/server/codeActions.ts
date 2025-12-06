@@ -13,6 +13,7 @@ import {
 } from 'vscode-languageserver/node';
 import { ProtoFile } from './ast';
 import { SemanticAnalyzer } from './analyzer';
+import { RenumberProvider } from './renumber';
 
 export interface CodeActionContext {
   diagnostics: Diagnostic[];
@@ -21,9 +22,11 @@ export interface CodeActionContext {
 
 export class CodeActionsProvider {
   private analyzer: SemanticAnalyzer;
+  private renumberProvider: RenumberProvider;
 
-  constructor(analyzer: SemanticAnalyzer) {
+  constructor(analyzer: SemanticAnalyzer, renumberProvider: RenumberProvider) {
     this.analyzer = analyzer;
+    this.renumberProvider = renumberProvider;
   }
 
   getCodeActions(
@@ -48,13 +51,167 @@ export class CodeActionsProvider {
       if (missingImports.length > 0) {
         actions.push(this.createAddMissingImportsAction(uri, missingImports, documentText));
       }
+      const fixImports = this.createFixImportsAction(uri, context.diagnostics, documentText);
+      if (fixImports) {
+        actions.push(fixImports);
+      }
     }
 
     // Add refactoring actions based on selection
     const refactorings = this.getRefactoringActions(uri, range, documentText);
     actions.push(...refactorings);
 
+    // Source action to renumber/complete missing field tags across the document
+    if (!requestedKinds || requestedKinds.some(k => k === CodeActionKind.Source || k.startsWith(CodeActionKind.Source))) {
+      const renumberAction = this.createRenumberDocumentAction(uri, documentText);
+      if (renumberAction) {
+        actions.push(renumberAction);
+      }
+
+      const semicolonAction = this.createAddMissingSemicolonsAction(uri, documentText);
+      if (semicolonAction) {
+        actions.push(semicolonAction);
+      }
+
+      const messageName = this.findEnclosingMessageName(range, documentText);
+      if (messageName) {
+        const addNumbers = this.createNumberFieldsInMessageAction(uri, documentText, range, messageName);
+        if (addNumbers) {
+          actions.push(addNumbers);
+        }
+      }
+    }
+
+    // Quick-fix: renumber only the current message if applicable
+    const messageName = this.findEnclosingMessageName(range, documentText);
+    if (messageName) {
+      const messageRenumber = this.createRenumberMessageAction(uri, documentText, messageName);
+      if (messageRenumber) {
+        actions.push(messageRenumber);
+      }
+    }
+
     return actions;
+  }
+
+  private createRenumberDocumentAction(uri: string, documentText: string): CodeAction | null {
+    const edits = this.renumberProvider.renumberDocument(documentText, uri);
+    if (edits.length === 0) {
+      return null;
+    }
+
+    return {
+      title: 'Assign/normalize field numbers',
+      kind: CodeActionKind.SourceFixAll,
+      edit: {
+        changes: {
+          [uri]: edits
+        }
+      }
+    };
+  }
+
+  private createRenumberMessageAction(
+    uri: string,
+    documentText: string,
+    messageName: string
+  ): CodeAction | null {
+    const edits = this.renumberProvider.renumberMessage(documentText, uri, messageName);
+    if (edits.length === 0) {
+      return null;
+    }
+
+    return {
+      title: `Renumber fields in message ${messageName}`,
+      kind: CodeActionKind.QuickFix,
+      edit: {
+        changes: {
+          [uri]: edits
+        }
+      }
+    };
+  }
+
+  private createAddMissingSemicolonsAction(uri: string, documentText: string): CodeAction | null {
+    const lines = documentText.split('\n');
+    const edits: TextEdit[] = [];
+
+    const fieldLike = /^(?:optional|required|repeated)?\s*([A-Za-z_][\w<>.,]*)\s+([A-Za-z_][\w]*)(?:\s*=\s*\d+)?/;
+    const mapLike = /^\s*map\s*<[^>]+>\s+[A-Za-z_][\w]*(?:\s*=\s*\d+)?/;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      if (trimmed === '' || trimmed.startsWith('//') || trimmed.startsWith('/*')) {
+        continue;
+      }
+
+      if (/^(message|enum|service|oneof)\b/.test(trimmed) || trimmed.startsWith('option') ||
+          trimmed.startsWith('import') || trimmed.startsWith('syntax') || trimmed.startsWith('edition') ||
+          trimmed.startsWith('reserved') || trimmed.startsWith('rpc') || trimmed.startsWith('package')) {
+        continue;
+      }
+
+      if (trimmed.endsWith(';') || trimmed.endsWith('{') || trimmed.endsWith('}')) {
+        continue;
+      }
+
+      const looksLikeField = fieldLike.test(trimmed) || mapLike.test(trimmed);
+      if (!looksLikeField) {
+        continue;
+      }
+
+      edits.push({
+        range: {
+          start: { line: i, character: 0 },
+          end: { line: i, character: line.length }
+        },
+        newText: `${line.trimEnd()};`
+      });
+    }
+
+    if (edits.length === 0) {
+      return null;
+    }
+
+    return {
+      title: 'Add missing semicolons to proto fields',
+      kind: CodeActionKind.SourceFixAll,
+      edit: {
+        changes: {
+          [uri]: edits
+        }
+      }
+    };
+  }
+
+  private findEnclosingMessageName(range: Range, documentText: string): string | null {
+    const lines = documentText.split('\n');
+    let braceDepth = 0;
+
+    for (let i = range.start.line; i >= 0; i--) {
+      const line = lines[i];
+      if (!line) {
+        continue;
+      }
+
+      for (const ch of line) {
+        if (ch === '{') {
+          braceDepth--;
+        }
+        if (ch === '}') {
+          braceDepth++;
+        }
+      }
+
+      const match = line.match(/\bmessage\s+(\w+)/);
+      if (match && braceDepth <= 0) {
+        return match[1];
+      }
+    }
+
+    return null;
   }
 
   private getQuickFixes(uri: string, diagnostic: Diagnostic, documentText: string): CodeAction[] {
@@ -74,6 +231,176 @@ export class CodeActionsProvider {
           diagnostic
         ));
       }
+    }
+
+    if (message.includes('missing semicolon')) {
+      const lines = documentText.split('\n');
+      const line = lines[diagnostic.range.start.line] || '';
+
+      fixes.push({
+        title: 'Add semicolon',
+        kind: CodeActionKind.QuickFix,
+        diagnostics: [diagnostic],
+        edit: {
+          changes: {
+            [uri]: [{
+              range: {
+                start: { line: diagnostic.range.start.line, character: 0 },
+                end: { line: diagnostic.range.start.line, character: line.length }
+              },
+              newText: `${line.trimEnd()};`
+            }]
+          }
+        }
+      });
+    }
+
+    if (message.includes('missing syntax or edition declaration')) {
+      const insertPos = { line: 0, character: 0 };
+      fixes.push({
+        title: 'Insert syntax = "proto3";',
+        kind: CodeActionKind.QuickFix,
+        diagnostics: [diagnostic],
+        edit: {
+          changes: {
+            [uri]: [{
+              range: { start: insertPos, end: insertPos },
+              newText: 'syntax = "proto3";\n'
+            }]
+          }
+        }
+      });
+    }
+
+    if (message.includes('package') && message.includes('does not appear to match directory')) {
+      const lines = documentText.split('\n');
+      const pkgLine = diagnostic.range.start.line;
+      const pkgLineText = lines[pkgLine] || '';
+      const suggested = this.inferPackageFromUri(uri) || 'package.name';
+
+      fixes.push({
+        title: `Set package to '${suggested}'`,
+        kind: CodeActionKind.QuickFix,
+        diagnostics: [diagnostic],
+        edit: {
+          changes: {
+            [uri]: [{
+              range: {
+                start: { line: pkgLine, character: 0 },
+                end: { line: pkgLine, character: pkgLineText.length }
+              },
+              newText: `package ${suggested};`
+            }]
+          }
+        }
+      });
+    }
+
+    if (message.includes('duplicate field number') && message.includes('oneof')) {
+      const messageName = this.findEnclosingMessageName(diagnostic.range, documentText);
+      if (messageName) {
+        const renumber = this.createRenumberMessageAction(uri, documentText, messageName);
+        if (renumber) {
+          fixes.push(renumber);
+        }
+      }
+    }
+
+    if (message.includes('should not use modifier') && message.includes('oneof')) {
+      const lines = documentText.split('\n');
+      const lineIndex = diagnostic.range.start.line;
+      const line = lines[lineIndex] || '';
+      const newLine = line.replace(/\b(optional|required|repeated)\s+/, '');
+      fixes.push({
+        title: 'Remove modifier from oneof field',
+        kind: CodeActionKind.QuickFix,
+        diagnostics: [diagnostic],
+        edit: {
+          changes: {
+            [uri]: [{
+              range: {
+                start: { line: lineIndex, character: 0 },
+                end: { line: lineIndex, character: line.length }
+              },
+              newText: newLine
+            }]
+          }
+        }
+      });
+    }
+
+    if (message.includes('rpc') && message.includes('missing request type')) {
+      const edit = this.fillRpcType(uri, diagnostic.range, documentText, 'request');
+      if (edit) {
+        fixes.push(edit);
+      }
+    }
+
+    if (message.includes('rpc') && message.includes('missing response type')) {
+      const edit = this.fillRpcType(uri, diagnostic.range, documentText, 'response');
+      if (edit) {
+        fixes.push(edit);
+      }
+    }
+
+    if (message.includes('expects a boolean value')) {
+      fixes.push(this.replaceOptionValue(uri, diagnostic, documentText, 'true'));
+    }
+
+    if (message.includes('expects a string value')) {
+      fixes.push(this.replaceOptionValue(uri, diagnostic, documentText, '""'));
+    }
+
+    if (message.includes('expects one of:')) {
+      const match = diagnostic.message.match(/expects one of: (.*)$/i);
+      const first = match ? match[1].split(',')[0].trim() : 'SPEED';
+      fixes.push(this.replaceOptionValue(uri, diagnostic, documentText, first));
+    }
+
+    if (message.includes('cannot be resolved') && message.includes('import')) {
+      const lines = documentText.split('\n');
+      const lineIndex = diagnostic.range.start.line;
+      const line = lines[lineIndex] || '';
+
+      fixes.push({
+        title: 'Remove unresolved import',
+        kind: CodeActionKind.QuickFix,
+        diagnostics: [diagnostic],
+        edit: {
+          changes: {
+            [uri]: [{
+              range: {
+                start: { line: lineIndex, character: 0 },
+                end: { line: lineIndex, character: line.length }
+              },
+              newText: ''
+            }]
+          }
+        }
+      });
+    }
+
+    if (message.includes('unused import')) {
+      const lines = documentText.split('\n');
+      const lineIndex = diagnostic.range.start.line;
+      const line = lines[lineIndex] || '';
+
+      fixes.push({
+        title: 'Remove unused import',
+        kind: CodeActionKind.QuickFix,
+        diagnostics: [diagnostic],
+        edit: {
+          changes: {
+            [uri]: [{
+              range: {
+                start: { line: lineIndex, character: 0 },
+                end: { line: lineIndex, character: line.length }
+              },
+              newText: ''
+            }]
+          }
+        }
+      });
     }
 
     if (message.includes('should be snake_case')) {
@@ -135,6 +462,16 @@ export class CodeActionsProvider {
             }
           }
         });
+      }
+    }
+
+    if (message.includes('not strictly increasing') || message.includes('gap in field numbers')) {
+      const messageName = this.findEnclosingMessageName(diagnostic.range, documentText);
+      if (messageName) {
+        const renumber = this.createRenumberMessageAction(uri, documentText, messageName);
+        if (renumber) {
+          fixes.push(renumber);
+        }
       }
     }
 
@@ -479,6 +816,83 @@ export class CodeActionsProvider {
     return { line: insertLine, character: 0 };
   }
 
+  private inferPackageFromUri(uri: string): string | null {
+    try {
+      const fsPath = decodeURI(uri.replace('file://', ''));
+      const segments = fsPath.split(/[\\/]+/);
+      if (segments.length < 2) {
+        return null;
+      }
+      const dir = segments[segments.length - 2];
+      return dir.replace(/[^a-zA-Z0-9_]/g, '_');
+    } catch (_e) {
+      return null;
+    }
+  }
+
+  private replaceOptionValue(uri: string, diagnostic: Diagnostic, documentText: string, valueText: string): CodeAction {
+    const lines = documentText.split('\n');
+    const lineIndex = diagnostic.range.start.line;
+    const line = lines[lineIndex] || '';
+
+    const newLine = line.replace(/=\s*[^;]+/, `= ${valueText}`);
+
+    return {
+      title: `Set option value to ${valueText}`,
+      kind: CodeActionKind.QuickFix,
+      diagnostics: [diagnostic],
+      edit: {
+        changes: {
+          [uri]: [{
+            range: {
+              start: { line: lineIndex, character: 0 },
+              end: { line: lineIndex, character: line.length }
+            },
+            newText: newLine
+          }]
+        }
+      }
+    };
+  }
+
+  private fillRpcType(uri: string, range: Range, documentText: string, which: 'request' | 'response'): CodeAction | null {
+    const lines = documentText.split('\n');
+    const lineIndex = range.start.line;
+    const line = lines[lineIndex] || '';
+    const replacementType = 'google.protobuf.Empty';
+
+    let newLine = line;
+    if (which === 'request') {
+      newLine = line.replace(/rpc\s+(\w+)\s*\(\s*\)/, 'rpc $1 (google.protobuf.Empty)');
+    } else {
+      newLine = line.replace(/returns\s*\(\s*\)/, 'returns (google.protobuf.Empty)');
+    }
+
+    if (newLine === line) {
+      return null;
+    }
+
+    return {
+      title: which === 'request' ? 'Fill request with google.protobuf.Empty' : 'Fill response with google.protobuf.Empty',
+      kind: CodeActionKind.QuickFix,
+      diagnostics: [],
+      edit: {
+        changes: {
+          [uri]: [{
+            range: {
+              start: { line: lineIndex, character: 0 },
+              end: { line: lineIndex, character: line.length }
+            },
+            newText: newLine
+          }, {
+            range: { start: this.findImportInsertPosition(documentText), end: this.findImportInsertPosition(documentText) },
+            newText: documentText.includes('google/protobuf/empty.proto') ? '' : 'import "google/protobuf/empty.proto";\n'
+          }]
+        }
+      }
+    };
+  }
+
   private extractMissingImportPaths(diagnostics: Diagnostic[], documentText: string): string[] {
     const imports = new Set<string>();
     for (const diagnostic of diagnostics) {
@@ -496,6 +910,49 @@ export class CodeActionsProvider {
     return Array.from(imports);
   }
 
+  private createFixImportsAction(uri: string, diagnostics: Diagnostic[], documentText: string): CodeAction | null {
+    const lines = documentText.split('\n');
+
+    const missingImports = this.extractMissingImportPaths(diagnostics, documentText);
+
+    const unusedImportLines: TextEdit[] = [];
+    for (const diagnostic of diagnostics) {
+      const msg = diagnostic.message.toLowerCase();
+      if (!msg.includes('unused import')) {
+        continue;
+      }
+      const lineIndex = diagnostic.range.start.line;
+      const line = lines[lineIndex] || '';
+      unusedImportLines.push({
+        range: {
+          start: { line: lineIndex, character: 0 },
+          end: { line: lineIndex, character: line.length }
+        },
+        newText: ''
+      });
+    }
+
+    if (missingImports.length === 0 && unusedImportLines.length === 0) {
+      return null;
+    }
+
+    const insertPosition = this.findImportInsertPosition(documentText);
+    const addEdits: TextEdit[] = missingImports.map(p => ({
+      range: { start: insertPosition, end: insertPosition },
+      newText: `import "${p}";\n`
+    }));
+
+    return {
+      title: 'Fix imports (add missing, remove unused)',
+      kind: CodeActionKind.SourceFixAll,
+      edit: {
+        changes: {
+          [uri]: [...unusedImportLines, ...addEdits]
+        }
+      }
+    };
+  }
+
   private createAddMissingImportsAction(uri: string, importPaths: string[], documentText: string): CodeAction {
     const insertPosition = this.findImportInsertPosition(documentText);
     const edits: TextEdit[] = importPaths.map(p => ({
@@ -506,6 +963,106 @@ export class CodeActionsProvider {
     return {
       title: 'Add missing imports',
       kind: CodeActionKind.SourceOrganizeImports,
+      edit: {
+        changes: {
+          [uri]: edits
+        }
+      }
+    };
+  }
+
+  private createNumberFieldsInMessageAction(
+    uri: string,
+    documentText: string,
+    range: Range,
+    messageName: string
+  ): CodeAction | null {
+    const lines = documentText.split('\n');
+
+    // Find message bounds
+    let startLine = -1;
+    for (let i = range.start.line; i >= 0; i--) {
+      if (/^\s*message\s+\w+\s*\{/.test(lines[i])) {
+        startLine = i;
+        break;
+      }
+    }
+    if (startLine === -1) {
+      return null;
+    }
+
+    let braceDepth = 0;
+    let endLine = -1;
+    for (let i = startLine; i < lines.length; i++) {
+      for (const ch of lines[i]) {
+        if (ch === '{') braceDepth++;
+        if (ch === '}') braceDepth--;
+      }
+      if (braceDepth === 0 && i > startLine) {
+        endLine = i;
+        break;
+      }
+    }
+    if (endLine === -1) {
+      return null;
+    }
+
+    const fieldLike = /^(\s*)(?:optional|required|repeated)?\s*(?:map\s*<[^>]+>\s+|[A-Za-z_][\w.<>,]*\s+)([A-Za-z_][\w]*)(\s*.*)$/;
+
+    const edits: TextEdit[] = [];
+    let nextNumber = 1;
+
+    for (let i = startLine + 1; i < endLine; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+      if (trimmed === '' || trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('}')) {
+        continue;
+      }
+
+      if (trimmed.includes('=')) {
+        // Already numbered; attempt to keep numbering continuity
+        const match = trimmed.match(/=\s*(\d+)/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num >= nextNumber) {
+            nextNumber = num + 1;
+          }
+        }
+        continue;
+      }
+
+      const m = line.match(fieldLike);
+      if (!m) {
+        continue;
+      }
+
+      // Skip internal reserved range
+      if (nextNumber >= 19000 && nextNumber <= 19999) {
+        nextNumber = 20000;
+      }
+
+      const indent = m[1];
+      const suffix = m[3] || '';
+      const newLine = `${indent}${m[0].trim()} = ${nextNumber};${suffix.includes(';') ? '' : ''}`;
+
+      edits.push({
+        range: {
+          start: { line: i, character: 0 },
+          end: { line: i, character: line.length }
+        },
+        newText: newLine
+      });
+
+      nextNumber += 1;
+    }
+
+    if (edits.length === 0) {
+      return null;
+    }
+
+    return {
+      title: `Assign field numbers in message ${messageName}`,
+      kind: CodeActionKind.SourceFixAll,
       edit: {
         changes: {
           [uri]: edits

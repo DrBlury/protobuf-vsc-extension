@@ -9,7 +9,7 @@ import {
   Position
 } from 'vscode-languageserver/node';
 
-import { BUILTIN_TYPES, SymbolKind, ProtoFile } from './ast';
+import { BUILTIN_TYPES, SymbolKind } from './ast';
 import { SemanticAnalyzer } from './analyzer';
 
 export class CompletionProvider {
@@ -50,6 +50,11 @@ export class CompletionProvider {
     // Field number suggestion - now with context-aware suggestions
     if (beforeCursor.match(/=\s*$/)) {
       completions.push(...this.getFieldNumberCompletions(uri, position, documentText));
+    }
+
+    // Auto-assign field number and semicolon right after field name
+    if (this.isFieldAssignmentContext(beforeCursor)) {
+      completions.push(...this.getFieldAssignmentCompletions(uri, position, documentText));
     }
 
     // Option completions
@@ -219,7 +224,7 @@ export class CompletionProvider {
     const protoFile = this.analyzer.getFile(uri);
 
     if (protoFile && documentText) {
-      const nextNumber = this.findNextFieldNumber(protoFile, position, documentText);
+      const nextNumber = this.findNextFieldNumber(position, documentText);
       if (nextNumber > 0) {
         completions.push({
           label: nextNumber.toString(),
@@ -227,7 +232,9 @@ export class CompletionProvider {
           detail: `Next available field number`,
           documentation: 'Suggested next sequential field number based on existing fields',
           sortText: '0' + nextNumber.toString().padStart(5, '0'),
-          preselect: true
+          preselect: true,
+          insertText: `${nextNumber};`,
+          insertTextFormat: InsertTextFormat.Snippet
         });
       }
     }
@@ -239,7 +246,9 @@ export class CompletionProvider {
           label: n.toString(),
           kind: CompletionItemKind.Value,
           detail: `Field number ${n}`,
-          sortText: (i + 1).toString().padStart(3, '0')
+          sortText: (i + 1).toString().padStart(3, '0'),
+          insertText: `${n};`,
+          insertTextFormat: InsertTextFormat.Snippet
         });
       }
     });
@@ -247,7 +256,7 @@ export class CompletionProvider {
     return completions;
   }
 
-  private findNextFieldNumber(_protoFile: ProtoFile, position: Position, documentText: string): number {
+  private findNextFieldNumber(position: Position, documentText: string): number {
     const lines = documentText.split('\n');
 
     // Alternative approach: scan the document text directly to find field numbers
@@ -377,6 +386,34 @@ export class CompletionProvider {
     }
 
     return nextNumber;
+  }
+
+  private isFieldAssignmentContext(text: string): boolean {
+    // Match a type and identifier with trailing whitespace, but no '=' yet
+    const pattern = /^\s*(?:optional|required|repeated)?\s*(?!map\s*<)([A-Za-z_][\w.<>,]*)\s+([A-Za-z_][\w]*)\s*$/;
+    return pattern.test(text);
+  }
+
+  private getFieldAssignmentCompletions(
+    uri: string,
+    position: Position,
+    documentText?: string
+  ): CompletionItem[] {
+    if (!documentText) {
+      return [];
+    }
+
+    const nextNumber = this.findNextFieldNumber(position, documentText);
+
+    return [{
+      label: `= ${nextNumber};`,
+      kind: CompletionItemKind.Snippet,
+      detail: 'Insert next field tag and semicolon',
+      documentation: 'Automatically assigns the next available field number and appends a semicolon',
+      insertText: `= ${nextNumber};$0`,
+      insertTextFormat: InsertTextFormat.Snippet,
+      sortText: '00'
+    }];
   }
 
   private getOptionCompletions(): CompletionItem[] {

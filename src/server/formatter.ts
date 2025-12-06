@@ -16,7 +16,7 @@ export interface FormatterSettings {
 const DEFAULT_SETTINGS: FormatterSettings = {
   indentSize: 2,
   useTabIndent: false,
-  renumberOnFormat: false,
+  renumberOnFormat: true,
   renumberStartNumber: 1,
   renumberIncrement: 1
 };
@@ -236,6 +236,7 @@ export class ProtoFormatter {
 
     // Stack to track context: each entry is { type: 'message'|'enum'|'oneof', fieldCounter: number }
     const contextStack: Array<{ type: string; fieldCounter: number }> = [];
+    const increment = this.settings.renumberIncrement || 1;
 
     for (let i = 0; i < lines.length; i++) {
       let line = lines[i];
@@ -303,42 +304,42 @@ export class ProtoFormatter {
         }
 
         // Field pattern: type name = NUMBER; or with options
-        const fieldMatch = line.match(/^(\s*)((?:optional|required|repeated)\s+)?(.+?)\s+(\w+)\s*=\s*(\d+)(.*?)(;.*)$/);
+        // Map field pattern: map<K, V> name [= NUMBER] [options] [;...]
+        const mapMatch = line.match(/^(\s*)map\s*<\s*(\w+)\s*,\s*(\S+)\s*>\s+(\w+)(?:\s*=\s*(\d+))?(.*?)(;.*)?$/);
 
-        if (fieldMatch) {
-          const [, indent, modifier, fieldType, fieldName, _oldNumber, options, ending] = fieldMatch;
-          const newNumber = currentContext.fieldCounter;
+        if (mapMatch) {
+          const [, indent, keyType, valueType, fieldName, existingNumber, options = '', ending = ''] = mapMatch;
+          const numberSource = existingNumber ? parseInt(existingNumber, 10) : currentContext.fieldCounter;
 
-          // Skip internal reserved range
-          let finalNumber = newNumber;
+          let finalNumber = numberSource;
           if (finalNumber >= 19000 && finalNumber <= 19999) {
             finalNumber = 20000;
-            currentContext.fieldCounter = 20000;
           }
 
-          const modifierPart = modifier || '';
-          line = `${indent}${modifierPart}${fieldType} ${fieldName} = ${finalNumber}${options}${ending}`;
-          currentContext.fieldCounter += (this.settings.renumberIncrement || 1);
+          const endingText = ending.includes(';') ? ending : `${ending};`;
+          line = `${indent}map<${keyType}, ${valueType}> ${fieldName} = ${finalNumber}${options}${endingText}`;
+          currentContext.fieldCounter = finalNumber + increment;
 
           result.push(line);
           continue;
         }
 
-        // Map field pattern: map<K, V> name = NUMBER;
-        const mapMatch = line.match(/^(\s*)map\s*<\s*(\w+)\s*,\s*(\S+)\s*>\s+(\w+)\s*=\s*(\d+)(.*?)(;.*)$/);
+        // Field pattern: type name [= NUMBER] [options] [;...]
+        const fieldMatch = line.match(/^(\s*)((?:optional|required|repeated)\s+)?(.+?)\s+(\w+)(?:\s*=\s*(\d+))?(.*?)(;.*)?$/);
 
-        if (mapMatch) {
-          const [, indent, keyType, valueType, fieldName, _oldNumber, options, ending] = mapMatch;
-          const newNumber = currentContext.fieldCounter;
+        if (fieldMatch) {
+          const [, indent, modifier, fieldType, fieldName, existingNumber, options = '', ending = ''] = fieldMatch;
+          const modifierPart = modifier || '';
+          const numberSource = existingNumber ? parseInt(existingNumber, 10) : currentContext.fieldCounter;
 
-          let finalNumber = newNumber;
+          let finalNumber = numberSource;
           if (finalNumber >= 19000 && finalNumber <= 19999) {
             finalNumber = 20000;
-            currentContext.fieldCounter = 20000;
           }
 
-          line = `${indent}map<${keyType}, ${valueType}> ${fieldName} = ${finalNumber}${options}${ending}`;
-          currentContext.fieldCounter += (this.settings.renumberIncrement || 1);
+          const endingText = ending.includes(';') ? ending : `${ending};`;
+          line = `${indent}${modifierPart}${fieldType} ${fieldName} = ${finalNumber}${options}${endingText}`;
+          currentContext.fieldCounter = finalNumber + increment;
 
           result.push(line);
           continue;

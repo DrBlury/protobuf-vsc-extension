@@ -86,7 +86,7 @@ const referencesProvider = new ReferencesProvider(analyzer);
 const symbolProvider = new SymbolProvider(analyzer);
 const renumberProvider = new RenumberProvider(parser);
 const renameProvider = new RenameProvider(analyzer);
-const codeActionsProvider = new CodeActionsProvider(analyzer);
+const codeActionsProvider = new CodeActionsProvider(analyzer, renumberProvider);
 const protocCompiler = new ProtocCompiler();
 const breakingChangeDetector = new BreakingChangeDetector();
 const externalLinter = new ExternalLinterProvider();
@@ -192,7 +192,7 @@ const defaultSettings: Settings = {
       preserveReserved: true,
       skipInternalRange: true,
       autoSuggestNext: true,
-      onFormat: false
+      onFormat: true
     },
     diagnostics: {
       enabled: true,
@@ -602,7 +602,7 @@ async function validateDocument(document: TextDocument): Promise<void> {
     analyzer.updateFile(uri, file);
 
     // Run diagnostics
-    const diagnostics = diagnosticsProvider.validate(uri, file);
+    const diagnostics = diagnosticsProvider.validate(uri, file, text);
 
     connection.sendDiagnostics({ uri, diagnostics });
   } catch (error) {

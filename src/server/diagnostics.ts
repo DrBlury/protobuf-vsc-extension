@@ -14,7 +14,9 @@ import {
   MessageDefinition,
   EnumDefinition,
   ServiceDefinition,
+  OneofDefinition,
   FieldDefinition,
+  OptionStatement,
   BUILTIN_TYPES,
   MAP_KEY_TYPES,
   MIN_FIELD_NUMBER,
@@ -54,31 +56,130 @@ export class DiagnosticsProvider {
     this.settings = { ...this.settings, ...settings };
   }
 
-  validate(uri: string, file: ProtoFile): Diagnostic[] {
+  validate(uri: string, file: ProtoFile, documentText?: string): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];
     const packageName = file.package?.name || '';
+
+    this.validateSyntaxOrEdition(uri, file, diagnostics);
+
+    this.validatePackagePathConsistency(uri, file, diagnostics);
+
+    // Collect type usages for downstream checks (imports, unused imports, numbering continuity helpers)
+    const usedTypeUris = this.collectUsedTypeUris(file, uri);
 
     // Validate messages
     for (const message of file.messages) {
       this.validateMessage(uri, message, packageName, diagnostics);
+      this.validateOptionTypes(message.options, diagnostics);
     }
 
     // Validate enums
     for (const enumDef of file.enums) {
       this.validateEnum(uri, enumDef, packageName, diagnostics);
+      this.validateOptionTypes(enumDef.options, diagnostics);
     }
 
     // Validate services
     for (const service of file.services) {
       this.validateService(uri, service, packageName, diagnostics);
+      this.validateOptionTypes(service.options, diagnostics);
     }
 
     // Validate imports
     if (this.settings.importChecks) {
-      this.validateImports(uri, file, diagnostics);
+      this.validateImports(uri, file, diagnostics, usedTypeUris);
+    }
+
+    // File-level options
+    this.validateOptionTypes(file.options, diagnostics);
+
+    // Heuristic: detect field-like lines missing semicolons to drive quick fixes
+    if (documentText) {
+      this.validateMissingSemicolons(uri, documentText, diagnostics);
     }
 
     return diagnostics;
+  }
+
+  private validateSyntaxOrEdition(uri: string, file: ProtoFile, diagnostics: Diagnostic[]): void {
+    const hasSyntax = !!file.syntax;
+    const hasEdition = !!file.edition;
+
+    if (!hasSyntax && !hasEdition) {
+      diagnostics.push({
+        severity: DiagnosticSeverity.Warning,
+        range: this.toRange(file.range),
+        message: 'Missing syntax or edition declaration (e.g., syntax = "proto3";)',
+        source: 'protobuf'
+      });
+    }
+  }
+
+  private validatePackagePathConsistency(uri: string, file: ProtoFile, diagnostics: Diagnostic[]): void {
+    if (!file.package?.name) {
+      return;
+    }
+
+    try {
+      const fsPath = decodeURI(uri.replace('file://', ''));
+      const segments = fsPath.split(/[\\/]+/);
+      if (segments.length < 2) {
+        return;
+      }
+      const dir = segments[segments.length - 2];
+      const pkgSegments = file.package.name.split('.');
+      if (!pkgSegments.includes(dir)) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Hint,
+          range: this.toRange(file.package.range),
+          message: `Package '${file.package.name}' does not appear to match directory '${dir}'`,
+          source: 'protobuf'
+        });
+      }
+    } catch (_e) {
+      // Ignore path issues
+    }
+  }
+
+  private validateMissingSemicolons(uri: string, text: string, diagnostics: Diagnostic[]): void {
+    const lines = text.split('\n');
+
+    const fieldLike = /^(?:optional|required|repeated)?\s*([A-Za-z_][\w<>.,]*)\s+([A-Za-z_][\w]*)(?:\s*=\s*\d+)?/;
+    const mapLike = /^\s*map\s*<[^>]+>\s+[A-Za-z_][\w]*(?:\s*=\s*\d+)?/;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      if (trimmed === '' || trimmed.startsWith('//') || trimmed.startsWith('/*')) {
+        continue;
+      }
+
+      if (/^(message|enum|service|oneof)\b/.test(trimmed) || trimmed.startsWith('option') ||
+          trimmed.startsWith('import') || trimmed.startsWith('syntax') || trimmed.startsWith('edition') ||
+          trimmed.startsWith('reserved') || trimmed.startsWith('rpc') || trimmed.startsWith('package')) {
+        continue;
+      }
+
+      if (trimmed.endsWith(';') || trimmed.endsWith('{') || trimmed.endsWith('}')) {
+        continue;
+      }
+
+      const looksLikeField = fieldLike.test(trimmed) || mapLike.test(trimmed);
+      if (!looksLikeField) {
+        continue;
+      }
+
+      diagnostics.push({
+        severity: DiagnosticSeverity.Warning,
+        range: {
+          start: { line: i, character: 0 },
+          end: { line: i, character: line.length }
+        },
+        message: 'Field is missing semicolon',
+        source: 'protobuf'
+      });
+    }
   }
 
   private validateMessage(
@@ -184,6 +285,12 @@ export class DiagnosticsProvider {
       }
     }
 
+    // Check numbering continuity (gaps/out-of-order) including oneof fields
+    this.checkFieldNumberContinuity(message, diagnostics, reservedNumbers);
+
+    // Check for overlapping reserved ranges
+    this.checkReservedOverlap(message, diagnostics);
+
     // Validate nested messages
     for (const nested of message.nestedMessages) {
       this.validateMessage(uri, nested, fullName, diagnostics);
@@ -204,6 +311,7 @@ export class DiagnosticsProvider {
           source: 'protobuf'
         });
       }
+          this.validateOneof(oneof, diagnostics);
     }
   }
 
@@ -442,6 +550,44 @@ export class DiagnosticsProvider {
     }
   }
 
+  private validateOptionTypes(options: OptionStatement[], diagnostics: Diagnostic[]): void {
+    const boolOptions = new Set(['deprecated', 'java_multiple_files', 'cc_enable_arenas', 'java_string_check_utf8', 'allow_alias']);
+    const stringOptions = new Set(['java_package', 'java_outer_classname', 'go_package', 'objc_class_prefix', 'csharp_namespace', 'swift_prefix', 'php_namespace', 'ruby_package']);
+    const enumOptions = new Map<string, Set<string>>([
+      ['optimize_for', new Set(['SPEED', 'CODE_SIZE', 'LITE_RUNTIME'])]
+    ]);
+
+    for (const opt of options) {
+      if (boolOptions.has(opt.name) && typeof opt.value !== 'boolean') {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Warning,
+          range: this.toRange(opt.range),
+          message: `Option '${opt.name}' expects a boolean value`,
+          source: 'protobuf'
+        });
+      }
+
+      if (stringOptions.has(opt.name) && typeof opt.value !== 'string') {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Warning,
+          range: this.toRange(opt.range),
+          message: `Option '${opt.name}' expects a string value`,
+          source: 'protobuf'
+        });
+      }
+
+      const enumSet = enumOptions.get(opt.name);
+      if (enumSet && (typeof opt.value !== 'string' || !enumSet.has(String(opt.value)))) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Warning,
+          range: this.toRange(opt.range),
+          message: `Option '${opt.name}' expects one of: ${Array.from(enumSet).join(', ')}`,
+          source: 'protobuf'
+        });
+      }
+    }
+  }
+
   private validateService(
     uri: string,
     service: ServiceDefinition,
@@ -469,6 +615,24 @@ export class DiagnosticsProvider {
           source: 'protobuf'
         });
       }
+
+        if (!rpc.inputType) {
+          diagnostics.push({
+            severity: DiagnosticSeverity.Error,
+            range: this.toRange(rpc.range),
+            message: `RPC '${rpc.name}' is missing request type`,
+            source: 'protobuf'
+          });
+        }
+
+        if (!rpc.outputType) {
+          diagnostics.push({
+            severity: DiagnosticSeverity.Error,
+            range: this.toRange(rpc.range),
+            message: `RPC '${rpc.name}' is missing response type`,
+            source: 'protobuf'
+          });
+        }
 
       // Check input type reference
       if (this.settings.referenceChecks) {
@@ -500,7 +664,7 @@ export class DiagnosticsProvider {
     }
   }
 
-  private validateImports(_uri: string, file: ProtoFile, diagnostics: Diagnostic[]): void {
+  private validateImports(uri: string, file: ProtoFile, diagnostics: Diagnostic[], usedTypeUris: Set<string>): void {
     // Basic import validation - check for empty paths
     for (const imp of file.imports) {
       if (!imp.path || imp.path.trim() === '') {
@@ -510,6 +674,79 @@ export class DiagnosticsProvider {
           message: `Empty import path`,
           source: 'protobuf'
         });
+      }
+    }
+
+    const importByPath = new Map<string, typeof file.imports[number]>();
+    for (const imp of file.imports) {
+      importByPath.set(imp.path, imp);
+    }
+
+    const importsWithResolutions = this.analyzer.getImportsWithResolutions(uri);
+
+    // Unresolved imports
+    for (const imp of importsWithResolutions) {
+      if (!imp.resolvedUri) {
+        const rangeInfo = importByPath.get(imp.importPath);
+        diagnostics.push({
+          severity: DiagnosticSeverity.Error,
+          range: rangeInfo ? this.toRange(rangeInfo.range) : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+          message: `Import '${imp.importPath}' cannot be resolved`,
+          source: 'protobuf'
+        });
+      }
+    }
+
+    // Unused imports (resolved, not public, not referenced)
+    for (const imp of importsWithResolutions) {
+      if (!imp.resolvedUri) {
+        continue;
+      }
+      const rangeInfo = importByPath.get(imp.importPath);
+      const modifier = rangeInfo?.modifier;
+      if (modifier === 'public') {
+        continue; // public imports are re-exported; skip
+      }
+      if (!usedTypeUris.has(imp.resolvedUri)) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Hint,
+          range: rangeInfo ? this.toRange(rangeInfo.range) : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+          message: `Unused import '${imp.importPath}'`,
+          source: 'protobuf'
+        });
+      }
+    }
+  }
+
+  private validateOneof(oneof: OneofDefinition, diagnostics: Diagnostic[]): void {
+    const numbers = new Map<number, FieldDefinition[]>();
+
+    for (const field of oneof.fields) {
+      if (field.modifier && field.modifier !== 'optional') {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Warning,
+          range: this.toRange(field.range),
+          message: `Field '${field.name}' in oneof '${oneof.name}' should not use modifier '${field.modifier}'`,
+          source: 'protobuf'
+        });
+      }
+
+      if (!numbers.has(field.number)) {
+        numbers.set(field.number, []);
+      }
+      numbers.get(field.number)!.push(field);
+    }
+
+    for (const [num, fields] of numbers) {
+      if (fields.length > 1) {
+        for (const f of fields) {
+          diagnostics.push({
+            severity: DiagnosticSeverity.Error,
+            range: this.toRange(f.range),
+            message: `Oneof '${oneof.name}' has duplicate field number ${num}`,
+            source: 'protobuf'
+          });
+        }
       }
     }
   }
@@ -569,6 +806,136 @@ export class DiagnosticsProvider {
       message: `Type '${typeName}' is not imported.${suggestionText}`.trim(),
       source: 'protobuf'
     });
+  }
+
+  private collectUsedTypeUris(file: ProtoFile, uri: string): Set<string> {
+    const used = new Set<string>();
+
+    const visitMessage = (message: MessageDefinition, container: string) => {
+      const containerName = container ? `${container}.${message.name}` : message.name;
+
+      for (const field of message.fields) {
+        this.addResolvedTypeUri(field.fieldType, uri, containerName, used);
+      }
+
+      for (const mapField of message.maps) {
+        this.addResolvedTypeUri(mapField.valueType, uri, containerName, used);
+      }
+
+      for (const oneof of message.oneofs) {
+        for (const field of oneof.fields) {
+          this.addResolvedTypeUri(field.fieldType, uri, containerName, used);
+        }
+      }
+
+      for (const nested of message.nestedMessages) {
+        visitMessage(nested, containerName);
+      }
+
+      for (const nestedEnum of message.nestedEnums) {
+        // enums themselves do not introduce type usages here
+        void nestedEnum;
+      }
+    };
+
+    for (const message of file.messages) {
+      visitMessage(message, file.package?.name || '');
+    }
+
+    for (const service of file.services) {
+      const prefix = file.package?.name || '';
+      for (const rpc of service.rpcs) {
+        this.addResolvedTypeUri(rpc.inputType, uri, prefix, used);
+        this.addResolvedTypeUri(rpc.outputType, uri, prefix, used);
+      }
+    }
+
+    for (const enumDef of file.enums) {
+      void enumDef;
+    }
+
+    return used;
+  }
+
+  private addResolvedTypeUri(typeName: string, uri: string, containerName: string, bucket: Set<string>): void {
+    if (!typeName || BUILTIN_TYPES.includes(typeName)) {
+      return;
+    }
+    const symbol = this.analyzer.resolveType(typeName, uri, containerName);
+    if (symbol) {
+      bucket.add(symbol.location.uri);
+    }
+  }
+
+  private checkFieldNumberContinuity(message: MessageDefinition, diagnostics: Diagnostic[], reservedNumbers: Set<number>): void {
+    const fields = [
+      ...message.fields,
+      ...message.maps,
+      ...message.oneofs.flatMap(o => o.fields)
+    ];
+
+    if (fields.length === 0) {
+      return;
+    }
+
+    const sorted = [...fields].sort((a, b) => a.number - b.number);
+    let prev = sorted[0].number;
+
+    for (let i = 1; i < sorted.length; i++) {
+      const current = sorted[i].number;
+
+      if (current <= prev) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Warning,
+          range: this.toRange(sorted[i].range),
+          message: `Field number ${current} is not strictly increasing (previous ${prev}). Consider renumbering`,
+          source: 'protobuf'
+        });
+      }
+
+      const gap = current - prev - 1;
+      if (gap > 0) {
+        const missingNumbers = [] as number[];
+        for (let n = prev + 1; n < current; n++) {
+          if ((n >= RESERVED_RANGE_START && n <= RESERVED_RANGE_END) || reservedNumbers.has(n)) {
+            continue;
+          }
+          missingNumbers.push(n);
+        }
+
+        if (missingNumbers.length > 0) {
+          diagnostics.push({
+            severity: DiagnosticSeverity.Hint,
+            range: this.toRange(sorted[i].range),
+            message: `Gap in field numbers between ${prev} and ${current}. Run renumber to close gaps`,
+            source: 'protobuf'
+          });
+        }
+      }
+
+      prev = current;
+    }
+  }
+
+  private checkReservedOverlap(message: MessageDefinition, diagnostics: Diagnostic[]): void {
+    const ranges = message.reserved.map(r => r.ranges).flat();
+    for (let i = 0; i < ranges.length; i++) {
+      for (let j = i + 1; j < ranges.length; j++) {
+        const a = ranges[i];
+        const b = ranges[j];
+        const aEnd = a.end === 'max' ? MAX_FIELD_NUMBER : a.end;
+        const bEnd = b.end === 'max' ? MAX_FIELD_NUMBER : b.end;
+        const overlap = Math.max(a.start, b.start) <= Math.min(aEnd, bEnd);
+        if (overlap) {
+          diagnostics.push({
+            severity: DiagnosticSeverity.Warning,
+            range: this.toRange(message.range),
+            message: `Reserved ranges overlap (${a.start}-${aEnd} overlaps ${b.start}-${bEnd})`,
+            source: 'protobuf'
+          });
+        }
+      }
+    }
   }
 
   private getSuggestedImportPath(currentUri: string, definitionUri: string): string | undefined {
