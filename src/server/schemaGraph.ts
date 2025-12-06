@@ -19,12 +19,22 @@ export class SchemaGraphProvider {
     const nodes = new Map<string, SchemaGraphNode>();
     const edges: SchemaGraphEdge[] = [];
 
+    // First pass: collect all nodes with their fields
     for (const uri of targetUris) {
       const file = this.analyzer.getFile(uri);
       if (!file) {
         continue;
       }
-      this.collectFromFile(uri, file, nodes, edges);
+      this.collectNodesFromFile(uri, file, nodes);
+    }
+
+    // Second pass: collect all edges (may add placeholder nodes for external references)
+    for (const uri of targetUris) {
+      const file = this.analyzer.getFile(uri);
+      if (!file) {
+        continue;
+      }
+      this.collectEdgesFromFile(uri, file, nodes, edges);
     }
 
     return {
@@ -59,6 +69,35 @@ export class SchemaGraphProvider {
     }
 
     return visited;
+  }
+
+  private collectNodesFromFile(
+    uri: string,
+    file: ProtoFile,
+    nodes: Map<string, SchemaGraphNode>
+  ): void {
+    const pkg = file.package?.name || '';
+
+    for (const message of file.messages) {
+      this.addMessageNode(uri, pkg, message, nodes);
+    }
+
+    for (const enumDef of file.enums) {
+      this.addEnumNode(uri, pkg, enumDef, nodes);
+    }
+  }
+
+  private collectEdgesFromFile(
+    uri: string,
+    file: ProtoFile,
+    nodes: Map<string, SchemaGraphNode>,
+    edges: SchemaGraphEdge[]
+  ): void {
+    const pkg = file.package?.name || '';
+
+    for (const message of file.messages) {
+      this.collectMessageEdges(uri, pkg, message, nodes, edges);
+    }
   }
 
   private collectFromFile(

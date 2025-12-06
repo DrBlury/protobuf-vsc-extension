@@ -55,7 +55,7 @@ describe('SchemaGraphProvider', () => {
 
     const addressEdge = graph.edges.find(e => e.from === 'demo.User' && e.to === 'demo.Address' && e.label === 'address');
     const statusEdge = graph.edges.find(e => e.from === 'demo.User' && e.to === 'demo.Status' && e.label === 'status');
-    const phoneEdge = graph.edges.find(e => e.from === 'demo.User' && e.to === 'demo.User.Phone' && e.label === 'phones');
+    const phoneEdge = graph.edges.find(e => e.from === 'demo.User' && e.to === 'demo.Phone' && e.label === 'phones');
 
     expect(addressEdge).toBeDefined();
     expect(statusEdge).toBeDefined();

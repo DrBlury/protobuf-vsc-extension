@@ -59,11 +59,13 @@ export class SchemaGraphPanel {
 
     this.panel.webview.onDidReceiveMessage(async message => {
       if (message?.type === 'refresh') {
+        const scopeChanged = message.scope && message.scope !== this.currentScope;
         this.currentScope = message.scope || this.currentScope;
         if (typeof message.uri === 'string') {
           this.sourceUri = message.uri;
         }
-        await this.loadGraph(false);
+        // Force full re-render when scope changes to ensure fields are properly displayed
+        await this.loadGraph(scopeChanged);
       }
     });
 
