@@ -1,3 +1,4 @@
+/* eslint-env jest */
 import { DiagnosticsProvider } from './diagnostics';
 import { ProtoParser } from './parser';
 import { SemanticAnalyzer } from './analyzer';

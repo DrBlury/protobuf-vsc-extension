@@ -111,7 +111,6 @@ export class SchemaGraphPanel {
     ].join('; ');
 
     const initialData = JSON.stringify(graph);
-    const initialUri = graph.sourceUri || '';
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -349,11 +348,11 @@ export class SchemaGraphPanel {
           if (Array.isArray(n.fields)) {
             const map = new Map();
             for (const [i, f] of n.fields.entries()) {
+              const typeText = f.repeated ? (f.type + '[]') : f.type;
               const flags = [];
-              if (f.repeated) flags.push('repeated');
               if (f.optional) flags.push('optional');
               const suffix = flags.length ? ' · ' + flags.join(', ') : '';
-              lines.push(f.name + ' · ' + f.type + suffix);
+              lines.push(f.name + ' · ' + typeText + suffix);
               map.set(f.name, i);
               const tail = f.name.split('.').pop();
               if (tail) map.set(tail, i);
@@ -401,7 +400,13 @@ export class SchemaGraphPanel {
               y: n._h / 2,
               properties: { 'elk.port.side': 'W' }
             });
-            return { id: n.id, width: n._w, height: n._h, ports };
+            return {
+              id: n.id,
+              width: n._w,
+              height: n._h,
+              ports,
+              layoutOptions: { 'elk.portConstraints': 'FIXED_POS' }
+            };
           }),
           edges: links.map((e, idx) => {
             const srcMap = fieldIndex.get(e.from);
@@ -411,7 +416,13 @@ export class SchemaGraphPanel {
             return {
               id: e.label + '-' + idx,
               sources: [sourcePort],
-              targets: [targetPort]
+              targets: [targetPort],
+              from: e.from,
+              to: e.to,
+              label: e.label,
+              kind: e.kind,
+              repeated: e.repeated,
+              optional: e.optional
             };
           })
         };
@@ -428,8 +439,21 @@ export class SchemaGraphPanel {
         // Prepare lookup tables for positioned nodes/ports
         const nodePos = new Map();
         const portPos = new Map();
+        const geometry = new Map();
         (layout.children || []).forEach(child => {
           nodePos.set(child.id, child);
+          const original = nodeMap.get(child.id);
+          const width = child.width || original?._w || 0;
+          const height = child.height || original?._h || 0;
+          const cx = (child.x || 0) + width / 2;
+          const cy = (child.y || 0) + height / 2;
+          geometry.set(child.id, {
+            x: cx,
+            y: cy,
+            w: width,
+            h: height,
+            fields: original?.fields || []
+          });
           (child.ports || []).forEach(p => {
             portPos.set(child.id + ':' + p.id.split(':').slice(1).join(':'), {
               x: (child.x || 0) + (p.x || 0),
@@ -556,7 +580,6 @@ export class SchemaGraphPanel {
             .attr('fill', '#e7ecf4')
             .text(f => {
               const flags = [];
-              if (f.repeated) flags.push('repeated');
               if (f.optional) flags.push('optional');
               const suffix = flags.length ? ' · ' + flags.join(', ') : '';
               return f.name + suffix;
@@ -567,53 +590,74 @@ export class SchemaGraphPanel {
             .attr('y', (_d, i) => -nodeDatum.height / 2 + 32 + i * rowHeight + 12)
             .attr('font-size', 11)
             .attr('fill', '#cfd6e4')
-            .text(f => f.type);
+            .text(f => f.repeated ? (f.type + '[]') : f.type);
         });
 
-        function fieldAnchor(node, edgeLabel, isSource) {
-          if (!node || !node._w || !node._h) {
-            return { x: node?.x || 0, y: node?.y || 0 };
+        function fieldAnchor(nodeId, edgeLabel, isSource) {
+          const geom = geometry.get(nodeId);
+          const original = nodeMap.get(nodeId);
+          if (!geom || !original) {
+            return { x: geom?.x || 0, y: geom?.y || 0 };
           }
-          const fields = Array.isArray(node.fields) ? node.fields : [];
-          const labelTail = edgeLabel.split('.').pop() || edgeLabel;
-          const map = fieldIndex.get(node.id);
+          const fields = Array.isArray(original.fields) ? original.fields : [];
+          const labelTail = (edgeLabel || '').split('.').pop() || edgeLabel;
+          const map = fieldIndex.get(nodeId);
           const matchIdx = map && map.has(edgeLabel)
             ? map.get(edgeLabel)
             : map && map.has(labelTail)
               ? map.get(labelTail)
               : fields.findIndex(f => f.name === edgeLabel || edgeLabel.endsWith('.' + f.name) || labelTail === f.name.split('.').pop());
-          if (matchIdx === -1) {
-            return { x: node.x || 0, y: node.y || 0 };
-          }
-          const baseY = (node.y || 0) - node._h / 2 + 32 + matchIdx * rowHeight + rowHeight / 2;
-          const x = (node.x || 0) + (isSource ? -node._w / 2 : node._w / 2);
-          return { x, y: baseY };
+
+          const yBase = matchIdx != null && matchIdx >= 0
+            ? (geom.y - geom.h / 2 + 32 + matchIdx * rowHeight + rowHeight / 2)
+            : geom.y;
+          const x = geom.x + (isSource ? geom.w / 2 : -geom.w / 2);
+          return { x, y: yBase };
+        }
+
+        function edgePoints(edge) {
+          const sourceId = (edge.sources && edge.sources[0]) || (edge.from ? edge.from + ':in' : '');
+          const targetId = (edge.targets && edge.targets[0]) || (edge.to ? edge.to + ':in' : '');
+          const start = (sourceId && portPos.get(sourceId)) || fieldAnchor(edge.from || edge.source || '', edge.label || '', true);
+          const end = (targetId && portPos.get(targetId)) || fieldAnchor(edge.to || edge.target || '', edge.label || '', false);
+          if (!start || !end) return [];
+          const midX = (start.x + end.x) / 2;
+          return [
+            start,
+            { x: midX, y: start.y },
+            { x: midX, y: end.y },
+            end
+          ];
         }
 
         linkMerged.attr('d', d => {
-          if (!d.sections || !d.sections.length) return '';
-          const sec = d.sections[0];
-          const points = [sec.startPoint, ...(sec.bendPoints || []), sec.endPoint];
+          const customPoints = edgePoints(d);
+          const points = customPoints.length
+            ? customPoints
+            : (d.sections && d.sections.length
+              ? [d.sections[0].startPoint, ...(d.sections[0].bendPoints || []), d.sections[0].endPoint]
+              : []);
+          if (!points.length) return '';
           return points.reduce((path, p, i) => path + (i === 0 ? 'M' : ' L') + p.x + ' ' + p.y, '');
         });
 
         linkLabelMerged
           .attr('x', d => {
-            if (!d.sections || !d.sections.length) return 0;
-            const sec = d.sections[0];
-            const pts = [sec.startPoint, ...(sec.bendPoints || []), sec.endPoint];
-            const mid = Math.floor(pts.length / 2);
-            const a = pts[mid - 1] || pts[0];
-            const b = pts[mid] || pts[pts.length - 1];
+            const pts = edgePoints(d);
+            if (!pts.length && (!d.sections || !d.sections.length)) return 0;
+            const points = pts.length ? pts : [d.sections[0].startPoint, ...(d.sections[0].bendPoints || []), d.sections[0].endPoint];
+            const mid = Math.floor(points.length / 2);
+            const a = points[mid - 1] || points[0];
+            const b = points[mid] || points[points.length - 1];
             return (a.x + b.x) / 2;
           })
           .attr('y', d => {
-            if (!d.sections || !d.sections.length) return 0;
-            const sec = d.sections[0];
-            const pts = [sec.startPoint, ...(sec.bendPoints || []), sec.endPoint];
-            const mid = Math.floor(pts.length / 2);
-            const a = pts[mid - 1] || pts[0];
-            const b = pts[mid] || pts[pts.length - 1];
+            const pts = edgePoints(d);
+            if (!pts.length && (!d.sections || !d.sections.length)) return 0;
+            const points = pts.length ? pts : [d.sections[0].startPoint, ...(d.sections[0].bendPoints || []), d.sections[0].endPoint];
+            const mid = Math.floor(points.length / 2);
+            const a = points[mid - 1] || points[0];
+            const b = points[mid] || points[points.length - 1];
             return (a.y + b.y) / 2 - 4;
           })
           .text(d => decorateFlags(d))
@@ -640,7 +684,6 @@ export class SchemaGraphPanel {
       function decorateFlags(edge) {
         const flags = [];
         if (edge.kind === 'map') flags.push('map');
-        if (edge.repeated) flags.push('repeated');
         if (edge.optional) flags.push('optional');
         return flags.join(' · ');
       }

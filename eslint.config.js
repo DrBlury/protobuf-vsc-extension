@@ -72,7 +72,9 @@ module.exports = [
         describe: "readonly",
         it: "readonly",
         expect: "readonly",
+        beforeAll: "readonly",
         beforeEach: "readonly",
+        afterAll: "readonly",
         afterEach: "readonly",
       },
     },
@@ -95,6 +97,13 @@ module.exports = [
     },
   },
   {
-    ignores: ["out", "dist", "**/*.d.ts", "node_modules", "jest.config.js", "eslint.config.js"],
+    ignores: [
+      "out",
+      "dist",
+      "**/*.d.ts",
+      "node_modules",
+      "jest.config.js",
+      "eslint.config.js",
+    ],
   },
 ];

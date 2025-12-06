@@ -1,9 +1,10 @@
+/* eslint-env jest */
 import { CodeActionsProvider } from './codeActions';
 import { DiagnosticsProvider } from './diagnostics';
 import { ProtoParser } from './parser';
 import { SemanticAnalyzer } from './analyzer';
 import { GOOGLE_WELL_KNOWN_PROTOS } from './googleWellKnown';
-import { DiagnosticSeverity, CodeActionKind } from 'vscode-languageserver/node';
+import { CodeActionKind } from 'vscode-languageserver/node';
 
 describe('CodeActionsProvider missing import quickfix', () => {
   const parser = new ProtoParser();
