@@ -520,7 +520,7 @@ export class ProtoParser {
           break;
         case 'optional':
         case 'required':
-        case 'repeated':
+        case 'repeated': {
           // Check if next token is 'group'
           const modifierToken = this.advance();
           const nextToken = this.peek();
@@ -533,6 +533,7 @@ export class ProtoParser {
             message.fields.push(this.parseField());
           }
           break;
+        }
         case 'group':
           message.groups.push(this.parseGroup());
           break;
