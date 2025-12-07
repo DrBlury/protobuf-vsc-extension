@@ -522,16 +522,15 @@ export class ProtoParser {
         case 'required':
         case 'repeated':
           // Check if next token is 'group'
-          {
-            const modifierToken = this.advance();
-            const nextToken = this.peek();
-            if (nextToken?.value === 'group') {
-              message.groups.push(this.parseGroup(modifierToken!.value as 'optional' | 'required' | 'repeated'));
-            } else {
-              // Put back modifier and parse as regular field
-              this.pos--;
-              message.fields.push(this.parseField());
-            }
+          const modifierToken = this.advance();
+          const nextToken = this.peek();
+          if (nextToken?.value === 'group') {
+            // modifierToken cannot be null here since we matched the case
+            message.groups.push(this.parseGroup(modifierToken!.value as 'optional' | 'required' | 'repeated'));
+          } else {
+            // Put back modifier and parse as regular field
+            this.pos--;
+            message.fields.push(this.parseField());
           }
           break;
         case 'group':

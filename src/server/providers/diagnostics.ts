@@ -220,6 +220,8 @@ export class DiagnosticsProvider {
   /**
    * Helper to create a field-like object for duplicate checking.
    * Maps and groups use field numbers but aren't FieldDefinitions.
+   * Note: fieldTypeRange uses item.range since these items don't have
+   * a separate type location. This is acceptable for error reporting.
    */
   private asFieldForDuplicateCheck(item: {
     name: string;
@@ -234,7 +236,7 @@ export class DiagnosticsProvider {
       number: item.number,
       range: item.range,
       fieldType: typeName,
-      fieldTypeRange: item.range
+      fieldTypeRange: item.range  // Use item.range as proxy for type range
     } as FieldDefinition;
   }
 
@@ -619,7 +621,7 @@ export class DiagnosticsProvider {
       diagnostics.push({
         severity: DiagnosticSeverity.Information,
         range: this.toRange(group.range),
-        message: 'Groups are deprecated in proto2 and not supported in proto3. Consider using nested messages instead.',
+        message: 'Groups are deprecated in proto2. Consider using nested messages instead.',
         source: DIAGNOSTIC_SOURCE
       });
     }
