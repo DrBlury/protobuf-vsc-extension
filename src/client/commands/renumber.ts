@@ -77,6 +77,7 @@ function registerRenumberMessageCommand(
       }
 
       const docUri = uri || editor.document.uri.toString();
+      const documentText = editor.document.getText();
 
       // If no message name provided, get it from current cursor position
       if (!messageName) {
@@ -85,7 +86,8 @@ function registerRenumberMessageCommand(
           position: {
             line: editor.selection.active.line,
             character: editor.selection.active.character
-          }
+          },
+          text: documentText
         });
         messageName = result as string | undefined;
       }
@@ -93,7 +95,8 @@ function registerRenumberMessageCommand(
       if (!messageName) {
         // Ask user to select a message
         const messages = (await client.sendRequest(REQUEST_METHODS.GET_MESSAGES, {
-          uri: docUri
+          uri: docUri,
+          text: documentText
         })) as string[];
         if (!messages || messages.length === 0) {
           vscode.window.showWarningMessage(VALIDATION_MESSAGES.NO_MESSAGES_FOUND);

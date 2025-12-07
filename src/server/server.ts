@@ -751,13 +751,14 @@ connection.onRequest(REQUEST_METHODS.RENUMBER_ENUM, (params: { uri: string; enum
   return providers.renumber.renumberEnum(document.getText(), params.uri, params.enumName);
 });
 
-connection.onRequest(REQUEST_METHODS.GET_MESSAGES, (params: { uri: string }) => {
+connection.onRequest(REQUEST_METHODS.GET_MESSAGES, (params: { uri: string; text?: string }) => {
   const document = documents.get(params.uri);
-  if (!document) {
+  const text = document?.getText() || params.text;
+  if (!text) {
     return [];
   }
 
-  const file = providers.parser.parse(document.getText(), params.uri);
+  const file = providers.parser.parse(text, params.uri);
   const messages: string[] = [];
 
   function collectMessages(msgs: MessageDefinition[], prefix: string = '') {
@@ -807,13 +808,14 @@ connection.onRequest(REQUEST_METHODS.GET_ENUMS, (params: { uri: string }) => {
   return enums;
 });
 
-connection.onRequest(REQUEST_METHODS.GET_MESSAGE_AT_POSITION, (params: { uri: string; position: { line: number; character: number } }) => {
+connection.onRequest(REQUEST_METHODS.GET_MESSAGE_AT_POSITION, (params: { uri: string; position: { line: number; character: number }; text?: string }) => {
   const document = documents.get(params.uri);
-  if (!document) {
+  const text = document?.getText() || params.text;
+  if (!text) {
     return null;
   }
 
-  const file = providers.parser.parse(document.getText(), params.uri);
+  const file = providers.parser.parse(text, params.uri);
 
   function findMessageAtPosition(msgs: MessageDefinition[], prefix: string = ''): string | null {
     for (const msg of msgs) {

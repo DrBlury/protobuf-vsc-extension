@@ -1,6 +1,7 @@
 # Protobuf VSC
 
 [![CI](https://github.com/DrBlury/protobuf-vsc-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/DrBlury/protobuf-vsc-extension/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-79%25-yellow)](https://github.com/DrBlury/protobuf-vsc-extension)
 [![Version](https://img.shields.io/visual-studio-marketplace/v/DrBlury.protobuf-vsc?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=DrBlury.protobuf-vsc)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/DrBlury.protobuf-vsc)](https://marketplace.visualstudio.com/items?itemName=DrBlury.protobuf-vsc)
 [![License](https://img.shields.io/github/license/DrBlury/protobuf-vsc-extension)](LICENSE)

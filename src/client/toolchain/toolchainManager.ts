@@ -19,6 +19,47 @@ export interface ToolInfo {
   status: ToolStatus;
 }
 
+// Common installation paths to check when PATH isn't available (GUI apps)
+function getCommonPaths(): string[] {
+  const platform = os.platform();
+  if (platform === 'win32') {
+    // Windows common paths
+    const programFiles = process.env['ProgramFiles'] || 'C:\\Program Files';
+    const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+    const localAppData = process.env['LOCALAPPDATA'] || path.join(os.homedir(), 'AppData', 'Local');
+    const userProfile = os.homedir();
+    return [
+      path.join(localAppData, 'Microsoft', 'WinGet', 'Packages'), // WinGet
+      path.join(programFiles, 'protobuf', 'bin'),
+      path.join(programFilesX86, 'protobuf', 'bin'),
+      path.join(userProfile, 'scoop', 'shims'), // Scoop
+      path.join(userProfile, 'go', 'bin'), // Go binaries (for buf)
+      path.join(localAppData, 'buf', 'bin'), // buf installer
+      'C:\\tools\\protoc\\bin', // Chocolatey style
+    ];
+  } else if (platform === 'darwin') {
+    // macOS common paths
+    return [
+      '/opt/homebrew/bin',      // Homebrew on Apple Silicon
+      '/usr/local/bin',         // Homebrew on Intel Mac
+      '/usr/bin',               // System binaries
+      path.join(os.homedir(), '.local', 'bin'), // User local
+      path.join(os.homedir(), 'go', 'bin'), // Go binaries
+    ];
+  } else {
+    // Linux common paths
+    return [
+      '/usr/local/bin',
+      '/usr/bin',
+      '/snap/bin',              // Snap packages
+      '/home/linuxbrew/.linuxbrew/bin', // Linuxbrew
+      path.join(os.homedir(), '.local', 'bin'), // User local
+      path.join(os.homedir(), 'go', 'bin'), // Go binaries
+      path.join(os.homedir(), 'bin'), // User bin
+    ];
+  }
+}
+
 export class ToolchainManager {
   private statusBarItem: vscode.StatusBarItem;
   private tools: Map<string, ToolInfo> = new Map();
@@ -30,6 +71,11 @@ export class ToolchainManager {
     this.outputChannel = outputChannel;
     this.globalStoragePath = context.globalStorageUri.fsPath;
     this.binPath = path.join(this.globalStoragePath, 'bin');
+
+    this.outputChannel.appendLine(`ToolchainManager initialized`);
+    this.outputChannel.appendLine(`  Platform: ${os.platform()}, Arch: ${os.arch()}`);
+    this.outputChannel.appendLine(`  Global storage: ${this.globalStoragePath}`);
+    this.outputChannel.appendLine(`  Bin path: ${this.binPath}`);
 
     // Create status bar item
     this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -58,17 +104,54 @@ export class ToolchainManager {
     this.updateStatusBar();
   }
 
-  private async checkTool(name: string, versionFlag: string): Promise<void> {
-    const config = vscode.workspace.getConfiguration('protobuf');
-    let toolCmd = config.get<string>(`${name}.path`) || name;
+  /**
+   * Find the tool binary by checking configured path, managed path, and common installation paths.
+   * This handles GUI apps not inheriting shell PATH on all platforms.
+   */
+  private findToolPath(name: string): string {
+    const config = vscode.workspace.getConfiguration(`protobuf.${name}`);
+    const configuredPath = config.get<string>('path');
+    const ext = os.platform() === 'win32' ? '.exe' : '';
+    const binaryName = name + ext;
 
-    // If set to default name, check if we have a managed version
-    if (toolCmd === name) {
-        const managedPath = this.getManagedToolPath(name);
-        if (fs.existsSync(managedPath)) {
-            toolCmd = managedPath;
-        }
+    this.outputChannel.appendLine(`Looking for ${name}...`);
+    this.outputChannel.appendLine(`  Managed bin path: ${this.binPath}`);
+
+    // 1. Check if user has configured a specific path (not the default)
+    if (configuredPath && configuredPath !== name) {
+      if (fs.existsSync(configuredPath)) {
+        this.outputChannel.appendLine(`  ✓ Using configured path: ${configuredPath}`);
+        return configuredPath;
+      }
+      this.outputChannel.appendLine(`  ✗ Configured path not found: ${configuredPath}`);
     }
+
+    // 2. Check managed version (installed by extension)
+    const managedPath = this.getManagedToolPath(name);
+    this.outputChannel.appendLine(`  Checking managed path: ${managedPath}`);
+    if (fs.existsSync(managedPath)) {
+      this.outputChannel.appendLine(`  ✓ Found managed ${name}: ${managedPath}`);
+      return managedPath;
+    }
+    this.outputChannel.appendLine(`  ✗ Managed path does not exist`);
+
+    // 3. Check common installation paths (handles GUI apps not inheriting shell PATH)
+    const commonPaths = getCommonPaths();
+    for (const dir of commonPaths) {
+      const fullPath = path.join(dir, binaryName);
+      if (fs.existsSync(fullPath)) {
+        this.outputChannel.appendLine(`  ✓ Found in common path: ${fullPath}`);
+        return fullPath;
+      }
+    }
+
+    // 4. Try the command directly (relies on shell PATH)
+    this.outputChannel.appendLine(`  Falling back to PATH lookup: ${binaryName}`);
+    return binaryName;
+  }
+
+  private async checkTool(name: string, versionFlag: string): Promise<void> {
+    const toolCmd = this.findToolPath(name);
 
     try {
       const version = await this.getToolVersion(toolCmd, versionFlag);
@@ -76,13 +159,13 @@ export class ToolchainManager {
       toolInfo.status = ToolStatus.Installed;
       toolInfo.version = version;
       toolInfo.path = toolCmd;
-      this.outputChannel.appendLine(`Found ${name} at ${toolCmd} (version: ${version})`);
+      this.outputChannel.appendLine(`✓ ${name} detected: ${version} (${toolCmd})`);
     } catch (e) {
       const toolInfo = this.tools.get(name)!;
       toolInfo.status = ToolStatus.NotInstalled;
       toolInfo.path = undefined;
       toolInfo.version = undefined;
-      this.outputChannel.appendLine(`Could not find ${name}: ${e}`);
+      this.outputChannel.appendLine(`✗ Could not find ${name}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
@@ -93,17 +176,19 @@ export class ToolchainManager {
 
   private async getToolVersion(cmd: string, flag: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      const proc = spawn(cmd, [flag], { shell: true });
+      // Don't use shell: true to properly handle paths with spaces
+      const proc = spawn(cmd, [flag]);
       let output = '';
+      let errorOutput = '';
 
       proc.stdout.on('data', (data) => output += data.toString());
-      proc.stderr.on('data', (data) => output += data.toString());
+      proc.stderr.on('data', (data) => errorOutput += data.toString());
 
       proc.on('close', (code) => {
         if (code === 0) {
-          resolve(output.trim());
+          resolve((output || errorOutput).trim());
         } else {
-          reject(new Error(`Process exited with code ${code}`));
+          reject(new Error(`Process exited with code ${code}: ${errorOutput || output}`));
         }
       });
 
@@ -177,13 +262,13 @@ export class ToolchainManager {
               await this.checkTools();
 
               // Update settings to point to managed tool if not already set
-              const config = vscode.workspace.getConfiguration('protobuf');
-              const currentPath = config.get<string>(`${toolName}.path`);
+              const config = vscode.workspace.getConfiguration(`protobuf.${toolName}`);
+              const currentPath = config.get<string>('path');
               const managedPath = this.getManagedToolPath(toolName);
 
               if (!currentPath || currentPath === toolName) {
-                   await config.update(`${toolName}.path`, managedPath, vscode.ConfigurationTarget.Global);
-                   this.outputChannel.appendLine(`Updated ${toolName}.path to ${managedPath}`);
+                   await config.update('path', managedPath, vscode.ConfigurationTarget.Global);
+                   this.outputChannel.appendLine(`Updated protobuf.${toolName}.path to ${managedPath}`);
               }
 
               vscode.window.showInformationMessage(`Successfully installed ${toolName}`);
@@ -202,29 +287,50 @@ export class ToolchainManager {
 
       let assetName = '';
       if (platform === 'win32') {
-          assetName = `protoc-${version}-win64.zip`;
+          assetName = arch === 'arm64' ? `protoc-${version}-win64.zip` : `protoc-${version}-win64.zip`;
       } else if (platform === 'darwin') {
           assetName = arch === 'arm64' ? `protoc-${version}-osx-aarch_64.zip` : `protoc-${version}-osx-x86_64.zip`;
       } else {
-          assetName = `protoc-${version}-linux-x86_64.zip`; // Assuming x64 for linux for now
+          // Linux
+          assetName = arch === 'arm64' ? `protoc-${version}-linux-aarch_64.zip` : `protoc-${version}-linux-x86_64.zip`;
       }
 
       const url = `https://github.com/protocolbuffers/protobuf/releases/download/v${version}/${assetName}`;
       const zipPath = path.join(this.globalStoragePath, assetName);
 
+      this.outputChannel.appendLine(`Downloading protoc from: ${url}`);
       progress.report({ message: 'Downloading...', increment: 0 });
       await this.downloadFile(url, zipPath);
 
+      this.outputChannel.appendLine(`Extracting to: ${this.globalStoragePath}`);
       progress.report({ message: 'Extracting...', increment: 50 });
       await this.extractZip(zipPath, this.globalStoragePath);
 
-      // Cleanup
+      // Cleanup zip file
       fs.unlinkSync(zipPath);
 
       // On macOS/Linux, ensure executable permission
-      const binaryPath = path.join(this.binPath, 'protoc');
-      if (platform !== 'win32' && fs.existsSync(binaryPath)) {
-          fs.chmodSync(binaryPath, 0o755);
+      const ext = platform === 'win32' ? '.exe' : '';
+      const binaryPath = path.join(this.binPath, 'protoc' + ext);
+      this.outputChannel.appendLine(`Expected binary path: ${binaryPath}`);
+
+      if (fs.existsSync(binaryPath)) {
+          if (platform !== 'win32') {
+              fs.chmodSync(binaryPath, 0o755);
+          }
+          this.outputChannel.appendLine(`✓ protoc installed successfully at: ${binaryPath}`);
+      } else {
+          // List what was extracted to help debug
+          this.outputChannel.appendLine(`✗ Binary not found at expected path. Checking extracted contents...`);
+          if (fs.existsSync(this.binPath)) {
+              const files = fs.readdirSync(this.binPath);
+              this.outputChannel.appendLine(`  Contents of bin/: ${files.join(', ')}`);
+          } else {
+              this.outputChannel.appendLine(`  bin/ directory does not exist`);
+              const contents = fs.readdirSync(this.globalStoragePath);
+              this.outputChannel.appendLine(`  Contents of storage: ${contents.join(', ')}`);
+          }
+          throw new Error(`protoc binary not found after extraction`);
       }
   }
 
@@ -239,17 +345,26 @@ export class ToolchainManager {
       } else if (platform === 'darwin') {
           assetName = arch === 'arm64' ? `buf-Darwin-arm64` : `buf-Darwin-x86_64`;
       } else {
-          assetName = `buf-Linux-x86_64`; // Assuming x64
+          // Linux
+          assetName = arch === 'arm64' ? `buf-Linux-aarch64` : `buf-Linux-x86_64`;
       }
 
       const url = `https://github.com/bufbuild/buf/releases/download/v${version}/${assetName}`;
       const destPath = this.getManagedToolPath('buf');
 
+      this.outputChannel.appendLine(`Downloading buf from: ${url}`);
+      this.outputChannel.appendLine(`Destination: ${destPath}`);
       progress.report({ message: 'Downloading...', increment: 0 });
       await this.downloadFile(url, destPath);
 
       if (platform !== 'win32') {
           fs.chmodSync(destPath, 0o755);
+      }
+
+      if (fs.existsSync(destPath)) {
+          this.outputChannel.appendLine(`✓ buf installed successfully at: ${destPath}`);
+      } else {
+          throw new Error(`buf binary not found after download`);
       }
   }
 

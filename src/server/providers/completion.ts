@@ -51,6 +51,11 @@ export class CompletionProvider {
       completions.push(...this.getKeywordCompletions(beforeCursor));
     }
 
+    // Enum value number suggestion right after the value name
+    if (this.isEnumValueContext(beforeCursor, position, documentText) && !hasAssignmentAfterCursor && !hasContentAfterCursor) {
+      completions.push(...this.getEnumValueAssignmentCompletions(position, documentText));
+    }
+
     // Field number suggestion - now with context-aware suggestions
     if (beforeCursor.match(/=\s*$/) && !hasContentAfterCursor) {
       completions.push(...this.getFieldNumberCompletions(uri, position, documentText));
@@ -281,60 +286,13 @@ export class CompletionProvider {
 
   private findNextFieldNumber(position: Position, documentText: string): number {
     const lines = documentText.split('\n');
+    const containerBounds = this.getContainerBounds(position, lines);
 
-    // Alternative approach: scan the document text directly to find field numbers
-    // in the current block context
-    const currentLine = position.line;
-
-    // Find the containing message/enum by scanning backwards for opening brace
-    let braceCount = 0;
-    let containerStartLine = -1;
-    let containerEndLine = -1;
-
-    // Find container start
-    for (let i = currentLine; i >= 0; i--) {
-      const line = lines[i];
-      for (let j = line.length - 1; j >= 0; j--) {
-        if (line[j] === '}') {
-          braceCount++;
-        }
-        if (line[j] === '{') {
-          braceCount--;
-          if (braceCount < 0) {
-            containerStartLine = i;
-            break;
-          }
-        }
-      }
-      if (containerStartLine >= 0) {
-        break;
-      }
-    }
-
-    // Find container end
-    braceCount = 1; // We're inside the container
-    for (let i = containerStartLine + 1; i < lines.length; i++) {
-      const line = lines[i];
-      for (let j = 0; j < line.length; j++) {
-        if (line[j] === '{') {
-          braceCount++;
-        }
-        if (line[j] === '}') {
-          braceCount--;
-          if (braceCount === 0) {
-            containerEndLine = i;
-            break;
-          }
-        }
-      }
-      if (containerEndLine >= 0) {
-        break;
-      }
-    }
-
-    if (containerStartLine < 0) {
+    if (!containerBounds) {
       return 1;
     }
+
+    const { start: containerStartLine, end: containerEndLine } = containerBounds;
 
     // Extract field numbers from lines within this container
     const usedNumbers = new Set<number>();
@@ -343,7 +301,7 @@ export class CompletionProvider {
     // Track nested brace level to only get direct children
     let nestedLevel = 0;
 
-    for (let i = containerStartLine + 1; i <= (containerEndLine >= 0 ? containerEndLine : lines.length - 1); i++) {
+    for (let i = containerStartLine + 1; i <= containerEndLine; i++) {
       const line = lines[i];
 
       // Track brace level
@@ -411,10 +369,111 @@ export class CompletionProvider {
     return nextNumber;
   }
 
+  private getContainerBounds(position: Position, lines: string[]): { start: number; end: number } | undefined {
+    const currentLine = position.line;
+
+    let braceCount = 0;
+    let containerStartLine = -1;
+
+    // Walk backwards to find the matching opening brace for the current scope
+    for (let i = currentLine; i >= 0; i--) {
+      const line = lines[i];
+      for (let j = line.length - 1; j >= 0; j--) {
+        const char = line[j];
+        if (char === '}') {
+          braceCount++;
+        }
+        if (char === '{') {
+          braceCount--;
+          if (braceCount < 0) {
+            containerStartLine = i;
+            break;
+          }
+        }
+      }
+      if (containerStartLine >= 0) {
+        break;
+      }
+    }
+
+    if (containerStartLine < 0) {
+      return undefined;
+    }
+
+    // Walk forward to find the matching closing brace
+    braceCount = 1;
+    let containerEndLine = lines.length - 1;
+
+    for (let i = containerStartLine + 1; i < lines.length; i++) {
+      const line = lines[i];
+      for (const char of line) {
+        if (char === '{') {
+          braceCount++;
+        }
+        if (char === '}') {
+          braceCount--;
+          if (braceCount === 0) {
+            containerEndLine = i;
+            return { start: containerStartLine, end: containerEndLine };
+          }
+        }
+      }
+    }
+
+    return { start: containerStartLine, end: containerEndLine };
+  }
+
+  private getContainerInfo(position: Position, documentText: string): { start: number; end: number; kind?: 'enum' | 'message' | 'service' } | undefined {
+    const lines = documentText.split('\n');
+    const bounds = this.getContainerBounds(position, lines);
+
+    if (!bounds) {
+      return undefined;
+    }
+
+    let kind: 'enum' | 'message' | 'service' | undefined;
+    const lookbackStart = Math.max(0, bounds.start - 2);
+
+    for (let i = bounds.start; i >= lookbackStart; i--) {
+      const headerLine = lines[i];
+
+      if (/\benum\s+[A-Za-z_][\w.]*/.test(headerLine)) {
+        kind = 'enum';
+        break;
+      }
+
+      if (/\bmessage\s+[A-Za-z_][\w.]*/.test(headerLine)) {
+        kind = 'message';
+        break;
+      }
+
+      if (/\bservice\s+[A-Za-z_][\w.]*/.test(headerLine)) {
+        kind = 'service';
+        break;
+      }
+    }
+
+    return { ...bounds, kind };
+  }
+
   private isFieldAssignmentContext(text: string): boolean {
     // Match a type and identifier with trailing whitespace, but no '=' yet
     const pattern = /^\s*(?:optional|required|repeated)?\s*(?!map\s*<)([A-Za-z_][\w.<>,]*)\s+([A-Za-z_][\w]*)\s*$/;
     return pattern.test(text);
+  }
+
+  private isEnumValueContext(text: string, position: Position, documentText?: string): boolean {
+    if (!documentText) {
+      return false;
+    }
+
+    const containerInfo = this.getContainerInfo(position, documentText);
+    if (containerInfo?.kind !== 'enum') {
+      return false;
+    }
+
+    const trimmed = text.trim();
+    return /^[A-Z][A-Z0-9_]*$/.test(trimmed);
   }
 
   private isFieldNameContext(text: string): boolean {
@@ -443,6 +502,60 @@ export class CompletionProvider {
       insertTextFormat: InsertTextFormat.Snippet,
       sortText: '00'
     }];
+  }
+
+  private getEnumValueAssignmentCompletions(
+    position: Position,
+    documentText?: string
+  ): CompletionItem[] {
+    if (!documentText) {
+      return [];
+    }
+
+    const nextNumber = this.findNextEnumValueNumber(position, documentText);
+
+    return [{
+      label: `= ${nextNumber};`,
+      kind: CompletionItemKind.Snippet,
+      detail: 'Insert next enum value number',
+      documentation: 'Automatically assigns the next available enum value number and appends a semicolon',
+      insertText: `= ${nextNumber};$0`,
+      insertTextFormat: InsertTextFormat.Snippet,
+      sortText: '00'
+    }];
+  }
+
+  private findNextEnumValueNumber(position: Position, documentText: string): number {
+    const containerInfo = this.getContainerInfo(position, documentText);
+
+    if (!containerInfo || containerInfo.kind !== 'enum') {
+      return 0;
+    }
+
+    const lines = documentText.split('\n');
+    const usedNumbers = new Set<number>();
+    const numberRegex = /=\s*(-?\d+)\s*;/;
+
+    for (let i = containerInfo.start + 1; i <= containerInfo.end; i++) {
+      const line = lines[i];
+      const match = line.match(numberRegex);
+      if (match) {
+        usedNumbers.add(parseInt(match[1], 10));
+      }
+    }
+
+    if (usedNumbers.size === 0) {
+      return 0;
+    }
+
+    const maxUsed = Math.max(...usedNumbers);
+    let nextNumber = maxUsed + 1;
+
+    while (usedNumbers.has(nextNumber)) {
+      nextNumber++;
+    }
+
+    return nextNumber;
   }
 
   private getOptionCompletions(): CompletionItem[] {

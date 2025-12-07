@@ -46,8 +46,8 @@ message ErrorDetails {
 
 // Status enum
 enum Status {
-	STATUS_UNSPECIFIED = 0 = 0;
-	STATUS_ACTIVE = 1 = 1;
-	STATUS_INACTIVE = 2 = 2;
-	STATUS_DELETED = 3 = 3;
+	STATUS_UNSPECIFIED = 0;
+	STATUS_ACTIVE = 1;
+	STATUS_INACTIVE = 2;
+	STATUS_DELETED = 3;
 }

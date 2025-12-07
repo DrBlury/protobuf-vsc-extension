@@ -81,7 +81,8 @@ export class RegistryManager {
 
   private async runBufCommand(args: string[], cwd: string): Promise<void> {
       const config = vscode.workspace.getConfiguration('protobuf');
-      const bufPath = config.get<string>('externalLinter.bufPath') || 'buf';
+      // Use buf.path as primary, fall back to externalLinter.bufPath for backwards compatibility
+      const bufPath = config.get<string>('buf.path') || config.get<string>('externalLinter.bufPath') || 'buf';
 
       return new Promise((resolve, reject) => {
           this.outputChannel.appendLine(`Running: ${bufPath} ${args.join(' ')}`);

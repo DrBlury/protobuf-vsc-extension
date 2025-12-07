@@ -202,11 +202,13 @@ export class ProtoFormatter {
       return `${indent}map<${keyType}, ${valueType}> ${name} = ${number}${rest}`;
     }
 
-    // Format enum values
+    // Format enum values - strip any duplicate = N patterns
     const enumValueMatch = line.match(/^(\w+)\s*=\s*(-?\d+)(.*)$/);
     if (enumValueMatch && !line.includes('option') && !line.includes('syntax') && !line.includes('edition')) {
       const [, name, value, rest] = enumValueMatch;
-      return `${indent}${name} = ${value}${rest}`;
+      // Strip any repeated "= N" patterns from rest, but keep options [...] and comments
+      const cleanedRest = rest.replace(/\s*=\s*-?\d+/g, '');
+      return `${indent}${name} = ${value}${cleanedRest}`;
     }
 
     // Format declarations (message, enum, service, etc.)
@@ -342,6 +344,29 @@ export class ProtoFormatter {
           continue;
         }
 
+        // Handle enum values FIRST - before field matching which would incorrectly match them
+        // Enum values: preserve authoring but strip any repeated assignments (e.g., "= 0 = 0;")
+        if (currentContext.type === 'enum') {
+          const enumMatch = line.match(/^(\s*)(\w+)\s*=\s*(-?\d+)(.*)$/);
+
+          if (enumMatch && !trimmedLine.startsWith('option')) {
+            const [, indent, valueName, firstNumber, rest] = enumMatch;
+
+            // Separate before/after first semicolon to keep trailing comments intact
+            const semiIndex = rest.indexOf(';');
+            const beforeSemi = semiIndex >= 0 ? rest.slice(0, semiIndex) : rest;
+            const afterSemi = semiIndex >= 0 ? rest.slice(semiIndex) : ';';
+
+            // Remove any additional "= <number>" sequences before the semicolon
+            const cleanedBeforeSemi = beforeSemi.replace(/(\s*=\s*-?\d+)+/g, '');
+
+            line = `${indent}${valueName} = ${firstNumber}${cleanedBeforeSemi}${afterSemi.startsWith(';') ? afterSemi : `;${afterSemi}`}`;
+          }
+
+          result.push(line);
+          continue;
+        }
+
         // Field pattern: type name = NUMBER; or with options
         // Map field pattern: map<K, V> name [= NUMBER] [options] [;...]
         const mapMatch = line.match(/^(\s*)map\s*<\s*(\w+)\s*,\s*(\S+)\s*>\s+(\w+)(?:\s*=\s*(\d+))?(.*?)(;.*)?$/);
@@ -384,21 +409,7 @@ export class ProtoFormatter {
           continue;
         }
 
-        // Enum value pattern: NAME = NUMBER;
-        if (currentContext.type === 'enum') {
-          const enumMatch = line.match(/^(\s*)(\w+)\s*=\s*(-?\d+)(.*?)(;.*)$/);
-
-          if (enumMatch && !trimmedLine.startsWith('option')) {
-            const [, indent, valueName, _oldNumber, options, ending] = enumMatch;
-            const newNumber = currentContext.fieldCounter;
-
-            line = `${indent}${valueName} = ${newNumber}${options}${ending}`;
-            currentContext.fieldCounter += (this.settings.renumberIncrement || 1);
-
-            result.push(line);
-            continue;
-          }
-        }
+        // This point should not be reached for enums (handled above)
       }
 
       result.push(line);

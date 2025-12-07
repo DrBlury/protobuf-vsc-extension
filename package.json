@@ -2,7 +2,7 @@
   "name": "protobuf-vsc",
   "displayName": "Protobuf VSC",
   "description": "Comprehensive Protocol Buffers support for VS Code with syntax highlighting, IntelliSense, diagnostics, formatting, protoc compilation, breaking change detection, and more",
-  "version": "1.2.4",
+  "version": "1.2.6",
   "publisher": "DrBlury",
   "author": {
     "name": "Julian Bensch",
@@ -330,6 +330,11 @@
             ]
           ]
         },
+        "protobuf.buf.path": {
+          "type": "string",
+          "default": "buf",
+          "description": "Path to the buf CLI. Defaults to 'buf' in PATH"
+        },
         "protobuf.breaking.enabled": {
           "type": "boolean",
           "default": false,
@@ -561,11 +566,6 @@
           "group": "1_modification"
         },
         {
-          "command": "protobuf.renumberFromCursor",
-          "when": "resourceLangId == proto",
-          "group": "1_modification"
-        },
-        {
           "command": "protobuf.compileFile",
           "when": "resourceLangId == proto",
           "group": "2_compilation"
@@ -587,10 +587,6 @@
         },
         {
           "command": "protobuf.renumberMessage",
-          "when": "resourceLangId == proto"
-        },
-        {
-          "command": "protobuf.renumberFromCursor",
           "when": "resourceLangId == proto"
         },
         {

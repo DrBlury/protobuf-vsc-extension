@@ -4,6 +4,7 @@ package order.v1;
 
 import "common.proto";
 import "example.proto";
+import "google/type/money.proto";
 
 option go_package = "example.com/api/order/v1";
 

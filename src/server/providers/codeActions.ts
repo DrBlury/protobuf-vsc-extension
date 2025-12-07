@@ -88,12 +88,29 @@ export class CodeActionsProvider {
       }
     }
 
-    // Quick-fix: renumber only the current message if applicable
-    const messageName = this.findEnclosingMessageName(range, documentText);
-    if (messageName) {
-      const messageRenumber = this.createRenumberMessageAction(uri, documentText, messageName);
-      if (messageRenumber) {
-        actions.push(messageRenumber);
+    // Quick-fix: renumber only the current enum if applicable
+    // Check enum first - if inside an enum, don't show message renumber action
+    const enumName = this.findEnclosingEnumName(range, documentText);
+    if (enumName) {
+      const enumRenumber = this.createRenumberEnumAction(uri, documentText, enumName);
+      if (enumRenumber) {
+        actions.push(enumRenumber);
+      }
+    } else {
+      // Quick-fix: renumber only the current message if applicable
+      // Only add this if there's no diagnostic-triggered renumber action already added
+      const messageName = this.findEnclosingMessageName(range, documentText);
+      const hasRenumberDiagnostic = context.diagnostics.some(d => {
+        const msg = d.message.toLowerCase();
+        return msg.includes('not strictly increasing') ||
+               msg.includes('gap in field numbers') ||
+               (msg.includes('duplicate field number') && msg.includes('oneof'));
+      });
+      if (messageName && !hasRenumberDiagnostic) {
+        const messageRenumber = this.createRenumberMessageAction(uri, documentText, messageName);
+        if (messageRenumber) {
+          actions.push(messageRenumber);
+        }
       }
     }
 
@@ -214,6 +231,27 @@ export class CodeActionsProvider {
     };
   }
 
+  private createRenumberEnumAction(
+    uri: string,
+    documentText: string,
+    enumName: string
+  ): CodeAction | null {
+    const edits = this.renumberProvider.renumberEnum(documentText, uri, enumName);
+    if (edits.length === 0) {
+      return null;
+    }
+
+    return {
+      title: `Renumber values in enum ${enumName}`,
+      kind: CodeActionKind.QuickFix,
+      edit: {
+        changes: {
+          [uri]: edits
+        }
+      }
+    };
+  }
+
   private createAddMissingSemicolonsAction(uri: string, documentText: string): CodeAction | null {
     const lines = documentText.split('\n');
     const edits: TextEdit[] = [];
@@ -288,6 +326,34 @@ export class CodeActionsProvider {
       }
 
       const match = line.match(/\bmessage\s+(\w+)/);
+      if (match && braceDepth <= 0) {
+        return match[1];
+      }
+    }
+
+    return null;
+  }
+
+  private findEnclosingEnumName(range: Range, documentText: string): string | null {
+    const lines = documentText.split('\n');
+    let braceDepth = 0;
+
+    for (let i = range.start.line; i >= 0; i--) {
+      const line = lines[i];
+      if (!line) {
+        continue;
+      }
+
+      for (const ch of line) {
+        if (ch === '{') {
+          braceDepth--;
+        }
+        if (ch === '}') {
+          braceDepth++;
+        }
+      }
+
+      const match = line.match(/\benum\s+(\w+)/);
       if (match && braceDepth <= 0) {
         return match[1];
       }
@@ -485,21 +551,7 @@ export class CodeActionsProvider {
       });
     }
 
-    if (message.includes('should be snake_case')) {
-      const word = this.getWordAtRange(documentText, diagnostic.range);
-      if (word) {
-        const snakeCase = this.toSnakeCase(word);
-        fixes.push(this.createQuickFix(
-          `Convert to snake_case: ${snakeCase}`,
-          uri,
-          diagnostic.range,
-          snakeCase,
-          diagnostic
-        ));
-      }
-    }
-
-    if (message.includes('should be screaming_snake_case')) {
+    if (/screaming_snake_case/i.test(message)) {
       const word = this.getWordAtRange(documentText, diagnostic.range);
       if (word) {
         const screamingSnakeCase = this.toScreamingSnakeCase(word);
@@ -508,6 +560,21 @@ export class CodeActionsProvider {
           uri,
           diagnostic.range,
           screamingSnakeCase,
+          diagnostic
+        ));
+      }
+    }
+
+    if (/snake_case/i.test(message)) {
+      const word = this.getWordAtRange(documentText, diagnostic.range);
+      // Avoid offering lowercase snake_case for identifiers that are already screaming snake case (enum values)
+      if (word && !/^[A-Z][A-Z0-9_]*$/.test(word)) {
+        const snakeCase = this.toSnakeCase(word);
+        fixes.push(this.createQuickFix(
+          `Convert to snake_case: ${snakeCase}`,
+          uri,
+          diagnostic.range,
+          snakeCase,
           diagnostic
         ));
       }
