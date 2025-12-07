@@ -1,5 +1,28 @@
 {
-  "protobuf.buf.path": "/Users/drblury/Library/Application Support/Code/User/globalStorage/drblury.protobuf-vsc/bin/buf",
-  "protobuf.protoc.path": "/Users/drblury/Library/Application Support/Code/User/globalStorage/drblury.protobuf-vsc/bin/protoc",
-  "protobuf.externalLinter.bufPath": "/Users/drblury/Library/Application Support/Code/User/globalStorage/drblury.protobuf-vsc/bin/buf"
+  "protobuf.buf.path": "buf",
+  "protobuf.protoc.path": "protoc",
+  "protobuf.includes": ["${workspaceFolder}/examples/buf/.buf-deps"],
+
+  // Use buf linter instead of protoc
+  "protobuf.externalLinter.enabled": true,
+  "protobuf.externalLinter.linter": "buf",
+  "protobuf.externalLinter.bufPath": "buf",
+  "protobuf.externalLinter.runOnSave": true,
+
+  // Code generation on save
+  "protobuf.codegen.generateOnSave": true,
+  "protobuf.codegen.tool": "buf",
+
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit"
+  },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "files.exclude": {
+    "out": false
+  },
+  "search.exclude": {
+    "out": true
+  },
+  "typescript.tsc.autoDetect": "off"
 }

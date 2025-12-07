@@ -16,6 +16,17 @@
       "isBackground": true,
       "group": "build",
       "problemMatcher": "$tsc-watch"
+    },
+    {
+      "label": "buf generate",
+      "type": "shell",
+      "command": "cd ${workspaceFolder}/examples/buf && buf generate",
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
     }
   ]
 }

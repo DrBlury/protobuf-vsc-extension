@@ -505,10 +505,31 @@ export class CodeActionsProvider {
       fixes.push(this.replaceOptionValue(uri, diagnostic, documentText, first));
     }
 
+    // Handle unresolved imports - use original message for regex extraction
     if (message.includes('cannot be resolved') && message.includes('import')) {
       const lines = documentText.split('\n');
       const lineIndex = diagnostic.range.start.line;
       const line = lines[lineIndex] || '';
+
+      // Extract the import path from the original diagnostic message (not lowercased)
+      const importMatch = diagnostic.message.match(/Import '([^']+)' cannot be resolved/i);
+      const importPath = importMatch ? importMatch[1] : '';
+
+      // Check if this looks like a buf registry dependency import
+      const isBufDependency = this.isBufRegistryImport(importPath);
+
+      if (isBufDependency) {
+        // Add a suggestion to run buf export
+        fixes.push({
+          title: `Run 'buf export' to download dependencies (${importPath})`,
+          kind: CodeActionKind.QuickFix,
+          diagnostics: [diagnostic],
+          command: {
+            title: 'Export Buf Dependencies',
+            command: 'protobuf.exportBufDependencies'
+          }
+        });
+      }
 
       fixes.push({
         title: 'Remove unresolved import',
@@ -1597,5 +1618,39 @@ export class CodeActionsProvider {
         }
       }
     };
+  }
+
+  /**
+   * Check if an import path looks like it comes from the Buf Schema Registry
+   * Common patterns:
+   * - buf/validate/validate.proto (protovalidate)
+   * - buf/... (any buf.build module)
+   * - google/api/... (googleapis)
+   * - google/type/... (googleapis)
+   * - google/rpc/... (googleapis)
+   * - grpc/... (grpc modules)
+   * - envoy/... (envoy proxy)
+   * - validate/validate.proto (protoc-gen-validate)
+   */
+  private isBufRegistryImport(importPath: string): boolean {
+    // Common Buf Schema Registry module patterns
+    const bufRegistryPatterns = [
+      /^buf\//,                    // buf.build/bufbuild/* modules
+      /^google\/api\//,            // googleapis - google/api
+      /^google\/type\//,           // googleapis - google/type
+      /^google\/rpc\//,            // googleapis - google/rpc
+      /^google\/cloud\//,          // googleapis - google/cloud
+      /^google\/logging\//,        // googleapis - google/logging
+      /^grpc\//,                   // grpc modules
+      /^envoy\//,                  // envoy proxy
+      /^validate\/validate\.proto$/,  // protoc-gen-validate (PGV)
+      /^xds\//,                    // xDS API
+      /^opencensus\//,             // OpenCensus
+      /^opentelemetry\//,          // OpenTelemetry
+      /^cosmos\//,                 // Cosmos SDK
+      /^tendermint\//,             // Tendermint
+    ];
+
+    return bufRegistryPatterns.some(pattern => pattern.test(importPath));
   }
 }

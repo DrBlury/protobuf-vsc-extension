@@ -18,7 +18,6 @@ import {
   FieldDefinition,
   GroupFieldDefinition,
   OptionStatement,
-  ReservedStatement,
   BUILTIN_TYPES,
   MAP_KEY_TYPES,
   MIN_FIELD_NUMBER,
@@ -887,10 +886,15 @@ export class DiagnosticsProvider {
     for (const imp of importsWithResolutions) {
       if (!imp.resolvedUri) {
         const rangeInfo = importByPath.get(imp.importPath);
+        // Check if this looks like a buf registry dependency
+        const isBufDep = this.isBufRegistryImport(imp.importPath);
+        const hint = isBufDep
+          ? `. This looks like a Buf registry dependency. Run 'buf export' or use the quick fix to export dependencies.`
+          : '';
         diagnostics.push({
           severity: DiagnosticSeverity.Error,
           range: rangeInfo ? this.toRange(rangeInfo.range) : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
-          message: `Import '${imp.importPath}' cannot be resolved`,
+          message: `Import '${imp.importPath}' cannot be resolved${hint}`,
           source: DIAGNOSTIC_SOURCE
         });
       }
@@ -1601,5 +1605,38 @@ export class DiagnosticsProvider {
     }
 
     return false;
+  }
+
+  /**
+   * Check if an import path looks like it comes from the Buf Schema Registry
+   * Common patterns:
+   * - buf/validate/validate.proto (protovalidate)
+   * - buf/... (any buf.build module)
+   * - google/api/... (googleapis)
+   * - google/type/... (googleapis)
+   * - google/rpc/... (googleapis)
+   * - grpc/... (grpc modules)
+   * - envoy/... (envoy proxy)
+   * - validate/validate.proto (protoc-gen-validate)
+   */
+  private isBufRegistryImport(importPath: string): boolean {
+    const bufRegistryPatterns = [
+      /^buf\//,                    // buf.build/bufbuild/* modules
+      /^google\/api\//,            // googleapis - google/api
+      /^google\/type\//,           // googleapis - google/type
+      /^google\/rpc\//,            // googleapis - google/rpc
+      /^google\/cloud\//,          // googleapis - google/cloud
+      /^google\/logging\//,        // googleapis - google/logging
+      /^grpc\//,                   // grpc modules
+      /^envoy\//,                  // envoy proxy
+      /^validate\/validate\.proto$/,  // protoc-gen-validate (PGV)
+      /^xds\//,                    // xDS API
+      /^opencensus\//,             // OpenCensus
+      /^opentelemetry\//,          // OpenTelemetry
+      /^cosmos\//,                 // Cosmos SDK
+      /^tendermint\//,             // Tendermint
+    ];
+
+    return bufRegistryPatterns.some(pattern => pattern.test(importPath));
   }
 }

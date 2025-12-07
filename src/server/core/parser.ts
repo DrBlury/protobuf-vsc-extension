@@ -510,7 +510,7 @@ export class ProtoParser {
 
     while (!this.isAtEnd() && braceDepth > 0) {
       const token = this.advance();
-      if (!token) break;
+      if (!token) { break; }
 
       if (token.type === 'punctuation' && token.value === '{') {
         braceDepth++;

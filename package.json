@@ -2,7 +2,7 @@
   "name": "protobuf-vsc",
   "displayName": "Protobuf VSC",
   "description": "Comprehensive Protocol Buffers support for VS Code with syntax highlighting, IntelliSense, diagnostics, formatting, protoc compilation, breaking change detection, and more",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "publisher": "DrBlury",
   "author": {
     "name": "Julian Bensch",
@@ -303,7 +303,25 @@
         "protobuf.protoc.compileOnSave": {
           "type": "boolean",
           "default": false,
-          "description": "Automatically compile proto files on save"
+          "description": "Automatically compile proto files on save (legacy, use codegen.generateOnSave instead)"
+        },
+        "protobuf.codegen.generateOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically generate code from proto files on save"
+        },
+        "protobuf.codegen.tool": {
+          "type": "string",
+          "enum": [
+            "protoc",
+            "buf"
+          ],
+          "default": "buf",
+          "enumDescriptions": [
+            "Use protoc compiler with configured options",
+            "Use buf generate with buf.gen.yaml configuration"
+          ],
+          "description": "Code generation tool to use"
         },
         "protobuf.protoc.compileAllPath": {
           "type": "string",
@@ -565,6 +583,11 @@
       {
         "command": "protobuf.addBufDependency",
         "title": "Add Buf Dependency",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.exportBufDependencies",
+        "title": "Export Buf Dependencies (for import resolution)",
         "category": "Protobuf"
       },
       {

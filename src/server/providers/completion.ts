@@ -1162,8 +1162,8 @@ export class CompletionProvider {
           optionBraceDepth = 1;
           // Count any additional braces on the same line
           for (let j = line.indexOf('{') + 1; j < line.length; j++) {
-            if (line[j] === '{') optionBraceDepth++;
-            if (line[j] === '}') optionBraceDepth--;
+            if (line[j] === '{') { optionBraceDepth++; }
+            if (line[j] === '}') { optionBraceDepth--; }
           }
           continue;
         }
@@ -1171,8 +1171,8 @@ export class CompletionProvider {
 
       if (inCelOption) {
         for (const char of line) {
-          if (char === '{') optionBraceDepth++;
-          if (char === '}') optionBraceDepth--;
+          if (char === '{') { optionBraceDepth++; }
+          if (char === '}') { optionBraceDepth--; }
         }
         if (optionBraceDepth === 0) {
           inCelOption = false;

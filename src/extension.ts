@@ -70,6 +70,59 @@ export async function activate(context: vscode.ExtensionContext) {
     registryManager.addDependency();
   }));
 
+  // Register buf export command for resolving BSR dependencies
+  context.subscriptions.push(vscode.commands.registerCommand('protobuf.exportBufDependencies', async () => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      vscode.window.showWarningMessage('No active editor. Open a .proto file first.');
+      return;
+    }
+
+    // Find the workspace folder containing the current file
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    const workspaceFolder = workspaceFolders?.find((folder: vscode.WorkspaceFolder) =>
+      editor.document.uri.fsPath.startsWith(folder.uri.fsPath)
+    );
+
+    if (!workspaceFolder) {
+      vscode.window.showWarningMessage('Could not determine workspace folder.');
+      return;
+    }
+
+    // Try to find buf.yaml in the file's directory hierarchy
+    const fs = await import('fs');
+    const pathModule = await import('path');
+    let currentDir = pathModule.dirname(editor.document.uri.fsPath);
+    let bufYamlDir: string | null = null;
+
+    while (currentDir !== pathModule.dirname(currentDir)) {
+      if (fs.existsSync(pathModule.join(currentDir, 'buf.yaml'))) {
+        bufYamlDir = currentDir;
+        break;
+      }
+      currentDir = pathModule.dirname(currentDir);
+    }
+
+    if (!bufYamlDir) {
+      vscode.window.showWarningMessage('No buf.yaml found in the file hierarchy. Create a buf.yaml first.');
+      return;
+    }
+
+    const outputDir = '.buf-deps';
+    const terminal = vscode.window.createTerminal('Buf Export');
+    terminal.show();
+    terminal.sendText(`cd "${bufYamlDir}" && buf export . --output=${outputDir}`);
+
+    vscode.window.showInformationMessage(
+      `Exporting buf dependencies to ${outputDir}/. After export completes, add "${bufYamlDir}/${outputDir}" to "protobuf.includes" in settings.`,
+      'Open Settings'
+    ).then(selection => {
+      if (selection === 'Open Settings') {
+        vscode.commands.executeCommand('workbench.action.openSettings', 'protobuf.includes');
+      }
+    });
+  }));
+
   // Server module path
   const serverModule = context.asAbsolutePath(path.join('out', 'server', 'server.js'));
   outputChannel.appendLine(`Server module: ${serverModule}`);
@@ -158,7 +211,111 @@ export async function activate(context: vscode.ExtensionContext) {
   const commandDisposables = registerAllCommands(context, client);
   context.subscriptions.push(...commandDisposables);
 
+  // Register code generation on save handler
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument(async (document) => {
+      if (document.languageId !== 'proto') {
+        return;
+      }
+
+      const config = vscode.workspace.getConfiguration('protobuf');
+      const generateOnSave = config.get<boolean>('codegen.generateOnSave', false);
+      const legacyCompileOnSave = config.get<boolean>('protoc.compileOnSave', false);
+
+      if (!generateOnSave && !legacyCompileOnSave) {
+        return;
+      }
+
+      const tool = config.get<string>('codegen.tool', 'buf');
+
+      if (tool === 'buf' && generateOnSave) {
+        await runBufGenerate(document.uri, outputChannel);
+      } else if (tool === 'protoc' || legacyCompileOnSave) {
+        // Use existing protoc compilation via language server
+        try {
+          await client.sendRequest('protobuf/compileFile', { uri: document.uri.toString() });
+        } catch (err) {
+          outputChannel.appendLine(`Protoc compilation failed: ${err}`);
+        }
+      }
+    })
+  );
+
   outputChannel.appendLine('Protobuf Language Support is now active');
+}
+
+/**
+ * Run buf generate for a proto file
+ */
+async function runBufGenerate(uri: vscode.Uri, outputChannel: vscode.OutputChannel): Promise<void> {
+  const fs = await import('fs');
+  const pathModule = await import('path');
+
+  // Find buf.yaml in the file's directory hierarchy
+  let currentDir = pathModule.dirname(uri.fsPath);
+  let bufYamlDir: string | null = null;
+
+  while (currentDir !== pathModule.dirname(currentDir)) {
+    if (fs.existsSync(pathModule.join(currentDir, 'buf.yaml'))) {
+      bufYamlDir = currentDir;
+      break;
+    }
+    currentDir = pathModule.dirname(currentDir);
+  }
+
+  if (!bufYamlDir) {
+    outputChannel.appendLine('No buf.yaml found, skipping buf generate');
+    return;
+  }
+
+  // Check if buf.gen.yaml exists
+  const bufGenPath = pathModule.join(bufYamlDir, 'buf.gen.yaml');
+  if (!fs.existsSync(bufGenPath)) {
+    outputChannel.appendLine('No buf.gen.yaml found, skipping buf generate');
+    return;
+  }
+
+  const config = vscode.workspace.getConfiguration('protobuf');
+  const bufPath = config.get<string>('buf.path', 'buf');
+
+  outputChannel.appendLine(`Running buf generate in ${bufYamlDir}...`);
+
+  const { spawn } = await import('child_process');
+
+  return new Promise((resolve) => {
+    const proc = spawn(bufPath, ['generate'], {
+      cwd: bufYamlDir,
+      shell: true
+    });
+
+    let _stdout = '';
+    let stderr = '';
+
+    proc.stdout?.on('data', (data: Buffer) => {
+      _stdout += data.toString();
+    });
+
+    proc.stderr?.on('data', (data: Buffer) => {
+      stderr += data.toString();
+    });
+
+    proc.on('close', (code: number | null) => {
+      if (code === 0) {
+        outputChannel.appendLine('buf generate completed successfully');
+      } else {
+        outputChannel.appendLine(`buf generate failed with code ${code}`);
+        if (stderr) {
+          outputChannel.appendLine(stderr);
+        }
+      }
+      resolve();
+    });
+
+    proc.on('error', (err: Error) => {
+      outputChannel.appendLine(`buf generate error: ${err.message}`);
+      resolve();
+    });
+  });
 }
 
 export function deactivate(): Thenable<void> | undefined {

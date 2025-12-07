@@ -2,49 +2,52 @@ syntax = "proto3";
 
 package domain.v1;
 
+import "buf/validate/validate.proto";
+
 option go_package = "com.example.api.v1";
 
 message BillingAddress {
-	option (buf.validate.message).cel = {
-		id: "BillingAddress.CountryLength",
-		message: "Country size must be 2",
-		expression:
-		"!(size(this.country) == 2)"
-		"? 'Country must be 2 letters long eg. DE'"
-		": ''"
-	};
-	option (buf.validate.message).cel = {
-		id: "BillingAddress.streetOrPost_office_box",
-		message: "Either street or post_office_box must be set, but not both",
-		expression:
-		"has(this.street) == has(this.post_office_box)"
-		"? 'Either street or post_office_box must be set, but not both'"
-		": ''"
-	};
-	option (buf.validate.message).cel = {
-		id: "BillingAddress.StreetAndHouse_number",
-		message: "Both street and house_number must be set",
-		expression:
-		"has(this.street) != has(this.house_number)"
-		"? 'Both street and house_number must be set if it is not a post_office_box'"
-		": ''"
-	};
-	string city = 1 [(buf.validate.field).cel = {
-		id: "city_pattern",
-		message: "City must match pattern",
-		expression:
-		"!this.matches('^[a-z]+$')"
-		"? 'Value must match pattern ^[a-z]+$'"
-		": ''"
-	}];
-	oneof type {
-		option (buf.validate.oneof).required = true;
-		string type1 = 2;
-		string type2 = 3;
-	}
-	string country = 4;
-	optional string house_number = 5;
-	string zip = 6;
-	optional string post_office_box = 7;
-	optional string street = 8;
+  option (buf.validate.message).cel = {
+    id: "BillingAddress.CountryLength",
+    message: "Country size must be 2",
+    expression:
+    "!(size(this.country) == 2)"
+    "? 'Country must be 2 letters long eg. DE'"
+    ": ''"
+  };
+  option (buf.validate.message).cel = {
+    id: "BillingAddress.streetOrPost_office_box",
+    message: "Either street or post_office_box must be set, but not both",
+    expression:
+    "has(this.street) == has(this.post_office_box)"
+    "? 'Either street or post_office_box must be set, but not both'"
+    ": ''"
+  };
+  option (buf.validate.message).cel = {
+    id: "BillingAddress.StreetAndHouse_number",
+    message: "Both street and house_number must be set",
+    expression:
+    "has(this.street) != has(this.house_number)"
+    "? 'Both street and house_number must be set if it is not a post_office_box'"
+    ": ''"
+  };
+  string city = 1 [(buf.validate.field).cel = {
+    id: "city_pattern",
+    message: "City must match pattern",
+    expression:
+    "!this.matches('^[a-z]+$')"
+    "? 'Value must match pattern ^[a-z]+$'"
+    ": ''"
+  }];
+  oneof type {
+    option (buf.validate.oneof).required = true;
+    string type1 = 2;
+    string type2 = 3;
+    string type3 = 9;
+  }
+  string country = 4;
+  optional string house_number = 5;
+  string zip = 6;
+  optional string post_office_box = 7;
+  optional string street = 8;
 }
