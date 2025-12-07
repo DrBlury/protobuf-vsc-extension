@@ -16,7 +16,9 @@ import {
   ServiceDefinition,
   OneofDefinition,
   FieldDefinition,
+  GroupFieldDefinition,
   OptionStatement,
+  ReservedStatement,
   BUILTIN_TYPES,
   MAP_KEY_TYPES,
   MIN_FIELD_NUMBER,
@@ -287,6 +289,20 @@ export class DiagnosticsProvider {
       }
     }
 
+    // Validate groups (proto2)
+    for (const group of message.groups) {
+      this.validateGroup(uri, group, fullName, diagnostics, reservedNumbers, reservedNames);
+
+      // Groups also use field numbers in the message
+      if (!fieldNumbers.has(group.number)) {
+        fieldNumbers.set(group.number, []);
+      }
+
+      if (!fieldNames.has(group.name)) {
+        fieldNames.set(group.name, []);
+      }
+    }
+
     // Check for duplicate field numbers
     if (this.settings.fieldTagChecks) {
       for (const [number, fields] of fieldNumbers) {
@@ -521,6 +537,109 @@ export class DiagnosticsProvider {
           source: DIAGNOSTIC_SOURCE
         });
       }
+    }
+  }
+
+  private validateGroup(
+    uri: string,
+    group: {
+      name: string;
+      number: number;
+      range: Range;
+      nameRange: Range;
+      fields: FieldDefinition[];
+      nestedMessages: MessageDefinition[];
+      nestedEnums: EnumDefinition[];
+      options: OptionStatement[];
+      reserved: ReservedStatement[];
+    },
+    containerName: string,
+    diagnostics: Diagnostic[],
+    reservedNumbers: Set<number>,
+    reservedNames: Set<string>
+  ): void {
+    // Check naming convention (PascalCase for group names)
+    if (this.settings.namingConventions && !this.isPascalCase(group.name)) {
+      diagnostics.push({
+        severity: DiagnosticSeverity.Warning,
+        range: this.toRange(group.nameRange),
+        message: `Group name '${group.name}' should be PascalCase`,
+        source: DIAGNOSTIC_SOURCE
+      });
+    }
+
+    // Check field number
+    if (this.settings.fieldTagChecks) {
+      if (group.number < MIN_FIELD_NUMBER || group.number > MAX_FIELD_NUMBER) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Error,
+          range: this.toRange(group.range),
+          message: `Group number ${group.number} is out of valid range`,
+          source: DIAGNOSTIC_SOURCE
+        });
+      }
+
+      if (reservedNumbers.has(group.number)) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Error,
+          range: this.toRange(group.range),
+          message: `Group number ${group.number} is reserved`,
+          source: DIAGNOSTIC_SOURCE
+        });
+      }
+
+      if (reservedNames.has(group.name)) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Error,
+          range: this.toRange(group.nameRange),
+          message: `Group name '${group.name}' is reserved`,
+          source: DIAGNOSTIC_SOURCE
+        });
+      }
+    }
+
+    // Warn that groups are deprecated
+    if (this.settings.discouragedConstructs) {
+      diagnostics.push({
+        severity: DiagnosticSeverity.Information,
+        range: this.toRange(group.range),
+        message: 'Groups are deprecated in proto2 and not supported in proto3. Consider using nested messages instead.',
+        source: DIAGNOSTIC_SOURCE
+      });
+    }
+
+    // Validate fields within the group recursively
+    // Groups are like messages, so we can validate them similarly
+    const fullName = containerName ? `${containerName}.${group.name}` : group.name;
+    
+    // Collect reserved numbers and names from group
+    const groupReservedNumbers = new Set<number>();
+    const groupReservedNames = new Set<string>();
+    for (const reserved of group.reserved) {
+      for (const range of reserved.ranges) {
+        const end = range.end === 'max' ? MAX_FIELD_NUMBER : range.end;
+        for (let i = range.start; i <= end; i++) {
+          groupReservedNumbers.add(i);
+        }
+      }
+      for (const name of reserved.names) {
+        groupReservedNames.add(name);
+      }
+    }
+
+    // Validate fields in group
+    for (const field of group.fields) {
+      this.validateField(uri, field, fullName, diagnostics, groupReservedNumbers, groupReservedNames);
+    }
+
+    // Validate nested messages
+    for (const nestedMessage of group.nestedMessages) {
+      this.validateMessage(uri, nestedMessage, fullName, diagnostics);
+    }
+
+    // Validate nested enums
+    for (const nestedEnum of group.nestedEnums) {
+      this.validateEnum(uri, nestedEnum, fullName, diagnostics);
     }
   }
 
