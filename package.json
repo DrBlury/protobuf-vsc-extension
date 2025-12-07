@@ -640,9 +640,9 @@
     "compile": "tsc -b",
     "watch": "tsc -b -w",
     "lint": "eslint ./src",
-    "test": "node --localstorage-file=.vscode-test/localstorage.json ./node_modules/jest/bin/jest.js",
-    "test:watch": "node --localstorage-file=.vscode-test/localstorage.json ./node_modules/jest/bin/jest.js --watch",
-    "test:coverage": "node --localstorage-file=.vscode-test/localstorage.json ./node_modules/jest/bin/jest.js --coverage"
+    "test": "node ./node_modules/jest/bin/jest.js",
+    "test:watch": "node ./node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node ./node_modules/jest/bin/jest.js --coverage"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
