@@ -44,6 +44,14 @@ export class CompletionProvider {
       }
     }
 
+    // Google API completions - check for HTTP, field_behavior, resource options
+    if (documentText) {
+      const googleApiCompletions = this.getGoogleApiCompletions(uri, position, beforeCursor, documentText);
+      if (googleApiCompletions.length > 0) {
+        return googleApiCompletions;
+      }
+    }
+
     // Import path completion
     if (beforeCursor.includes('import') && beforeCursor.includes('"')) {
       return this.getImportCompletions(uri);
@@ -583,7 +591,81 @@ export class CompletionProvider {
     // Add buf.validate custom options as top-level suggestions
     completions.push(...this.getBufValidateTopLevelOptions());
 
+    // Add google.api options as top-level suggestions
+    completions.push(...this.getGoogleApiTopLevelOptions());
+
     return completions;
+  }
+
+  /**
+   * Get google.api top-level option suggestions
+   */
+  private getGoogleApiTopLevelOptions(): CompletionItem[] {
+    return [
+      {
+        label: '(google.api.http)',
+        kind: CompletionItemKind.Module,
+        detail: 'google/api - HTTP mapping',
+        documentation: 'Maps gRPC methods to HTTP REST endpoints for gRPC transcoding',
+        insertText: '(google.api.http) = {\n  ${1|get,post,put,delete,patch|}: "/${2:v1}/${3:resource}"\n}',
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '0google.api.http'
+      },
+      {
+        label: '(google.api.field_behavior)',
+        kind: CompletionItemKind.Module,
+        detail: 'google/api - Field behavior',
+        documentation: 'Specifies field behavior (REQUIRED, OUTPUT_ONLY, INPUT_ONLY, IMMUTABLE, OPTIONAL)',
+        insertText: '(google.api.field_behavior) = ${1|REQUIRED,OUTPUT_ONLY,INPUT_ONLY,IMMUTABLE,OPTIONAL|}',
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '0google.api.field_behavior'
+      },
+      {
+        label: '(google.api.resource)',
+        kind: CompletionItemKind.Module,
+        detail: 'google/api - Resource descriptor',
+        documentation: 'Defines the message as an API resource with type and naming pattern',
+        insertText: '(google.api.resource) = {\n  type: "${1:example.googleapis.com}/${2:Resource}"\n  pattern: "${3:resources}/{${4:resource}}"\n}',
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '0google.api.resource'
+      },
+      {
+        label: '(google.api.resource_reference)',
+        kind: CompletionItemKind.Module,
+        detail: 'google/api - Resource reference',
+        documentation: 'Indicates that a field references another resource',
+        insertText: '(google.api.resource_reference) = {\n  type: "${1:example.googleapis.com/Resource}"\n}',
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '0google.api.resource_reference'
+      },
+      {
+        label: '(google.api.method_signature)',
+        kind: CompletionItemKind.Module,
+        detail: 'google/api - Method signature',
+        documentation: 'Defines simplified method signatures for client library generation',
+        insertText: '(google.api.method_signature) = "${1:field1,field2}"',
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '0google.api.method_signature'
+      },
+      {
+        label: '(google.api.default_host)',
+        kind: CompletionItemKind.Module,
+        detail: 'google/api - Default host',
+        documentation: 'Specifies the default API endpoint host',
+        insertText: '(google.api.default_host) = "${1:api.example.com}"',
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '0google.api.default_host'
+      },
+      {
+        label: '(google.api.oauth_scopes)',
+        kind: CompletionItemKind.Module,
+        detail: 'google/api - OAuth scopes',
+        documentation: 'Specifies OAuth scopes required for the service',
+        insertText: '(google.api.oauth_scopes) = "${1:https://www.googleapis.com/auth/cloud-platform}"',
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '0google.api.oauth_scopes'
+      }
+    ];
   }
 
   /**
@@ -1065,8 +1147,12 @@ export class CompletionProvider {
       'bool': ['enabled', 'active', 'visible', 'is_valid', 'has_value', 'is_set'],
       'bytes': ['data', 'content', 'payload', 'body', 'value'],
       'Timestamp': ['created_at', 'updated_at', 'timestamp', 'time', 'date'],
+      'google.protobuf.Timestamp': ['created_at', 'updated_at', 'deleted_at', 'timestamp', 'time', 'expire_time', 'start_time', 'end_time'],
       'Duration': ['duration', 'timeout', 'interval', 'period'],
-      'Date': ['date', 'birth_date', 'created_date', 'updated_date']
+      'google.protobuf.Duration': ['duration', 'timeout', 'interval', 'period', 'ttl', 'delay', 'max_duration'],
+      'Date': ['date', 'birth_date', 'created_date', 'updated_date'],
+      'FieldMask': ['update_mask', 'field_mask', 'read_mask'],
+      'google.protobuf.FieldMask': ['update_mask', 'field_mask', 'read_mask', 'output_mask']
     };
 
     // Direct match
@@ -1354,7 +1440,7 @@ export class CompletionProvider {
       { name: 'filter', snippet: '${1:list}.filter(${2:x}, ${3:predicate})', detail: 'Filter list', doc: 'Returns elements where predicate is true' },
       { name: 'map', snippet: '${1:list}.map(${2:x}, ${3:transform})', detail: 'Map list', doc: 'Transforms each element' },
 
-      // Type conversions
+      // Type conversions and denotations
       { name: 'int', snippet: 'int(${1:value})', detail: 'Convert to int', doc: 'Converts value to integer' },
       { name: 'uint', snippet: 'uint(${1:value})', detail: 'Convert to uint', doc: 'Converts value to unsigned integer' },
       { name: 'double', snippet: 'double(${1:value})', detail: 'Convert to double', doc: 'Converts value to double' },
@@ -1362,10 +1448,26 @@ export class CompletionProvider {
       { name: 'bytes', snippet: 'bytes(${1:value})', detail: 'Convert to bytes', doc: 'Converts value to bytes' },
       { name: 'bool', snippet: 'bool(${1:value})', detail: 'Convert to bool', doc: 'Converts value to boolean' },
       { name: 'type', snippet: 'type(${1:value})', detail: 'Get type', doc: 'Returns the type of the value' },
+      { name: 'dyn', snippet: 'dyn(${1:value})', detail: 'Type denotation (dynamic)', doc: 'Disables strong type agreement checks during type-checking' },
+      { name: 'list', snippet: 'list(${1:value})', detail: 'Type denotation (list)', doc: 'Type denotation for list type' },
+      { name: 'map', snippet: 'map(${1:key}, ${2:value})', detail: 'Type denotation (map)', doc: 'Type denotation for map type' },
+      { name: 'null_type', snippet: 'null_type(${1:value})', detail: 'Type denotation (null)', doc: 'Type denotation for null type' },
 
-      // Duration/Timestamp (buf.validate specific)
-      { name: 'duration', snippet: 'duration(${1:value})', detail: 'Create duration', doc: 'Creates a duration from a string like "3600s"' },
-      { name: 'timestamp', snippet: 'timestamp(${1:value})', detail: 'Create timestamp', doc: 'Creates a timestamp from a string' },
+      // Duration/Timestamp conversions
+      { name: 'duration', snippet: 'duration(${1:value})', detail: 'Create duration', doc: 'Creates a duration from a string like "1h30m" or "3600s"' },
+      { name: 'timestamp', snippet: 'timestamp(${1:value})', detail: 'Create timestamp', doc: 'Creates a timestamp from a string (RFC3339 format)' },
+
+      // Timestamp getter methods
+      { name: 'getDate', snippet: '${1:timestamp}.getDate(${2:timezone?})', detail: 'Get date from timestamp', doc: 'Get the date component of a timestamp (optionally with timezone)' },
+      { name: 'getDayOfMonth', snippet: '${1:timestamp}.getDayOfMonth(${2:timezone?})', detail: 'Get day of month', doc: 'Get the day of month (1-31) from a timestamp' },
+      { name: 'getDayOfWeek', snippet: '${1:timestamp}.getDayOfWeek(${2:timezone?})', detail: 'Get day of week', doc: 'Get the day of week (0=Sunday, 6=Saturday) from a timestamp' },
+      { name: 'getDayOfYear', snippet: '${1:timestamp}.getDayOfYear(${2:timezone?})', detail: 'Get day of year', doc: 'Get the day of year (1-366) from a timestamp' },
+      { name: 'getFullYear', snippet: '${1:timestamp}.getFullYear(${2:timezone?})', detail: 'Get full year', doc: 'Get the full year from a timestamp' },
+      { name: 'getHours', snippet: '${1:timestamp}.getHours(${2:timezone?})', detail: 'Get hours', doc: 'Get the hours component (0-23) from a timestamp, or convert duration to hours' },
+      { name: 'getMilliseconds', snippet: '${1:timestamp}.getMilliseconds(${2:timezone?})', detail: 'Get milliseconds', doc: 'Get the milliseconds component from a timestamp or duration' },
+      { name: 'getMinutes', snippet: '${1:timestamp}.getMinutes(${2:timezone?})', detail: 'Get minutes', doc: 'Get the minutes component from a timestamp, or convert duration to minutes' },
+      { name: 'getMonth', snippet: '${1:timestamp}.getMonth(${2:timezone?})', detail: 'Get month', doc: 'Get the month (0-11, 0=January) from a timestamp' },
+      { name: 'getSeconds', snippet: '${1:timestamp}.getSeconds(${2:timezone?})', detail: 'Get seconds', doc: 'Get the seconds component from a timestamp, or convert duration to seconds' },
     ];
 
     return celFunctions.map(fn => ({
@@ -1418,5 +1520,463 @@ export class CompletionProvider {
     }
 
     return [];
+  }
+
+  // ============================================================================
+  // Google API Completions
+  // ============================================================================
+
+  /**
+   * Get Google API completions (HTTP annotations, field behaviors, resources)
+   */
+  private getGoogleApiCompletions(
+    uri: string,
+    position: Position,
+    beforeCursor: string,
+    documentText: string
+  ): CompletionItem[] {
+    // Check for google.api.http context
+    const httpCompletions = this.getGoogleApiHttpCompletions(beforeCursor, documentText, position);
+    if (httpCompletions.length > 0) {
+      return httpCompletions;
+    }
+
+    // Check for google.api.field_behavior context
+    const fieldBehaviorCompletions = this.getGoogleApiFieldBehaviorCompletions(beforeCursor);
+    if (fieldBehaviorCompletions.length > 0) {
+      return fieldBehaviorCompletions;
+    }
+
+    // Check for google.api.resource context
+    const resourceCompletions = this.getGoogleApiResourceCompletions(beforeCursor, documentText, position);
+    if (resourceCompletions.length > 0) {
+      return resourceCompletions;
+    }
+
+    // Check for google.api.resource_reference context
+    const resourceRefCompletions = this.getGoogleApiResourceReferenceCompletions(beforeCursor);
+    if (resourceRefCompletions.length > 0) {
+      return resourceRefCompletions;
+    }
+
+    return [];
+  }
+
+  /**
+   * Check if inside a google.api.http block
+   */
+  private isInsideGoogleApiHttpBlock(position: Position, documentText: string): boolean {
+    const lines = documentText.split('\n');
+    let braceDepth = 0;
+    let inHttpOption = false;
+
+    for (let i = 0; i <= position.line; i++) {
+      const line = lines[i];
+
+      // Check for google.api.http option start
+      if (line.includes('google.api.http') && line.includes('=')) {
+        const httpIndex = line.indexOf('google.api.http');
+        const braceIndex = line.indexOf('{', httpIndex);
+        if (braceIndex !== -1) {
+          inHttpOption = true;
+          braceDepth = 1;
+          // Count any additional braces on the same line after the opening brace
+          for (let j = braceIndex + 1; j < line.length; j++) {
+            if (line[j] === '{') { braceDepth++; }
+            if (line[j] === '}') { braceDepth--; }
+          }
+          continue;
+        }
+      }
+
+      if (inHttpOption) {
+        for (const char of line) {
+          if (char === '{') { braceDepth++; }
+          if (char === '}') { braceDepth--; }
+        }
+        if (braceDepth <= 0) {
+          inHttpOption = false;
+        }
+      }
+    }
+
+    return inHttpOption && braceDepth > 0;
+  }
+
+  /**
+   * Get google.api.http completions
+   */
+  private getGoogleApiHttpCompletions(
+    beforeCursor: string,
+    documentText: string,
+    position: Position
+  ): CompletionItem[] {
+    const completions: CompletionItem[] = [];
+
+    // Check if we're typing the option name
+    if (beforeCursor.match(/option\s*\(google\.api\.$/)) {
+      return [{
+        label: 'http',
+        kind: CompletionItemKind.Property,
+        detail: 'Google API HTTP annotation',
+        documentation: 'Maps RPC methods to HTTP REST endpoints',
+        insertText: 'http) = {\n  ${1|get,post,put,delete,patch|}: "/${2:v1}/${3:resource}"\n}',
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '0http'
+      }];
+    }
+
+    // Check if inside google.api.http block
+    if (this.isInsideGoogleApiHttpBlock(position, documentText)) {
+      const trimmed = beforeCursor.trim();
+
+      // At the start of a line or after opening brace - suggest HTTP methods
+      if (trimmed === '' || trimmed.endsWith('{') || trimmed.endsWith(';')) {
+        completions.push(
+          {
+            label: 'get',
+            kind: CompletionItemKind.Property,
+            detail: 'HTTP GET method',
+            documentation: 'Maps to HTTP GET request. Used for reading resources.',
+            insertText: 'get: "/${1:v1}/${2:resources}/{${3:id}}"',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '0get'
+          },
+          {
+            label: 'post',
+            kind: CompletionItemKind.Property,
+            detail: 'HTTP POST method',
+            documentation: 'Maps to HTTP POST request. Used for creating resources.',
+            insertText: 'post: "/${1:v1}/${2:resources}"',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '1post'
+          },
+          {
+            label: 'put',
+            kind: CompletionItemKind.Property,
+            detail: 'HTTP PUT method',
+            documentation: 'Maps to HTTP PUT request. Used for full resource updates.',
+            insertText: 'put: "/${1:v1}/${2:resources}/{${3:id}}"',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '2put'
+          },
+          {
+            label: 'delete',
+            kind: CompletionItemKind.Property,
+            detail: 'HTTP DELETE method',
+            documentation: 'Maps to HTTP DELETE request. Used for deleting resources.',
+            insertText: 'delete: "/${1:v1}/${2:resources}/{${3:id}}"',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '3delete'
+          },
+          {
+            label: 'patch',
+            kind: CompletionItemKind.Property,
+            detail: 'HTTP PATCH method',
+            documentation: 'Maps to HTTP PATCH request. Used for partial resource updates.',
+            insertText: 'patch: "/${1:v1}/${2:resources}/{${3:id}}"',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '4patch'
+          },
+          {
+            label: 'custom',
+            kind: CompletionItemKind.Property,
+            detail: 'Custom HTTP method',
+            documentation: 'Custom HTTP method (e.g., for non-standard verbs)',
+            insertText: 'custom: {\n  kind: "${1:CUSTOM_METHOD}"\n  path: "/${2:v1}/${3:resources}:${4:action}"\n}',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '5custom'
+          },
+          {
+            label: 'body',
+            kind: CompletionItemKind.Property,
+            detail: 'Request body mapping',
+            documentation: 'Specifies which request field maps to the HTTP body. Use "*" for entire request.',
+            insertText: 'body: "${1:*}"',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '6body'
+          },
+          {
+            label: 'response_body',
+            kind: CompletionItemKind.Property,
+            detail: 'Response body mapping',
+            documentation: 'Specifies which response field maps to the HTTP response body.',
+            insertText: 'response_body: "${1:field_name}"',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '7response_body'
+          },
+          {
+            label: 'additional_bindings',
+            kind: CompletionItemKind.Property,
+            detail: 'Additional HTTP bindings',
+            documentation: 'Define additional HTTP mappings for the same RPC method.',
+            insertText: 'additional_bindings {\n  ${1|get,post,put,delete,patch|}: "/${2:v1}/${3:alternate_path}"\n}',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '8additional_bindings'
+          }
+        );
+      }
+
+      // After a method keyword and colon - suggest path patterns
+      if (beforeCursor.match(/(?:get|post|put|delete|patch)\s*:\s*"$/)) {
+        completions.push(
+          {
+            label: '/v1/{resource}',
+            kind: CompletionItemKind.Value,
+            detail: 'Simple resource path',
+            insertText: '/v1/${1:resources}/{${2:id}}',
+            insertTextFormat: InsertTextFormat.Snippet
+          },
+          {
+            label: '/v1/{parent}/children',
+            kind: CompletionItemKind.Value,
+            detail: 'Nested resource path',
+            insertText: '/v1/${1:parents}/{${2:parent_id}}/${3:children}',
+            insertTextFormat: InsertTextFormat.Snippet
+          },
+          {
+            label: '/v1/{resource}:action',
+            kind: CompletionItemKind.Value,
+            detail: 'Custom action path',
+            insertText: '/v1/${1:resources}/{${2:id}}:${3:action}',
+            insertTextFormat: InsertTextFormat.Snippet
+          }
+        );
+      }
+    }
+
+    return completions;
+  }
+
+  /**
+   * Get google.api.field_behavior completions
+   */
+  private getGoogleApiFieldBehaviorCompletions(beforeCursor: string): CompletionItem[] {
+    const completions: CompletionItem[] = [];
+
+    // Check if typing (google.api.field_behavior)
+    if (beforeCursor.match(/\[\s*\(google\.api\.field_behavior\)\s*=\s*$/)) {
+      const behaviors = [
+        { name: 'REQUIRED', doc: 'Field must be set by the client before the request is processed' },
+        { name: 'OUTPUT_ONLY', doc: 'Field is set by the server and should not be specified by the client' },
+        { name: 'INPUT_ONLY', doc: 'Field is set by the client but not returned by the server' },
+        { name: 'IMMUTABLE', doc: 'Field can only be set once and cannot be updated afterward' },
+        { name: 'OPTIONAL', doc: 'Field is explicitly optional (for documentation purposes)' },
+        { name: 'NON_EMPTY_DEFAULT', doc: 'Field has a non-empty default value' },
+        { name: 'IDENTIFIER', doc: 'Field uniquely identifies a resource' },
+        { name: 'UNORDERED_LIST', doc: 'Repeated field values are unordered' }
+      ];
+
+      for (const behavior of behaviors) {
+        completions.push({
+          label: behavior.name,
+          kind: CompletionItemKind.EnumMember,
+          detail: 'Field behavior',
+          documentation: behavior.doc,
+          insertText: behavior.name,
+          sortText: '0' + behavior.name
+        });
+      }
+    }
+
+    // Check if typing the option name
+    if (beforeCursor.match(/\[\s*\(google\.api\.$/)) {
+      completions.push({
+        label: 'field_behavior',
+        kind: CompletionItemKind.Property,
+        detail: 'Field behavior annotation',
+        documentation: 'Specifies the behavior of a field (REQUIRED, OUTPUT_ONLY, etc.)',
+        insertText: 'field_behavior) = ${1|REQUIRED,OUTPUT_ONLY,INPUT_ONLY,IMMUTABLE,OPTIONAL|}',
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '0field_behavior'
+      });
+    }
+
+    return completions;
+  }
+
+  /**
+   * Check if inside a google.api.resource block
+   */
+  private isInsideGoogleApiResourceBlock(position: Position, documentText: string): boolean {
+    const lines = documentText.split('\n');
+    let braceDepth = 0;
+    let inResourceOption = false;
+
+    for (let i = 0; i <= position.line; i++) {
+      const line = lines[i];
+
+      // Check for google.api.resource option start
+      if (line.includes('google.api.resource') && line.includes('=') && !line.includes('resource_reference')) {
+        const resourceIndex = line.indexOf('google.api.resource');
+        const braceIndex = line.indexOf('{', resourceIndex);
+        if (braceIndex !== -1) {
+          inResourceOption = true;
+          braceDepth = 1;
+          for (let j = braceIndex + 1; j < line.length; j++) {
+            if (line[j] === '{') { braceDepth++; }
+            if (line[j] === '}') { braceDepth--; }
+          }
+          continue;
+        }
+      }
+
+      if (inResourceOption) {
+        for (const char of line) {
+          if (char === '{') { braceDepth++; }
+          if (char === '}') { braceDepth--; }
+        }
+        if (braceDepth <= 0) {
+          inResourceOption = false;
+        }
+      }
+    }
+
+    return inResourceOption && braceDepth > 0;
+  }
+
+  /**
+   * Get google.api.resource completions
+   */
+  private getGoogleApiResourceCompletions(
+    beforeCursor: string,
+    documentText: string,
+    position: Position
+  ): CompletionItem[] {
+    const completions: CompletionItem[] = [];
+
+    // Check if typing the option name
+    if (beforeCursor.match(/option\s*\(google\.api\.$/)) {
+      completions.push({
+        label: 'resource',
+        kind: CompletionItemKind.Property,
+        detail: 'Resource descriptor',
+        documentation: 'Defines this message as an API resource with type and pattern',
+        insertText: 'resource) = {\n  type: "${1:example.googleapis.com}/${2:Resource}"\n  pattern: "${3:resources}/{${4:resource}}"\n}',
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '0resource'
+      });
+    }
+
+    // Check if inside google.api.resource block
+    if (this.isInsideGoogleApiResourceBlock(position, documentText)) {
+      const trimmed = beforeCursor.trim();
+
+      if (trimmed === '' || trimmed.endsWith('{') || trimmed.endsWith(';')) {
+        completions.push(
+          {
+            label: 'type',
+            kind: CompletionItemKind.Property,
+            detail: 'Resource type name',
+            documentation: 'The resource type name in the format {service}/{resource}',
+            insertText: 'type: "${1:example.googleapis.com}/${2:Resource}"',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '0type'
+          },
+          {
+            label: 'pattern',
+            kind: CompletionItemKind.Property,
+            detail: 'Resource name pattern',
+            documentation: 'Pattern for the resource name (e.g., "projects/{project}/locations/{location}/resources/{resource}")',
+            insertText: 'pattern: "${1:resources}/{${2:resource}}"',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '1pattern'
+          },
+          {
+            label: 'name_field',
+            kind: CompletionItemKind.Property,
+            detail: 'Name field',
+            documentation: 'The field that contains the resource name (defaults to "name")',
+            insertText: 'name_field: "${1:name}"',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '2name_field'
+          },
+          {
+            label: 'plural',
+            kind: CompletionItemKind.Property,
+            detail: 'Plural name',
+            documentation: 'Plural name of the resource (e.g., "users")',
+            insertText: 'plural: "${1:resources}"',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '3plural'
+          },
+          {
+            label: 'singular',
+            kind: CompletionItemKind.Property,
+            detail: 'Singular name',
+            documentation: 'Singular name of the resource (e.g., "user")',
+            insertText: 'singular: "${1:resource}"',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '4singular'
+          },
+          {
+            label: 'history',
+            kind: CompletionItemKind.Property,
+            detail: 'Resource history',
+            documentation: 'The historical or future-versioning behavior of the resource pattern',
+            insertText: 'history: ${1|ORIGINALLY_SINGLE_PATTERN,FUTURE_MULTI_PATTERN|}',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '5history'
+          },
+          {
+            label: 'style',
+            kind: CompletionItemKind.Property,
+            detail: 'Resource style',
+            documentation: 'Style of resource (DECLARATIVE_FRIENDLY for terraform-style resources)',
+            insertText: 'style: ${1|DECLARATIVE_FRIENDLY|}',
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '6style'
+          }
+        );
+      }
+    }
+
+    return completions;
+  }
+
+  /**
+   * Get google.api.resource_reference completions
+   */
+  private getGoogleApiResourceReferenceCompletions(beforeCursor: string): CompletionItem[] {
+    const completions: CompletionItem[] = [];
+
+    // Check if typing (google.api.resource_reference)
+    if (beforeCursor.match(/\[\s*\(google\.api\.resource_reference\)\s*=\s*\{?\s*$/)) {
+      completions.push(
+        {
+          label: 'type',
+          kind: CompletionItemKind.Property,
+          detail: 'Resource type reference',
+          documentation: 'Reference to a specific resource type (e.g., "example.googleapis.com/Resource")',
+          insertText: 'type: "${1:example.googleapis.com/Resource}"',
+          insertTextFormat: InsertTextFormat.Snippet,
+          sortText: '0type'
+        },
+        {
+          label: 'child_type',
+          kind: CompletionItemKind.Property,
+          detail: 'Child resource type',
+          documentation: 'Reference to the resource type that is the child in a parent-child relationship',
+          insertText: 'child_type: "${1:example.googleapis.com/ChildResource}"',
+          insertTextFormat: InsertTextFormat.Snippet,
+          sortText: '1child_type'
+        }
+      );
+    }
+
+    // Check if typing the option name on a field
+    if (beforeCursor.match(/\[\s*\(google\.api\.$/)) {
+      completions.push({
+        label: 'resource_reference',
+        kind: CompletionItemKind.Property,
+        detail: 'Resource reference',
+        documentation: 'Indicates this field references another resource',
+        insertText: 'resource_reference) = {\n  type: "${1:example.googleapis.com/Resource}"\n}',
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '1resource_reference'
+      });
+    }
+
+    return completions;
   }
 }

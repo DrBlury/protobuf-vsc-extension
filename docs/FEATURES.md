@@ -25,11 +25,32 @@ This document provides a comprehensive list of all features in the Protobuf VSC 
 
 ### CEL / Protovalidate Support
 
+- ✅ **Full CEL Spec Compliance** - Complete support for the [CEL Language Specification](https://github.com/google/cel-spec/blob/master/doc/langdef.md)
 - ✅ **CEL Option Completions** - Suggests id, message, expression fields
 - ✅ **Field References** - Suggests message fields after `this.`
-- ✅ **CEL Functions** - Completions for has(), size(), matches(), etc.
+- ✅ **CEL Functions** - Completions for all CEL functions (has, size, matches, timestamp getters, etc.)
+- ✅ **CEL Literals** - Support for all literal types (raw strings, triple-quoted strings, bytes, hex/unsigned integers, etc.)
+- ✅ **CEL Operators** - Syntax highlighting for all operators (arithmetic, comparison, logical, ternary, membership)
+- ✅ **CEL Reserved Words** - Proper highlighting of reserved keywords
 - ✅ **Context-Aware** - Knows which message you're in for field suggestions
 - ✅ **Proper Formatting** - Handles multi-line CEL expressions correctly
+
+### Google API Support
+
+- ✅ **HTTP Annotations** - Completions and snippets for `(google.api.http)` options
+- ✅ **HTTP Methods** - Completions for get, post, put, delete, patch, custom
+- ✅ **Path Templates** - Smart suggestions for HTTP path templates with variables
+- ✅ **Body Mapping** - Completions for body and response_body fields
+- ✅ **Additional Bindings** - Support for multiple HTTP endpoint mappings
+- ✅ **Field Behaviors** - Completions for `(google.api.field_behavior)` annotations
+- ✅ **Field Behavior Values** - REQUIRED, OUTPUT_ONLY, INPUT_ONLY, IMMUTABLE, OPTIONAL, etc.
+- ✅ **Resource Descriptors** - Completions for `(google.api.resource)` options
+- ✅ **Resource Properties** - type, pattern, name_field, plural, singular, history, style
+- ✅ **Resource References** - Completions for `(google.api.resource_reference)` annotations
+- ✅ **Method Signatures** - Support for `(google.api.method_signature)` option
+- ✅ **Service Options** - Completions for default_host and oauth_scopes
+- ✅ **FieldMask Support** - Enhanced field name suggestions for FieldMask types
+- ✅ **Syntax Highlighting** - Custom highlighting for Google API annotations
 
 ### Hover Information
 

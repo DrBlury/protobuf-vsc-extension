@@ -278,5 +278,731 @@
       "}];"
     ],
     "description": "Buf CEL numeric range validation (inline on field)"
+  },
+  "gRPC CRUD service": {
+    "prefix": "grpccrud",
+    "body": [
+      "service ${1:Entity}Service {",
+      "  // Create a new ${1/(.*)/${1:/downcase}/}",
+      "  rpc Create${1:Entity}(Create${1:Entity}Request) returns (Create${1:Entity}Response);",
+      "",
+      "  // Get a ${1/(.*)/${1:/downcase}/} by ID",
+      "  rpc Get${1:Entity}(Get${1:Entity}Request) returns (Get${1:Entity}Response);",
+      "",
+      "  // List all ${1/(.*)/${1:/downcase}/}s",
+      "  rpc List${1:Entity}s(List${1:Entity}sRequest) returns (List${1:Entity}sResponse);",
+      "",
+      "  // Update an existing ${1/(.*)/${1:/downcase}/}",
+      "  rpc Update${1:Entity}(Update${1:Entity}Request) returns (Update${1:Entity}Response);",
+      "",
+      "  // Delete a ${1/(.*)/${1:/downcase}/}",
+      "  rpc Delete${1:Entity}(Delete${1:Entity}Request) returns (Delete${1:Entity}Response);",
+      "}",
+      "",
+      "message Create${1:Entity}Request {",
+      "  ${1:Entity} ${1/(.*)/${1:/downcase}/} = 1;",
+      "}",
+      "",
+      "message Create${1:Entity}Response {",
+      "  ${1:Entity} ${1/(.*)/${1:/downcase}/} = 1;",
+      "}",
+      "",
+      "message Get${1:Entity}Request {",
+      "  string id = 1;",
+      "}",
+      "",
+      "message Get${1:Entity}Response {",
+      "  ${1:Entity} ${1/(.*)/${1:/downcase}/} = 1;",
+      "}",
+      "",
+      "message List${1:Entity}sRequest {",
+      "  int32 page_size = 1;",
+      "  string page_token = 2;",
+      "}",
+      "",
+      "message List${1:Entity}sResponse {",
+      "  repeated ${1:Entity} ${1/(.*)/${1:/downcase}/}s = 1;",
+      "  string next_page_token = 2;",
+      "}",
+      "",
+      "message Update${1:Entity}Request {",
+      "  ${1:Entity} ${1/(.*)/${1:/downcase}/} = 1;",
+      "}",
+      "",
+      "message Update${1:Entity}Response {",
+      "  ${1:Entity} ${1/(.*)/${1:/downcase}/} = 1;",
+      "}",
+      "",
+      "message Delete${1:Entity}Request {",
+      "  string id = 1;",
+      "}",
+      "",
+      "message Delete${1:Entity}Response {",
+      "  bool success = 1;",
+      "}"
+    ],
+    "description": "Complete gRPC CRUD service with request/response messages"
+  },
+  "gRPC streaming service": {
+    "prefix": "grpcstream",
+    "body": [
+      "service ${1:ServiceName} {",
+      "  // Unary RPC",
+      "  rpc ${2:GetData}(${3:GetDataRequest}) returns (${4:GetDataResponse});",
+      "",
+      "  // Server streaming RPC",
+      "  rpc ${5:StreamData}(${6:StreamDataRequest}) returns (stream ${7:Data});",
+      "",
+      "  // Client streaming RPC",
+      "  rpc ${8:CollectData}(stream ${9:Data}) returns (${10:CollectDataResponse});",
+      "",
+      "  // Bidirectional streaming RPC",
+      "  rpc ${11:Chat}(stream ${12:Message}) returns (stream ${13:Message});",
+      "}"
+    ],
+    "description": "gRPC service with all streaming patterns"
+  },
+  "gRPC pagination request": {
+    "prefix": "grpcpage",
+    "body": [
+      "message ${1:List}Request {",
+      "  // Maximum number of items to return",
+      "  int32 page_size = 1;",
+      "",
+      "  // Token to retrieve the next page of results",
+      "  string page_token = 2;",
+      "",
+      "  // Optional filter criteria",
+      "  string filter = 3;",
+      "",
+      "  // Optional sort order",
+      "  string order_by = 4;",
+      "}"
+    ],
+    "description": "Standard pagination request message"
+  },
+  "gRPC pagination response": {
+    "prefix": "grpcpageresponse",
+    "body": [
+      "message ${1:List}Response {",
+      "  // The list of items",
+      "  repeated ${2:Item} items = 1;",
+      "",
+      "  // Token to retrieve the next page of results",
+      "  string next_page_token = 2;",
+      "",
+      "  // Total number of items available",
+      "  int32 total_size = 3;",
+      "}"
+    ],
+    "description": "Standard pagination response message"
+  },
+  "gRPC error details": {
+    "prefix": "grpcerror",
+    "body": [
+      "import \"google/rpc/error_details.proto\";",
+      "",
+      "// Use google.rpc.Status for error responses",
+      "// Example:",
+      "// google.rpc.Status {",
+      "//   code = google.rpc.Code.INVALID_ARGUMENT;",
+      "//   message = \"Invalid request\";",
+      "//   details = [",
+      "//     google.rpc.BadRequest {",
+      "//       field_violations = [",
+      "//         google.rpc.BadRequest.FieldViolation {",
+      "//           field = \"field_name\";",
+      "//           description = \"Field is required\";",
+      "//         }",
+      "//       ];",
+      "//     }",
+      "//   ];",
+      "// }"
+    ],
+    "description": "gRPC error details with google.rpc.Status"
+  },
+  "gRPC RPC with timeout": {
+    "prefix": "grpctimeout",
+    "body": [
+      "rpc ${1:MethodName}(${2:Request}) returns (${3:Response}) {",
+      "  option (google.api.http) = {",
+      "    post: \"/v1/${1/(.*)/${1:/downcase}/}\";",
+      "  };",
+      "  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {",
+      "    summary: \"${4:Method description}\";",
+      "    operation_id: \"${1:MethodName}\";",
+      "    tags: \"${5:tag}\";",
+      "  };",
+      "}"
+    ],
+    "description": "RPC with HTTP mapping and OpenAPI options"
+  },
+  "message with timestamps": {
+    "prefix": "msgtime",
+    "body": [
+      "import \"google/protobuf/timestamp.proto\";",
+      "",
+      "message ${1:MessageName} {",
+      "  string id = 1;",
+      "",
+      "  // Creation timestamp",
+      "  google.protobuf.Timestamp created_at = 2;",
+      "",
+      "  // Last update timestamp",
+      "  google.protobuf.Timestamp updated_at = 3;",
+      "",
+      "  // Optional deletion timestamp (for soft deletes)",
+      "  google.protobuf.Timestamp deleted_at = 4;",
+      "",
+      "  $0",
+      "}"
+    ],
+    "description": "Message with standard timestamp fields"
+  },
+  "message with metadata": {
+    "prefix": "msgmeta",
+    "body": [
+      "message ${1:MessageName} {",
+      "  string id = 1;",
+      "",
+      "  // User-defined metadata",
+      "  map<string, string> metadata = 2;",
+      "",
+      "  // Labels for categorization",
+      "  repeated string labels = 3;",
+      "",
+      "  // Tags for search and filtering",
+      "  repeated string tags = 4;",
+      "",
+      "  $0",
+      "}"
+    ],
+    "description": "Message with metadata, labels, and tags"
+  },
+  "message with status enum": {
+    "prefix": "msgstatus",
+    "body": [
+      "message ${1:MessageName} {",
+      "  string id = 1;",
+      "  ${1:MessageName}Status status = 2;",
+      "",
+      "  $0",
+      "}",
+      "",
+      "enum ${1:MessageName}Status {",
+      "  ${1/(.*)/${1:/upcase}/}_STATUS_UNSPECIFIED = 0;",
+      "  ${1/(.*)/${1:/upcase}/}_STATUS_ACTIVE = 1;",
+      "  ${1/(.*)/${1:/upcase}/}_STATUS_INACTIVE = 2;",
+      "  ${1/(.*)/${1:/upcase}/}_STATUS_DELETED = 3;",
+      "}"
+    ],
+    "description": "Message with associated status enum"
+  },
+  "message with pagination": {
+    "prefix": "msgpaginated",
+    "body": [
+      "message ${1:List}Request {",
+      "  int32 page_size = 1;",
+      "  string page_token = 2;",
+      "}",
+      "",
+      "message ${1:List}Response {",
+      "  repeated ${2:Item} items = 1;",
+      "  string next_page_token = 2;",
+      "}"
+    ],
+    "description": "Paginated list request and response"
+  },
+  "field with validation": {
+    "prefix": "fvalidate",
+    "body": [
+      "${1:string} ${2:field_name} = ${3:1} [",
+      "  (buf.validate.field).${4:string}.min_len = ${5:1};",
+      "  (buf.validate.field).${4:string}.max_len = ${6:100};",
+      "$0",
+      "];"
+    ],
+    "description": "Field with buf.validate constraints"
+  },
+  "field timestamp": {
+    "prefix": "ftimestamp",
+    "body": ["google.protobuf.Timestamp ${1:field_name} = ${2:1};"],
+    "description": "Timestamp field (requires import)"
+  },
+  "field duration": {
+    "prefix": "fduration",
+    "body": ["google.protobuf.Duration ${1:field_name} = ${2:1};"],
+    "description": "Duration field (requires import)"
+  },
+  "field empty": {
+    "prefix": "fempty",
+    "body": ["google.protobuf.Empty ${1:field_name} = ${2:1};"],
+    "description": "Empty field (requires import)"
+  },
+  "field any": {
+    "prefix": "fany",
+    "body": ["google.protobuf.Any ${1:field_name} = ${2:1};"],
+    "description": "Any field (requires import)"
+  },
+  "field struct": {
+    "prefix": "fstruct",
+    "body": ["google.protobuf.Struct ${1:field_name} = ${2:1};"],
+    "description": "Struct field (requires import)"
+  },
+  "field value": {
+    "prefix": "fvalue",
+    "body": ["google.protobuf.Value ${1:field_name} = ${2:1};"],
+    "description": "Value field (requires import)"
+  },
+  "field wrapper": {
+    "prefix": "fwrapper",
+    "body": [
+      "google.protobuf.${1|StringValue,Int32Value,Int64Value,BoolValue,DoubleValue,FloatValue,BytesValue,UInt32Value,UInt64Value|} ${2:field_name} = ${3:1};"
+    ],
+    "description": "Wrapper type field (requires import)"
+  },
+  "enum with options": {
+    "prefix": "enumopt",
+    "body": [
+      "enum ${1:EnumName} {",
+      "  option allow_alias = true;",
+      "",
+      "  ${1/(.*)/${1:/upcase}/}_UNSPECIFIED = 0;",
+      "  ${1/(.*)/${1:/upcase}/}_ACTIVE = 1;",
+      "  ${1/(.*)/${1:/upcase}/}_INACTIVE = 2;",
+      "",
+      "  // Aliases",
+      "  ${1/(.*)/${1:/upcase}/}_ENABLED = 1;",
+      "  ${1/(.*)/${1:/upcase}/}_DISABLED = 2;",
+      "}"
+    ],
+    "description": "Enum with allow_alias option"
+  },
+  "message with oneof": {
+    "prefix": "msgoneof",
+    "body": [
+      "message ${1:MessageName} {",
+      "  string id = 1;",
+      "",
+      "  oneof ${2:value} {",
+      "    string string_value = 2;",
+      "    int32 int_value = 3;",
+      "    bool bool_value = 4;",
+      "  }",
+      "}"
+    ],
+    "description": "Message with oneof field group"
+  },
+  "message with nested": {
+    "prefix": "msgnested",
+    "body": [
+      "message ${1:OuterMessage} {",
+      "  message ${2:InnerMessage} {",
+      "    string value = 1;",
+      "  }",
+      "",
+      "  enum ${3:InnerEnum} {",
+      "    ${3/(.*)/${3:/upcase}/}_UNSPECIFIED = 0;",
+      "  }",
+      "",
+      "  ${2:InnerMessage} inner = 1;",
+      "  ${3:InnerEnum} status = 2;",
+      "}"
+    ],
+    "description": "Message with nested message and enum"
+  },
+  "service with HTTP mapping": {
+    "prefix": "grpchttp",
+    "body": [
+      "import \"google/api/annotations.proto\";",
+      "",
+      "service ${1:ServiceName} {",
+      "  rpc ${2:GetData}(${3:GetDataRequest}) returns (${4:GetDataResponse}) {",
+      "    option (google.api.http) = {",
+      "      get: \"/v1/${2/(.*)/${2:/downcase}/}\";",
+      "    };",
+      "  }",
+      "",
+      "  rpc ${5:CreateData}(${6:CreateDataRequest}) returns (${7:CreateDataResponse}) {",
+      "    option (google.api.http) = {",
+      "      post: \"/v1/${5/(.*)/${5:/downcase}/}\";",
+      "      body: \"${6/(.*)/${6:/downcase}/}\";",
+      "    };",
+      "  }",
+      "}"
+    ],
+    "description": "gRPC service with HTTP/JSON mapping"
+  },
+  "RPC server stream": {
+    "prefix": "rpcserverstream",
+    "body": [
+      "rpc ${1:StreamData}(${2:StreamDataRequest}) returns (stream ${3:Data});"
+    ],
+    "description": "Server streaming RPC"
+  },
+  "RPC client stream": {
+    "prefix": "rpcclientstream",
+    "body": [
+      "rpc ${1:CollectData}(stream ${2:Data}) returns (${3:CollectDataResponse});"
+    ],
+    "description": "Client streaming RPC"
+  },
+  "RPC bidirectional stream": {
+    "prefix": "rpcbidistream",
+    "body": [
+      "rpc ${1:Chat}(stream ${2:Message}) returns (stream ${3:Message});"
+    ],
+    "description": "Bidirectional streaming RPC"
+  },
+  "option csharp_namespace": {
+    "prefix": "optcsharp",
+    "body": ["option csharp_namespace = \"${1:Example.Proto}\";"],
+    "description": "C# namespace option"
+  },
+  "option php_namespace": {
+    "prefix": "optphp",
+    "body": ["option php_namespace = \"${1:Example\\\\Proto}\";"],
+    "description": "PHP namespace option"
+  },
+  "option ruby_package": {
+    "prefix": "optruby",
+    "body": ["option ruby_package = \"${1:Example::Proto}\";"],
+    "description": "Ruby package option"
+  },
+  "option objc_class_prefix": {
+    "prefix": "optobjc",
+    "body": ["option objc_class_prefix = \"${1:EXP}\";"],
+    "description": "Objective-C class prefix option"
+  },
+  "option swift_prefix": {
+    "prefix": "optswift",
+    "body": ["option swift_prefix = \"${1:EXP}\";"],
+    "description": "Swift prefix option"
+  },
+  "field optional": {
+    "prefix": "foptional",
+    "body": ["optional ${1:type} ${2:field_name} = ${3:1};"],
+    "description": "Optional field (proto2 or edition)"
+  },
+  "field required": {
+    "prefix": "frequired",
+    "body": ["required ${1:type} ${2:field_name} = ${3:1};"],
+    "description": "Required field (proto2 only)"
+  },
+  "field packed": {
+    "prefix": "fpacked",
+    "body": ["repeated ${1:type} ${2:field_name} = ${3:1} [packed = true];"],
+    "description": "Packed repeated field"
+  },
+  "message with extensions": {
+    "prefix": "msgextend",
+    "body": [
+      "message ${1:MessageName} {",
+      "  string id = 1;",
+      "",
+      "  extensions 100 to 199;",
+      "}",
+      "",
+      "extend ${1:MessageName} {",
+      "  string extended_field = 100;",
+      "}"
+    ],
+    "description": "Message with extension range and extend block"
+  },
+  "complete file template": {
+    "prefix": "fileproto3",
+    "body": [
+      "syntax = \"proto3\";",
+      "",
+      "package ${1:example.v1};",
+      "",
+      "import \"google/protobuf/timestamp.proto\";",
+      "",
+      "option go_package = \"${2:example.com/api/v1}\";",
+      "option java_package = \"${3:com.example.v1}\";",
+      "",
+      "// ${4:Description of the file}",
+      "",
+      "$0"
+    ],
+    "description": "Complete proto3 file template with common imports and options"
+  },
+  "google.api.http GET": {
+    "prefix": "httpget",
+    "body": [
+      "option (google.api.http) = {",
+      "  get: \"/${1:v1}/${2:resources}/{${3:id}}\"",
+      "};"
+    ],
+    "description": "HTTP GET mapping for RPC method"
+  },
+  "google.api.http POST": {
+    "prefix": "httppost",
+    "body": [
+      "option (google.api.http) = {",
+      "  post: \"/${1:v1}/${2:resources}\"",
+      "  body: \"${3:*}\"",
+      "};"
+    ],
+    "description": "HTTP POST mapping with request body"
+  },
+  "google.api.http PUT": {
+    "prefix": "httpput",
+    "body": [
+      "option (google.api.http) = {",
+      "  put: \"/${1:v1}/${2:resources}/{${3:id}}\"",
+      "  body: \"${4:*}\"",
+      "};"
+    ],
+    "description": "HTTP PUT mapping for full resource update"
+  },
+  "google.api.http DELETE": {
+    "prefix": "httpdelete",
+    "body": [
+      "option (google.api.http) = {",
+      "  delete: \"/${1:v1}/${2:resources}/{${3:id}}\"",
+      "};"
+    ],
+    "description": "HTTP DELETE mapping for resource deletion"
+  },
+  "google.api.http PATCH": {
+    "prefix": "httppatch",
+    "body": [
+      "option (google.api.http) = {",
+      "  patch: \"/${1:v1}/${2:resources}/{${3:id}}\"",
+      "  body: \"${4:*}\"",
+      "};"
+    ],
+    "description": "HTTP PATCH mapping for partial resource update"
+  },
+  "google.api.http custom": {
+    "prefix": "httpcustom",
+    "body": [
+      "option (google.api.http) = {",
+      "  custom: {",
+      "    kind: \"${1:CUSTOM_METHOD}\"",
+      "    path: \"/${2:v1}/${3:resources}:${4:action}\"",
+      "  }",
+      "  body: \"${5:*}\"",
+      "};"
+    ],
+    "description": "Custom HTTP method mapping"
+  },
+  "google.api.http with additional bindings": {
+    "prefix": "httpbindings",
+    "body": [
+      "option (google.api.http) = {",
+      "  ${1|get,post,put,delete,patch|}: \"/${2:v1}/${3:resources}/{${4:id}}\"",
+      "  additional_bindings {",
+      "    ${5|get,post,put,delete,patch|}: \"/${6:v2}/${7:resources}/{${8:id}}\"",
+      "  }",
+      "};"
+    ],
+    "description": "HTTP mapping with additional bindings for multiple endpoints"
+  },
+  "field with REQUIRED behavior": {
+    "prefix": "frequiredbehavior",
+    "body": [
+      "${1:string} ${2:field_name} = ${3:1} [(google.api.field_behavior) = REQUIRED];"
+    ],
+    "description": "Field marked as REQUIRED"
+  },
+  "field with OUTPUT_ONLY behavior": {
+    "prefix": "foutputonly",
+    "body": [
+      "${1:string} ${2:field_name} = ${3:1} [(google.api.field_behavior) = OUTPUT_ONLY];"
+    ],
+    "description": "Field marked as OUTPUT_ONLY (server-generated)"
+  },
+  "field with INPUT_ONLY behavior": {
+    "prefix": "finputonly",
+    "body": [
+      "${1:string} ${2:field_name} = ${3:1} [(google.api.field_behavior) = INPUT_ONLY];"
+    ],
+    "description": "Field marked as INPUT_ONLY (not returned by server)"
+  },
+  "field with IMMUTABLE behavior": {
+    "prefix": "fimmutable",
+    "body": [
+      "${1:string} ${2:field_name} = ${3:1} [(google.api.field_behavior) = IMMUTABLE];"
+    ],
+    "description": "Field marked as IMMUTABLE (cannot be updated after creation)"
+  },
+  "resource definition": {
+    "prefix": "resource",
+    "body": [
+      "option (google.api.resource) = {",
+      "  type: \"${1:example.googleapis.com}/${2:Resource}\"",
+      "  pattern: \"${3:resources}/{${4:resource}}\"",
+      "  singular: \"${5:resource}\"",
+      "  plural: \"${6:resources}\"",
+      "};"
+    ],
+    "description": "Google API resource descriptor with type and pattern"
+  },
+  "resource with nested pattern": {
+    "prefix": "resourcenested",
+    "body": [
+      "option (google.api.resource) = {",
+      "  type: \"${1:example.googleapis.com}/${2:Resource}\"",
+      "  pattern: \"${3:parents}/{${4:parent}}/${5:resources}/{${6:resource}}\"",
+      "  singular: \"${7:resource}\"",
+      "  plural: \"${8:resources}\"",
+      "};"
+    ],
+    "description": "Google API resource with nested parent pattern"
+  },
+  "resource reference field": {
+    "prefix": "fresourceref",
+    "body": [
+      "string ${1:resource_name} = ${2:1} [",
+      "  (google.api.field_behavior) = ${3|REQUIRED,OPTIONAL,IMMUTABLE|},",
+      "  (google.api.resource_reference) = {",
+      "    type: \"${4:example.googleapis.com/Resource}\"",
+      "  }",
+      "];"
+    ],
+    "description": "Field with resource reference annotation"
+  },
+  "field with update mask": {
+    "prefix": "fupdatemask",
+    "body": ["google.protobuf.FieldMask update_mask = ${1:2};"],
+    "description": "FieldMask field for partial updates (requires import)"
+  },
+  "update request message": {
+    "prefix": "msgupdate",
+    "body": [
+      "import \"google/protobuf/field_mask.proto\";",
+      "",
+      "message Update${1:Resource}Request {",
+      "  // The ${1/(.*)/${1:/downcase}/} to update.",
+      "  ${1:Resource} ${1/(.*)/${1:/downcase}/} = 1 [(google.api.field_behavior) = REQUIRED];",
+      "",
+      "  // The list of fields to update.",
+      "  google.protobuf.FieldMask update_mask = 2;",
+      "}"
+    ],
+    "description": "Standard update request message with FieldMask"
+  },
+  "RPC with HTTP GET": {
+    "prefix": "rpcget",
+    "body": [
+      "rpc Get${1:Resource}(Get${1:Resource}Request) returns (${1:Resource}) {",
+      "  option (google.api.http) = {",
+      "    get: \"/${2:v1}/${3:resources}/{${4:id}}\"",
+      "  };",
+      "  option (google.api.method_signature) = \"${5:name}\";",
+      "}"
+    ],
+    "description": "RPC method with HTTP GET mapping"
+  },
+  "RPC with HTTP POST": {
+    "prefix": "rpcpost",
+    "body": [
+      "rpc Create${1:Resource}(Create${1:Resource}Request) returns (${1:Resource}) {",
+      "  option (google.api.http) = {",
+      "    post: \"/${2:v1}/${3:resources}\"",
+      "    body: \"${1/(.*)/${1:/downcase}/}\"",
+      "  };",
+      "  option (google.api.method_signature) = \"${4:parent},${1/(.*)/${1:/downcase}/}\";",
+      "}"
+    ],
+    "description": "RPC method with HTTP POST mapping"
+  },
+  "RPC with HTTP DELETE": {
+    "prefix": "rpcdelete",
+    "body": [
+      "rpc Delete${1:Resource}(Delete${1:Resource}Request) returns (google.protobuf.Empty) {",
+      "  option (google.api.http) = {",
+      "    delete: \"/${2:v1}/${3:resources}/{${4:id}}\"",
+      "  };",
+      "  option (google.api.method_signature) = \"${5:name}\";",
+      "}"
+    ],
+    "description": "RPC method with HTTP DELETE mapping"
+  },
+  "RPC with HTTP PATCH": {
+    "prefix": "rpcpatch",
+    "body": [
+      "rpc Update${1:Resource}(Update${1:Resource}Request) returns (${1:Resource}) {",
+      "  option (google.api.http) = {",
+      "    patch: \"/${2:v1}/${3:resources}/{${1/(.*)/${1:/downcase}/}.${4:id}}\"",
+      "    body: \"${1/(.*)/${1:/downcase}/}\"",
+      "  };",
+      "  option (google.api.method_signature) = \"${1/(.*)/${1:/downcase}/},update_mask\";",
+      "}"
+    ],
+    "description": "RPC method with HTTP PATCH mapping for updates"
+  },
+  "RPC with HTTP List": {
+    "prefix": "rpclist",
+    "body": [
+      "rpc List${1:Resource}s(List${1:Resource}sRequest) returns (List${1:Resource}sResponse) {",
+      "  option (google.api.http) = {",
+      "    get: \"/${2:v1}/${3:resources}\"",
+      "  };",
+      "  option (google.api.method_signature) = \"${4:parent}\";",
+      "}"
+    ],
+    "description": "RPC method with HTTP GET for listing resources"
+  },
+  "service with Google API options": {
+    "prefix": "servicegoogleapi",
+    "body": [
+      "import \"google/api/annotations.proto\";",
+      "import \"google/api/client.proto\";",
+      "import \"google/api/field_behavior.proto\";",
+      "import \"google/api/resource.proto\";",
+      "",
+      "service ${1:ResourceService} {",
+      "  option (google.api.default_host) = \"${2:api.example.com}\";",
+      "  option (google.api.oauth_scopes) = \"${3:https://www.googleapis.com/auth/cloud-platform}\";",
+      "",
+      "  // Creates a new ${4:resource}.",
+      "  rpc Create${5:Resource}(Create${5:Resource}Request) returns (${5:Resource}) {",
+      "    option (google.api.http) = {",
+      "      post: \"/v1/{parent=projects/*}/resources\"",
+      "      body: \"${5/(.*)/${1:/downcase}/}\"",
+      "    };",
+      "    option (google.api.method_signature) = \"parent,${5/(.*)/${1:/downcase}/}\";",
+      "  }",
+      "",
+      "  // Gets a ${4:resource}.",
+      "  rpc Get${5:Resource}(Get${5:Resource}Request) returns (${5:Resource}) {",
+      "    option (google.api.http) = {",
+      "      get: \"/v1/{name=projects/*/resources/*}\"",
+      "    };",
+      "    option (google.api.method_signature) = \"name\";",
+      "  }",
+      "",
+      "  $0",
+      "}"
+    ],
+    "description": "Complete Google API style service with common annotations"
+  },
+  "message with resource annotation": {
+    "prefix": "msgresource",
+    "body": [
+      "message ${1:Resource} {",
+      "  option (google.api.resource) = {",
+      "    type: \"${2:example.googleapis.com}/${1:Resource}\"",
+      "    pattern: \"projects/{project}/${3:resources}/{${4:resource}}\"",
+      "    singular: \"${5:resource}\"",
+      "    plural: \"${6:resources}\"",
+      "  };",
+      "",
+      "  // The resource name.",
+      "  string name = 1 [(google.api.field_behavior) = OUTPUT_ONLY];",
+      "",
+      "  // Creation timestamp.",
+      "  google.protobuf.Timestamp create_time = 2 [(google.api.field_behavior) = OUTPUT_ONLY];",
+      "",
+      "  // Update timestamp.",
+      "  google.protobuf.Timestamp update_time = 3 [(google.api.field_behavior) = OUTPUT_ONLY];",
+      "",
+      "  $0",
+      "}"
+    ],
+    "description": "Message with Google API resource descriptor and common fields"
   }
 }

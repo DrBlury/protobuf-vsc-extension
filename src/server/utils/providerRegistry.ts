@@ -18,6 +18,7 @@ import { CodeActionsProvider } from '../providers/codeActions';
 import { SchemaGraphProvider } from '../providers/schemaGraph';
 import { CodeLensProvider } from '../providers/codeLens';
 import { DocumentLinksProvider } from '../providers/documentLinks';
+import { GrpcProvider } from '../providers/grpc';
 import { ProtocCompiler } from '../services/protoc';
 import { BreakingChangeDetector } from '../services/breaking';
 import { ExternalLinterProvider } from '../services/externalLinter';
@@ -48,6 +49,7 @@ export class ProviderRegistry {
   public readonly codeLens: CodeLensProvider;
   public readonly documentLinks: DocumentLinksProvider;
   public readonly migration: MigrationProvider;
+  public readonly grpc: GrpcProvider;
 
   // Services
   public readonly protoc: ProtocCompiler;
@@ -83,6 +85,7 @@ export class ProviderRegistry {
     this.codeLens = new CodeLensProvider(this.analyzer);
     this.documentLinks = new DocumentLinksProvider(this.analyzer);
     this.migration = new MigrationProvider();
+    this.grpc = new GrpcProvider(this.analyzer);
   }
 
   /**

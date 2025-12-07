@@ -1107,6 +1107,47 @@ connection.onRequest(REQUEST_METHODS.GET_ALL_OPTIONS, (params: { uri: string }) 
   return collectOptions(file);
 });
 
+// gRPC Service handlers
+connection.onRequest(REQUEST_METHODS.GET_GRPC_SERVICES, () => {
+  return providers.grpc.getAllServices();
+});
+
+connection.onRequest(REQUEST_METHODS.GET_GRPC_SERVICE, (params: { serviceName: string; uri?: string }) => {
+  return providers.grpc.getService(params.serviceName, params.uri);
+});
+
+connection.onRequest(REQUEST_METHODS.GET_GRPC_RPC, (params: { rpcFullName: string }) => {
+  return providers.grpc.getRpc(params.rpcFullName);
+});
+
+connection.onRequest(REQUEST_METHODS.GET_GRPC_RPCS_USING_TYPE, (params: { typeName: string }) => {
+  return providers.grpc.getRpcsUsingType(params.typeName);
+});
+
+connection.onRequest(REQUEST_METHODS.GENERATE_GRPC_CLIENT_STUB, (params: { serviceName: string; language: 'go' | 'java' | 'python' | 'typescript'; uri?: string }) => {
+  const service = providers.grpc.getService(params.serviceName, params.uri);
+  if (!service) {
+    return { error: `Service ${params.serviceName} not found` };
+  }
+  return { code: providers.grpc.generateClientStubPreview(service, params.language) };
+});
+
+connection.onRequest(REQUEST_METHODS.GENERATE_GRPC_SERVER_TEMPLATE, (params: { serviceName: string; language: 'go' | 'java' | 'python' | 'typescript'; uri?: string }) => {
+  const service = providers.grpc.getService(params.serviceName, params.uri);
+  if (!service) {
+    return { error: `Service ${params.serviceName} not found` };
+  }
+  return { code: providers.grpc.generateServerTemplate(service, params.language) };
+});
+
+connection.onRequest(REQUEST_METHODS.GET_GRPC_SERVICE_STATS, (params: { serviceName: string; uri?: string }) => {
+  const service = providers.grpc.getService(params.serviceName, params.uri);
+  if (!service) {
+    return { error: `Service ${params.serviceName} not found` };
+  }
+  return providers.grpc.getServiceStats(service);
+});
+
 connection.onRequest(REQUEST_METHODS.MIGRATE_TO_PROTO3, (params: { uri: string }) => {
   const document = documents.get(params.uri);
   if (!document) {

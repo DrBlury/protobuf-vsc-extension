@@ -70,6 +70,26 @@
     "option": {
       "patterns": [
         {
+          "comment": "Google API HTTP option with aggregate value",
+          "begin": "\\b(option)\\s+(\\(google\\.api\\.http\\))\\s*=\\s*\\{",
+          "end": "\\}\\s*;",
+          "beginCaptures": {
+            "1": { "name": "keyword.other.option.proto" },
+            "2": { "name": "variable.other.option.googleapi.proto" }
+          },
+          "patterns": [{ "include": "#googleApiHttpBody" }]
+        },
+        {
+          "comment": "Google API resource option with aggregate value",
+          "begin": "\\b(option)\\s+(\\(google\\.api\\.resource\\))\\s*=\\s*\\{",
+          "end": "\\}\\s*;",
+          "beginCaptures": {
+            "1": { "name": "keyword.other.option.proto" },
+            "2": { "name": "variable.other.option.googleapi.proto" }
+          },
+          "patterns": [{ "include": "#googleApiResourceBody" }]
+        },
+        {
           "comment": "CEL validation option with aggregate value",
           "begin": "\\b(option)\\s+(\\([\\w.]+\\)(?:\\.[\\w]+)*)\\s*=\\s*\\{",
           "end": "\\}\\s*;",
@@ -92,6 +112,96 @@
             { "include": "#constants" }
           ]
         }
+      ]
+    },
+    "googleApiHttpBody": {
+      "patterns": [
+        { "include": "#comments" },
+        {
+          "comment": "HTTP method keywords (get, post, put, delete, patch)",
+          "match": "\\b(get|post|put|delete|patch)\\s*:",
+          "captures": {
+            "1": { "name": "keyword.control.http.method.proto" }
+          }
+        },
+        {
+          "comment": "HTTP custom method block",
+          "begin": "\\b(custom)\\s*:\\s*\\{",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "keyword.control.http.method.proto" }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            {
+              "match": "\\b(kind|path)\\s*:",
+              "captures": {
+                "1": { "name": "support.type.property-name.http.proto" }
+              }
+            },
+            { "include": "#strings" }
+          ]
+        },
+        {
+          "comment": "HTTP body and response_body fields",
+          "match": "\\b(body|response_body)\\s*:",
+          "captures": {
+            "1": { "name": "support.type.property-name.http.proto" }
+          }
+        },
+        {
+          "comment": "Additional bindings block",
+          "begin": "\\b(additional_bindings)\\s*\\{",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "support.type.property-name.http.proto" }
+          },
+          "patterns": [{ "include": "#googleApiHttpBody" }]
+        },
+        {
+          "comment": "HTTP path template variables",
+          "match": "\\{([^}]+)\\}",
+          "captures": {
+            "0": { "name": "variable.parameter.path.proto" },
+            "1": { "name": "variable.parameter.path.name.proto" }
+          }
+        },
+        { "include": "#strings" },
+        { "include": "#numbers" },
+        { "include": "#constants" }
+      ]
+    },
+    "googleApiResourceBody": {
+      "patterns": [
+        { "include": "#comments" },
+        {
+          "comment": "Resource property names",
+          "match": "\\b(type|pattern|name_field|plural|singular|history|style)\\s*:",
+          "captures": {
+            "1": { "name": "support.type.property-name.resource.proto" }
+          }
+        },
+        {
+          "comment": "Resource history enum values",
+          "match": "\\b(ORIGINALLY_SINGLE_PATTERN|FUTURE_MULTI_PATTERN)\\b",
+          "name": "constant.language.resource.history.proto"
+        },
+        {
+          "comment": "Resource style enum values",
+          "match": "\\b(DECLARATIVE_FRIENDLY)\\b",
+          "name": "constant.language.resource.style.proto"
+        },
+        {
+          "comment": "Resource pattern variables",
+          "match": "\\{([^}]+)\\}",
+          "captures": {
+            "0": { "name": "variable.parameter.resource.proto" },
+            "1": { "name": "variable.parameter.resource.name.proto" }
+          }
+        },
+        { "include": "#strings" },
+        { "include": "#numbers" },
+        { "include": "#constants" }
       ]
     },
     "celOptionBody": {
@@ -120,6 +230,34 @@
     },
     "celExpressionString": {
       "patterns": [
+        {
+          "comment": "CEL raw string literal (r\"...\" or R\"...\")",
+          "name": "string.quoted.double.raw.cel.proto",
+          "begin": "[rR]\"",
+          "end": "\"",
+          "patterns": [{ "include": "#celExpressionContent" }]
+        },
+        {
+          "comment": "CEL triple-quoted string (\"\"\"...\"\"\")",
+          "name": "string.quoted.double.triple.cel.proto",
+          "begin": "\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [{ "include": "#celExpressionContent" }]
+        },
+        {
+          "comment": "CEL triple-quoted string ('''...''')",
+          "name": "string.quoted.single.triple.cel.proto",
+          "begin": "'''",
+          "end": "'''",
+          "patterns": [{ "include": "#celExpressionContent" }]
+        },
+        {
+          "comment": "CEL bytes literal (b\"...\" or B\"...\")",
+          "name": "string.quoted.double.bytes.cel.proto",
+          "begin": "[bB]\"",
+          "end": "\"",
+          "patterns": [{ "include": "#celExpressionContent" }]
+        },
         {
           "name": "string.quoted.double.cel.proto",
           "begin": "\"",
@@ -160,7 +298,7 @@
         {
           "comment": "CEL built-in functions",
           "name": "support.function.cel.proto",
-          "match": "\\b(has|size|exists|all|exists_one|filter|map|type|dyn|int|uint|double|bool|string|bytes|list|timestamp|duration|matches|startsWith|endsWith|contains|getDate|getDayOfMonth|getDayOfWeek|getDayOfYear|getFullYear|getHours|getMilliseconds|getMinutes|getMonth|getSeconds)\\b"
+          "match": "\\b(has|size|exists|all|exists_one|filter|map|type|dyn|int|uint|double|bool|string|bytes|list|timestamp|duration|matches|startsWith|endsWith|contains|getDate|getDayOfMonth|getDayOfWeek|getDayOfYear|getFullYear|getHours|getMilliseconds|getMinutes|getMonth|getSeconds|null_type)\\b"
         },
         {
           "comment": "CEL comparison operators",
@@ -198,9 +336,39 @@
           "match": "\\bnull\\b"
         },
         {
-          "comment": "CEL numbers",
-          "name": "constant.numeric.cel.proto",
-          "match": "\\b\\d+(\\.\\d+)?([eE][+-]?\\d+)?\\b"
+          "comment": "CEL hex integer literals (0x... or 0X...)",
+          "name": "constant.numeric.hex.cel.proto",
+          "match": "\\b-?0[xX][0-9a-fA-F]+([uU])?\\b"
+        },
+        {
+          "comment": "CEL unsigned integer literals (123u or 123U)",
+          "name": "constant.numeric.unsigned.cel.proto",
+          "match": "\\b-?\\d+[uU]\\b"
+        },
+        {
+          "comment": "CEL float literals with exponent",
+          "name": "constant.numeric.float.cel.proto",
+          "match": "\\b-?\\d*\\.\\d+([eE][+-]?\\d+)?\\b|\\b-?\\d+[eE][+-]?\\d+\\b"
+        },
+        {
+          "comment": "CEL integer literals",
+          "name": "constant.numeric.integer.cel.proto",
+          "match": "\\b-?\\d+\\b"
+        },
+        {
+          "comment": "CEL reserved words (cannot be used as identifiers)",
+          "name": "keyword.reserved.cel.proto",
+          "match": "\\b(as|break|const|continue|else|for|function|if|import|let|loop|package|namespace|return|var|void|while)\\b"
+        },
+        {
+          "comment": "CEL list literal brackets",
+          "name": "punctuation.definition.brackets.cel.proto",
+          "match": "\\[|\\]"
+        },
+        {
+          "comment": "CEL map/message literal braces",
+          "name": "punctuation.definition.braces.cel.proto",
+          "match": "\\{|\\}"
         },
         {
           "comment": "CEL identifiers (variables, field names)",
@@ -212,6 +380,13 @@
     "optionName": {
       "patterns": [
         {
+          "comment": "Google API option names",
+          "match": "\\((google\\.api\\.(http|field_behavior|resource|resource_reference|method_signature|default_host|oauth_scopes))\\)",
+          "captures": {
+            "1": { "name": "variable.other.option.googleapi.proto" }
+          }
+        },
+        {
           "match": "\\(([\\w.]+)\\)",
           "captures": {
             "1": { "name": "variable.other.option.proto" }
@@ -220,6 +395,11 @@
         {
           "match": "\\b(java_package|java_outer_classname|java_multiple_files|java_generate_equals_and_hash|java_string_check_utf8|optimize_for|go_package|cc_generic_services|java_generic_services|py_generic_services|php_generic_services|deprecated|cc_enable_arenas|objc_class_prefix|csharp_namespace|swift_prefix|php_class_prefix|php_namespace|php_metadata_namespace|ruby_package|features|unverified_lazy|debug_redact|retention|targets|edition_defaults|uninterpreted_option)\\b",
           "name": "support.other.option.proto"
+        },
+        {
+          "comment": "Field behavior enum values",
+          "match": "\\b(REQUIRED|OUTPUT_ONLY|INPUT_ONLY|IMMUTABLE|OPTIONAL|NON_EMPTY_DEFAULT|IDENTIFIER|UNORDERED_LIST)\\b",
+          "name": "constant.language.field_behavior.proto"
         }
       ]
     },

@@ -526,6 +526,31 @@
         "category": "Protobuf"
       },
       {
+        "command": "protobuf.listGrpcServices",
+        "title": "List gRPC Services",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.showGrpcService",
+        "title": "Show gRPC Service Details",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.generateGrpcClientStub",
+        "title": "Generate gRPC Client Stub",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.generateGrpcServerTemplate",
+        "title": "Generate gRPC Server Template",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.showGrpcServiceStats",
+        "title": "Show gRPC Service Statistics",
+        "category": "Protobuf"
+      },
+      {
         "command": "protobuf.compileFile",
         "title": "Compile This Proto",
         "category": "Protobuf"

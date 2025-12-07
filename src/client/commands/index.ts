@@ -15,6 +15,7 @@ import { registerImportCommands } from './imports';
 import { registerReferenceCommands } from './references';
 import { registerBreakingCommands } from './breaking';
 import { registerLinterCommands } from './linter';
+import { registerGrpcCommands } from './grpc';
 
 /**
  * Registers all commands for the Protobuf extension
@@ -42,6 +43,7 @@ export function registerAllCommands(
   disposables.push(...registerReferenceCommands(context, client));
   disposables.push(...registerBreakingCommands(context, client));
   disposables.push(...registerLinterCommands(context, client));
+  disposables.push(...registerGrpcCommands(context, client));
 
   // Migrate to proto3 command
   disposables.push(vscode.commands.registerCommand('protobuf.migrateToProto3', async () => {

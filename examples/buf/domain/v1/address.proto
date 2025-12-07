@@ -7,37 +7,31 @@ import "buf/validate/validate.proto";
 option go_package = "com.example.api.v1";
 
 message BillingAddress {
+  // Simple boolean validation - message is shown when expression is false
   option (buf.validate.message).cel = {
     id: "BillingAddress.CountryLength",
-    message: "Country size must be 2",
-    expression:
-    "!(size(this.country) == 2)"
-    "? 'Country must be 2 letters long eg. DE'"
-    ": ''"
+    message: "Country must be exactly 2 letters (e.g. DE, US, FR)",
+    expression: "size(this.country) == 2"
   };
+  // Simple boolean validation for mutual exclusivity
   option (buf.validate.message).cel = {
     id: "BillingAddress.streetOrPost_office_box",
     message: "Either street or post_office_box must be set, but not both",
-    expression:
-    "has(this.street) == has(this.post_office_box)"
-    "? 'Either street or post_office_box must be set, but not both'"
-    ": ''"
+    expression: "has(this.street) != has(this.post_office_box)"
   };
+  // Dynamic error message - includes actual values in the error
   option (buf.validate.message).cel = {
     id: "BillingAddress.StreetAndHouse_number",
-    message: "Both street and house_number must be set",
     expression:
-    "has(this.street) != has(this.house_number)"
-    "? 'Both street and house_number must be set if it is not a post_office_box'"
-    ": ''"
+    "has(this.street) == has(this.house_number)"
+    "? ''"
+    ": 'Invalid address: street is ' + (has(this.street) ? 'set' : 'missing') + ' but house_number is ' + (has(this.house_number) ? 'set' : 'missing')"
   };
+  // Field-level validation with simple boolean expression
   string city = 1 [(buf.validate.field).cel = {
     id: "city_pattern",
-    message: "City must match pattern",
-    expression:
-    "!this.matches('^[a-z]+$')"
-    "? 'Value must match pattern ^[a-z]+$'"
-    ": ''"
+    message: "City must contain only lowercase letters (a-z)",
+    expression: "this.matches('^[a-z]+$')"
   }];
   oneof type {
     option (buf.validate.oneof).required = true;

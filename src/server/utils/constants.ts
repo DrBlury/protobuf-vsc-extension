@@ -255,7 +255,14 @@ export const REQUEST_METHODS = {
   GET_AVAILABLE_LINT_RULES: 'protobuf/getAvailableLintRules',
   CHECK_BREAKING_CHANGES: 'protobuf/checkBreakingChanges',
   GET_ALL_OPTIONS: 'protobuf/getAllOptions',
-  MIGRATE_TO_PROTO3: 'protobuf/migrateToProto3'
+  MIGRATE_TO_PROTO3: 'protobuf/migrateToProto3',
+  GET_GRPC_SERVICES: 'protobuf/getGrpcServices',
+  GET_GRPC_SERVICE: 'protobuf/getGrpcService',
+  GET_GRPC_RPC: 'protobuf/getGrpcRpc',
+  GET_GRPC_RPCS_USING_TYPE: 'protobuf/getGrpcRpcsUsingType',
+  GENERATE_GRPC_CLIENT_STUB: 'protobuf/generateGrpcClientStub',
+  GENERATE_GRPC_SERVER_TEMPLATE: 'protobuf/generateGrpcServerTemplate',
+  GET_GRPC_SERVICE_STATS: 'protobuf/getGrpcServiceStats'
 } as const;
 
 /**
