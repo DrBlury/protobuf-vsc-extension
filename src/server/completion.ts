@@ -57,6 +57,25 @@ export class CompletionProvider {
       completions.push(...this.getFieldAssignmentCompletions(uri, position, documentText));
     }
 
+    // Field name suggestions based on type
+    if (this.isFieldNameContext(beforeCursor)) {
+      const typeMatch = beforeCursor.match(/(?:optional|required|repeated)?\s*([A-Za-z_][\w.<>,]+)\s+$/);
+      if (typeMatch) {
+        const typeName = typeMatch[1];
+        const nameSuggestions = this.getFieldNameSuggestions(typeName);
+        for (const suggestion of nameSuggestions) {
+          completions.push({
+            label: suggestion,
+            kind: CompletionItemKind.Field,
+            detail: `Suggested field name for ${typeName}`,
+            insertText: `${suggestion} = `,
+            insertTextFormat: InsertTextFormat.Snippet,
+            sortText: '0' + suggestion
+          });
+        }
+      }
+    }
+
     // Option completions
     if (beforeCursor.includes('option')) {
       completions.push(...this.getOptionCompletions());
@@ -394,6 +413,12 @@ export class CompletionProvider {
     return pattern.test(text);
   }
 
+  private isFieldNameContext(text: string): boolean {
+    // Match a type with optional modifier, but no field name yet
+    const pattern = /^\s*(?:optional|required|repeated)?\s*(?!map\s*<)([A-Za-z_][\w.<>,]+)\s+$/;
+    return pattern.test(text);
+  }
+
   private getFieldAssignmentCompletions(
     uri: string,
     position: Position,
@@ -494,19 +519,70 @@ export class CompletionProvider {
       });
     }
 
-    // Add files from workspace
-    for (const uri of this.analyzer.getAllFiles().keys()) {
+    // Add files from workspace with smart path suggestions
+    const currentPath = currentUri.replace('file://', '');
+    for (const [uri, file] of this.analyzer.getAllFiles()) {
       if (uri !== currentUri) {
+        const importPath = this.analyzer.getImportPathForFile(currentUri, uri);
         const fileName = uri.split('/').pop() || uri;
+
+        // Suggest both the smart path and the simple filename
+        if (importPath !== fileName) {
+          completions.push({
+            label: importPath,
+            kind: CompletionItemKind.File,
+            detail: 'Workspace proto file (recommended path)',
+            insertText: importPath,
+            sortText: '0' + importPath
+          });
+        }
+
         completions.push({
           label: fileName,
           kind: CompletionItemKind.File,
           detail: 'Workspace proto file',
-          insertText: fileName
+          insertText: fileName,
+          sortText: '1' + fileName
         });
       }
     }
 
     return completions;
+  }
+
+  /**
+   * Get field name suggestions based on type
+   */
+  getFieldNameSuggestions(typeName: string): string[] {
+    const suggestions: string[] = [];
+
+    // Common patterns based on type
+    const typePatterns: Record<string, string[]> = {
+      'string': ['name', 'id', 'title', 'description', 'value', 'text', 'content', 'message', 'label'],
+      'int32': ['count', 'size', 'number', 'index', 'id', 'value', 'amount', 'quantity'],
+      'int64': ['id', 'timestamp', 'count', 'size', 'number', 'value'],
+      'bool': ['enabled', 'active', 'visible', 'is_valid', 'has_value', 'is_set'],
+      'bytes': ['data', 'content', 'payload', 'body', 'value'],
+      'Timestamp': ['created_at', 'updated_at', 'timestamp', 'time', 'date'],
+      'Duration': ['duration', 'timeout', 'interval', 'period'],
+      'Date': ['date', 'birth_date', 'created_date', 'updated_date']
+    };
+
+    // Direct match
+    if (typePatterns[typeName]) {
+      suggestions.push(...typePatterns[typeName]);
+    }
+
+    // Check if it's a message type (PascalCase)
+    if (/^[A-Z]/.test(typeName)) {
+      // Convert PascalCase to snake_case suggestions
+      const snakeCase = typeName
+        .replace(/([A-Z])/g, '_$1')
+        .toLowerCase()
+        .replace(/^_/, '');
+      suggestions.push(snakeCase, `${snakeCase}_id`, `${snakeCase}_value`);
+    }
+
+    return suggestions.slice(0, 5); // Return top 5 suggestions
   }
 }

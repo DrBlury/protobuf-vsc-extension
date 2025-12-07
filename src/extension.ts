@@ -227,11 +227,28 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Register find references command
   context.subscriptions.push(
-    vscode.commands.registerCommand('protobuf.findReferences', () => {
-      const editor = vscode.window.activeTextEditor;
-      if (editor && editor.document.languageId === 'proto') {
-        vscode.commands.executeCommand('editor.action.goToReferences');
+    vscode.commands.registerCommand('protobuf.findReferences', async (location?: { uri?: string; position?: { line: number; character: number } }) => {
+      // Use location info from the CodeLens when provided; otherwise fall back to the active editor.
+      const targetUri = location?.uri
+        ? vscode.Uri.parse(location.uri)
+        : vscode.window.activeTextEditor?.document.uri;
+
+      if (!targetUri) {
+        vscode.window.showWarningMessage('No proto file available to find references.');
+        return;
       }
+
+      const document = await vscode.workspace.openTextDocument(targetUri);
+      const editor = await vscode.window.showTextDocument(document);
+
+      const fallbackPosition = editor.selection.active;
+      const position = location?.position
+        ? new vscode.Position(location.position.line, location.position.character)
+        : fallbackPosition;
+
+      editor.selection = new vscode.Selection(position, position);
+
+      await vscode.commands.executeCommand('editor.action.goToReferences', targetUri, position);
     })
   );
 

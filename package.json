@@ -2,7 +2,7 @@
   "name": "protobuf-vsc",
   "displayName": "Protobuf VSC",
   "description": "Comprehensive Protocol Buffers support for VS Code with syntax highlighting, IntelliSense, diagnostics, formatting, protoc compilation, breaking change detection, and more",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "publisher": "DrBlury",
   "author": {
     "name": "Julian Bensch",
@@ -204,6 +204,21 @@
           "type": "boolean",
           "default": true,
           "description": "Warn about discouraged patterns"
+        },
+        "protobuf.diagnostics.deprecatedUsage": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn when deprecated fields or enum values are used"
+        },
+        "protobuf.diagnostics.unusedSymbols": {
+          "type": "boolean",
+          "default": false,
+          "description": "Warn about unused messages, enums, and services"
+        },
+        "protobuf.diagnostics.circularDependencies": {
+          "type": "boolean",
+          "default": true,
+          "description": "Detect circular import dependencies"
         },
         "protobuf.diagnostics.severity.namingConventions": {
           "type": "string",

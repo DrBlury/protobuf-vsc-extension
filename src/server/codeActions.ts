@@ -55,6 +55,11 @@ export class CodeActionsProvider {
       if (fixImports) {
         actions.push(fixImports);
       }
+      // Add organize imports action (sort and remove duplicates)
+      const organizeImports = this.createOrganizeImportsAction(uri, documentText);
+      if (organizeImports) {
+        actions.push(organizeImports);
+      }
     }
 
     // Add refactoring actions based on selection
@@ -626,6 +631,16 @@ export class CodeActionsProvider {
         kind: CodeActionKind.RefactorExtract,
         disabled: { reason: 'Not yet implemented' }
       });
+
+      // Add "Convert to proto3" if proto2
+      const file = this.analyzer.getFile(uri);
+      if (file && file.syntax?.version === 'proto2') {
+        actions.push({
+          title: 'Convert message to proto3 style',
+          kind: CodeActionKind.RefactorRewrite,
+          edit: this.createProto3ConversionEdit(uri, documentText, messageMatch[2])
+        });
+      }
     }
 
     // Add field option
@@ -1245,5 +1260,187 @@ export class CodeActionsProvider {
     return str
       .replace(/[_-](.)/g, (_, c) => c.toUpperCase())
       .replace(/^(.)/, (_, c) => c.toLowerCase());
+  }
+
+  private createProto3ConversionEdit(uri: string, documentText: string, messageName: string): { changes: { [uri: string]: TextEdit[] } } | undefined {
+    const lines = documentText.split('\n');
+    const edits: TextEdit[] = [];
+    let inMessage = false;
+    let braceDepth = 0;
+    let messageStartLine = -1;
+
+    // Find the message
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.includes(`message ${messageName}`)) {
+        messageStartLine = i;
+        inMessage = true;
+        braceDepth = 0;
+      }
+
+      if (inMessage) {
+        for (const char of line) {
+          if (char === '{') braceDepth++;
+          if (char === '}') braceDepth--;
+        }
+
+        // Remove 'required' modifiers
+        if (line.includes('required')) {
+          const newLine = line.replace(/\brequired\s+/, '');
+          edits.push({
+            range: {
+              start: { line: i, character: 0 },
+              end: { line: i, character: line.length }
+            },
+            newText: newLine
+          });
+        }
+
+        // Remove default values (proto3 doesn't support them)
+        if (line.includes('=') && line.includes('[') === false) {
+          const defaultMatch = line.match(/=\s*(\d+)\s*\[default\s*=/);
+          if (defaultMatch) {
+            const newLine = line.replace(/\s*\[default\s*=[^\]]+\]/, '');
+            edits.push({
+              range: {
+                start: { line: i, character: 0 },
+                end: { line: i, character: line.length }
+              },
+              newText: newLine
+            });
+          }
+        }
+
+        if (braceDepth === 0 && i > messageStartLine) {
+          break;
+        }
+      }
+    }
+
+    if (edits.length === 0) {
+      return undefined;
+    }
+
+    return {
+      changes: {
+        [uri]: edits
+      }
+    };
+  }
+
+  /**
+   * Organize imports: sort them and remove duplicates
+   */
+  private createOrganizeImportsAction(uri: string, documentText: string): CodeAction | null {
+    const lines = documentText.split('\n');
+    const importLines: { line: number; text: string; modifier?: string }[] = [];
+    const otherLines: { line: number; text: string }[] = [];
+    let inImportsSection = false;
+    let lastImportLine = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      if (trimmed.startsWith('import')) {
+        inImportsSection = true;
+        lastImportLine = i;
+        const match = trimmed.match(/import\s+(?:weak|public)?\s*"([^"]+)"/);
+        if (match) {
+          const modifierMatch = trimmed.match(/import\s+(weak|public)/);
+          importLines.push({
+            line: i,
+            text: line,
+            modifier: modifierMatch ? modifierMatch[1] : undefined
+          });
+        }
+      } else if (trimmed && (trimmed.startsWith('syntax') || trimmed.startsWith('package') || trimmed.startsWith('option'))) {
+        if (inImportsSection && lastImportLine >= 0) {
+          // End of imports section
+          break;
+        }
+        otherLines.push({ line: i, text: line });
+      } else if (trimmed && (trimmed.startsWith('message') || trimmed.startsWith('enum') || trimmed.startsWith('service'))) {
+        if (inImportsSection && lastImportLine >= 0) {
+          // End of imports section
+          break;
+        }
+        otherLines.push({ line: i, text: line });
+      } else if (inImportsSection && trimmed && !trimmed.startsWith('//')) {
+        // End of imports section
+        break;
+      }
+    }
+
+    if (importLines.length === 0) {
+      return null;
+    }
+
+    // Remove duplicates and sort
+    const uniqueImports = new Map<string, { text: string; modifier?: string }>();
+    for (const imp of importLines) {
+      const match = imp.text.match(/import\s+(?:weak|public)?\s*"([^"]+)"/);
+      if (match) {
+        const path = match[1];
+        const key = `${imp.modifier || ''}:${path}`;
+        if (!uniqueImports.has(key)) {
+          uniqueImports.set(key, { text: imp.text, modifier: imp.modifier });
+        }
+      }
+    }
+
+    // Sort imports: public first, then weak, then regular, then alphabetically
+    const sortedImports = Array.from(uniqueImports.values()).sort((a, b) => {
+      if (a.modifier === 'public' && b.modifier !== 'public') return -1;
+      if (a.modifier !== 'public' && b.modifier === 'public') return 1;
+      if (a.modifier === 'weak' && b.modifier !== 'weak') return -1;
+      if (a.modifier !== 'weak' && b.modifier === 'weak') return 1;
+      const aPath = a.text.match(/"([^"]+)"/)?.[1] || '';
+      const bPath = b.text.match(/"([^"]+)"/)?.[1] || '';
+      return aPath.localeCompare(bPath);
+    });
+
+    // Check if anything changed
+    const originalImports = importLines.map(i => i.text.trim()).join('\n');
+    const newImports = sortedImports.map(i => i.text).join('\n');
+    if (originalImports === newImports.trim()) {
+      return null;
+    }
+
+    // Create edits
+    const edits: TextEdit[] = [];
+    const firstImportLine = importLines[0].line;
+    const lastImportLineIndex = importLines[importLines.length - 1].line;
+
+    // Remove old imports
+    for (const imp of importLines) {
+      edits.push({
+        range: {
+          start: { line: imp.line, character: 0 },
+          end: { line: imp.line, character: lines[imp.line].length }
+        },
+        newText: ''
+      });
+    }
+
+    // Add sorted imports
+    const insertPosition = { line: firstImportLine, character: 0 };
+    edits.push({
+      range: {
+        start: insertPosition,
+        end: insertPosition
+      },
+      newText: sortedImports.map(i => i.text).join('\n') + (sortedImports.length > 0 ? '\n' : '')
+    });
+
+    return {
+      title: 'Organize imports (sort and remove duplicates)',
+      kind: CodeActionKind.SourceOrganizeImports,
+      edit: {
+        changes: {
+          [uri]: edits
+        }
+      }
+    };
   }
 }

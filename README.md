@@ -11,7 +11,7 @@ Full Protocol Buffers language support for VS Code: navigation, IntelliSense, di
 
 ---
 
-**Contents:** [Quick Start](#quick-start) • [Install](#install) • [What You Get](#what-you-get) • [Common Tasks](#common-tasks) • [Settings Cheat Sheet](#settings-cheat-sheet) • [Optional Tools](#optional-tools) • [Development](#development) • [Support](#support) • [License](#license)
+**Contents:** [Quick Start](#quick-start) • [Install](#install) • [What You Get](#what-you-get) • [Common Tasks](#common-tasks) • [Settings Cheat Sheet](#settings-cheat-sheet) • [Documentation](#documentation) • [Optional Tools](#optional-tools) • [Development](#development) • [Support](#support) • [License](#license)
 
 ---
 
@@ -42,14 +42,23 @@ Full Protocol Buffers language support for VS Code: navigation, IntelliSense, di
 
 ## What You Get
 
-- Navigation and IntelliSense: definitions, references, workspace symbols, import completion, auto-imports.
-- Diagnostics: syntax, imports, naming, duplicate tags/names, reserved ranges, undefined types.
-- Formatting: built-in or `clang-format`, format on save/selection.
-- Compilation: run protoc per file or all files, with custom options and variables.
-- Linting: Buf or Protolint on demand or on save.
-- Breaking-change check: compare against a git ref or file baseline.
-- Schema graph: interactive view of message/enum relationships (`Protobuf: Show Schema Graph`).
-- Refactors and fixes: rename, renumber fields/enums, quick fixes for imports and naming.
+- **Navigation and IntelliSense**: definitions, references, workspace symbols, import completion, auto-imports, fuzzy search
+- **Comprehensive Diagnostics**: 30+ validation checks including syntax, imports, naming, duplicates, reserved ranges, undefined types, deprecated usage, circular dependencies, and more
+- **Code Lens**: Reference counts and metadata above symbols
+- **Document Links**: Clickable import paths for quick navigation
+- **Rich Hover Information**: Detailed symbol information with reference counts
+- **Smart Code Actions**: Quick fixes, organize imports, proto3 conversion, and more
+- **Intelligent Completions**: Type-based field name suggestions, smart import paths, context-aware completions
+- **Formatting**: Built-in or `clang-format`, format on save/selection
+- **Compilation**: Run protoc per file or all files, with custom options and variables
+- **Linting**: Buf or Protolint integration on demand or on save
+- **Breaking-change Detection**: Compare against a git ref or file baseline
+- **Schema Graph**: Interactive view of message/enum relationships
+- **Buf.yaml Support**: Automatic detection and integration with Buf configuration
+- **Templates**: Pre-built templates for common proto patterns
+- **Refactoring**: Rename, renumber fields/enums, quick fixes for imports and naming
+
+See the [Complete Features List](./docs/FEATURES.md) for a comprehensive overview of all 100+ features.
 
 ---
 
@@ -123,6 +132,30 @@ More examples:
   "protobuf.breaking.againstFile": "${workspaceFolder}/schema.baseline.bin"
 }
 ```
+
+---
+
+## Documentation
+
+Comprehensive documentation is available in the [`docs/`](./docs/) folder:
+
+### Core Features
+
+- [Diagnostics](./docs/diagnostics.md) - Comprehensive validation and error checking
+- [Code Lens](./docs/code-lens.md) - Reference counts and metadata display
+- [Document Links](./docs/document-links.md) - Clickable import paths
+- [Hover Information](./docs/hover.md) - Rich symbol information on hover
+- [Code Actions](./docs/code-actions.md) - Quick fixes and refactoring
+- [Completions](./docs/completions.md) - Smart IntelliSense suggestions
+- [Symbol Search](./docs/symbol-search.md) - Fuzzy workspace symbol search
+
+### Advanced Features
+
+- [Buf.yaml Support](./docs/buf-config.md) - Integration with Buf configuration
+- [Templates](./docs/templates.md) - Proto file templates
+- [Settings Reference](./docs/settings.md) - Complete settings documentation
+
+See the [Documentation Index](./docs/README.md) for the complete list.
 
 ---
 

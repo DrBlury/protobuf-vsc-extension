@@ -60,6 +60,8 @@ import { MessageDefinition, EnumDefinition, Range as AstRange } from './ast';
 import { SchemaGraphProvider } from './schemaGraph';
 import { SchemaGraphRequest } from '../shared/schemaGraph';
 import { GOOGLE_WELL_KNOWN_FILES, GOOGLE_WELL_KNOWN_PROTOS } from './googleWellKnown';
+import { CodeLensProvider } from './codeLens';
+import { DocumentLinksProvider } from './documentLinks';
 
 // Create connection and document manager
 const connection = createConnection(ProposedFeatures.all);
@@ -92,6 +94,8 @@ const breakingChangeDetector = new BreakingChangeDetector();
 const externalLinter = new ExternalLinterProvider();
 const clangFormat = new ClangFormatProvider();
 const schemaGraphProvider = new SchemaGraphProvider(analyzer);
+const codeLensProvider = new CodeLensProvider(analyzer);
+const documentLinksProvider = new DocumentLinksProvider(analyzer);
 
 // Configuration
 let hasConfigurationCapability = false;
@@ -131,6 +135,9 @@ interface Settings {
       fieldTagChecks: boolean;
       duplicateFieldChecks: boolean;
       discouragedConstructs: boolean;
+      deprecatedUsage: boolean;
+      unusedSymbols: boolean;
+      circularDependencies: boolean;
       severity: {
         namingConventions: string;
         referenceErrors: string;
@@ -202,6 +209,9 @@ const defaultSettings: Settings = {
       fieldTagChecks: true,
       duplicateFieldChecks: true,
       discouragedConstructs: true,
+      deprecatedUsage: true,
+      unusedSymbols: false,
+      circularDependencies: true,
       severity: {
         namingConventions: 'warning',
         referenceErrors: 'error',
@@ -322,6 +332,12 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
           'refactor.rewrite',
           'source.organizeImports'
         ]
+      },
+      codeLensProvider: {
+        resolveProvider: false
+      },
+      documentLinkProvider: {
+        resolveProvider: false
       }
     }
   };
@@ -508,7 +524,10 @@ connection.onDidChangeConfiguration((change: { settings: typeof globalSettings }
       importChecks: diag.importChecks,
       fieldTagChecks: diag.fieldTagChecks,
       duplicateFieldChecks: diag.duplicateFieldChecks,
-      discouragedConstructs: diag.discouragedConstructs
+      discouragedConstructs: diag.discouragedConstructs,
+      deprecatedUsage: diag.deprecatedUsage ?? true,
+      unusedSymbols: diag.unusedSymbols ?? false,
+      circularDependencies: diag.circularDependencies ?? true
     });
 
     formatter.updateSettings({
@@ -773,6 +792,36 @@ connection.onDocumentSymbol((params: DocumentSymbolParams) => {
 // Workspace Symbols
 connection.onWorkspaceSymbol((params: WorkspaceSymbolParams) => {
   return symbolProvider.getWorkspaceSymbols(params.query);
+});
+
+// Code Lens
+connection.onCodeLens((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) {
+    return [];
+  }
+
+  try {
+    const file = parser.parse(document.getText(), params.textDocument.uri);
+    return codeLensProvider.getCodeLenses(params.textDocument.uri, file);
+  } catch (_e) {
+    return [];
+  }
+});
+
+// Document Links
+connection.onDocumentLinks((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) {
+    return [];
+  }
+
+  try {
+    const file = parser.parse(document.getText(), params.textDocument.uri);
+    return documentLinksProvider.getDocumentLinks(params.textDocument.uri, file);
+  } catch (_e) {
+    return [];
+  }
 });
 
 // Formatting

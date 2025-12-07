@@ -64,33 +64,139 @@ export class SymbolProvider {
 
   getWorkspaceSymbols(query: string): SymbolInformation[] {
     const symbols = this.analyzer.getAllSymbols();
-    const results: SymbolInformation[] = [];
+    const results: Array<SymbolInformation & { score: number }> = [];
 
     const lowerQuery = query.toLowerCase();
 
     for (const symbol of symbols) {
-      // Filter by query
-      if (query && !symbol.name.toLowerCase().includes(lowerQuery)) {
-        continue;
-      }
-
       // Only include main symbol types
       if (symbol.kind === SymbolKind.Field || symbol.kind === SymbolKind.EnumValue) {
         continue;
       }
 
-      results.push({
-        name: symbol.name,
-        kind: this.toVSCodeSymbolKind(symbol.kind),
-        location: {
-          uri: symbol.location.uri,
-          range: this.toRange(symbol.location.range)
-        },
-        containerName: symbol.containerName
-      });
+      if (!query) {
+        // No query - return all symbols
+        results.push({
+          name: symbol.name,
+          kind: this.toVSCodeSymbolKind(symbol.kind),
+          location: {
+            uri: symbol.location.uri,
+            range: this.toRange(symbol.location.range)
+          },
+          containerName: symbol.containerName,
+          score: 0
+        });
+        continue;
+      }
+
+      // Calculate match score
+      const score = this.calculateMatchScore(symbol, lowerQuery);
+      if (score > 0) {
+        results.push({
+          name: symbol.name,
+          kind: this.toVSCodeSymbolKind(symbol.kind),
+          location: {
+            uri: symbol.location.uri,
+            range: this.toRange(symbol.location.range)
+          },
+          containerName: symbol.containerName,
+          score
+        });
+      }
     }
 
-    return results;
+    // Sort by score (higher is better), then by name
+    results.sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    // Return top 100 results
+    return results.slice(0, 100).map(({ score, ...rest }) => rest);
+  }
+
+  /**
+   * Calculate match score for fuzzy search
+   * Higher score = better match
+   */
+  private calculateMatchScore(symbol: { name: string; fullName: string }, query: string): number {
+    const nameLower = symbol.name.toLowerCase();
+    const fullNameLower = symbol.fullName.toLowerCase();
+
+    // Exact match gets highest score
+    if (nameLower === query) {
+      return 1000;
+    }
+
+    // Full name exact match
+    if (fullNameLower === query) {
+      return 900;
+    }
+
+    // Starts with query
+    if (nameLower.startsWith(query)) {
+      return 800;
+    }
+
+    // Full name starts with query
+    if (fullNameLower.startsWith(query)) {
+      return 700;
+    }
+
+    // Contains query (substring match)
+    if (nameLower.includes(query)) {
+      return 500;
+    }
+
+    // Full name contains query
+    if (fullNameLower.includes(query)) {
+      return 400;
+    }
+
+    // Fuzzy match - check if all query characters appear in order
+    if (this.fuzzyMatch(nameLower, query)) {
+      return 300;
+    }
+
+    if (this.fuzzyMatch(fullNameLower, query)) {
+      return 200;
+    }
+
+    // Check if query matches parts of the name (e.g., "UserMsg" matches "UserMessage")
+    const nameParts = nameLower.split(/(?=[A-Z])|_/).filter(p => p.length > 0);
+    const queryParts = query.split(/(?=[A-Z])|_/).filter(p => p.length > 0);
+    let partsMatch = 0;
+    for (const qp of queryParts) {
+      for (const np of nameParts) {
+        if (np.startsWith(qp) || np.includes(qp)) {
+          partsMatch++;
+          break;
+        }
+      }
+    }
+    if (partsMatch === queryParts.length && partsMatch > 0) {
+      return 100;
+    }
+
+    return 0;
+  }
+
+  /**
+   * Check if query characters appear in order in the text (fuzzy match)
+   */
+  private fuzzyMatch(text: string, query: string): boolean {
+    let textIndex = 0;
+    for (let i = 0; i < query.length; i++) {
+      const char = query[i];
+      const foundIndex = text.indexOf(char, textIndex);
+      if (foundIndex === -1) {
+        return false;
+      }
+      textIndex = foundIndex + 1;
+    }
+    return true;
   }
 
   private messageToSymbol(message: MessageDefinition): DocumentSymbol {

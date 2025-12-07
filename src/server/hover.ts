@@ -126,6 +126,13 @@ export class HoverProvider {
       lines.push(`Defined in: \`${symbol.containerName}\``);
     }
 
+    // Add reference count
+    const references = this.analyzer.findReferences(symbol.fullName);
+    if (references.length > 0) {
+      const externalRefs = references.filter(r => r.uri !== symbol.location.uri);
+      lines.push(`References: ${references.length} (${externalRefs.length} external)`);
+    }
+
     // Add rich detail for messages and enums
     if (symbol.kind === SymbolKind.Message) {
       const message = this.analyzer.getMessageDefinition(symbol.fullName);

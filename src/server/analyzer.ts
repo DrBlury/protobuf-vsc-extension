@@ -15,6 +15,7 @@ import {
   BUILTIN_TYPES
 } from './ast';
 import * as path from 'path';
+import { bufConfigProvider } from './bufConfig';
 
 export interface WorkspaceSymbols {
   // URI -> ProtoFile
@@ -62,6 +63,21 @@ export class SemanticAnalyzer {
     // Extract and store imports
     const importPaths = file.imports.map(i => i.path);
     this.workspace.imports.set(uri, importPaths);
+
+    // Update proto roots from buf.yaml if available
+    try {
+      const filePath = uri.replace('file://', '');
+      const bufRoots = bufConfigProvider.getProtoRoots(filePath);
+      for (const root of bufRoots) {
+        this.protoRoots.add(root);
+      }
+      const workDirs = bufConfigProvider.getWorkDirectories(filePath);
+      for (const dir of workDirs) {
+        this.protoRoots.add(dir);
+      }
+    } catch (_e) {
+      // Ignore errors
+    }
 
     // Try to resolve imports to URIs
     for (const importPath of importPaths) {

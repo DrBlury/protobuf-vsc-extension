@@ -1,0 +1,416 @@
+# Settings Reference
+
+Complete reference for all Protobuf VSC extension settings.
+
+## Configuration Location
+
+Settings can be configured in:
+
+- **User Settings**: `File → Preferences → Settings` (applies to all workspaces)
+- **Workspace Settings**: `.vscode/settings.json` (applies to current workspace)
+
+## Settings Categories
+
+### Diagnostics
+
+#### `protobuf.diagnostics.enabled`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Enable/disable all diagnostics
+
+#### `protobuf.diagnostics.namingConventions`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Check naming conventions (PascalCase for messages/enums, snake_case for fields)
+
+#### `protobuf.diagnostics.referenceChecks`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Check for undefined references
+
+#### `protobuf.diagnostics.importChecks`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Validate import statements
+
+#### `protobuf.diagnostics.fieldTagChecks`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Check for field tag issues (duplicates, reserved, out of range)
+
+#### `protobuf.diagnostics.duplicateFieldChecks`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Check for duplicate field names
+
+#### `protobuf.diagnostics.discouragedConstructs`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Warn about discouraged patterns
+
+#### `protobuf.diagnostics.deprecatedUsage`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Warn when deprecated fields or enum values are used
+
+#### `protobuf.diagnostics.unusedSymbols`
+
+- **Type**: `boolean`
+- **Default**: `false`
+- **Description**: Warn about unused messages, enums, and services
+
+#### `protobuf.diagnostics.circularDependencies`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Detect circular import dependencies
+
+#### Severity Settings
+
+##### `protobuf.diagnostics.severity.namingConventions`
+
+- **Type**: `"error" | "warning" | "information" | "hint"`
+- **Default**: `"warning"`
+- **Description**: Severity level for naming convention violations
+
+##### `protobuf.diagnostics.severity.referenceErrors`
+
+- **Type**: `"error" | "warning" | "information" | "hint"`
+- **Default**: `"error"`
+- **Description**: Severity level for undefined reference errors
+
+##### `protobuf.diagnostics.severity.fieldTagIssues`
+
+- **Type**: `"error" | "warning" | "information" | "hint"`
+- **Default**: `"error"`
+- **Description**: Severity level for field tag issues
+
+##### `protobuf.diagnostics.severity.discouragedConstructs`
+
+- **Type**: `"error" | "warning" | "information" | "hint"`
+- **Default**: `"warning"`
+- **Description**: Severity level for discouraged constructs
+
+### Formatter
+
+#### `protobuf.formatterEnabled`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Enable/disable the formatter
+
+#### `protobuf.formatOnSave`
+
+- **Type**: `boolean`
+- **Default**: `false`
+- **Description**: Automatically format proto files on save
+
+#### `protobuf.indentSize`
+
+- **Type**: `number`
+- **Default**: `2`
+- **Minimum**: `1`
+- **Maximum**: `8`
+- **Description**: Number of spaces for indentation
+
+#### `protobuf.useTabIndent`
+
+- **Type**: `boolean`
+- **Default**: `false`
+- **Description**: Use tabs instead of spaces
+
+#### `protobuf.maxLineLength`
+
+- **Type**: `number`
+- **Default**: `120`
+- **Minimum**: `80`
+- **Maximum**: `200`
+- **Description**: Maximum line length for formatting
+
+### Completion
+
+#### `protobuf.completion.autoImport`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Automatically add import statements when completing types from other files
+
+#### `protobuf.completion.includeGoogleTypes`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Include Google well-known types in completions
+
+### Hover
+
+#### `protobuf.hover.showFieldNumbers`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Show field numbers in hover information
+
+#### `protobuf.hover.showDocumentation`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Show documentation comments in hover information
+
+### Import Paths
+
+#### `protobuf.includes`
+
+- **Type**: `string[]`
+- **Default**: `[]`
+- **Description**: Additional paths to search for imports
+
+**Example:**
+
+```jsonc
+{
+  "protobuf.includes": [
+    "${workspaceFolder}/protos",
+    "${workspaceFolder}/third_party"
+  ]
+}
+```
+
+### Renumbering
+
+#### `protobuf.renumber.startNumber`
+
+- **Type**: `number`
+- **Default**: `1`
+- **Minimum**: `1`
+- **Description**: Starting field number when renumbering
+
+#### `protobuf.renumber.increment`
+
+- **Type**: `number`
+- **Default**: `1`
+- **Minimum**: `1`
+- **Maximum**: `100`
+- **Description**: Increment between field numbers when renumbering
+
+#### `protobuf.renumber.preserveReserved`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Skip reserved field numbers when renumbering
+
+#### `protobuf.renumber.skipInternalRange`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Skip the internal reserved range (19000-19999) when renumbering
+
+#### `protobuf.renumber.autoSuggestNext`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Automatically suggest the next available field number in completions
+
+#### `protobuf.renumber.onFormat`
+
+- **Type**: `boolean`
+- **Default**: `false`
+- **Description**: Automatically renumber fields sequentially when formatting
+
+### Protoc Compilation
+
+#### `protobuf.protoc.path`
+
+- **Type**: `string`
+- **Default**: `"protoc"`
+- **Description**: Path to the protoc compiler
+
+#### `protobuf.protoc.compileOnSave`
+
+- **Type**: `boolean`
+- **Default**: `false`
+- **Description**: Automatically compile proto files on save
+
+#### `protobuf.protoc.compileAllPath`
+
+- **Type**: `string`
+- **Default**: `""`
+- **Description**: Search path for 'Compile All Protos' action
+
+#### `protobuf.protoc.useAbsolutePath`
+
+- **Type**: `boolean`
+- **Default**: `false`
+- **Description**: Use absolute paths when compiling
+
+#### `protobuf.protoc.options`
+
+- **Type**: `string[]`
+- **Default**: `[]`
+- **Description**: Additional protoc compiler options
+
+**Example:**
+
+```jsonc
+{
+  "protobuf.protoc.options": [
+    "--proto_path=${workspaceFolder}",
+    "--go_out=${workspaceFolder}/gen/go",
+    "--java_out=${workspaceFolder}/gen/java"
+  ]
+}
+```
+
+### Breaking Changes
+
+#### `protobuf.breaking.enabled`
+
+- **Type**: `boolean`
+- **Default**: `false`
+- **Description**: Enable breaking change detection
+
+#### `protobuf.breaking.againstStrategy`
+
+- **Type**: `"git" | "file" | "none"`
+- **Default**: `"git"`
+- **Description**: Strategy for breaking change detection baseline
+
+#### `protobuf.breaking.againstGitRef`
+
+- **Type**: `string`
+- **Default**: `"HEAD~1"`
+- **Description**: Git reference to compare against
+
+#### `protobuf.breaking.againstFilePath`
+
+- **Type**: `string`
+- **Default**: `""`
+- **Description**: File path to compare against (when strategy is 'file')
+
+### External Linter
+
+#### `protobuf.externalLinter.enabled`
+
+- **Type**: `boolean`
+- **Default**: `false`
+- **Description**: Enable external linter integration
+
+#### `protobuf.externalLinter.linter`
+
+- **Type**: `"buf" | "protolint" | "none"`
+- **Default**: `"none"`
+- **Description**: External linter to use
+
+#### `protobuf.externalLinter.bufPath`
+
+- **Type**: `string`
+- **Default**: `"buf"`
+- **Description**: Path to the buf CLI
+
+#### `protobuf.externalLinter.protolintPath`
+
+- **Type**: `string`
+- **Default**: `"protolint"`
+- **Description**: Path to the protolint CLI
+
+#### `protobuf.externalLinter.bufConfigPath`
+
+- **Type**: `string`
+- **Default**: `""`
+- **Description**: Path to buf.yaml configuration file
+
+#### `protobuf.externalLinter.protolintConfigPath`
+
+- **Type**: `string`
+- **Default**: `""`
+- **Description**: Path to .protolint.yaml configuration file
+
+#### `protobuf.externalLinter.runOnSave`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Run external linter on file save
+
+### Clang Format
+
+#### `protobuf.clangFormat.enabled`
+
+- **Type**: `boolean`
+- **Default**: `false`
+- **Description**: Use clang-format for formatting instead of built-in formatter
+
+#### `protobuf.clangFormat.path`
+
+- **Type**: `string`
+- **Default**: `"clang-format"`
+- **Description**: Path to clang-format executable
+
+#### `protobuf.clangFormat.style`
+
+- **Type**: `string`
+- **Default**: `"Google"`
+- **Description**: clang-format style (LLVM, Google, Chromium, Mozilla, WebKit, Microsoft, GNU, or file)
+
+#### `protobuf.clangFormat.fallbackStyle`
+
+- **Type**: `string`
+- **Default**: `"Google"`
+- **Description**: Fallback style when 'file' style is used but no .clang-format file is found
+
+## Variable Substitution
+
+Settings support VS Code variable substitution:
+
+- `${workspaceFolder}` - Workspace root folder
+- `${workspaceFolderBasename}` - Name of the workspace folder
+- `${file}` - Current opened file
+- `${relativeFile}` - Current opened file relative to workspace
+- `${fileBasename}` - Current opened file's basename
+- `${fileDirname}` - Current opened file's dirname
+- `${fileExtname}` - Current opened file's extension
+- `${cwd}` - Task runner's current working directory
+
+## Example Configuration
+
+```jsonc
+{
+  // Diagnostics
+  "protobuf.diagnostics.enabled": true,
+  "protobuf.diagnostics.namingConventions": true,
+  "protobuf.diagnostics.deprecatedUsage": true,
+  "protobuf.diagnostics.circularDependencies": true,
+
+  // Formatter
+  "protobuf.formatterEnabled": true,
+  "protobuf.formatOnSave": true,
+  "protobuf.indentSize": 2,
+
+  // Completion
+  "protobuf.completion.autoImport": true,
+  "protobuf.completion.includeGoogleTypes": true,
+
+  // Import paths
+  "protobuf.includes": [
+    "${workspaceFolder}/protos",
+    "${workspaceFolder}/third_party"
+  ],
+
+  // Protoc
+  "protobuf.protoc.path": "protoc",
+  "protobuf.protoc.options": [
+    "--proto_path=${workspaceFolder}",
+    "--go_out=${workspaceFolder}/gen/go"
+  ],
+
+  // External linter
+  "protobuf.externalLinter.enabled": true,
+  "protobuf.externalLinter.linter": "buf",
+  "protobuf.externalLinter.runOnSave": true
+}
+```
