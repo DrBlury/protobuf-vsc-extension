@@ -2,9 +2,9 @@
  * Tests for Document Links Provider
  */
 
-import { DocumentLinksProvider } from './documentLinks';
-import { ProtoParser } from './parser';
-import { SemanticAnalyzer } from './analyzer';
+import { DocumentLinksProvider } from './providers/documentLinks';
+import { ProtoParser } from './core/parser';
+import { SemanticAnalyzer } from './core/analyzer';
 
 describe('DocumentLinksProvider', () => {
   let parser: ProtoParser;

@@ -1,4 +1,4 @@
-import { SemanticAnalyzer } from './analyzer';
+import { SemanticAnalyzer } from './core/analyzer';
 
 describe('SemanticAnalyzer getImportPathForFile', () => {
   const analyzer = new SemanticAnalyzer();

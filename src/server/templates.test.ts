@@ -2,7 +2,7 @@
  * Tests for Template Provider
  */
 
-import { TemplateProvider } from './templates';
+import { TemplateProvider } from './core/templates';
 
 describe('TemplateProvider', () => {
   let templateProvider: TemplateProvider;

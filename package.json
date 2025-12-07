@@ -2,7 +2,7 @@
   "name": "protobuf-vsc",
   "displayName": "Protobuf VSC",
   "description": "Comprehensive Protocol Buffers support for VS Code with syntax highlighting, IntelliSense, diagnostics, formatting, protoc compilation, breaking change detection, and more",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "publisher": "DrBlury",
   "author": {
     "name": "Julian Bensch",
@@ -403,6 +403,23 @@
           "type": "string",
           "default": "Google",
           "description": "Fallback style when 'file' style is used but no .clang-format file is found"
+        },
+        "protobuf.debug.verboseLogging": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable super verbose logging for debugging issues. When enabled, logs all operations, requests, and internal state. Useful when reporting bugs."
+        },
+        "protobuf.debug.logLevel": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warn",
+            "info",
+            "debug",
+            "verbose"
+          ],
+          "default": "info",
+          "description": "Set the log level for the language server. Use 'verbose' for maximum detail when debugging issues."
         }
       }
     },
@@ -557,13 +574,14 @@
     }
   },
   "scripts": {
+    "pretest": "node -e \"require('fs').mkdirSync('.vscode-test',{recursive:true});\"",
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -b",
     "watch": "tsc -b -w",
     "lint": "eslint ./src",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test": "node --localstorage-file=.vscode-test/localstorage.json ./node_modules/jest/bin/jest.js",
+    "test:watch": "node --localstorage-file=.vscode-test/localstorage.json ./node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --localstorage-file=.vscode-test/localstorage.json ./node_modules/jest/bin/jest.js --coverage"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

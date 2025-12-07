@@ -2,7 +2,7 @@
  * Tests for Protocol Buffers Parser
  */
 
-import { ProtoParser } from './parser';
+import { ProtoParser } from './core/parser';
 
 describe('ProtoParser', () => {
   let parser: ProtoParser;

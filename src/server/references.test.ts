@@ -2,9 +2,9 @@
  * Tests for References Provider
  */
 
-import { ProtoParser } from './parser';
-import { SemanticAnalyzer } from './analyzer';
-import { ReferencesProvider } from './references';
+import { ProtoParser } from './core/parser';
+import { SemanticAnalyzer } from './core/analyzer';
+import { ReferencesProvider } from './providers/references';
 
 describe('ReferencesProvider', () => {
   let parser: ProtoParser;

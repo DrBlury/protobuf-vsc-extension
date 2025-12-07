@@ -1,7 +1,7 @@
 /* eslint-env jest */
-import { ProtoParser } from './parser';
-import { SemanticAnalyzer } from './analyzer';
-import { SchemaGraphProvider } from './schemaGraph';
+import { ProtoParser } from './core/parser';
+import { SemanticAnalyzer } from './core/analyzer';
+import { SchemaGraphProvider } from './providers/schemaGraph';
 
 describe('SchemaGraphProvider', () => {
   const parser = new ProtoParser();

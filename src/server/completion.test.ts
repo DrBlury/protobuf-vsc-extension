@@ -1,7 +1,7 @@
-import { CompletionProvider } from './completion';
-import { ProtoParser } from './parser';
-import { SemanticAnalyzer } from './analyzer';
-import { GOOGLE_WELL_KNOWN_PROTOS } from './googleWellKnown';
+import { CompletionProvider } from './providers/completion';
+import { ProtoParser } from './core/parser';
+import { SemanticAnalyzer } from './core/analyzer';
+import { GOOGLE_WELL_KNOWN_PROTOS } from './utils/googleWellKnown';
 
 describe('CompletionProvider', () => {
   let parser: ProtoParser;

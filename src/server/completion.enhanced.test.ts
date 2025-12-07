@@ -2,9 +2,9 @@
  * Tests for Enhanced Completion Features
  */
 
-import { CompletionProvider } from './completion';
-import { ProtoParser } from './parser';
-import { SemanticAnalyzer } from './analyzer';
+import { CompletionProvider } from './providers/completion';
+import { ProtoParser } from './core/parser';
+import { SemanticAnalyzer } from './core/analyzer';
 import { Position } from 'vscode-languageserver/node';
 
 describe('CompletionProvider Enhanced Features', () => {
@@ -117,6 +117,55 @@ import "`;
       );
 
       expect(fieldNameCompletions.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Field assignment assist', () => {
+    it('suggests auto assignment only when nothing follows the cursor', () => {
+      const uri = 'file:///user.proto';
+      const documentText = `syntax = "proto3";
+
+message User {
+  string id
+}`;
+      const lineText = '  string id';
+      const position: Position = { line: 3, character: lineText.length };
+
+      const completions = completionProvider.getCompletions(
+        uri,
+        position,
+        lineText,
+        undefined,
+        documentText
+      );
+
+      const assignment = completions.find(c => c.detail === 'Insert next field tag and semicolon');
+      expect(assignment?.insertText).toContain('= 1;');
+    });
+
+    it('does not suggest auto assignment when an assignment already exists after the cursor', () => {
+      const uri = 'file:///user.proto';
+      const documentText = `syntax = "proto3";
+
+message User {
+  string id = 1;
+}`;
+      const lineText = '  string id = 1;';
+      const position: Position = { line: 3, character: lineText.indexOf('=') };
+
+      const completions = completionProvider.getCompletions(
+        uri,
+        position,
+        lineText,
+        undefined,
+        documentText
+      );
+
+      const assignment = completions.find(c => c.detail === 'Insert next field tag and semicolon');
+      const fieldNumber = completions.find(c => c.detail === 'Next available field number');
+
+      expect(assignment).toBeUndefined();
+      expect(fieldNumber).toBeUndefined();
     });
   });
 });

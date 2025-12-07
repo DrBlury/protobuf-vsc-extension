@@ -294,7 +294,7 @@ export class SchemaGraphPanel {
           }
         } catch (err) {
           setStatus('Render error: ' + (err && err.message ? err.message : String(err)), true);
-          console.error(err);
+          // Error handling - could use vscode.window.showErrorMessage for user-facing errors
         }
       });
 
@@ -431,7 +431,7 @@ export class SchemaGraphPanel {
         try {
           layout = await elk.layout(elkGraph);
         } catch (err) {
-          console.error('ELK layout failed', err);
+          // ELK layout failed - could use vscode.window.showErrorMessage for user-facing errors
           setStatus('Layout failed: ' + (err?.message || err), true);
           return;
         }

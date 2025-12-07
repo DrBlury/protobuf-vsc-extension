@@ -2,9 +2,9 @@
  * Tests for Enhanced Diagnostics Features
  */
 
-import { DiagnosticsProvider } from './diagnostics';
-import { ProtoParser } from './parser';
-import { SemanticAnalyzer } from './analyzer';
+import { DiagnosticsProvider } from './providers/diagnostics';
+import { ProtoParser } from './core/parser';
+import { SemanticAnalyzer } from './core/analyzer';
 import { DiagnosticSeverity } from 'vscode-languageserver/node';
 
 describe('DiagnosticsProvider Enhanced Features', () => {

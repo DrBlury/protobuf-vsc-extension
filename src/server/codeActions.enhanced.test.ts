@@ -2,10 +2,10 @@
  * Tests for Enhanced Code Actions
  */
 
-import { CodeActionsProvider } from './codeActions';
-import { ProtoParser } from './parser';
-import { SemanticAnalyzer } from './analyzer';
-import { RenumberProvider } from './renumber';
+import { CodeActionsProvider } from './providers/codeActions';
+import { ProtoParser } from './core/parser';
+import { SemanticAnalyzer } from './core/analyzer';
+import { RenumberProvider } from './providers/renumber';
 import { Diagnostic, DiagnosticSeverity, Range } from 'vscode-languageserver/node';
 
 describe('CodeActionsProvider Enhanced Features', () => {

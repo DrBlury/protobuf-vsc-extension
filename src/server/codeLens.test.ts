@@ -2,9 +2,9 @@
  * Tests for Code Lens Provider
  */
 
-import { CodeLensProvider } from './codeLens';
-import { ProtoParser } from './parser';
-import { SemanticAnalyzer } from './analyzer';
+import { CodeLensProvider } from './providers/codeLens';
+import { ProtoParser } from './core/parser';
+import { SemanticAnalyzer } from './core/analyzer';
 
 describe('CodeLensProvider', () => {
   let parser: ProtoParser;

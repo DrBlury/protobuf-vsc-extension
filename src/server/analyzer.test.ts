@@ -2,9 +2,9 @@
  * Tests for Semantic Analyzer
  */
 
-import { ProtoParser } from './parser';
-import { SemanticAnalyzer } from './analyzer';
-import { SymbolKind } from './ast';
+import { ProtoParser } from './core/parser';
+import { SemanticAnalyzer } from './core/analyzer';
+import { SymbolKind } from './core/ast';
 
 describe('SemanticAnalyzer', () => {
   let parser: ProtoParser;

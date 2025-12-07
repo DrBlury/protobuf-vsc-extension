@@ -9,6 +9,7 @@ import {
   ServerOptions,
   TransportKind
 } from 'vscode-languageclient/node';
+import { DEBUG_PORT } from '../server/utils/constants';
 
 let client: LanguageClient;
 
@@ -26,7 +27,7 @@ export function createLanguageClient(context: { extensionPath: string }): Langua
       module: serverModule,
       transport: TransportKind.ipc,
       options: {
-        execArgv: ['--nolazy', '--inspect=6009']
+        execArgv: ['--nolazy', `--inspect=${DEBUG_PORT}`]
       }
     }
   };

@@ -3,9 +3,9 @@
  */
 
 import { Location } from 'vscode-languageserver/node';
-import { ProtoParser } from './parser';
-import { SemanticAnalyzer } from './analyzer';
-import { DefinitionProvider } from './definition';
+import { ProtoParser } from './core/parser';
+import { SemanticAnalyzer } from './core/analyzer';
+import { DefinitionProvider } from './providers/definition';
 
 describe('DefinitionProvider', () => {
   let parser: ProtoParser;

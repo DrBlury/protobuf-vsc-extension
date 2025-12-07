@@ -3,9 +3,9 @@
  */
 
 import { Hover, MarkupContent } from 'vscode-languageserver/node';
-import { ProtoParser } from './parser';
-import { SemanticAnalyzer } from './analyzer';
-import { HoverProvider } from './hover';
+import { ProtoParser } from './core/parser';
+import { SemanticAnalyzer } from './core/analyzer';
+import { HoverProvider } from './providers/hover';
 
 describe('HoverProvider', () => {
   let parser: ProtoParser;

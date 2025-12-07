@@ -1,10 +1,10 @@
 /* eslint-env jest */
-import { CodeActionsProvider } from './codeActions';
-import { DiagnosticsProvider } from './diagnostics';
-import { ProtoParser } from './parser';
-import { SemanticAnalyzer } from './analyzer';
-import { RenumberProvider } from './renumber';
-import { GOOGLE_WELL_KNOWN_PROTOS } from './googleWellKnown';
+import { CodeActionsProvider } from './providers/codeActions';
+import { DiagnosticsProvider } from './providers/diagnostics';
+import { ProtoParser } from './core/parser';
+import { SemanticAnalyzer } from './core/analyzer';
+import { RenumberProvider } from './providers/renumber';
+import { GOOGLE_WELL_KNOWN_PROTOS } from './utils/googleWellKnown';
 import { CodeActionKind } from 'vscode-languageserver/node';
 
 describe('CodeActionsProvider missing import quickfix', () => {

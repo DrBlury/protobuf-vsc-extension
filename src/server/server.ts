@@ -24,6 +24,7 @@ import {
   FoldingRangeKind,
   DidChangeConfigurationNotification,
   Diagnostic,
+  DiagnosticSeverity,
   DidChangeWatchedFilesParams,
   FileChangeType,
   RenameParams,
@@ -40,62 +41,77 @@ import { URI } from 'vscode-uri';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
-import { ProtoParser } from './parser';
-import { SemanticAnalyzer } from './analyzer';
-import { DiagnosticsProvider } from './diagnostics';
-import { ProtoFormatter } from './formatter';
-import { CompletionProvider } from './completion';
-import { HoverProvider } from './hover';
-import { DefinitionProvider } from './definition';
-import { ReferencesProvider } from './references';
-import { SymbolProvider } from './symbols';
-import { RenumberProvider } from './renumber';
-import { RenameProvider } from './rename';
-import { CodeActionsProvider } from './codeActions';
-import { ProtocCompiler } from './protoc';
-import { BreakingChangeDetector } from './breaking';
-import { ExternalLinterProvider } from './externalLinter';
-import { ClangFormatProvider } from './clangFormat';
-import { MessageDefinition, EnumDefinition, Range as AstRange } from './ast';
-import { SchemaGraphProvider } from './schemaGraph';
+// Core functionality
+import { ProtoParser } from './core/parser';
+import { SemanticAnalyzer } from './core/analyzer';
+import { MessageDefinition, EnumDefinition, ProtoFile, Range as AstRange } from './core/ast';
+
+// Providers (LSP language features)
+import { DiagnosticsProvider } from './providers/diagnostics';
+import { ProtoFormatter } from './providers/formatter';
+import { CompletionProvider } from './providers/completion';
+import { HoverProvider } from './providers/hover';
+import { DefinitionProvider } from './providers/definition';
+import { ReferencesProvider } from './providers/references';
+import { SymbolProvider } from './providers/symbols';
+import { RenumberProvider } from './providers/renumber';
+import { RenameProvider } from './providers/rename';
+import { CodeActionsProvider } from './providers/codeActions';
+import { SchemaGraphProvider } from './providers/schemaGraph';
+import { CodeLensProvider } from './providers/codeLens';
+import { DocumentLinksProvider } from './providers/documentLinks';
+
+// Services (external tools and integrations)
+import { ProtocCompiler } from './services/protoc';
+import { BreakingChangeDetector } from './services/breaking';
+import { ExternalLinterProvider } from './services/externalLinter';
+import { ClangFormatProvider } from './services/clangFormat';
+import { bufConfigProvider } from './services/bufConfig';
+
+// Utilities
+import { logger, LogLevel } from './utils/logger';
+import {
+  PROTOC_INCLUDE_PATHS,
+  GOOGLE_WELL_KNOWN_TEST_FILE,
+  REQUEST_METHODS,
+  DIAGNOSTIC_SOURCE,
+  SERVER_IDS,
+  ERROR_CODES,
+  TIMING,
+  DEFAULT_POSITIONS
+} from './utils/constants';
+import { normalizePath, getErrorMessage } from './utils/utils';
+import { Settings, defaultSettings } from './utils/types';
+import { GOOGLE_WELL_KNOWN_FILES, GOOGLE_WELL_KNOWN_PROTOS } from './utils/googleWellKnown';
+import { scanWorkspaceForProtoFiles } from './utils/workspace';
+import { updateProvidersWithSettings } from './utils/configManager';
+import { debounce } from './utils/debounce';
+import { ContentHashCache, simpleHash } from './utils/cache';
+import { ProviderRegistry } from './utils/providerRegistry';
+import { refreshDocumentAndImports } from './utils/documentRefresh';
+import { handleCompletion, handleHover } from './handlers';
+
+// Shared types
 import { SchemaGraphRequest } from '../shared/schemaGraph';
-import { GOOGLE_WELL_KNOWN_FILES, GOOGLE_WELL_KNOWN_PROTOS } from './googleWellKnown';
-import { CodeLensProvider } from './codeLens';
-import { DocumentLinksProvider } from './documentLinks';
 
 // Create connection and document manager
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
 
+// Initialize logger - will be updated when settings are loaded
+logger.initialize(connection, LogLevel.INFO, false);
+
 // Capture unexpected errors so the server doesn't silently die
 process.on('uncaughtException', err => {
-  connection.console.error(`uncaughtException: ${err instanceof Error ? err.stack || err.message : String(err)}`);
+  logger.errorWithContext('Uncaught exception', { error: err });
 });
 
 process.on('unhandledRejection', reason => {
-  connection.console.error(`unhandledRejection: ${reason instanceof Error ? reason.stack || reason.message : String(reason)}`);
+  logger.errorWithContext('Unhandled rejection', { error: reason });
 });
 
-// Create service instances
-const parser = new ProtoParser();
-const analyzer = new SemanticAnalyzer();
-const diagnosticsProvider = new DiagnosticsProvider(analyzer);
-const formatter = new ProtoFormatter();
-const completionProvider = new CompletionProvider(analyzer);
-const hoverProvider = new HoverProvider(analyzer);
-const definitionProvider = new DefinitionProvider(analyzer);
-const referencesProvider = new ReferencesProvider(analyzer);
-const symbolProvider = new SymbolProvider(analyzer);
-const renumberProvider = new RenumberProvider(parser);
-const renameProvider = new RenameProvider(analyzer);
-const codeActionsProvider = new CodeActionsProvider(analyzer, renumberProvider);
-const protocCompiler = new ProtocCompiler();
-const breakingChangeDetector = new BreakingChangeDetector();
-const externalLinter = new ExternalLinterProvider();
-const clangFormat = new ClangFormatProvider();
-const schemaGraphProvider = new SchemaGraphProvider(analyzer);
-const codeLensProvider = new CodeLensProvider(analyzer);
-const documentLinksProvider = new DocumentLinksProvider(analyzer);
+// Create provider registry (manages all providers and their lifecycle)
+const providers = new ProviderRegistry();
 
 // Configuration
 let hasConfigurationCapability = false;
@@ -108,159 +124,15 @@ const wellKnownIncludePath = discoverWellKnownIncludePath();
 // Initialization options from client will set wellKnownCacheDir later; we still
 // seed import paths with discovered include early.
 if (wellKnownIncludePath) {
-  analyzer.setImportPaths([wellKnownIncludePath]);
+  providers.analyzer.setImportPaths([wellKnownIncludePath]);
 }
 
-interface Settings {
-  protobuf: {
-    formatterEnabled: boolean;
-    formatOnSave: boolean;
-    indentSize: number;
-    useTabIndent: boolean;
-    maxLineLength: number;
-    includes: string[];
-    renumber: {
-      startNumber: number;
-      increment: number;
-      preserveReserved: boolean;
-      skipInternalRange: boolean;
-      autoSuggestNext: boolean;
-      onFormat: boolean;
-    };
-    diagnostics: {
-      enabled: boolean;
-      namingConventions: boolean;
-      referenceChecks: boolean;
-      importChecks: boolean;
-      fieldTagChecks: boolean;
-      duplicateFieldChecks: boolean;
-      discouragedConstructs: boolean;
-      deprecatedUsage: boolean;
-      unusedSymbols: boolean;
-      circularDependencies: boolean;
-      severity: {
-        namingConventions: string;
-        referenceErrors: string;
-        fieldTagIssues: string;
-        discouragedConstructs: string;
-      };
-    };
-    completion: {
-      autoImport: boolean;
-      includeGoogleTypes: boolean;
-    };
-    hover: {
-      showFieldNumbers: boolean;
-      showDocumentation: boolean;
-    };
-    // New settings
-    protoc: {
-      path: string;
-      compileOnSave: boolean;
-      compileAllPath: string;
-      useAbsolutePath: boolean;
-      options: string[];
-    };
-    breaking: {
-      enabled: boolean;
-      againstStrategy: string;
-      againstGitRef: string;
-      againstFilePath: string;
-    };
-    externalLinter: {
-      enabled: boolean;
-      linter: string;
-      bufPath: string;
-      protolintPath: string;
-      bufConfigPath: string;
-      protolintConfigPath: string;
-      runOnSave: boolean;
-    };
-    clangFormat: {
-      enabled: boolean;
-      path: string;
-      style: string;
-      fallbackStyle: string;
-    };
-  };
-}
-
-const defaultSettings: Settings = {
-  protobuf: {
-    formatterEnabled: true,
-    formatOnSave: false,
-    indentSize: 2,
-    useTabIndent: false,
-    maxLineLength: 120,
-    includes: [],
-    renumber: {
-      startNumber: 1,
-      increment: 1,
-      preserveReserved: true,
-      skipInternalRange: true,
-      autoSuggestNext: true,
-      onFormat: true
-    },
-    diagnostics: {
-      enabled: true,
-      namingConventions: true,
-      referenceChecks: true,
-      importChecks: true,
-      fieldTagChecks: true,
-      duplicateFieldChecks: true,
-      discouragedConstructs: true,
-      deprecatedUsage: true,
-      unusedSymbols: false,
-      circularDependencies: true,
-      severity: {
-        namingConventions: 'warning',
-        referenceErrors: 'error',
-        fieldTagIssues: 'error',
-        discouragedConstructs: 'warning'
-      }
-    },
-    completion: {
-      autoImport: true,
-      includeGoogleTypes: true
-    },
-    hover: {
-      showFieldNumbers: true,
-      showDocumentation: true
-    },
-    // New default settings
-    protoc: {
-      path: 'protoc',
-      compileOnSave: false,
-      compileAllPath: '',
-      useAbsolutePath: false,
-      options: []
-    },
-    breaking: {
-      enabled: false,
-      againstStrategy: 'git',
-      againstGitRef: 'HEAD~1',
-      againstFilePath: ''
-    },
-    externalLinter: {
-      enabled: false,
-      linter: 'none',
-      bufPath: 'buf',
-      protolintPath: 'protolint',
-      bufConfigPath: '',
-      protolintConfigPath: '',
-      runOnSave: true
-    },
-    clangFormat: {
-      enabled: false,
-      path: 'clang-format',
-      style: 'Google',
-      fallbackStyle: 'Google'
-    }
-  }
-};
 
 let globalSettings: Settings = defaultSettings;
 let workspaceFolders: string[] = [];
+
+// Cache for parsed files to avoid re-parsing unchanged content
+const parsedFileCache = new ContentHashCache<ProtoFile>();
 
 connection.onInitialize((params: InitializeParams): InitializeResult => {
   const capabilities = params.capabilities;
@@ -275,20 +147,17 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
 
   // Store workspace folders for scanning
   if (params.workspaceFolders) {
-    workspaceFolders = params.workspaceFolders.map((folder: { uri: string; name: string }) => URI.parse(folder.uri).fsPath);
+    workspaceFolders = params.workspaceFolders.map((folder: { uri: string; name: string }) =>
+      normalizePath(URI.parse(folder.uri).fsPath)
+    );
   } else if (params.rootUri) {
-    workspaceFolders = [URI.parse(params.rootUri).fsPath];
+    workspaceFolders = [normalizePath(URI.parse(params.rootUri).fsPath)];
   } else if (params.rootPath) {
-    workspaceFolders = [params.rootPath];
+    workspaceFolders = [normalizePath(params.rootPath)];
   }
 
-  // Set workspace root for new providers
-  if (workspaceFolders.length > 0) {
-    protocCompiler.setWorkspaceRoot(workspaceFolders[0]);
-    breakingChangeDetector.setWorkspaceRoot(workspaceFolders[0]);
-    externalLinter.setWorkspaceRoot(workspaceFolders[0]);
-    analyzer.setWorkspaceRoots(workspaceFolders);
-  }
+  // Set workspace roots for providers
+  providers.setWorkspaceRoots(workspaceFolders);
 
   // If cache dir is available, add it to import paths so built-in files can be resolved
   const importPaths: string[] = [];
@@ -299,12 +168,12 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
     importPaths.push(wellKnownCacheDir);
   }
   if (importPaths.length > 0) {
-    analyzer.setImportPaths(importPaths);
+    providers.analyzer.setImportPaths(importPaths);
   }
 
   // Preload Google well-known protos after we know cache/include paths so
   // go-to-definition uses real file URIs where possible.
-  preloadGoogleWellKnownProtos(wellKnownIncludePath);
+  preloadGoogleWellKnownProtos(wellKnownIncludePath, providers.parser, providers.analyzer);
 
   return {
     capabilities: {
@@ -344,7 +213,7 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
 });
 
 connection.onExit(() => {
-  connection.console.error('Language server process exiting');
+  logger.info('Language server process exiting');
 });
 
 connection.onInitialized(() => {
@@ -353,61 +222,20 @@ connection.onInitialized(() => {
   }
 
   // Scan workspace for proto files on initialization
-  scanWorkspaceForProtoFiles();
+  scanWorkspaceForProtoFiles(workspaceFolders, providers.parser, providers.analyzer);
 });
 
-/**
- * Recursively find all .proto files in a directory
- */
-function findProtoFiles(dir: string, files: string[] = []): string[] {
-  try {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        // Skip node_modules and hidden directories
-        if (!entry.name.startsWith('.') && entry.name !== 'node_modules') {
-          findProtoFiles(fullPath, files);
-        }
-      } else if (entry.isFile() && entry.name.endsWith('.proto')) {
-        files.push(fullPath);
-      }
-    }
-  } catch (_e) {
-    // Ignore permission errors
-  }
-  return files;
-}
-
-/**
- * Scan workspace folders for proto files and parse them
- */
-function scanWorkspaceForProtoFiles(): void {
-  for (const folder of workspaceFolders) {
-    const protoFiles = findProtoFiles(folder);
-    for (const filePath of protoFiles) {
-      try {
-        const content = fs.readFileSync(filePath, 'utf-8');
-        const uri = URI.file(filePath).toString();
-        const file = parser.parse(content, uri);
-        analyzer.updateFile(uri, file);
-      } catch (e) {
-        // Ignore parse errors during initial scan
-        connection.console.error(`Failed to parse ${filePath}: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    }
-  }
-
-  // Refresh proto root hints after full scan
-  analyzer.detectProtoRoots();
-}
 
 /**
  * Add minimal built-in definitions for Google well-known protos.
  * This avoids "Unknown type google.protobuf.*" when users import them
  * without having the source files in their workspace.
  */
-function preloadGoogleWellKnownProtos(discoveredIncludePath?: string): void {
+function preloadGoogleWellKnownProtos(
+  discoveredIncludePath: string | undefined,
+  parser: ProtoParser,
+  analyzer: SemanticAnalyzer
+): void {
   const resourcesRoot = path.join(__dirname, '..', '..', 'resources');
 
   for (const [importPath, fallbackContent] of Object.entries(GOOGLE_WELL_KNOWN_PROTOS)) {
@@ -435,9 +263,10 @@ function preloadGoogleWellKnownProtos(discoveredIncludePath?: string): void {
         filePath = fromCache;
         content = fallbackContent;
       } catch (e) {
-        connection.console.error(
-          `Failed to write well-known cache ${fromCache}: ${e instanceof Error ? e.message : String(e)}`
-        );
+        logger.errorWithContext('Failed to write well-known cache', {
+          uri: fromCache,
+          error: e
+        });
       }
     }
 
@@ -446,12 +275,13 @@ function preloadGoogleWellKnownProtos(discoveredIncludePath?: string): void {
       : `builtin:///${importPath}`;
 
     try {
-      const file = parser.parse(content, uri);
-      analyzer.updateFile(uri, file);
+        const file = providers.parser.parse(content, uri);
+        providers.analyzer.updateFile(uri, file);
     } catch (e) {
-      connection.console.error(
-        `Failed to preload ${importPath}: ${e instanceof Error ? e.message : String(e)}`
-      );
+      logger.errorWithContext('Failed to preload well-known proto', {
+        uri: importPath,
+        error: e
+      });
     }
   }
 }
@@ -467,21 +297,15 @@ function discoverWellKnownIncludePath(): string | undefined {
     candidates.push(...process.env.PROTOC_INCLUDE.split(path.delimiter));
   }
 
-  candidates.push(
-    '/usr/local/include',
-    '/opt/homebrew/include',
-    '/usr/include',
-    'C:/Program Files/protobuf/include',
-    'C:/Program Files (x86)/protobuf/include',
-    'C:/ProgramData/chocolatey/lib/protobuf/tools/include'
-  );
+  candidates.push(...PROTOC_INCLUDE_PATHS);
 
   for (const base of candidates) {
     if (!base) {
       continue;
     }
-    const testPath = path.join(base, 'google', 'protobuf', 'timestamp.proto');
+    const testPath = path.join(base, GOOGLE_WELL_KNOWN_TEST_FILE);
     if (fs.existsSync(testPath)) {
+      logger.debug(`Discovered protoc include path: ${base}`);
       return base;
     }
   }
@@ -495,16 +319,34 @@ connection.onDidChangeWatchedFiles((params: DidChangeWatchedFilesParams) => {
     const uri = change.uri;
     if (uri.endsWith('.proto')) {
       if (change.type === FileChangeType.Deleted) {
-        analyzer.removeFile(uri);
+        providers.analyzer.removeFile(uri);
+        parsedFileCache.delete(uri);
+        logger.verboseWithContext('File deleted, removed from cache and analyzer', { uri });
       } else {
         // File created or changed - try to read and parse it
         try {
           const filePath = URI.parse(uri).fsPath;
           const content = fs.readFileSync(filePath, 'utf-8');
-          const file = parser.parse(content, uri);
-          analyzer.updateFile(uri, file);
-        } catch (_e) {
-          // Ignore errors
+          const contentHash = simpleHash(content);
+
+          // Check cache first
+          const cachedFile = parsedFileCache.get(uri, contentHash);
+          if (!cachedFile) {
+            const file = providers.parser.parse(content, uri);
+            parsedFileCache.set(uri, file, contentHash);
+            providers.analyzer.updateFile(uri, file);
+            logger.verboseWithContext('File changed, parsed and cached', { uri });
+          } else {
+            providers.analyzer.updateFile(uri, cachedFile);
+            logger.verboseWithContext('File changed but content unchanged, using cache', { uri });
+          }
+        } catch (error) {
+          // Clear cache on error
+          parsedFileCache.delete(uri);
+          logger.verboseWithContext('Failed to parse watched file change', {
+            uri,
+            error
+          });
         }
       }
     }
@@ -516,92 +358,34 @@ connection.onDidChangeConfiguration((change: { settings: typeof globalSettings }
     // Update settings
     globalSettings = change.settings || defaultSettings;
 
-    // Update providers with new settings
-    const diag = globalSettings.protobuf.diagnostics;
-    diagnosticsProvider.updateSettings({
-      namingConventions: diag.namingConventions,
-      referenceChecks: diag.referenceChecks,
-      importChecks: diag.importChecks,
-      fieldTagChecks: diag.fieldTagChecks,
-      duplicateFieldChecks: diag.duplicateFieldChecks,
-      discouragedConstructs: diag.discouragedConstructs,
-      deprecatedUsage: diag.deprecatedUsage ?? true,
-      unusedSymbols: diag.unusedSymbols ?? false,
-      circularDependencies: diag.circularDependencies ?? true
-    });
-
-    formatter.updateSettings({
-      indentSize: globalSettings.protobuf.indentSize,
-      useTabIndent: globalSettings.protobuf.useTabIndent,
-      maxLineLength: globalSettings.protobuf.maxLineLength,
-      renumberOnFormat: globalSettings.protobuf.renumber.onFormat,
-      renumberStartNumber: globalSettings.protobuf.renumber.startNumber,
-      renumberIncrement: globalSettings.protobuf.renumber.increment
-    });
-
-    const renumberSettings = globalSettings.protobuf.renumber;
-    renumberProvider.updateSettings({
-      startNumber: renumberSettings.startNumber,
-      increment: renumberSettings.increment,
-      preserveReserved: renumberSettings.preserveReserved,
-      skipReservedRange: renumberSettings.skipInternalRange
-    });
-
-    // Update analyzer with import paths
-    const includePaths = [...(globalSettings.protobuf.includes || [])];
-    if (wellKnownIncludePath && !includePaths.includes(wellKnownIncludePath)) {
-      includePaths.push(wellKnownIncludePath);
-    }
-    if (wellKnownCacheDir && !includePaths.includes(wellKnownCacheDir)) {
-      includePaths.push(wellKnownCacheDir);
-    }
-    analyzer.setImportPaths(includePaths);
-
-    // Update new providers
-    const protocSettings = globalSettings.protobuf.protoc;
-    protocCompiler.updateSettings({
-      path: protocSettings.path,
-      compileOnSave: protocSettings.compileOnSave,
-      compileAllPath: protocSettings.compileAllPath,
-      useAbsolutePath: protocSettings.useAbsolutePath,
-      options: protocSettings.options
-    });
-
-    const breakingSettings = globalSettings.protobuf.breaking;
-    breakingChangeDetector.updateSettings({
-      enabled: breakingSettings.enabled,
-      againstStrategy: breakingSettings.againstStrategy as 'git' | 'file' | 'none',
-      againstGitRef: breakingSettings.againstGitRef,
-      againstFilePath: breakingSettings.againstFilePath
-    });
-
-    const linterSettings = globalSettings.protobuf.externalLinter;
-    externalLinter.updateSettings({
-      enabled: linterSettings.enabled,
-      linter: linterSettings.linter as 'buf' | 'protolint' | 'none',
-      bufPath: linterSettings.bufPath,
-      protolintPath: linterSettings.protolintPath,
-      bufConfigPath: linterSettings.bufConfigPath,
-      protolintConfigPath: linterSettings.protolintConfigPath,
-      runOnSave: linterSettings.runOnSave
-    });
-
-    const clangSettings = globalSettings.protobuf.clangFormat;
-    clangFormat.updateSettings({
-      enabled: clangSettings.enabled,
-      path: clangSettings.path,
-      style: clangSettings.style,
-      fallbackStyle: clangSettings.fallbackStyle
-    });
+    // Update all providers with new settings using config manager
+    updateProvidersWithSettings(
+      globalSettings,
+      providers.diagnostics,
+      providers.formatter,
+      providers.renumber,
+      providers.analyzer,
+      providers.protoc,
+      providers.breaking,
+      providers.externalLinter,
+      providers.clangFormat,
+      wellKnownIncludePath,
+      wellKnownCacheDir
+    );
   }
 
   // Revalidate all documents
   documents.all().forEach(validateDocument);
 });
 
+// Debounced validation to avoid excessive computation on rapid edits
+const debouncedValidate = debounce<[TextDocument]>((document: TextDocument) => {
+  validateDocument(document);
+}, TIMING.VALIDATION_DEBOUNCE_MS);
+
 // Document events
 documents.onDidChangeContent((change: { document: TextDocument }) => {
-  validateDocument(change.document);
+  debouncedValidate(change.document);
 });
 
 documents.onDidClose((event: { document: TextDocument }) => {
@@ -612,29 +396,58 @@ documents.onDidClose((event: { document: TextDocument }) => {
 async function validateDocument(document: TextDocument): Promise<void> {
   const text = document.getText();
   const uri = document.uri;
+  const startTime = Date.now();
 
   try {
-    // Parse the document
-    const file = parser.parse(text, uri);
+    // Check cache first
+    const contentHash = simpleHash(text);
+    const cachedFile = parsedFileCache.get(uri, contentHash);
 
-    // Update analyzer
-    analyzer.updateFile(uri, file);
+    let file: ProtoFile;
+    if (!cachedFile) {
+      // Cache miss - parse the document
+      logger.verboseWithContext('Cache miss, parsing document', { uri });
+      file = providers.parser.parse(text, uri);
+      parsedFileCache.set(uri, file, contentHash);
+    } else {
+      file = cachedFile;
+      logger.verboseWithContext('Using cached parse result', { uri });
+    }
+
+    // Update analyzer (always needed for symbol resolution)
+    providers.analyzer.updateFile(uri, file);
 
     // Run diagnostics
-    const diagnostics = diagnosticsProvider.validate(uri, file, text);
+    const diagnostics = providers.diagnostics.validate(uri, file, text);
+
+    const duration = Date.now() - startTime;
+    logger.verboseWithContext('Document validation complete', {
+      uri,
+      diagnosticsCount: diagnostics.length,
+      duration
+    });
 
     connection.sendDiagnostics({ uri, diagnostics });
   } catch (error) {
+    // Clear cache entry on parse error
+    parsedFileCache.delete(uri);
+
     // Send parse error as diagnostic
     const diagnostics: Diagnostic[] = [{
-      severity: 1, // Error
+      severity: DiagnosticSeverity.Error,
       range: {
-        start: { line: 0, character: 0 },
-        end: { line: 0, character: 1 }
+        start: { line: DEFAULT_POSITIONS.ERROR_START_LINE, character: DEFAULT_POSITIONS.ERROR_START_CHAR },
+        end: { line: DEFAULT_POSITIONS.ERROR_START_LINE, character: DEFAULT_POSITIONS.ERROR_END_CHAR }
       },
-      message: `Parse error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      source: 'protobuf'
+      message: `Parse error: ${getErrorMessage(error)}`,
+      source: DIAGNOSTIC_SOURCE,
+      code: ERROR_CODES.PARSE_ERROR
     }];
+
+    logger.errorWithContext('Document validation failed', {
+      uri,
+      error
+    });
 
     connection.sendDiagnostics({ uri, diagnostics });
   }
@@ -642,39 +455,12 @@ async function validateDocument(document: TextDocument): Promise<void> {
 
 // Completion
 connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] => {
-  const document = documents.get(params.textDocument.uri);
-  if (!document) {
-    return [];
-  }
-
-  const documentText = document.getText();
-  const lines = documentText.split('\n');
-  const lineText = lines[params.position.line] || '';
-
-  return completionProvider.getCompletions(
-    params.textDocument.uri,
-    params.position,
-    lineText,
-    undefined,
-    documentText
-  );
+  return handleCompletion(params, documents, providers.completion);
 });
 
 // Hover
 connection.onHover((params: HoverParams) => {
-  const document = documents.get(params.textDocument.uri);
-  if (!document) {
-    return null;
-  }
-
-  const lines = document.getText().split('\n');
-  const lineText = lines[params.position.line] || '';
-
-  return hoverProvider.getHover(
-    params.textDocument.uri,
-    params.position,
-    lineText
-  );
+  return handleHover(params, documents, providers.hover);
 });
 
 // Definition
@@ -688,38 +474,23 @@ connection.onDefinition((params: DefinitionParams) => {
     const lines = document.getText().split('\n');
     const lineText = lines[params.position.line] || '';
 
-    const word = extractWord(lineText, params.position.character);
+    const identifier = extractIdentifierAtPosition(lineText, params.position.character);
 
     // Refresh analyzer state for this document and its open imports to avoid stale symbols
-    const touchedUris: string[] = [];
-    try {
-      const parsed = parser.parse(document.getText(), params.textDocument.uri);
-      analyzer.updateFile(params.textDocument.uri, parsed);
-      touchedUris.push(params.textDocument.uri);
-
-      const imports = analyzer.getImportedFileUris(params.textDocument.uri);
-      for (const importUri of imports) {
-        const importedDoc = documents.get(importUri);
-        if (importedDoc) {
-          try {
-            const importedParsed = parser.parse(importedDoc.getText(), importUri);
-            analyzer.updateFile(importUri, importedParsed);
-            touchedUris.push(importUri);
-          } catch (importParseErr) {
-            connection.console.error(`definition import parse failed for ${importUri}: ${importParseErr instanceof Error ? importParseErr.message : String(importParseErr)}`);
-          }
-        }
-      }
-    } catch (parseErr) {
-      connection.console.error(`definition parse failed: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
-    }
-
-    // Log incoming definition request for diagnostics
-    connection.console.log(
-      `definition request uri=${params.textDocument.uri} line=${params.position.line} char=${params.position.character} word=${word || '<none>'} text="${lineText.trim()}"`
+    const touchedUris = refreshDocumentAndImports(
+      params.textDocument.uri,
+      documents,
+      providers.parser,
+      providers.analyzer,
+      parsedFileCache
     );
 
-    const result = definitionProvider.getDefinition(
+    // Log incoming definition request for diagnostics
+    logger.debug(
+      `Definition request: uri=${params.textDocument.uri} line=${params.position.line} char=${params.position.character} identifier=${identifier || '<none>'}`
+    );
+
+    const result = providers.definition.getDefinition(
       params.textDocument.uri,
       params.position,
       lineText
@@ -728,42 +499,58 @@ connection.onDefinition((params: DefinitionParams) => {
     if (result) {
       const locations = Array.isArray(result) ? result : [result];
       for (const loc of locations) {
-        connection.console.log(`definition resolved -> ${loc.uri}:${loc.range.start.line}:${loc.range.start.character}`);
+        logger.debug(`Definition resolved: ${loc.uri}:${loc.range.start.line}:${loc.range.start.character}`);
       }
     } else {
-      connection.console.log(`definition resolved -> null (symbols=${analyzer.getAllSymbols().length}, touched=${touchedUris.length})`);
+        logger.debug(`Definition resolved: null (symbols=${providers.analyzer.getAllSymbols().length}, touched=${touchedUris.length})`);
     }
     return result;
   } catch (error) {
-    connection.console.error(`Definition handler failed: ${error instanceof Error ? error.stack || error.message : String(error)}`);
+    logger.errorWithContext('Definition handler failed', {
+      uri: params.textDocument.uri,
+      position: params.position,
+      error
+    });
     return null;
   }
 });
 
-function extractWord(line: string, character: number): string | null {
-  const isIdentChar = (ch: string) => /[a-zA-Z0-9_.]/.test(ch) || ch === '_';
+/**
+ * Extracts an identifier (word) at the given character position in a line.
+ * Handles protobuf identifiers which may contain letters, numbers, underscores, and dots.
+ *
+ * @param line - The line of text to search in
+ * @param character - The character position to extract the identifier from
+ * @returns The extracted identifier, or null if no identifier is found at the position
+ */
+function extractIdentifierAtPosition(line: string, character: number): string | null {
+  const isIdentifierChar = (ch: string): boolean => /[a-zA-Z0-9_.]/.test(ch) || ch === '_';
 
-  let start = character;
-  let end = character;
+  let startIndex = character;
+  let endIndex = character;
 
-  if (start > 0 && !isIdentChar(line[start]) && isIdentChar(line[start - 1])) {
-    start -= 1;
-    end = start;
+  // If cursor is at a non-identifier character but immediately after one, move back
+  if (startIndex > 0 && !isIdentifierChar(line[startIndex]) && isIdentifierChar(line[startIndex - 1])) {
+    startIndex -= 1;
+    endIndex = startIndex;
   }
 
-  while (start > 0 && isIdentChar(line[start - 1])) {
-    start--;
+  // Expand backwards to find the start of the identifier
+  while (startIndex > 0 && isIdentifierChar(line[startIndex - 1])) {
+    startIndex--;
   }
 
-  while (end < line.length && isIdentChar(line[end])) {
-    end++;
+  // Expand forwards to find the end of the identifier
+  while (endIndex < line.length && isIdentifierChar(line[endIndex])) {
+    endIndex++;
   }
 
-  if (start === end) {
+  if (startIndex === endIndex) {
     return null;
   }
 
-  return line.substring(start, end).replace(/\.+$/g, '');
+  // Remove trailing dots (handles cases like "package.Type.")
+  return line.substring(startIndex, endIndex).replace(/\.+$/g, '');
 }
 
 // References
@@ -776,7 +563,7 @@ connection.onReferences((params: ReferenceParams) => {
   const lines = document.getText().split('\n');
   const lineText = lines[params.position.line] || '';
 
-  return referencesProvider.findReferences(
+  return providers.references.findReferences(
     params.textDocument.uri,
     params.position,
     lineText,
@@ -786,12 +573,12 @@ connection.onReferences((params: ReferenceParams) => {
 
 // Document Symbols
 connection.onDocumentSymbol((params: DocumentSymbolParams) => {
-  return symbolProvider.getDocumentSymbols(params.textDocument.uri);
+  return providers.symbols.getDocumentSymbols(params.textDocument.uri);
 });
 
 // Workspace Symbols
 connection.onWorkspaceSymbol((params: WorkspaceSymbolParams) => {
-  return symbolProvider.getWorkspaceSymbols(params.query);
+  return providers.symbols.getWorkspaceSymbols(params.query);
 });
 
 // Code Lens
@@ -802,8 +589,8 @@ connection.onCodeLens((params) => {
   }
 
   try {
-    const file = parser.parse(document.getText(), params.textDocument.uri);
-    return codeLensProvider.getCodeLenses(params.textDocument.uri, file);
+    const file = providers.parser.parse(document.getText(), params.textDocument.uri);
+    return providers.codeLens.getCodeLenses(params.textDocument.uri, file);
   } catch (_e) {
     return [];
   }
@@ -817,8 +604,8 @@ connection.onDocumentLinks((params) => {
   }
 
   try {
-    const file = parser.parse(document.getText(), params.textDocument.uri);
-    return documentLinksProvider.getDocumentLinks(params.textDocument.uri, file);
+    const file = providers.parser.parse(document.getText(), params.textDocument.uri);
+    return providers.documentLinks.getDocumentLinks(params.textDocument.uri, file);
   } catch (_e) {
     return [];
   }
@@ -835,7 +622,7 @@ connection.onDocumentFormatting((params: DocumentFormattingParams) => {
     return [];
   }
 
-  return formatter.formatDocument(document.getText());
+  return providers.formatter.formatDocument(document.getText());
 });
 
 connection.onDocumentRangeFormatting((params: DocumentRangeFormattingParams) => {
@@ -848,7 +635,7 @@ connection.onDocumentRangeFormatting((params: DocumentRangeFormattingParams) => 
     return [];
   }
 
-  return formatter.formatRange(document.getText(), params.range);
+  return providers.formatter.formatRange(document.getText(), params.range);
 });
 
 // Folding Ranges
@@ -863,38 +650,38 @@ connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
   const ranges: FoldingRange[] = [];
   const stack: { start: number; isComment: boolean }[] = [];
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex];
     const trimmed = line.trim();
 
     // Multi-line comment start
     if (trimmed.startsWith('/*') && !trimmed.includes('*/')) {
-      stack.push({ start: i, isComment: true });
+      stack.push({ start: lineIndex, isComment: true });
     }
 
     // Multi-line comment end
     if (trimmed.includes('*/') && stack.length > 0 && stack[stack.length - 1].isComment) {
-      const start = stack.pop()!;
+      const startInfo = stack.pop()!;
       ranges.push({
-        startLine: start.start,
-        endLine: i,
+        startLine: startInfo.start,
+        endLine: lineIndex,
         kind: FoldingRangeKind.Comment
       });
     }
 
     // Block start
     if (trimmed.includes('{') && !trimmed.startsWith('//')) {
-      stack.push({ start: i, isComment: false });
+      stack.push({ start: lineIndex, isComment: false });
     }
 
     // Block end
     if (trimmed.includes('}') && !trimmed.startsWith('//')) {
       if (stack.length > 0 && !stack[stack.length - 1].isComment) {
-        const start = stack.pop()!;
-        if (i > start.start) {
+        const startInfo = stack.pop()!;
+        if (lineIndex > startInfo.start) {
           ranges.push({
-            startLine: start.start,
-            endLine: i,
+            startLine: startInfo.start,
+            endLine: lineIndex,
             kind: FoldingRangeKind.Region
           });
         }
@@ -906,89 +693,83 @@ connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
 });
 
 // Schema graph
-connection.onRequest('protobuf/getSchemaGraph', (params: SchemaGraphRequest) => {
+connection.onRequest(REQUEST_METHODS.GET_SCHEMA_GRAPH, (params: SchemaGraphRequest) => {
+  const startTime = Date.now();
+
   // Refresh analyzer state for current document and its open imports to avoid empty graphs
   if (params.uri) {
-    const doc = documents.get(params.uri);
-    if (doc) {
-      try {
-        const parsed = parser.parse(doc.getText(), params.uri);
-        analyzer.updateFile(params.uri, parsed);
-      } catch (e) {
-        connection.console.error(`schema graph parse failed for ${params.uri}: ${e instanceof Error ? e.message : String(e)}`);
-      }
-
-      // Refresh any open imported docs as well
-      const importedUris = analyzer.getImportedFileUris(params.uri);
-      for (const importedUri of importedUris) {
-        const importedDoc = documents.get(importedUri);
-        if (!importedDoc) {
-          continue;
-        }
-        try {
-          const importedParsed = parser.parse(importedDoc.getText(), importedUri);
-          analyzer.updateFile(importedUri, importedParsed);
-        } catch (importErr) {
-          connection.console.error(`schema graph import parse failed for ${importedUri}: ${importErr instanceof Error ? importErr.message : String(importErr)}`);
-        }
-      }
-    }
+    refreshDocumentAndImports(
+      params.uri,
+      documents,
+      providers.parser,
+      providers.analyzer,
+      parsedFileCache
+    );
   }
 
-  const graph = schemaGraphProvider.buildGraph(params);
-  connection.console.log(`schema-graph scope=${graph.scope} uri=${params.uri || '<none>'} nodes=${graph.nodes.length} edges=${graph.edges.length}`);
+  const graph = providers.schemaGraph.buildGraph(params);
+  const duration = Date.now() - startTime;
+
+  logger.verboseWithContext('Schema graph built', {
+    scope: graph.scope,
+    uri: params.uri || '<none>',
+    nodeCount: graph.nodes.length,
+    edgeCount: graph.edges.length,
+    duration
+  });
+
   return graph;
 });
 
 // List imports with resolution status
-connection.onRequest('protobuf/listImports', (params: { uri: string }) => {
-  return analyzer.getImportsWithResolutions(params.uri);
+connection.onRequest(REQUEST_METHODS.LIST_IMPORTS, (params: { uri: string }) => {
+  return providers.analyzer.getImportsWithResolutions(params.uri);
 });
 
 // Custom request handlers for renumbering
-connection.onRequest('protobuf/renumberDocument', (params: { uri: string }) => {
+connection.onRequest(REQUEST_METHODS.RENUMBER_DOCUMENT, (params: { uri: string }) => {
   const document = documents.get(params.uri);
   if (!document) {
     return [];
   }
 
-  return renumberProvider.renumberDocument(document.getText(), params.uri);
+  return providers.renumber.renumberDocument(document.getText(), params.uri);
 });
 
-connection.onRequest('protobuf/renumberMessage', (params: { uri: string; messageName: string }) => {
+connection.onRequest(REQUEST_METHODS.RENUMBER_MESSAGE, (params: { uri: string; messageName: string }) => {
   const document = documents.get(params.uri);
   if (!document) {
     return [];
   }
 
-  return renumberProvider.renumberMessage(document.getText(), params.uri, params.messageName);
+  return providers.renumber.renumberMessage(document.getText(), params.uri, params.messageName);
 });
 
-connection.onRequest('protobuf/renumberFromPosition', (params: { uri: string; position: { line: number; character: number } }) => {
+connection.onRequest(REQUEST_METHODS.RENUMBER_FROM_POSITION, (params: { uri: string; position: { line: number; character: number } }) => {
   const document = documents.get(params.uri);
   if (!document) {
     return [];
   }
 
-  return renumberProvider.renumberFromField(document.getText(), params.uri, params.position);
+  return providers.renumber.renumberFromField(document.getText(), params.uri, params.position);
 });
 
-connection.onRequest('protobuf/renumberEnum', (params: { uri: string; enumName: string }) => {
+connection.onRequest(REQUEST_METHODS.RENUMBER_ENUM, (params: { uri: string; enumName: string }) => {
   const document = documents.get(params.uri);
   if (!document) {
     return [];
   }
 
-  return renumberProvider.renumberEnum(document.getText(), params.uri, params.enumName);
+  return providers.renumber.renumberEnum(document.getText(), params.uri, params.enumName);
 });
 
-connection.onRequest('protobuf/getMessages', (params: { uri: string }) => {
+connection.onRequest(REQUEST_METHODS.GET_MESSAGES, (params: { uri: string }) => {
   const document = documents.get(params.uri);
   if (!document) {
     return [];
   }
 
-  const file = parser.parse(document.getText(), params.uri);
+  const file = providers.parser.parse(document.getText(), params.uri);
   const messages: string[] = [];
 
   function collectMessages(msgs: MessageDefinition[], prefix: string = '') {
@@ -1005,18 +786,18 @@ connection.onRequest('protobuf/getMessages', (params: { uri: string }) => {
   return messages;
 });
 
-connection.onRequest('protobuf/getEnums', (params: { uri: string }) => {
+connection.onRequest(REQUEST_METHODS.GET_ENUMS, (params: { uri: string }) => {
   const document = documents.get(params.uri);
   if (!document) {
     return [];
   }
 
-  const file = parser.parse(document.getText(), params.uri);
+  const file = providers.parser.parse(document.getText(), params.uri);
   const enums: string[] = [];
 
   function collectEnums(enumList: EnumDefinition[], prefix: string = '') {
-    for (const e of enumList) {
-      const fullName = prefix ? `${prefix}.${e.name}` : e.name;
+    for (const enumDef of enumList) {
+      const fullName = prefix ? `${prefix}.${enumDef.name}` : enumDef.name;
       enums.push(fullName);
     }
   }
@@ -1038,13 +819,13 @@ connection.onRequest('protobuf/getEnums', (params: { uri: string }) => {
   return enums;
 });
 
-connection.onRequest('protobuf/getMessageAtPosition', (params: { uri: string; position: { line: number; character: number } }) => {
+connection.onRequest(REQUEST_METHODS.GET_MESSAGE_AT_POSITION, (params: { uri: string; position: { line: number; character: number } }) => {
   const document = documents.get(params.uri);
   if (!document) {
     return null;
   }
 
-  const file = parser.parse(document.getText(), params.uri);
+  const file = providers.parser.parse(document.getText(), params.uri);
 
   function findMessageAtPosition(msgs: MessageDefinition[], prefix: string = ''): string | null {
     for (const msg of msgs) {
@@ -1079,13 +860,13 @@ connection.onRequest('protobuf/getMessageAtPosition', (params: { uri: string; po
   return findMessageAtPosition(file.messages);
 });
 
-connection.onRequest('protobuf/getNextFieldNumber', (params: { uri: string; messageName: string }) => {
+connection.onRequest(REQUEST_METHODS.GET_NEXT_FIELD_NUMBER, (params: { uri: string; messageName: string }) => {
   const document = documents.get(params.uri);
   if (!document) {
     return 1;
   }
 
-  return renumberProvider.getNextFieldNumber(document.getText(), params.uri, params.messageName);
+  return providers.renumber.getNextFieldNumber(document.getText(), params.uri, params.messageName);
 });
 
 // Rename - Prepare
@@ -1098,7 +879,7 @@ connection.onPrepareRename((params: PrepareRenameParams) => {
   const lines = document.getText().split('\n');
   const lineText = lines[params.position.line] || '';
 
-  const result = renameProvider.prepareRename(
+  const result = providers.rename.prepareRename(
     params.textDocument.uri,
     params.position,
     lineText
@@ -1128,7 +909,7 @@ connection.onRenameRequest((params: RenameParams) => {
   const lines = document.getText().split('\n');
   const lineText = lines[params.position.line] || '';
 
-  const result = renameProvider.rename(
+  const result = providers.rename.rename(
     params.textDocument.uri,
     params.position,
     lineText,
@@ -1155,7 +936,7 @@ connection.onCodeAction((params: CodeActionParams): CodeAction[] => {
     return [];
   }
 
-  return codeActionsProvider.getCodeActions(
+  return providers.codeActions.getCodeActions(
     params.textDocument.uri,
     params.range,
     params.context,
@@ -1164,74 +945,74 @@ connection.onCodeAction((params: CodeActionParams): CodeAction[] => {
 });
 
 // Custom request handlers for protoc compilation
-connection.onRequest('protobuf/compileFile', async (params: { uri: string }) => {
+connection.onRequest(REQUEST_METHODS.COMPILE_FILE, async (params: { uri: string }) => {
   const document = documents.get(params.uri);
   if (!document) {
     return { success: false, errors: [{ message: 'Document not found' }] };
   }
 
   const filePath = URI.parse(params.uri).fsPath;
-  return await protocCompiler.compileFile(filePath);
+  return await providers.protoc.compileFile(filePath);
 });
 
-connection.onRequest('protobuf/compileAll', async () => {
-  return await protocCompiler.compileAll();
+connection.onRequest(REQUEST_METHODS.COMPILE_ALL, async () => {
+  return await providers.protoc.compileAll();
 });
 
-connection.onRequest('protobuf/validateFile', async (params: { uri: string }) => {
+connection.onRequest(REQUEST_METHODS.VALIDATE_FILE, async (params: { uri: string }) => {
   const filePath = URI.parse(params.uri).fsPath;
-  return await protocCompiler.validate(filePath);
+  return await providers.protoc.validate(filePath);
 });
 
-connection.onRequest('protobuf/isProtocAvailable', async () => {
-  return await protocCompiler.isAvailable();
+connection.onRequest(REQUEST_METHODS.IS_PROTOC_AVAILABLE, async () => {
+  return await providers.protoc.isAvailable();
 });
 
-connection.onRequest('protobuf/getProtocVersion', async () => {
-  return await protocCompiler.getVersion();
+connection.onRequest(REQUEST_METHODS.GET_PROTOC_VERSION, async () => {
+  return await providers.protoc.getVersion();
 });
 
 // Custom request handlers for external linter
-connection.onRequest('protobuf/runExternalLinter', async (params: { uri: string }) => {
+connection.onRequest(REQUEST_METHODS.RUN_EXTERNAL_LINTER, async (params: { uri: string }) => {
   const filePath = URI.parse(params.uri).fsPath;
-  return await externalLinter.lint(filePath);
+  return await providers.externalLinter.lint(filePath);
 });
 
-connection.onRequest('protobuf/runExternalLinterWorkspace', async () => {
-  return await externalLinter.lintWorkspace();
+connection.onRequest(REQUEST_METHODS.RUN_EXTERNAL_LINTER_WORKSPACE, async () => {
+  return await providers.externalLinter.lintWorkspace();
 });
 
-connection.onRequest('protobuf/isExternalLinterAvailable', async () => {
-  return await externalLinter.isAvailable();
+connection.onRequest(REQUEST_METHODS.IS_EXTERNAL_LINTER_AVAILABLE, async () => {
+  return await providers.externalLinter.isAvailable();
 });
 
-connection.onRequest('protobuf/getAvailableLintRules', async () => {
-  return await externalLinter.getAvailableRules();
+connection.onRequest(REQUEST_METHODS.GET_AVAILABLE_LINT_RULES, async () => {
+  return await providers.externalLinter.getAvailableRules();
 });
 
 // Custom request handlers for breaking change detection
-connection.onRequest('protobuf/checkBreakingChanges', async (params: { uri: string }) => {
+connection.onRequest(REQUEST_METHODS.CHECK_BREAKING_CHANGES, async (params: { uri: string }) => {
   const document = documents.get(params.uri);
   if (!document) {
     return [];
   }
 
   const filePath = URI.parse(params.uri).fsPath;
-  const currentFile = parser.parse(document.getText(), params.uri);
+  const currentFile = providers.parser.parse(document.getText(), params.uri);
 
   // Get baseline content from git
-  const baselineContent = await breakingChangeDetector.getBaselineFromGit(filePath);
-  let baselineFile = null;
+  const baselineContent = await providers.breaking.getBaselineFromGit(filePath);
+  let baselineFile: ProtoFile | null = null;
 
   if (baselineContent) {
     try {
-      baselineFile = parser.parse(baselineContent, params.uri);
+      baselineFile = providers.parser.parse(baselineContent, params.uri);
     } catch (_e) {
       // Baseline file might not be valid proto
     }
   }
 
-  return breakingChangeDetector.detectBreakingChanges(currentFile, baselineFile, params.uri);
+  return providers.breaking.detectBreakingChanges(currentFile, baselineFile, params.uri);
 });
 
 // Start listening

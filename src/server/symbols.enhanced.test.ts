@@ -2,9 +2,9 @@
  * Tests for Enhanced Symbol Search
  */
 
-import { SymbolProvider } from './symbols';
-import { ProtoParser } from './parser';
-import { SemanticAnalyzer } from './analyzer';
+import { SymbolProvider } from './providers/symbols';
+import { ProtoParser } from './core/parser';
+import { SemanticAnalyzer } from './core/analyzer';
 
 describe('SymbolProvider Enhanced Features', () => {
   let parser: ProtoParser;

@@ -1,8 +1,8 @@
 /* eslint-env jest */
-import { DiagnosticsProvider } from './diagnostics';
-import { ProtoParser } from './parser';
-import { SemanticAnalyzer } from './analyzer';
-import { GOOGLE_WELL_KNOWN_PROTOS } from './googleWellKnown';
+import { DiagnosticsProvider } from './providers/diagnostics';
+import { ProtoParser } from './core/parser';
+import { SemanticAnalyzer } from './core/analyzer';
+import { GOOGLE_WELL_KNOWN_PROTOS } from './utils/googleWellKnown';
 import { DiagnosticSeverity } from 'vscode-languageserver/node';
 
 describe('DiagnosticsProvider missing imports', () => {

@@ -2,7 +2,7 @@
  * Tests for Buf Configuration Provider
  */
 
-import { BufConfigProvider } from './bufConfig';
+import { BufConfigProvider } from './services/bufConfig';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
