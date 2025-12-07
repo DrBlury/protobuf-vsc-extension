@@ -1029,11 +1029,14 @@ export class ProtoParser {
           group.extensions.push(this.parseExtensions());
           break;
         case 'map':
+          // Note: Maps are proto3, groups are proto2. Parser is permissive.
+          // Diagnostics should flag this as an error if needed.
           group.maps.push(this.parseMapField());
           break;
         case 'optional':
         case 'required':
         case 'repeated':
+          // Groups cannot be nested, so always parse as field
           group.fields.push(this.parseField());
           break;
         default:

@@ -217,6 +217,27 @@ export class DiagnosticsProvider {
     }
   }
 
+  /**
+   * Helper to create a field-like object for duplicate checking.
+   * Maps and groups use field numbers but aren't FieldDefinitions.
+   */
+  private asFieldForDuplicateCheck(item: {
+    name: string;
+    nameRange: Range;
+    number: number;
+    range: Range;
+  }, typeName: string): FieldDefinition {
+    return {
+      type: 'field',
+      name: item.name,
+      nameRange: item.nameRange,
+      number: item.number,
+      range: item.range,
+      fieldType: typeName,
+      fieldTypeRange: item.range
+    } as FieldDefinition;
+  }
+
   private validateMessage(
     uri: string,
     message: MessageDefinition,
@@ -280,27 +301,32 @@ export class DiagnosticsProvider {
     for (const mapField of message.maps) {
       this.validateMapField(uri, mapField, fullName, diagnostics, reservedNumbers, reservedNames);
 
+      // Add to duplicate detection
       if (!fieldNumbers.has(mapField.number)) {
         fieldNumbers.set(mapField.number, []);
       }
+      fieldNumbers.get(mapField.number)!.push(this.asFieldForDuplicateCheck(mapField, 'map'));
 
       if (!fieldNames.has(mapField.name)) {
         fieldNames.set(mapField.name, []);
       }
+      fieldNames.get(mapField.name)!.push(this.asFieldForDuplicateCheck(mapField, 'map'));
     }
 
     // Validate groups (proto2)
     for (const group of message.groups) {
       this.validateGroup(uri, group, fullName, diagnostics, reservedNumbers, reservedNames);
 
-      // Groups also use field numbers in the message
+      // Add to duplicate detection
       if (!fieldNumbers.has(group.number)) {
         fieldNumbers.set(group.number, []);
       }
+      fieldNumbers.get(group.number)!.push(this.asFieldForDuplicateCheck(group, 'group'));
 
       if (!fieldNames.has(group.name)) {
         fieldNames.set(group.name, []);
       }
+      fieldNames.get(group.name)!.push(this.asFieldForDuplicateCheck(group, 'group'));
     }
 
     // Check for duplicate field numbers
@@ -542,17 +568,7 @@ export class DiagnosticsProvider {
 
   private validateGroup(
     uri: string,
-    group: {
-      name: string;
-      number: number;
-      range: Range;
-      nameRange: Range;
-      fields: FieldDefinition[];
-      nestedMessages: MessageDefinition[];
-      nestedEnums: EnumDefinition[];
-      options: OptionStatement[];
-      reserved: ReservedStatement[];
-    },
+    group: GroupFieldDefinition,
     containerName: string,
     diagnostics: Diagnostic[],
     reservedNumbers: Set<number>,
