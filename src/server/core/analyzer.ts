@@ -375,6 +375,30 @@ export class SemanticAnalyzer {
     for (const nested of message.nestedEnums) {
       this.extractEnumSymbols(uri, nested, fullName);
     }
+
+    // Extract symbols from groups (proto2)
+    // Groups are like nested messages in terms of symbol extraction
+    for (const group of message.groups) {
+      const groupFullName = fullName ? `${fullName}.${group.name}` : group.name;
+      
+      // Add group as a symbol (groups act as both a field and a message type)
+      this.workspace.symbols.set(groupFullName, {
+        name: group.name,
+        fullName: groupFullName,
+        kind: SymbolKind.Message,
+        location: { uri, range: group.range },
+        containerName: fullName
+      });
+
+      // Extract nested messages and enums from the group
+      for (const nested of group.nestedMessages) {
+        this.extractMessageSymbols(uri, nested, groupFullName);
+      }
+
+      for (const nested of group.nestedEnums) {
+        this.extractEnumSymbols(uri, nested, groupFullName);
+      }
+    }
   }
 
   private extractEnumSymbols(uri: string, enumDef: EnumDefinition, prefix: string): void {

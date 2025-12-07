@@ -16,6 +16,7 @@ import {
   ExtendDefinition,
   FieldDefinition,
   MapFieldDefinition,
+  GroupFieldDefinition,
   OneofDefinition,
   EnumValue,
   RpcDefinition,
@@ -484,6 +485,7 @@ export class ProtoParser {
       reserved: [],
       extensions: [],
       maps: [],
+      groups: [],
       range: { start: startToken.range.start, end: startToken.range.end }
     };
     this.attachComment(message, startToken);
@@ -518,8 +520,22 @@ export class ProtoParser {
           break;
         case 'optional':
         case 'required':
-        case 'repeated':
-          message.fields.push(this.parseField());
+        case 'repeated': {
+          // Check if next token is 'group'
+          const modifierToken = this.advance();
+          const nextToken = this.peek();
+          if (nextToken?.value === 'group') {
+            // modifierToken cannot be null here since we matched the case
+            message.groups.push(this.parseGroup(modifierToken!.value as 'optional' | 'required' | 'repeated'));
+          } else {
+            // Put back modifier and parse as regular field
+            this.pos--;
+            message.fields.push(this.parseField());
+          }
+          break;
+        }
+        case 'group':
+          message.groups.push(this.parseGroup());
           break;
         default:
           if (token.type === 'identifier') {
@@ -959,6 +975,83 @@ export class ProtoParser {
     };
     this.attachComment(node, startToken);
     return node;
+  }
+
+  private parseGroup(modifier?: 'optional' | 'required' | 'repeated'): GroupFieldDefinition {
+    const startToken = this.expect('identifier', 'group');
+    const nameToken = this.expect('identifier');
+    this.expect('punctuation', '=');
+    const numberToken = this.expect('number');
+    this.expect('punctuation', '{');
+
+    const group: GroupFieldDefinition = {
+      type: 'group',
+      modifier,
+      name: nameToken.value,
+      nameRange: nameToken.range,
+      number: parseInt(numberToken.value, 10),
+      fields: [],
+      nestedMessages: [],
+      nestedEnums: [],
+      oneofs: [],
+      options: [],
+      reserved: [],
+      extensions: [],
+      maps: [],
+      range: { start: startToken.range.start, end: startToken.range.end }
+    };
+    this.attachComment(group, startToken);
+
+    // Parse group body (same as message body)
+    while (!this.isAtEnd() && !this.match('punctuation', '}')) {
+      const token = this.peek();
+      if (!token) {
+        break;
+      }
+
+      switch (token.value) {
+        case 'message':
+          group.nestedMessages.push(this.parseMessage());
+          break;
+        case 'enum':
+          group.nestedEnums.push(this.parseEnum());
+          break;
+        case 'oneof':
+          group.oneofs.push(this.parseOneof());
+          break;
+        case 'option':
+          group.options.push(this.parseOption());
+          break;
+        case 'reserved':
+          group.reserved.push(this.parseReserved());
+          break;
+        case 'extensions':
+          group.extensions.push(this.parseExtensions());
+          break;
+        case 'map':
+          // Note: Maps are proto3, groups are proto2. Parser is permissive.
+          // Diagnostics should flag this as an error if needed.
+          group.maps.push(this.parseMapField());
+          break;
+        case 'optional':
+        case 'required':
+        case 'repeated':
+          // Groups cannot be nested, so always parse as field
+          group.fields.push(this.parseField());
+          break;
+        default:
+          if (token.type === 'identifier') {
+            group.fields.push(this.parseField());
+          } else {
+            this.advance();
+          }
+      }
+    }
+
+    const endToken = this.expect('punctuation', '}');
+    group.range.end = endToken.range.end;
+
+    return group;
   }
 }
 

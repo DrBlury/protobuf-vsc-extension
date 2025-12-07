@@ -76,6 +76,7 @@ export interface MessageDefinition extends ProtoNode {
   reserved: ReservedStatement[];
   extensions: ExtensionsStatement[];
   maps: MapFieldDefinition[];
+  groups: GroupFieldDefinition[];
 }
 
 export interface FieldDefinition extends ProtoNode {
@@ -97,6 +98,22 @@ export interface MapFieldDefinition extends ProtoNode {
   name: string;
   nameRange: Range;
   number: number;
+}
+
+export interface GroupFieldDefinition extends ProtoNode {
+  type: 'group';
+  modifier?: 'optional' | 'required' | 'repeated';
+  name: string;
+  nameRange: Range;
+  number: number;
+  fields: FieldDefinition[];
+  nestedMessages: MessageDefinition[];
+  nestedEnums: EnumDefinition[];
+  oneofs: OneofDefinition[];
+  options: OptionStatement[];
+  reserved: ReservedStatement[];
+  extensions: ExtensionsStatement[];
+  maps: MapFieldDefinition[];
 }
 
 export interface FieldOption {
@@ -250,6 +267,7 @@ export const PROTOBUF_KEYWORDS = [
   'required',
   'repeated',
   'map',
+  'group',
   'true',
   'false'
 ];
