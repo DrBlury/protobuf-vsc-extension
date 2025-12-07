@@ -404,4 +404,102 @@ service UserService {
       expect(userMessage.maps).toHaveLength(1);
     });
   });
+
+  describe('group parsing (proto2)', () => {
+    it('should parse repeated group', () => {
+      const file = parser.parse(`
+        syntax = "proto2";
+        message SearchResponse {
+          repeated group Result = 1 {
+            required string url = 2;
+            optional string title = 3;
+          }
+        }
+      `, 'file:///test.proto');
+
+      expect(file.messages).toHaveLength(1);
+      const msg = file.messages[0];
+      expect(msg.name).toBe('SearchResponse');
+      expect(msg.groups).toHaveLength(1);
+      
+      const group = msg.groups[0];
+      expect(group.name).toBe('Result');
+      expect(group.modifier).toBe('repeated');
+      expect(group.number).toBe(1);
+      expect(group.fields).toHaveLength(2);
+      expect(group.fields[0].name).toBe('url');
+      expect(group.fields[0].modifier).toBe('required');
+      expect(group.fields[1].name).toBe('title');
+      expect(group.fields[1].modifier).toBe('optional');
+    });
+
+    it('should parse optional group', () => {
+      const file = parser.parse(`
+        syntax = "proto2";
+        message TestMessage {
+          optional group OptionalGroup = 1 {
+            optional string value = 2;
+          }
+        }
+      `, 'file:///test.proto');
+
+      const group = file.messages[0].groups[0];
+      expect(group.modifier).toBe('optional');
+      expect(group.name).toBe('OptionalGroup');
+    });
+
+    it('should parse required group', () => {
+      const file = parser.parse(`
+        syntax = "proto2";
+        message TestMessage {
+          required group RequiredGroup = 1 {
+            required string value = 2;
+          }
+        }
+      `, 'file:///test.proto');
+
+      const group = file.messages[0].groups[0];
+      expect(group.modifier).toBe('required');
+      expect(group.name).toBe('RequiredGroup');
+    });
+
+    it('should parse group without modifier', () => {
+      const file = parser.parse(`
+        syntax = "proto2";
+        message TestMessage {
+          group SimpleGroup = 1 {
+            optional string value = 2;
+          }
+        }
+      `, 'file:///test.proto');
+
+      const group = file.messages[0].groups[0];
+      expect(group.modifier).toBeUndefined();
+      expect(group.name).toBe('SimpleGroup');
+    });
+
+    it('should parse nested structures within groups', () => {
+      const file = parser.parse(`
+        syntax = "proto2";
+        message TestMessage {
+          repeated group Result = 1 {
+            required string url = 2;
+            message NestedInGroup {
+              optional int32 id = 1;
+            }
+            enum StatusInGroup {
+              UNKNOWN = 0;
+              OK = 1;
+            }
+          }
+        }
+      `, 'file:///test.proto');
+
+      const group = file.messages[0].groups[0];
+      expect(group.nestedMessages).toHaveLength(1);
+      expect(group.nestedMessages[0].name).toBe('NestedInGroup');
+      expect(group.nestedEnums).toHaveLength(1);
+      expect(group.nestedEnums[0].name).toBe('StatusInGroup');
+    });
+  });
 });
