@@ -21,6 +21,7 @@ export interface ProtoNode {
   type: string;
   range: Range;
   parent?: ProtoNode;
+  comments?: string;
 }
 
 export interface ProtoFile extends ProtoNode {

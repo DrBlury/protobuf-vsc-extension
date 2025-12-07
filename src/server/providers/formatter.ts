@@ -4,6 +4,8 @@
 
 import { TextEdit, Range } from 'vscode-languageserver/node';
 import { FIELD_NUMBER } from '../utils/constants';
+import { ClangFormatProvider } from '../services/clangFormat';
+import { BufFormatProvider } from '../services/bufFormat';
 
 export interface FormatterSettings {
   indentSize: number;
@@ -12,6 +14,7 @@ export interface FormatterSettings {
   renumberOnFormat?: boolean;
   renumberStartNumber?: number;
   renumberIncrement?: number;
+  preset?: 'minimal' | 'google' | 'buf' | 'custom';
 }
 
 const DEFAULT_SETTINGS: FormatterSettings = {
@@ -19,17 +22,98 @@ const DEFAULT_SETTINGS: FormatterSettings = {
   useTabIndent: false,
   renumberOnFormat: true,
   renumberStartNumber: 1,
-  renumberIncrement: 1
+  renumberIncrement: 1,
+  preset: 'minimal'
 };
 
 export class ProtoFormatter {
   private settings: FormatterSettings = DEFAULT_SETTINGS;
 
+  constructor(
+    private clangFormat?: ClangFormatProvider,
+    private bufFormat?: BufFormatProvider
+  ) {}
+
   updateSettings(settings: Partial<FormatterSettings>): void {
     this.settings = { ...this.settings, ...settings };
   }
 
-  format(text: string): string {
+  async formatDocument(text: string): Promise<TextEdit[]> {
+    if (this.settings.preset === 'google' && this.clangFormat) {
+      const lines = text.split('\n');
+      const range = Range.create(0, 0, lines.length, lines[lines.length - 1].length);
+      const edits = await this.clangFormat.formatRange(text, range);
+      if (edits && edits.length > 0) {
+          return edits;
+      }
+    }
+
+    if (this.settings.preset === 'buf' && this.bufFormat) {
+      const formatted = await this.bufFormat.format(text);
+      if (formatted) {
+        const lines = text.split('\n');
+        return [{
+          range: Range.create(0, 0, lines.length, lines[lines.length - 1].length),
+          newText: formatted
+        }];
+      }
+    }
+
+    const formatted = this.format(text);
+    const lines = text.split('\n');
+
+    return [{
+      range: {
+        start: { line: 0, character: 0 },
+        end: { line: lines.length - 1, character: lines[lines.length - 1].length }
+      },
+      newText: formatted
+    }];
+  }
+
+  async formatRange(text: string, range: Range): Promise<TextEdit[]> {
+    if (this.settings.preset === 'google' && this.clangFormat) {
+      const edits = await this.clangFormat.formatRange(text, range);
+      if (edits && edits.length > 0) {
+          return edits;
+      }
+    }
+
+    // Buf doesn't support range formatting easily, fall back to minimal
+
+    const lines = text.split('\n');
+    const startLine = range.start.line;
+    const endLine = range.end.line;
+
+    // Extract the range to format
+    const rangeLines = lines.slice(startLine, endLine + 1);
+    const rangeText = rangeLines.join('\n');
+
+    // Determine indent level at start of range
+    let indentLevel = 0;
+    for (let i = 0; i < startLine; i++) {
+      const line = lines[i].trim();
+      if (line.includes('{') && !line.includes('}')) {
+        indentLevel++;
+      }
+      if (line.startsWith('}')) {
+        indentLevel--;
+      }
+    }
+
+    // Format the range
+    const formatted = this.formatRangeWithIndent(rangeText, indentLevel);
+
+    return [{
+      range: {
+        start: { line: startLine, character: 0 },
+        end: { line: endLine, character: lines[endLine].length }
+      },
+      newText: formatted
+    }];
+  }
+
+  private format(text: string): string {
     const lines = text.split('\n');
     const formattedLines: string[] = [];
     let indentLevel = 0;
@@ -152,52 +236,6 @@ export class ProtoFormatter {
       return '\t'.repeat(level);
     }
     return ' '.repeat(level * this.settings.indentSize);
-  }
-
-  formatDocument(text: string): TextEdit[] {
-    const formatted = this.format(text);
-    const lines = text.split('\n');
-
-    return [{
-      range: {
-        start: { line: 0, character: 0 },
-        end: { line: lines.length - 1, character: lines[lines.length - 1].length }
-      },
-      newText: formatted
-    }];
-  }
-
-  formatRange(text: string, range: Range): TextEdit[] {
-    const lines = text.split('\n');
-    const startLine = range.start.line;
-    const endLine = range.end.line;
-
-    // Extract the range to format
-    const rangeLines = lines.slice(startLine, endLine + 1);
-    const rangeText = rangeLines.join('\n');
-
-    // Determine indent level at start of range
-    let indentLevel = 0;
-    for (let i = 0; i < startLine; i++) {
-      const line = lines[i].trim();
-      if (line.includes('{') && !line.includes('}')) {
-        indentLevel++;
-      }
-      if (line.startsWith('}')) {
-        indentLevel--;
-      }
-    }
-
-    // Format the range
-    const formatted = this.formatRangeWithIndent(rangeText, indentLevel);
-
-    return [{
-      range: {
-        start: { line: startLine, character: 0 },
-        end: { line: endLine, character: lines[endLine].length }
-      },
-      newText: formatted
-    }];
   }
 
   private formatRangeWithIndent(text: string, startIndentLevel: number): string {

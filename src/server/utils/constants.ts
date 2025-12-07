@@ -253,7 +253,9 @@ export const REQUEST_METHODS = {
   RUN_EXTERNAL_LINTER_WORKSPACE: 'protobuf/runExternalLinterWorkspace',
   IS_EXTERNAL_LINTER_AVAILABLE: 'protobuf/isExternalLinterAvailable',
   GET_AVAILABLE_LINT_RULES: 'protobuf/getAvailableLintRules',
-  CHECK_BREAKING_CHANGES: 'protobuf/checkBreakingChanges'
+  CHECK_BREAKING_CHANGES: 'protobuf/checkBreakingChanges',
+  GET_ALL_OPTIONS: 'protobuf/getAllOptions',
+  MIGRATE_TO_PROTO3: 'protobuf/migrateToProto3'
 } as const;
 
 /**

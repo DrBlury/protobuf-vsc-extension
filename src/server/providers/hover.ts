@@ -11,9 +11,15 @@ import {
   EnumDefinition,
   FieldDefinition,
   MapFieldDefinition,
-  OneofDefinition
+  OneofDefinition,
+  ProtoNode,
+  ProtoFile,
+  ServiceDefinition,
+  Range
 } from '../core/ast';
 import { SemanticAnalyzer } from '../core/analyzer';
+
+const GOOGLE_WKT_BASE_URL = 'https://protobuf.dev/reference/protobuf/google.protobuf/';
 
 export class HoverProvider {
   private analyzer: SemanticAnalyzer;
@@ -126,11 +132,35 @@ export class HoverProvider {
       lines.push(`Defined in: \`${symbol.containerName}\``);
     }
 
+    // Add Well-Known Type Link
+    if (symbol.fullName.startsWith('google.protobuf.')) {
+        const typeName = symbol.fullName.replace('google.protobuf.', '');
+        const wktUrl = `${GOOGLE_WKT_BASE_URL}#${typeName}`;
+        lines.push(`[Open Documentation](${wktUrl})`);
+    }
+
     // Add reference count
     const references = this.analyzer.findReferences(symbol.fullName);
     if (references.length > 0) {
       const externalRefs = references.filter(r => r.uri !== symbol.location.uri);
       lines.push(`References: ${references.length} (${externalRefs.length} external)`);
+    }
+
+    // Resolve definition to get comments
+    let comments = '';
+
+    // Helper to find the definition node in the file
+    // This is a bit inefficient but robust
+    const file = this.analyzer.getFile(symbol.location.uri);
+    if (file) {
+        const node = this.findNodeAt(file, symbol.location.range.start);
+        if (node && node.comments) {
+            comments = node.comments;
+        }
+    }
+
+    if (comments) {
+        lines.push('', '---', '', comments);
     }
 
     // Add rich detail for messages and enums
@@ -156,6 +186,97 @@ export class HoverProvider {
     };
 
     return { contents: content };
+  }
+
+  // Simplified node finder based on position
+  private findNodeAt(file: ProtoFile, position: { line: number, character: number }): ProtoNode | undefined {
+      // Traverse file to find node
+      // Check top level messages, enums, etc.
+      for (const msg of file.messages) {
+          if (this.contains(msg.range, position)) {
+              if (this.isNameRange(msg.nameRange, position)) {
+                  return msg;
+              }
+              return this.findInMessage(msg, position);
+          }
+      }
+      for (const enm of file.enums) {
+          if (this.contains(enm.range, position)) {
+              if (this.isNameRange(enm.nameRange, position)) {
+                  return enm;
+              }
+              return this.findInEnum(enm, position);
+          }
+      }
+      for (const svc of file.services) {
+          if (this.contains(svc.range, position)) {
+              if (this.isNameRange(svc.nameRange, position)) {
+                  return svc;
+              }
+              return this.findInService(svc, position);
+          }
+      }
+      return undefined;
+  }
+
+  private findInMessage(msg: MessageDefinition, position: { line: number, character: number }): ProtoNode | undefined {
+      for (const field of msg.fields) {
+          if (this.contains(field.range, position)) {
+              return field;
+          }
+      }
+      for (const nested of msg.nestedMessages) {
+          if (this.contains(nested.range, position)) {
+              if (this.isNameRange(nested.nameRange, position)) {
+                  return nested;
+              }
+              return this.findInMessage(nested, position);
+          }
+      }
+      for (const enm of msg.nestedEnums) {
+          if (this.contains(enm.range, position)) {
+              if (this.isNameRange(enm.nameRange, position)) {
+                  return enm;
+              }
+              return this.findInEnum(enm, position);
+          }
+      }
+      return msg; // Fallback to message itself if inside but not on sub-node
+  }
+
+  private findInEnum(enm: EnumDefinition, position: { line: number, character: number }): ProtoNode | undefined {
+      for (const val of enm.values) {
+          if (this.contains(val.range, position)) {
+              return val;
+          }
+      }
+      return enm;
+  }
+
+  private findInService(svc: ServiceDefinition, position: { line: number, character: number }): ProtoNode | undefined {
+      for (const rpc of svc.rpcs) {
+          if (this.contains(rpc.range, position)) {
+              return rpc;
+          }
+      }
+      return svc;
+  }
+
+  private contains(range: Range, pos: { line: number, character: number }): boolean {
+      if (pos.line < range.start.line || pos.line > range.end.line) {
+          return false;
+      }
+      if (pos.line === range.start.line && pos.character < range.start.character) {
+          return false;
+      }
+      if (pos.line === range.end.line && pos.character > range.end.character) {
+          return false;
+      }
+      return true;
+  }
+
+  private isNameRange(range: Range, pos: { line: number, character: number }): boolean {
+      return this.contains(range, pos);
   }
 
   private getKeywordHover(word: string): Hover | null {

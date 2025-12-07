@@ -43,5 +43,35 @@ export function registerAllCommands(
   disposables.push(...registerBreakingCommands(context, client));
   disposables.push(...registerLinterCommands(context, client));
 
+  // Migrate to proto3 command
+  disposables.push(vscode.commands.registerCommand('protobuf.migrateToProto3', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+          return;
+      }
+
+      interface TextEdit {
+          range: { start: { line: number; character: number }; end: { line: number; character: number } };
+          newText: string;
+      }
+      const edits = await client.sendRequest<TextEdit[]>('protobuf/migrateToProto3', { uri: editor.document.uri.toString() });
+      if (edits && edits.length > 0) {
+          const workspaceEdit = new vscode.WorkspaceEdit();
+          workspaceEdit.set(editor.document.uri, edits.map(e => new vscode.TextEdit(
+              new vscode.Range(e.range.start.line, e.range.start.character, e.range.end.line, e.range.end.character),
+              e.newText
+          )));
+          await vscode.workspace.applyEdit(workspaceEdit);
+      } else {
+          vscode.window.showInformationMessage('No migration changes needed.');
+      }
+  }));
+
+  // Copy to clipboard helper
+  disposables.push(vscode.commands.registerCommand('protobuf.copyToClipboard', async (text: string) => {
+      await vscode.env.clipboard.writeText(text);
+      vscode.window.showInformationMessage('Copied to clipboard');
+  }));
+
   return disposables;
 }

@@ -24,6 +24,8 @@ module.exports = [
         require: "readonly",
         exports: "readonly",
         Thenable: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
       },
     },
     plugins: {
@@ -76,6 +78,9 @@ module.exports = [
         beforeEach: "readonly",
         afterAll: "readonly",
         afterEach: "readonly",
+        jest: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
       },
     },
     plugins: {
@@ -83,6 +88,7 @@ module.exports = [
     },
     rules: {
       ...tseslint.configs.recommended.rules,
+      "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {

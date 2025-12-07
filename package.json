@@ -105,6 +105,17 @@
           "default": true,
           "description": "Enable/disable the formatter"
         },
+        "protobuf.formatter.preset": {
+          "type": "string",
+          "enum": [
+            "minimal",
+            "google",
+            "buf",
+            "custom"
+          ],
+          "default": "minimal",
+          "description": "Formatter preset. 'minimal' uses built-in indenter. 'google' uses clang-format (if available). 'buf' uses buf format."
+        },
         "protobuf.formatOnSave": {
           "type": "boolean",
           "default": false,
@@ -420,6 +431,18 @@
           ],
           "default": "info",
           "description": "Set the log level for the language server. Use 'verbose' for maximum detail when debugging issues."
+        },
+        "protobuf.codegen.profiles": {
+          "type": "object",
+          "default": {},
+          "description": "Codegen profiles. Define named profiles with protoc arguments.",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of arguments for protoc"
+          }
         }
       }
     },
@@ -498,6 +521,36 @@
         "command": "protobuf.showAvailableLintRules",
         "title": "Show Available Lint Rules",
         "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.toolchain.manage",
+        "title": "Manage Protobuf Toolchain",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.generateCode",
+        "title": "Generate Code",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.diffSchema",
+        "title": "Diff Schema with Git Ref",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.openPlayground",
+        "title": "Open Request Playground",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.addBufDependency",
+        "title": "Add Buf Dependency",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.migrateToProto3",
+        "title": "Migrate File to Proto3",
+        "category": "Protobuf"
       }
     ],
     "menus": {
@@ -569,6 +622,14 @@
         },
         {
           "command": "protobuf.showAvailableLintRules"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "protobufOptionInspector",
+          "name": "Proto Options"
         }
       ]
     }

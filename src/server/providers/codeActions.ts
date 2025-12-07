@@ -50,16 +50,16 @@ export class CodeActionsProvider {
     if (!requestedKinds || requestedKinds.some(k => k === CodeActionKind.SourceOrganizeImports || k.startsWith(CodeActionKind.SourceOrganizeImports))) {
       const missingImports = this.extractMissingImportPaths(context.diagnostics, documentText);
       if (missingImports.length > 0) {
-        actions.push(this.createAddMissingImportsAction(uri, missingImports, documentText));
+          actions.push(this.createAddMissingImportsAction(uri, missingImports, documentText));
       }
       const fixImports = this.createFixImportsAction(uri, context.diagnostics, documentText);
       if (fixImports) {
-        actions.push(fixImports);
+          actions.push(fixImports);
       }
       // Add organize imports action (sort and remove duplicates)
       const organizeImports = this.createOrganizeImportsAction(uri, documentText);
       if (organizeImports) {
-        actions.push(organizeImports);
+          actions.push(organizeImports);
       }
     }
 
@@ -95,6 +95,82 @@ export class CodeActionsProvider {
       if (messageRenumber) {
         actions.push(messageRenumber);
       }
+    }
+
+    // Generate scaffolding actions based on selection
+    const scaffolding = this.getScaffoldingActions(uri, range, documentText);
+    actions.push(...scaffolding);
+
+    return actions;
+  }
+
+  private getScaffoldingActions(uri: string, range: Range, documentText: string): CodeAction[] {
+    const actions: CodeAction[] = [];
+    const lines = documentText.split('\n');
+    const line = lines[range.start.line];
+
+    if (!line) {
+      return actions;
+    }
+
+    // Oneof Switch Scaffolding
+    const oneofMatch = line.match(/^\s*oneof\s+(\w+)\s*\{/);
+    if (oneofMatch) {
+        const oneofName = oneofMatch[1];
+
+        // Find fields inside the oneof
+        const fields: string[] = [];
+        let braceDepth = 1;
+        for (let i = range.start.line + 1; i < lines.length; i++) {
+            const l = lines[i].trim();
+            if (l.includes('{')) {
+                braceDepth++;
+            }
+            if (l.includes('}')) {
+                braceDepth--;
+            }
+            if (braceDepth === 0) {
+                break;
+            }
+
+            // Very simple field match
+            const fieldMatch = l.match(/^(?:[\w.]+\s+)?(\w+)\s*=\s*\d+/);
+            if (fieldMatch && !l.startsWith('//') && !l.startsWith('option')) {
+                fields.push(fieldMatch[1]);
+            }
+        }
+
+        if (fields.length > 0) {
+            // TypeScript Snippet
+            const tsSnippet = `switch (message.${oneofName}.case) {\n` +
+                fields.map(f => `  case '${f}':\n    // Handle ${f}\n    break;`).join('\n') +
+                `\n  default:\n    // Handle default\n}`;
+
+            // Go Snippet
+            const goSnippet = `switch v := message.Get${this.toPascalCase(oneofName)}().(type) {\n` +
+                fields.map(f => `case *${this.toPascalCase(f)}:\n\t// Handle ${f}`).join('\n') +
+                `\ndefault:\n\t// Handle default\n}`;
+
+            actions.push({
+                title: 'Copy TypeScript Switch Snippet',
+                kind: CodeActionKind.Refactor,
+                command: {
+                    title: 'Copy to Clipboard',
+                    command: 'protobuf.copyToClipboard',
+                    arguments: [tsSnippet]
+                }
+            });
+
+             actions.push({
+                title: 'Copy Go Switch Snippet',
+                kind: CodeActionKind.Refactor,
+                command: {
+                    title: 'Copy to Clipboard',
+                    command: 'protobuf.copyToClipboard',
+                    arguments: [goSnippet]
+                }
+            });
+        }
     }
 
     return actions;

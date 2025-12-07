@@ -14,8 +14,8 @@ import { VALIDATION_MESSAGES } from '../../server/utils/constants';
  * @returns A disposable for the registered command
  */
 export function registerDebugCommand(
-  context: vscode.ExtensionContext,
-  client: LanguageClient
+  _context: vscode.ExtensionContext,
+  _client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.debugDefinition', async () => {
     const editor = vscode.window.activeTextEditor;

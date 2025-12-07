@@ -107,7 +107,7 @@ message User {
       );
 
       // The conversion action might be in refactoring actions
-      const convertAction = actions.find(a =>
+      const _convertAction = actions.find(a =>
         a.title?.includes('Convert to proto3') ||
         a.title?.includes('proto3')
       );

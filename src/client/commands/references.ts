@@ -32,8 +32,8 @@ export function registerReferenceCommands(
  * @returns A disposable for the registered command
  */
 function registerFindReferencesCommand(
-  context: vscode.ExtensionContext,
-  client: LanguageClient
+  _context: vscode.ExtensionContext,
+  _client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand(
     'protobuf.findReferences',

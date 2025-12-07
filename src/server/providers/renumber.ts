@@ -352,7 +352,7 @@ export class RenumberProvider {
     }
 
     // Find the value number pattern: = <number>
-    const match = line.match(/=\\s*(-?\\d+)/);
+    const match = line.match(/=\s*(-?\d+)/);
     if (!match) {
       return null;
     }

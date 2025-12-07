@@ -182,7 +182,7 @@ message Container {
       diagnosticsProvider.updateSettings({ unusedSymbols: true });
       const diags = diagnosticsProvider.validate(uri, file, content);
 
-      const unused = diags.find(d => d.message.includes('UnusedMessage') && d.message.includes('never used'));
+      const _unused = diags.find(d => d.message.includes('UnusedMessage') && d.message.includes('never used'));
       // Note: This would require more sophisticated reference tracking
       expect(diags.length).toBeGreaterThanOrEqual(0);
     });

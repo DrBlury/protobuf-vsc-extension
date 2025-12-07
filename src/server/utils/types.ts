@@ -15,6 +15,9 @@ export interface Settings {
     indentSize: number;
     useTabIndent: boolean;
     maxLineLength: number;
+    formatter: {
+      preset: string;
+    };
     includes: string[];
     renumber: {
       startNumber: number;
@@ -95,6 +98,9 @@ export const defaultSettings: Settings = {
     indentSize: DEFAULT_CONFIG.INDENT_SIZE,
     useTabIndent: false,
     maxLineLength: DEFAULT_CONFIG.MAX_LINE_LENGTH,
+    formatter: {
+      preset: 'minimal'
+    },
     includes: [],
     renumber: {
       startNumber: DEFAULT_CONFIG.RENUMBER_START,

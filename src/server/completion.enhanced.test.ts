@@ -80,7 +80,7 @@ message User {
   string name = 1;
 }`;
 
-      const content2 = `syntax = "proto3";
+      const _content2 = `syntax = "proto3";
 package test.v1;
 import "`;
 

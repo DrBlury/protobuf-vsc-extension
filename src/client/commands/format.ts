@@ -13,8 +13,8 @@ import { LanguageClient } from 'vscode-languageclient/node';
  * @returns A disposable for the registered command
  */
 export function registerFormatCommand(
-  context: vscode.ExtensionContext,
-  client: LanguageClient
+  _context: vscode.ExtensionContext,
+  _client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.formatDocument', () => {
     const editor = vscode.window.activeTextEditor;

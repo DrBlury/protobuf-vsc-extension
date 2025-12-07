@@ -1,0 +1,241 @@
+/**
+ * Tests for clang-format provider
+ */
+
+import { ClangFormatProvider } from './clangFormat';
+import { spawn } from 'child_process';
+import { Range } from 'vscode-languageserver/node';
+
+jest.mock('child_process');
+
+describe('ClangFormatProvider', () => {
+  let provider: ClangFormatProvider;
+  let mockSpawn: jest.MockedFunction<typeof spawn>;
+
+  beforeEach(() => {
+    provider = new ClangFormatProvider();
+    mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
+    jest.clearAllMocks();
+  });
+
+  describe('updateSettings', () => {
+    it('should update settings', () => {
+      provider.updateSettings({ enabled: true, path: '/usr/bin/clang-format' });
+      expect(provider).toBeDefined();
+    });
+
+    it('should merge settings', () => {
+      provider.updateSettings({ enabled: true });
+      provider.updateSettings({ path: '/usr/bin/clang-format' });
+      expect(provider).toBeDefined();
+    });
+  });
+
+  describe('isAvailable', () => {
+    it('should return false when disabled', async () => {
+      provider.updateSettings({ enabled: false });
+      const result = await provider.isAvailable();
+      expect(result).toBe(false);
+    });
+
+    it('should return true when enabled and available', async () => {
+      provider.updateSettings({ enabled: true });
+      const mockProcess = {
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const result = await provider.isAvailable();
+      expect(result).toBe(true);
+    });
+
+    it('should return false on error', async () => {
+      provider.updateSettings({ enabled: true });
+      const mockProcess = {
+        on: jest.fn((event: string, callback: () => void) => {
+          if (event === 'error') {
+            setTimeout(() => callback(), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const result = await provider.isAvailable();
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('getVersion', () => {
+    it('should return version when available', async () => {
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('clang-format version 14.0.0')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const result = await provider.getVersion();
+      expect(result).toBe('14.0.0');
+    });
+
+    it('should return trimmed output when version pattern not found', async () => {
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('clang-format 14.0.0')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const result = await provider.getVersion();
+      expect(result).toBe('clang-format 14.0.0');
+    });
+
+    it('should return null on error', async () => {
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        on: jest.fn((event: string, callback: () => void) => {
+          if (event === 'error') {
+            setTimeout(() => callback(), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const result = await provider.getVersion();
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('formatDocument', () => {
+    it('should return empty array when disabled', async () => {
+      provider.updateSettings({ enabled: false });
+      const result = await provider.formatDocument('message Test {}');
+      expect(result).toEqual([]);
+    });
+
+    it('should format document when enabled', async () => {
+      provider.updateSettings({ enabled: true });
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('formatted')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        stdin: { write: jest.fn(), end: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const result = await provider.formatDocument('message Test {}');
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it('should return empty array when formatted text equals original', async () => {
+      provider.updateSettings({ enabled: true });
+      const text = 'message Test {}';
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from(text)), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        stdin: { write: jest.fn(), end: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const result = await provider.formatDocument(text);
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('formatRange', () => {
+    it('should return empty array when disabled', async () => {
+      provider.updateSettings({ enabled: false });
+      const range = Range.create(0, 0, 10, 20);
+      const result = await provider.formatRange('message Test {}', range);
+      expect(result).toEqual([]);
+    });
+
+    it('should format range when enabled', async () => {
+      provider.updateSettings({ enabled: true });
+      const text = 'message Test {\n  string name = 1;\n}';
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from(text)), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        stdin: { write: jest.fn(), end: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const range = Range.create(0, 0, 2, 1);
+      const result = await provider.formatRange(text, range);
+      // formatRange may return empty array if formatted text equals original
+      expect(Array.isArray(result)).toBe(true);
+    });
+  });
+});

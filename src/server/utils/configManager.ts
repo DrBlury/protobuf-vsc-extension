@@ -5,7 +5,7 @@
 
 import { LogLevel } from './logger';
 import { logger } from './logger';
-import { Settings, defaultSettings } from './types';
+import { Settings } from './types';
 import { DiagnosticsProvider } from '../providers/diagnostics';
 import { ProtoFormatter } from '../providers/formatter';
 import { RenumberProvider } from '../providers/renumber';
@@ -63,7 +63,8 @@ export function updateProvidersWithSettings(
     maxLineLength: settings.protobuf.maxLineLength,
     renumberOnFormat: settings.protobuf.renumber.onFormat,
     renumberStartNumber: settings.protobuf.renumber.startNumber,
-    renumberIncrement: settings.protobuf.renumber.increment
+    renumberIncrement: settings.protobuf.renumber.increment,
+    preset: settings.protobuf.formatter?.preset as 'minimal' | 'google' | 'buf' | 'custom'
   });
 
   // Update renumber settings

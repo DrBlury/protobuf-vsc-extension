@@ -15,13 +15,54 @@ import {
 } from 'vscode-languageclient/node';
 import { DEBUG_PORT, OUTPUT_CHANNEL_NAME, SERVER_IDS } from './server/utils/constants';
 import { registerAllCommands } from './client/commands';
+import { ToolchainManager } from './client/toolchain/toolchainManager';
+import { CodegenManager } from './client/codegen/codegenManager';
+import { SchemaDiffManager } from './client/diff/schemaDiff';
+import { PlaygroundManager } from './client/playground/playgroundManager';
+import { OptionInspectorProvider } from './client/inspector/optionInspector';
+import { RegistryManager } from './client/registry/registryManager';
 
 let client: LanguageClient;
 let outputChannel: vscode.OutputChannel;
+let toolchainManager: ToolchainManager;
+let codegenManager: CodegenManager;
+let schemaDiffManager: SchemaDiffManager;
+let playgroundManager: PlaygroundManager;
+let registryManager: RegistryManager;
 
 export async function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME);
   outputChannel.appendLine('Activating Protobuf extension...');
+
+  // Initialize toolchain manager
+  toolchainManager = new ToolchainManager(context, outputChannel);
+  context.subscriptions.push(vscode.commands.registerCommand('protobuf.toolchain.manage', () => {
+    toolchainManager.manageToolchain();
+  }));
+
+  // Initialize codegen manager
+  codegenManager = new CodegenManager(outputChannel);
+  context.subscriptions.push(vscode.commands.registerCommand('protobuf.generateCode', (uri?: vscode.Uri) => {
+    codegenManager.generateCode(uri);
+  }));
+
+  // Initialize schema diff manager
+  schemaDiffManager = new SchemaDiffManager(outputChannel);
+  context.subscriptions.push(vscode.commands.registerCommand('protobuf.diffSchema', (uri?: vscode.Uri) => {
+    schemaDiffManager.diffSchema(uri);
+  }));
+
+  // Initialize playground manager
+  playgroundManager = new PlaygroundManager(context, outputChannel);
+  context.subscriptions.push(vscode.commands.registerCommand('protobuf.openPlayground', () => {
+    playgroundManager.openPlayground();
+  }));
+
+  // Initialize registry manager
+  registryManager = new RegistryManager(outputChannel);
+  context.subscriptions.push(vscode.commands.registerCommand('protobuf.addBufDependency', () => {
+    registryManager.addDependency();
+  }));
 
   // Server module path
   const serverModule = context.asAbsolutePath(path.join('out', 'server', 'server.js'));
@@ -102,6 +143,10 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.showErrorMessage(msg);
     return;
   }
+
+  // Register Option Inspector Provider
+  const optionInspectorProvider = new OptionInspectorProvider(client);
+  vscode.window.registerTreeDataProvider('protobufOptionInspector', optionInspectorProvider);
 
   // Register all commands
   const commandDisposables = registerAllCommands(context, client);

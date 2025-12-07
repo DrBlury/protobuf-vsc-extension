@@ -136,6 +136,12 @@ This document provides a comprehensive list of all features in the Protobuf VSC 
 - ✅ **Style Configuration** - Multiple style options
 - ✅ **Fallback Styles** - Fallback when .clang-format not found
 
+### Buf Format Integration
+
+- ✅ **Buf Format Support** - Use buf format for formatting
+- ✅ **Automatic Formatting** - Integrates with document formatting
+- ✅ **Path-aware Formatting** - Uses file context for better formatting
+
 ## Compilation
 
 ### Protoc Integration
@@ -165,6 +171,13 @@ This document provides a comprehensive list of all features in the Protobuf VSC 
 - ✅ **File Baseline** - Compare against specific files
 - ✅ **Comprehensive Rules** - Detects all breaking change types
 - ✅ **Detailed Reports** - Shows locations and descriptions
+
+### Schema Diff
+
+- ✅ **Git Integration** - Compare files against Git references
+- ✅ **Visual Diff View** - Side-by-side comparison in VS Code
+- ✅ **Historical Comparison** - Compare against commits, branches, tags
+- ✅ **Easy Navigation** - Jump to specific changes
 
 ## Schema Visualization
 
@@ -196,6 +209,60 @@ This document provides a comprehensive list of all features in the Protobuf VSC 
 - ✅ **Proto Root Detection** - Uses buf roots for imports
 - ✅ **Workspace Directory Detection** - Detects workspace directories
 - ✅ **Caching** - Efficient configuration caching
+
+### Registry Management
+
+- ✅ **Add Dependencies** - Add Buf modules from registry
+- ✅ **Automatic buf.yaml Updates** - Updates configuration automatically
+- ✅ **Module Support** - Works with buf.build modules
+- ✅ **Automatic Updates** - Runs buf mod update after adding
+
+## Toolchain Management
+
+### Tool Installation
+
+- ✅ **Automatic Detection** - Checks for protoc and buf installation
+- ✅ **Status Bar Indicator** - Visual feedback on toolchain health
+- ✅ **One-click Installation** - Install tools directly from VS Code
+- ✅ **Version Management** - View and update tool versions
+- ✅ **Platform Support** - Windows, macOS (Intel/ARM), Linux
+- ✅ **Managed Tools** - Extension-managed tool installation
+
+## Code Generation
+
+### Codegen Profiles
+
+- ✅ **Profile Configuration** - Define multiple codegen setups
+- ✅ **Variable Substitution** - Use VS Code variables in profiles
+- ✅ **Context-aware Generation** - Generate for current file or workspace
+- ✅ **Multiple Languages** - Support for Go, TypeScript, Python, etc.
+- ✅ **Quick Selection** - Easy profile selection interface
+
+## Migration
+
+### Proto2 to Proto3
+
+- ✅ **Syntax Conversion** - Converts proto2 to proto3 syntax
+- ✅ **Required Field Removal** - Removes required keyword
+- ✅ **Default Value Removal** - Removes default options
+- ✅ **Safe Conversion** - Automatic safe changes only
+
+## Developer Tools
+
+### Playground
+
+- ✅ **gRPC Request Testing** - Test gRPC services from VS Code
+- ✅ **Service Discovery** - Automatically lists available services
+- ✅ **JSON Request Bodies** - Easy JSON input
+- ✅ **Response Viewing** - Real-time response display
+- ✅ **grpcurl Integration** - Uses grpcurl for requests
+
+### Option Inspector
+
+- ✅ **Tree View** - Visual tree of all options
+- ✅ **Option Browsing** - Browse file, message, field, enum options
+- ✅ **Quick Navigation** - Click to jump to option definitions
+- ✅ **Auto-refresh** - Updates when files change
 
 ## Advanced Features
 
@@ -268,11 +335,12 @@ This document provides a comprehensive list of all features in the Protobuf VSC 
 
 ## Feature Count
 
-- **Total Features**: 100+
+- **Total Features**: 120+
 - **Core Features**: 20+
 - **Diagnostics**: 30+
 - **Code Actions**: 15+
-- **Advanced Features**: 20+
+- **Advanced Features**: 30+
+- **Developer Tools**: 10+
 - **Configuration Options**: 50+
 
 ---

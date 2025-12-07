@@ -23,13 +23,15 @@ import {
   ExtensionsStatement,
   ReservedRange,
   Range,
-  FieldOption
+  FieldOption,
+  ProtoNode
 } from '../core/ast';
 
 interface Token {
   type: string;
   value: string;
   range: Range;
+  comment?: string;
 }
 
 export class ProtoParser {
@@ -37,12 +39,14 @@ export class ProtoParser {
   private pos = 0;
   private text = '';
   private lines: string[] = [];
+  private lastComment: string | undefined;
 
   parse(text: string, _uri: string): ProtoFile {
     this.text = text;
     this.lines = text.split('\n');
     this.tokens = this.tokenize(text);
     this.pos = 0;
+    this.lastComment = undefined;
 
     const file: ProtoFile = {
       type: 'file',
@@ -76,6 +80,9 @@ export class ProtoParser {
     let character = 0;
     let i = 0;
 
+    // Comment buffer for attaching to next token
+    let pendingComment: string[] = [];
+
     while (i < text.length) {
       const startLine = line;
       const startChar = character;
@@ -99,19 +106,18 @@ export class ProtoParser {
           i++;
           character++;
         }
-        tokens.push({
-          type: 'comment',
-          value: text.slice(start, i),
-          range: { start: { line: startLine, character: startChar }, end: { line, character } }
-        });
+        // Capture comment content
+        const commentContent = text.slice(start + 2, i).trim();
+        pendingComment.push(commentContent);
         continue;
       }
 
       // Multi-line comment
       if (text[i] === '/' && text[i + 1] === '*') {
-        const start = i;
         i += 2;
         character += 2;
+        const start = i;
+
         while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) {
           if (text[i] === '\n') {
             line++;
@@ -121,14 +127,24 @@ export class ProtoParser {
           }
           i++;
         }
+
+        const commentContent = text.slice(start, i)
+            .split('\n')
+            .map(l => l.replace(/^\s*\*\s?/, '').trim())
+            .join('\n')
+            .trim();
+        pendingComment.push(commentContent);
+
         i += 2;
         character += 2;
-        tokens.push({
-          type: 'comment',
-          value: text.slice(start, i),
-          range: { start: { line: startLine, character: startChar }, end: { line, character } }
-        });
         continue;
+      }
+
+      // Store any accumulated comments with the next token
+      const comment = pendingComment.length > 0 ? pendingComment.join('\n') : undefined;
+      if (comment) {
+        // Clear buffer
+        pendingComment = [];
       }
 
       // String literal
@@ -156,7 +172,8 @@ export class ProtoParser {
         tokens.push({
           type: 'string',
           value: text.slice(start, i),
-          range: { start: { line: startLine, character: startChar }, end: { line, character } }
+          range: { start: { line: startLine, character: startChar }, end: { line, character } },
+          comment
         });
         continue;
       }
@@ -198,7 +215,8 @@ export class ProtoParser {
         tokens.push({
           type: 'number',
           value: text.slice(start, i),
-          range: { start: { line: startLine, character: startChar }, end: { line, character } }
+          range: { start: { line: startLine, character: startChar }, end: { line, character } },
+          comment
         });
         continue;
       }
@@ -214,7 +232,8 @@ export class ProtoParser {
         tokens.push({
           type: 'identifier',
           value,
-          range: { start: { line: startLine, character: startChar }, end: { line, character } }
+          range: { start: { line: startLine, character: startChar }, end: { line, character } },
+          comment
         });
         continue;
       }
@@ -225,7 +244,8 @@ export class ProtoParser {
         tokens.push({
           type: 'punctuation',
           value: text[i],
-          range: { start: { line: startLine, character: startChar }, end: { line, character: character + 1 } }
+          range: { start: { line: startLine, character: startChar }, end: { line, character: character + 1 } },
+          comment // Attaching comment to punctuation is rare but possible if it's the only thing left
         });
         i++;
         character++;
@@ -245,17 +265,15 @@ export class ProtoParser {
   }
 
   private peek(): Token | null {
-    while (this.pos < this.tokens.length && this.tokens[this.pos].type === 'comment') {
-      this.pos++;
-    }
     return this.pos < this.tokens.length ? this.tokens[this.pos] : null;
   }
 
   private advance(): Token | null {
-    while (this.pos < this.tokens.length && this.tokens[this.pos].type === 'comment') {
-      this.pos++;
+    const token = this.pos < this.tokens.length ? this.tokens[this.pos++] : null;
+    if (token?.comment) {
+      this.lastComment = token.comment;
     }
-    return this.pos < this.tokens.length ? this.tokens[this.pos++] : null;
+    return token;
   }
 
   private expect(type: string, value?: string): Token {
@@ -278,6 +296,17 @@ export class ProtoParser {
         break;
       }
     }
+  }
+
+  private attachComment(node: ProtoNode, token: Token) {
+      if (token.comment) {
+          node.comments = token.comment;
+      } else if (this.lastComment) {
+          // If current token doesn't have comment, but previous one did (and we consumed it),
+          // use that one. This is a heuristic.
+          node.comments = this.lastComment;
+          this.lastComment = undefined; // Consumed
+      }
   }
 
   private parseTopLevel(file: ProtoFile): void {
@@ -326,11 +355,13 @@ export class ProtoParser {
     this.expect('punctuation', ';');
 
     const version = versionToken.value.slice(1, -1) as 'proto2' | 'proto3';
-    return {
+    const node: SyntaxStatement = {
       type: 'syntax',
       version,
       range: { start: startToken.range.start, end: versionToken.range.end }
     };
+    this.attachComment(node, startToken);
+    return node;
   }
 
   private parseEdition(): EditionStatement {
@@ -339,11 +370,13 @@ export class ProtoParser {
     const editionToken = this.expect('string');
     this.expect('punctuation', ';');
 
-    return {
+    const node: EditionStatement = {
       type: 'edition',
       edition: editionToken.value.slice(1, -1),
       range: { start: startToken.range.start, end: editionToken.range.end }
     };
+    this.attachComment(node, startToken);
+    return node;
   }
 
   private parsePackage(): PackageStatement {
@@ -351,11 +384,13 @@ export class ProtoParser {
     const nameToken = this.expect('identifier');
     this.expect('punctuation', ';');
 
-    return {
+    const node: PackageStatement = {
       type: 'package',
       name: nameToken.value,
       range: { start: startToken.range.start, end: nameToken.range.end }
     };
+    this.attachComment(node, startToken);
+    return node;
   }
 
   private parseImport(): ImportStatement {
@@ -369,12 +404,14 @@ export class ProtoParser {
     const pathToken = this.expect('string');
     this.expect('punctuation', ';');
 
-    return {
+    const node: ImportStatement = {
       type: 'import',
       path: pathToken.value.slice(1, -1),
       modifier,
       range: { start: startToken.range.start, end: pathToken.range.end }
     };
+    this.attachComment(node, startToken);
+    return node;
   }
 
   private parseOption(): OptionStatement {
@@ -420,12 +457,14 @@ export class ProtoParser {
 
     this.expect('punctuation', ';');
 
-    return {
+    const node: OptionStatement = {
       type: 'option',
       name,
       value,
       range: { start: startToken.range.start, end: valueToken.range.end }
     };
+    this.attachComment(node, startToken);
+    return node;
   }
 
   private parseMessage(): MessageDefinition {
@@ -447,6 +486,7 @@ export class ProtoParser {
       maps: [],
       range: { start: startToken.range.start, end: startToken.range.end }
     };
+    this.attachComment(message, startToken);
 
     while (!this.isAtEnd() && !this.match('punctuation', '}')) {
       const token = this.peek();
@@ -499,11 +539,22 @@ export class ProtoParser {
   private parseField(): FieldDefinition {
     let modifier: 'optional' | 'required' | 'repeated' | undefined;
 
+    // Capture the first token for comment attachment
+    let firstToken = this.peek();
+
     if (this.match('identifier', 'optional') || this.match('identifier', 'required') || this.match('identifier', 'repeated')) {
-      modifier = this.advance()!.value as 'optional' | 'required' | 'repeated';
+      const token = this.advance()!;
+      modifier = token.value as 'optional' | 'required' | 'repeated';
+      if (!firstToken) {
+          firstToken = token;
+      }
     }
 
     const typeToken = this.expect('identifier');
+    if (!firstToken) {
+        firstToken = typeToken;
+    }
+
     const nameToken = this.expect('identifier');
     this.expect('punctuation', '=');
     const numberToken = this.expect('number');
@@ -511,7 +562,7 @@ export class ProtoParser {
     const options = this.parseFieldOptions();
     this.expect('punctuation', ';');
 
-    return {
+    const node: FieldDefinition = {
       type: 'field',
       modifier,
       fieldType: typeToken.value,
@@ -522,6 +573,10 @@ export class ProtoParser {
       options,
       range: { start: typeToken.range.start, end: numberToken.range.end }
     };
+    if (firstToken) {
+        this.attachComment(node, firstToken);
+    }
+    return node;
   }
 
   private parseFieldOptions(): FieldOption[] | undefined {
@@ -583,7 +638,7 @@ export class ProtoParser {
     this.parseFieldOptions(); // Consume but ignore for map
     this.expect('punctuation', ';');
 
-    return {
+    const node: MapFieldDefinition = {
       type: 'map',
       keyType: keyTypeToken.value,
       valueType: valueTypeToken.value,
@@ -593,6 +648,8 @@ export class ProtoParser {
       number: parseInt(numberToken.value, 10),
       range: { start: startToken.range.start, end: numberToken.range.end }
     };
+    this.attachComment(node, startToken);
+    return node;
   }
 
   private parseOneof(): OneofDefinition {
@@ -607,6 +664,7 @@ export class ProtoParser {
       fields: [],
       range: { start: startToken.range.start, end: startToken.range.end }
     };
+    this.attachComment(oneof, startToken);
 
     while (!this.isAtEnd() && !this.match('punctuation', '}')) {
       const token = this.peek();
@@ -643,6 +701,7 @@ export class ProtoParser {
       reserved: [],
       range: { start: startToken.range.start, end: startToken.range.end }
     };
+    this.attachComment(enumDef, startToken);
 
     while (!this.isAtEnd() && !this.match('punctuation', '}')) {
       const token = this.peek();
@@ -674,7 +733,7 @@ export class ProtoParser {
     const options = this.parseFieldOptions();
     this.expect('punctuation', ';');
 
-    return {
+    const node: EnumValue = {
       type: 'enumValue',
       name: nameToken.value,
       nameRange: nameToken.range,
@@ -682,6 +741,8 @@ export class ProtoParser {
       options,
       range: { start: nameToken.range.start, end: numberToken.range.end }
     };
+    this.attachComment(node, nameToken);
+    return node;
   }
 
   private parseService(): ServiceDefinition {
@@ -697,6 +758,7 @@ export class ProtoParser {
       options: [],
       range: { start: startToken.range.start, end: startToken.range.end }
     };
+    this.attachComment(service, startToken);
 
     while (!this.isAtEnd() && !this.match('punctuation', '}')) {
       const token = this.peek();
@@ -757,6 +819,7 @@ export class ProtoParser {
       options: [],
       range: { start: startToken.range.start, end: outputTypeToken.range.end }
     };
+    this.attachComment(rpc, startToken);
 
     // Handle rpc body or semicolon
     if (this.match('punctuation', '{')) {
@@ -790,6 +853,7 @@ export class ProtoParser {
       fields: [],
       range: { start: startToken.range.start, end: startToken.range.end }
     };
+    this.attachComment(extend, startToken);
 
     while (!this.isAtEnd() && !this.match('punctuation', '}')) {
       const token = this.peek();
@@ -846,12 +910,14 @@ export class ProtoParser {
 
     const endToken = this.expect('punctuation', ';');
 
-    return {
+    const node: ReservedStatement = {
       type: 'reserved',
       ranges,
       names,
       range: { start: startToken.range.start, end: endToken.range.end }
     };
+    this.attachComment(node, startToken);
+    return node;
   }
 
   private parseExtensions(): ExtensionsStatement {
@@ -886,11 +952,13 @@ export class ProtoParser {
 
     const endToken = this.expect('punctuation', ';');
 
-    return {
+    const node: ExtensionsStatement = {
       type: 'extensions',
       ranges,
       range: { start: startToken.range.start, end: endToken.range.end }
     };
+    this.attachComment(node, startToken);
+    return node;
   }
 }
 

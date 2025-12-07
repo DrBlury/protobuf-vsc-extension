@@ -114,7 +114,7 @@ export class SymbolProvider {
     });
 
     // Return top 100 results
-    return results.slice(0, 100).map(({ score, ...rest }) => rest);
+    return results.slice(0, 100).map(({ score: _score, ...rest }) => rest);
   }
 
   /**

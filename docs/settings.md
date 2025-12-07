@@ -135,6 +135,16 @@ Settings can be configured in:
 - **Maximum**: `200`
 - **Description**: Maximum line length for formatting
 
+#### `protobuf.formatter.preset`
+
+- **Type**: `"minimal" | "google" | "buf" | "custom"`
+- **Default**: `"minimal"`
+- **Description**: Formatter preset to use
+  - `"minimal"` - Built-in minimal formatter (default)
+  - `"google"` - Use clang-format with Google style (requires clang-format)
+  - `"buf"` - Use buf format (requires buf to be installed)
+  - `"custom"` - Use custom formatting settings
+
 ### Completion
 
 #### `protobuf.completion.autoImport`
@@ -222,6 +232,33 @@ Settings can be configured in:
 - **Type**: `boolean`
 - **Default**: `false`
 - **Description**: Automatically renumber fields sequentially when formatting
+
+### Code Generation
+
+#### `protobuf.codegen.profiles`
+
+- **Type**: `Record<string, string[]>`
+- **Default**: `{}`
+- **Description**: Code generation profiles. Each profile is a named array of protoc arguments.
+- **Example**:
+  ```json
+  {
+    "protobuf.codegen.profiles": {
+      "go": [
+        "--go_out=${workspaceFolder}/gen/go",
+        "--go_opt=paths=source_relative",
+        "${file}"
+      ],
+      "typescript": [
+        "--plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts",
+        "--ts_out=${workspaceFolder}/gen/ts",
+        "${file}"
+      ]
+    }
+  }
+  ```
+- **Variables**: Supports VS Code variables (`${workspaceFolder}`, `${file}`, `${fileDirname}`, `${fileBasename}`, `${fileBasenameNoExtension}`)
+- **See**: [Code Generation Guide](./codegen.md) for detailed usage
 
 ### Protoc Compilation
 
@@ -362,6 +399,21 @@ Settings can be configured in:
 - **Type**: `string`
 - **Default**: `"Google"`
 - **Description**: Fallback style when 'file' style is used but no .clang-format file is found
+
+### Buf Format
+
+When `protobuf.formatter.preset` is set to `"buf"`, the extension uses `buf format` for formatting.
+
+#### Requirements
+
+- **buf installed** - Must have `buf` installed and in your PATH
+- **buf.yaml** - Works best with a `buf.yaml` configuration file
+
+#### Notes
+
+- Buf format uses the formatting rules defined by Buf
+- Range formatting falls back to the built-in formatter
+- Requires `buf` to be available (see [Toolchain Management](./toolchain.md))
 
 ## Variable Substitution
 

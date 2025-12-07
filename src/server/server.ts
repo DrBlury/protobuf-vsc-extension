@@ -44,29 +44,18 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 // Core functionality
 import { ProtoParser } from './core/parser';
 import { SemanticAnalyzer } from './core/analyzer';
-import { MessageDefinition, EnumDefinition, ProtoFile, Range as AstRange } from './core/ast';
+import {
+  MessageDefinition,
+  EnumDefinition,
+  ProtoFile,
+  Range as AstRange,
+  OptionStatement,
+  ServiceDefinition,
+  FieldDefinition,
+  RpcDefinition
+} from './core/ast';
 
-// Providers (LSP language features)
-import { DiagnosticsProvider } from './providers/diagnostics';
-import { ProtoFormatter } from './providers/formatter';
-import { CompletionProvider } from './providers/completion';
-import { HoverProvider } from './providers/hover';
-import { DefinitionProvider } from './providers/definition';
-import { ReferencesProvider } from './providers/references';
-import { SymbolProvider } from './providers/symbols';
-import { RenumberProvider } from './providers/renumber';
-import { RenameProvider } from './providers/rename';
-import { CodeActionsProvider } from './providers/codeActions';
-import { SchemaGraphProvider } from './providers/schemaGraph';
-import { CodeLensProvider } from './providers/codeLens';
-import { DocumentLinksProvider } from './providers/documentLinks';
-
-// Services (external tools and integrations)
-import { ProtocCompiler } from './services/protoc';
-import { BreakingChangeDetector } from './services/breaking';
-import { ExternalLinterProvider } from './services/externalLinter';
-import { ClangFormatProvider } from './services/clangFormat';
-import { bufConfigProvider } from './services/bufConfig';
+// Providers and services are now managed through ProviderRegistry
 
 // Utilities
 import { logger, LogLevel } from './utils/logger';
@@ -75,7 +64,6 @@ import {
   GOOGLE_WELL_KNOWN_TEST_FILE,
   REQUEST_METHODS,
   DIAGNOSTIC_SOURCE,
-  SERVER_IDS,
   ERROR_CODES,
   TIMING,
   DEFAULT_POSITIONS
@@ -233,8 +221,8 @@ connection.onInitialized(() => {
  */
 function preloadGoogleWellKnownProtos(
   discoveredIncludePath: string | undefined,
-  parser: ProtoParser,
-  analyzer: SemanticAnalyzer
+  _parser: ProtoParser,
+  _analyzer: SemanticAnalyzer
 ): void {
   const resourcesRoot = path.join(__dirname, '..', '..', 'resources');
 
@@ -1013,6 +1001,117 @@ connection.onRequest(REQUEST_METHODS.CHECK_BREAKING_CHANGES, async (params: { ur
   }
 
   return providers.breaking.detectBreakingChanges(currentFile, baselineFile, params.uri);
+});
+
+// Helper to collect options from AST
+interface CollectedOption {
+  name: string;
+  value: string | number | boolean;
+  range: AstRange;
+  parent: string;
+}
+
+interface NodeWithOptions {
+  options?: OptionStatement[];
+  messages?: MessageDefinition[];
+  nestedMessages?: MessageDefinition[];
+  enums?: EnumDefinition[];
+  nestedEnums?: EnumDefinition[];
+  services?: ServiceDefinition[];
+  fields?: FieldDefinition[];
+  rpcs?: RpcDefinition[];
+}
+
+function collectOptions(file: ProtoFile): CollectedOption[] {
+  const options: CollectedOption[] = [];
+
+  function addOptions(container: NodeWithOptions, parentName: string): void {
+    if (container.options) {
+      for (const opt of container.options) {
+        options.push({
+          name: opt.name,
+          value: opt.value,
+          range: opt.range,
+          parent: parentName
+        });
+      }
+    }
+  }
+
+  // File options
+  addOptions(file, 'File');
+
+  // Traverse
+  function traverse(node: NodeWithOptions, prefix: string): void {
+    if (node.messages) {
+      for (const msg of node.messages) {
+        addOptions(msg, `Message ${prefix}${msg.name}`);
+        traverse(msg, `${prefix}${msg.name}.`);
+      }
+    }
+    if (node.nestedMessages) {
+      for (const msg of node.nestedMessages) {
+        addOptions(msg, `Message ${prefix}${msg.name}`);
+        traverse(msg, `${prefix}${msg.name}.`);
+      }
+    }
+    if (node.enums) {
+      for (const enm of node.enums) {
+        addOptions(enm, `Enum ${prefix}${enm.name}`);
+      }
+    }
+    if (node.nestedEnums) {
+      for (const enm of node.nestedEnums) {
+        addOptions(enm, `Enum ${prefix}${enm.name}`);
+      }
+    }
+    if (node.services) {
+      for (const svc of node.services) {
+        addOptions(svc, `Service ${prefix}${svc.name}`);
+        if (svc.rpcs) {
+          for (const rpc of svc.rpcs) {
+            addOptions(rpc, `RPC ${prefix}${svc.name}.${rpc.name}`);
+          }
+        }
+      }
+    }
+    if (node.fields) {
+        for (const field of node.fields) {
+            // Field options are inside options array in FieldDefinition, but AST defines it as FieldOption[] which has name/value
+            if (field.options) {
+                for (const opt of field.options) {
+                    options.push({
+                        name: opt.name,
+                        value: opt.value,
+                        range: field.range, // Approximate range or we need range on field option
+                        parent: `Field ${prefix}${field.name}`
+                    });
+                }
+            }
+        }
+    }
+  }
+
+  traverse(file, '');
+  return options;
+}
+
+connection.onRequest(REQUEST_METHODS.GET_ALL_OPTIONS, (params: { uri: string }) => {
+  const document = documents.get(params.uri);
+  if (!document) {
+    return [];
+  }
+  const file = providers.parser.parse(document.getText(), params.uri);
+  return collectOptions(file);
+});
+
+connection.onRequest(REQUEST_METHODS.MIGRATE_TO_PROTO3, (params: { uri: string }) => {
+  const document = documents.get(params.uri);
+  if (!document) {
+    return [];
+  }
+  const file = providers.parser.parse(document.getText(), params.uri);
+  return providers.migration.convertToProto3(file, document.getText(), params.uri);
 });
 
 // Start listening

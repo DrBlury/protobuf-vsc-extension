@@ -22,6 +22,8 @@ import { ProtocCompiler } from '../services/protoc';
 import { BreakingChangeDetector } from '../services/breaking';
 import { ExternalLinterProvider } from '../services/externalLinter';
 import { ClangFormatProvider } from '../services/clangFormat';
+import { BufFormatProvider } from '../services/bufFormat';
+import { MigrationProvider } from '../providers/migration';
 
 /**
  * Registry of all providers for the language server
@@ -45,21 +47,30 @@ export class ProviderRegistry {
   public readonly schemaGraph: SchemaGraphProvider;
   public readonly codeLens: CodeLensProvider;
   public readonly documentLinks: DocumentLinksProvider;
+  public readonly migration: MigrationProvider;
 
   // Services
   public readonly protoc: ProtocCompiler;
   public readonly breaking: BreakingChangeDetector;
   public readonly externalLinter: ExternalLinterProvider;
   public readonly clangFormat: ClangFormatProvider;
+  public readonly bufFormat: BufFormatProvider;
 
   constructor() {
     // Initialize core first
     this.parser = new ProtoParser();
     this.analyzer = new SemanticAnalyzer();
 
+    // Initialize services (mostly independent)
+    this.protoc = new ProtocCompiler();
+    this.breaking = new BreakingChangeDetector();
+    this.externalLinter = new ExternalLinterProvider();
+    this.clangFormat = new ClangFormatProvider();
+    this.bufFormat = new BufFormatProvider();
+
     // Initialize providers (depend on analyzer)
     this.diagnostics = new DiagnosticsProvider(this.analyzer);
-    this.formatter = new ProtoFormatter();
+    this.formatter = new ProtoFormatter(this.clangFormat, this.bufFormat);
     this.completion = new CompletionProvider(this.analyzer);
     this.hover = new HoverProvider(this.analyzer);
     this.definition = new DefinitionProvider(this.analyzer);
@@ -71,12 +82,7 @@ export class ProviderRegistry {
     this.schemaGraph = new SchemaGraphProvider(this.analyzer);
     this.codeLens = new CodeLensProvider(this.analyzer);
     this.documentLinks = new DocumentLinksProvider(this.analyzer);
-
-    // Initialize services (mostly independent)
-    this.protoc = new ProtocCompiler();
-    this.breaking = new BreakingChangeDetector();
-    this.externalLinter = new ExternalLinterProvider();
-    this.clangFormat = new ClangFormatProvider();
+    this.migration = new MigrationProvider();
   }
 
   /**

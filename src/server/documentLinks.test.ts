@@ -64,7 +64,7 @@ message User {
     const links = documentLinksProvider.getDocumentLinks(uri, file);
 
     expect(links.length).toBeGreaterThan(0);
-    const googleLink = links.find(l => l.target?.includes('timestamp'));
+    const _googleLink = links.find(l => l.target?.includes('timestamp'));
     // May or may not resolve depending on setup
     expect(links.length).toBeGreaterThanOrEqual(0);
   });

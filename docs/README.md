@@ -20,6 +20,16 @@ Welcome to the comprehensive documentation for the Protobuf VSC extension. This 
 - [Templates](./templates.md) - Proto file templates
 - [Breaking Changes](./breaking-changes.md) - Breaking change detection
 - [Schema Graph](./schema-graph.md) - Visual schema visualization
+- [Schema Diff](./schema-diff.md) - Compare proto files against Git references
+- [Migration](./migration.md) - Convert proto2 to proto3
+
+### Developer Tools
+
+- [Toolchain Management](./toolchain.md) - Install and manage protoc/buf tools
+- [Code Generation](./codegen.md) - Configure and run codegen profiles
+- [Playground](./playground.md) - Test gRPC services interactively
+- [Option Inspector](./option-inspector.md) - Browse and navigate options
+- [Registry Management](./registry.md) - Add Buf registry dependencies
 
 ### Configuration
 
