@@ -36,6 +36,14 @@ export class CompletionProvider {
     const hasContentAfterCursor = afterCursor.trim().length > 0;
     const typePrefix = this.getTypePrefix(beforeCursor);
 
+    // CEL expression completions - check this first as it's a specific context
+    if (documentText) {
+      const celContext = this.getCelContext(position, documentText);
+      if (celContext) {
+        return this.getCelCompletions(uri, position, beforeCursor, celContext);
+      }
+    }
+
     // Import path completion
     if (beforeCursor.includes('import') && beforeCursor.includes('"')) {
       return this.getImportCompletions(uri);
@@ -86,8 +94,8 @@ export class CompletionProvider {
     }
 
     // Option completions
-    if (beforeCursor.includes('option')) {
-      completions.push(...this.getOptionCompletions());
+    if (beforeCursor.includes('option') || beforeCursor.includes('buf.validate')) {
+      completions.push(...this.getOptionCompletions(beforeCursor));
     }
 
     return completions;
@@ -201,43 +209,21 @@ export class CompletionProvider {
   private getKeywordCompletions(_context: string): CompletionItem[] {
     const completions: CompletionItem[] = [];
 
-    // Top-level keywords
-    const topLevelKeywords = [
-      { label: 'syntax', snippet: 'syntax = "proto3";', detail: 'Syntax declaration' },
-      { label: 'edition', snippet: 'edition = "${1:2023}";', detail: 'Edition declaration' },
-      { label: 'package', snippet: 'package ${1:name};', detail: 'Package declaration' },
-      { label: 'import', snippet: 'import "${1:path}";', detail: 'Import statement' },
-      { label: 'option', snippet: 'option ${1:name} = ${2:value};', detail: 'Option declaration' },
-      { label: 'message', snippet: 'message ${1:Name} {\n\t$0\n}', detail: 'Message declaration' },
-      { label: 'enum', snippet: 'enum ${1:Name} {\n\t${2:UNKNOWN} = 0;\n\t$0\n}', detail: 'Enum declaration' },
-      { label: 'service', snippet: 'service ${1:Name} {\n\t$0\n}', detail: 'Service declaration' }
+    // Only provide simple keyword completions here
+    // Full snippet expansions (message, enum, service, etc.) are handled by snippets/proto.json
+    // to avoid duplicate suggestions
+    const simpleKeywords = [
+      { label: 'optional', detail: 'Optional field modifier' },
+      { label: 'required', detail: 'Required field modifier (proto2)' },
+      { label: 'repeated', detail: 'Repeated field modifier' },
+      { label: 'stream', detail: 'Streaming modifier' }
     ];
 
-    // Inside message keywords
-    const messageKeywords = [
-      { label: 'optional', snippet: 'optional ${1:type} ${2:name} = ${3:1};', detail: 'Optional field' },
-      { label: 'required', snippet: 'required ${1:type} ${2:name} = ${3:1};', detail: 'Required field (proto2)' },
-      { label: 'repeated', snippet: 'repeated ${1:type} ${2:name} = ${3:1};', detail: 'Repeated field' },
-      { label: 'oneof', snippet: 'oneof ${1:name} {\n\t$0\n}', detail: 'Oneof declaration' },
-      { label: 'map', snippet: 'map<${1:key_type}, ${2:value_type}> ${3:name} = ${4:1};', detail: 'Map field' },
-      { label: 'reserved', snippet: 'reserved ${1:numbers_or_names};', detail: 'Reserved declaration' }
-    ];
-
-    // Service keywords
-    const serviceKeywords = [
-      { label: 'rpc', snippet: 'rpc ${1:Name}(${2:Request}) returns (${3:Response});', detail: 'RPC method' },
-      { label: 'stream', snippet: 'stream', detail: 'Streaming modifier' }
-    ];
-
-    const allKeywords = [...topLevelKeywords, ...messageKeywords, ...serviceKeywords];
-
-    for (const kw of allKeywords) {
+    for (const kw of simpleKeywords) {
       completions.push({
         label: kw.label,
         kind: CompletionItemKind.Keyword,
         detail: kw.detail,
-        insertText: kw.snippet,
-        insertTextFormat: InsertTextFormat.Snippet,
         sortText: '2' + kw.label
       });
     }
@@ -558,7 +544,18 @@ export class CompletionProvider {
     return nextNumber;
   }
 
-  private getOptionCompletions(): CompletionItem[] {
+  private getOptionCompletions(beforeCursor?: string): CompletionItem[] {
+    const completions: CompletionItem[] = [];
+
+    // Check if we're inside a buf.validate context
+    if (beforeCursor) {
+      const bufValidateCompletions = this.getBufValidateOptionCompletions(beforeCursor);
+      if (bufValidateCompletions.length > 0) {
+        return bufValidateCompletions;
+      }
+    }
+
+    // Standard proto options
     const options = [
       { name: 'java_package', value: '"com.example"' },
       { name: 'java_outer_classname', value: '"ClassName"' },
@@ -575,12 +572,400 @@ export class CompletionProvider {
       { name: 'ruby_package', value: '"Package"' }
     ];
 
-    return options.map(opt => ({
+    completions.push(...options.map(opt => ({
       label: opt.name,
       kind: CompletionItemKind.Property,
       detail: `Option: ${opt.name}`,
       insertText: `${opt.name} = ${opt.value}`,
       insertTextFormat: InsertTextFormat.PlainText
+    })));
+
+    // Add buf.validate custom options as top-level suggestions
+    completions.push(...this.getBufValidateTopLevelOptions());
+
+    return completions;
+  }
+
+  /**
+   * Get buf.validate top-level option suggestions
+   */
+  private getBufValidateTopLevelOptions(): CompletionItem[] {
+    return [
+      {
+        label: '(buf.validate.message)',
+        kind: CompletionItemKind.Module,
+        detail: 'buf/validate - Message validation',
+        documentation: 'Custom validation rules for the entire message using CEL expressions',
+        insertText: '(buf.validate.message).cel = {\n  id: "${1:validation_id}"\n  message: "${2:Validation failed}"\n  expression: "${3:this.field > 0}"\n}',
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '0buf.validate.message'
+      },
+      {
+        label: '(buf.validate.field)',
+        kind: CompletionItemKind.Module,
+        detail: 'buf/validate - Field validation',
+        documentation: 'Custom validation rules for a field using type-specific constraints or CEL',
+        insertText: '(buf.validate.field)',
+        insertTextFormat: InsertTextFormat.PlainText,
+        sortText: '0buf.validate.field'
+      },
+      {
+        label: '(buf.validate.oneof)',
+        kind: CompletionItemKind.Module,
+        detail: 'buf/validate - Oneof validation',
+        documentation: 'Validation rules for oneof fields (e.g., required)',
+        insertText: '(buf.validate.oneof).required = ${1:true};',
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '0buf.validate.oneof'
+      }
+    ];
+  }
+
+  /**
+   * Get context-aware buf.validate option completions
+   */
+  private getBufValidateOptionCompletions(beforeCursor: string): CompletionItem[] {
+    const completions: CompletionItem[] = [];
+
+    // Check for buf.validate.field type-specific options
+    // Pattern: (buf.validate.field).string. or (buf.validate.field).int32. etc.
+    const fieldTypeMatch = beforeCursor.match(/\(buf\.validate\.field\)\.(string|bytes|int32|int64|uint32|uint64|sint32|sint64|fixed32|fixed64|sfixed32|sfixed64|float|double|bool|enum|repeated|map|any|duration|timestamp)\.$/);
+    if (fieldTypeMatch) {
+      const fieldType = fieldTypeMatch[1];
+      return this.getBufValidateFieldTypeOptions(fieldType);
+    }
+
+    // Check for buf.validate.field. options
+    if (beforeCursor.match(/\(buf\.validate\.field\)\.$/)) {
+      return this.getBufValidateFieldOptions();
+    }
+
+    // Check for buf.validate.message. options
+    if (beforeCursor.match(/\(buf\.validate\.message\)\.$/)) {
+      return this.getBufValidateMessageOptions();
+    }
+
+    // Check for buf.validate. (top-level namespace)
+    if (beforeCursor.match(/\(buf\.validate\.$/)) {
+      return [
+        {
+          label: 'field',
+          kind: CompletionItemKind.Module,
+          detail: 'Field validation constraints',
+          documentation: 'Apply validation rules to individual fields',
+          insertText: 'field)',
+          insertTextFormat: InsertTextFormat.PlainText,
+          sortText: '0field'
+        },
+        {
+          label: 'message',
+          kind: CompletionItemKind.Module,
+          detail: 'Message validation constraints',
+          documentation: 'Apply validation rules to the entire message',
+          insertText: 'message)',
+          insertTextFormat: InsertTextFormat.PlainText,
+          sortText: '0message'
+        },
+        {
+          label: 'oneof',
+          kind: CompletionItemKind.Module,
+          detail: 'Oneof validation constraints',
+          documentation: 'Apply validation rules to oneof fields',
+          insertText: 'oneof)',
+          insertTextFormat: InsertTextFormat.PlainText,
+          sortText: '0oneof'
+        }
+      ];
+    }
+
+    return completions;
+  }
+
+  /**
+   * Get buf.validate.message option completions
+   */
+  private getBufValidateMessageOptions(): CompletionItem[] {
+    return [
+      {
+        label: 'cel',
+        kind: CompletionItemKind.Property,
+        detail: 'CEL validation expression',
+        documentation: 'Custom CEL expression with id, message, and expression fields',
+        insertText: 'cel = {\n  id: "${1:validation_id}"\n  message: "${2:Validation failed}"\n  expression: "${3:this.field > 0}"\n}',
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '0cel'
+      },
+      {
+        label: 'disabled',
+        kind: CompletionItemKind.Property,
+        detail: 'Disable validation',
+        documentation: 'Disable all validation for this message',
+        insertText: 'disabled = ${1:true}',
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '1disabled'
+      }
+    ];
+  }
+
+  /**
+   * Get buf.validate.field option completions
+   */
+  private getBufValidateFieldOptions(): CompletionItem[] {
+    const options = [
+      // Common options
+      { name: 'cel', detail: 'CEL validation expression', insert: 'cel = {\n  id: "${1:validation_id}"\n  message: "${2:Validation failed}"\n  expression: "${3:this > 0}"\n}', sort: '0' },
+      { name: 'required', detail: 'Field must be set', insert: 'required = ${1:true}', sort: '0' },
+      { name: 'ignore', detail: 'Ignore validation', insert: 'ignore = ${1:IGNORE_UNSPECIFIED}', sort: '1' },
+      // Type-specific options
+      { name: 'string', detail: 'String constraints', insert: 'string.', sort: '2' },
+      { name: 'bytes', detail: 'Bytes constraints', insert: 'bytes.', sort: '2' },
+      { name: 'int32', detail: 'Int32 constraints', insert: 'int32.', sort: '2' },
+      { name: 'int64', detail: 'Int64 constraints', insert: 'int64.', sort: '2' },
+      { name: 'uint32', detail: 'UInt32 constraints', insert: 'uint32.', sort: '2' },
+      { name: 'uint64', detail: 'UInt64 constraints', insert: 'uint64.', sort: '2' },
+      { name: 'sint32', detail: 'SInt32 constraints', insert: 'sint32.', sort: '2' },
+      { name: 'sint64', detail: 'SInt64 constraints', insert: 'sint64.', sort: '2' },
+      { name: 'fixed32', detail: 'Fixed32 constraints', insert: 'fixed32.', sort: '2' },
+      { name: 'fixed64', detail: 'Fixed64 constraints', insert: 'fixed64.', sort: '2' },
+      { name: 'sfixed32', detail: 'SFixed32 constraints', insert: 'sfixed32.', sort: '2' },
+      { name: 'sfixed64', detail: 'SFixed64 constraints', insert: 'sfixed64.', sort: '2' },
+      { name: 'float', detail: 'Float constraints', insert: 'float.', sort: '2' },
+      { name: 'double', detail: 'Double constraints', insert: 'double.', sort: '2' },
+      { name: 'bool', detail: 'Bool constraints', insert: 'bool.', sort: '2' },
+      { name: 'enum', detail: 'Enum constraints', insert: 'enum.', sort: '2' },
+      { name: 'repeated', detail: 'Repeated field constraints', insert: 'repeated.', sort: '2' },
+      { name: 'map', detail: 'Map constraints', insert: 'map.', sort: '2' },
+      { name: 'any', detail: 'Any type constraints', insert: 'any.', sort: '2' },
+      { name: 'duration', detail: 'Duration constraints', insert: 'duration.', sort: '2' },
+      { name: 'timestamp', detail: 'Timestamp constraints', insert: 'timestamp.', sort: '2' }
+    ];
+
+    return options.map(opt => ({
+      label: opt.name,
+      kind: CompletionItemKind.Property,
+      detail: opt.detail,
+      insertText: opt.insert,
+      insertTextFormat: opt.insert.includes('$') ? InsertTextFormat.Snippet : InsertTextFormat.PlainText,
+      sortText: opt.sort + opt.name
+    }));
+  }
+
+  /**
+   * Get buf.validate.field type-specific option completions
+   */
+  private getBufValidateFieldTypeOptions(fieldType: string): CompletionItem[] {
+    const typeOptions: Record<string, Array<{name: string, detail: string, value?: string}>> = {
+      string: [
+        { name: 'const', detail: 'Must equal this value', value: '"${1:value}"' },
+        { name: 'len', detail: 'Exact length', value: '${1:10}' },
+        { name: 'min_len', detail: 'Minimum length', value: '${1:1}' },
+        { name: 'max_len', detail: 'Maximum length', value: '${1:255}' },
+        { name: 'pattern', detail: 'Regex pattern', value: '"${1:^[a-z]+$}"' },
+        { name: 'prefix', detail: 'Must start with', value: '"${1:prefix}"' },
+        { name: 'suffix', detail: 'Must end with', value: '"${1:suffix}"' },
+        { name: 'contains', detail: 'Must contain', value: '"${1:substring}"' },
+        { name: 'not_contains', detail: 'Must not contain', value: '"${1:substring}"' },
+        { name: 'in', detail: 'Must be one of', value: '["${1:a}", "${2:b}"]' },
+        { name: 'not_in', detail: 'Must not be one of', value: '["${1:a}", "${2:b}"]' },
+        { name: 'email', detail: 'Must be valid email', value: 'true' },
+        { name: 'hostname', detail: 'Must be valid hostname', value: 'true' },
+        { name: 'ip', detail: 'Must be valid IP', value: 'true' },
+        { name: 'ipv4', detail: 'Must be valid IPv4', value: 'true' },
+        { name: 'ipv6', detail: 'Must be valid IPv6', value: 'true' },
+        { name: 'uri', detail: 'Must be valid URI', value: 'true' },
+        { name: 'uri_ref', detail: 'Must be valid URI reference', value: 'true' },
+        { name: 'address', detail: 'Must be valid address (host or IP)', value: 'true' },
+        { name: 'uuid', detail: 'Must be valid UUID', value: 'true' },
+        { name: 'tuuid', detail: 'Must be valid trimmed UUID', value: 'true' },
+        { name: 'ip_with_prefixlen', detail: 'IP with prefix length', value: 'true' },
+        { name: 'ipv4_with_prefixlen', detail: 'IPv4 with prefix length', value: 'true' },
+        { name: 'ipv6_with_prefixlen', detail: 'IPv6 with prefix length', value: 'true' },
+        { name: 'ip_prefix', detail: 'IP prefix', value: 'true' },
+        { name: 'ipv4_prefix', detail: 'IPv4 prefix', value: 'true' },
+        { name: 'ipv6_prefix', detail: 'IPv6 prefix', value: 'true' },
+        { name: 'host_and_port', detail: 'Host and port', value: 'true' },
+        { name: 'well_known_regex', detail: 'Well-known regex', value: '${1:KNOWN_REGEX_HTTP_HEADER_NAME}' }
+      ],
+      bytes: [
+        { name: 'const', detail: 'Must equal this value' },
+        { name: 'len', detail: 'Exact length', value: '${1:16}' },
+        { name: 'min_len', detail: 'Minimum length', value: '${1:1}' },
+        { name: 'max_len', detail: 'Maximum length', value: '${1:1024}' },
+        { name: 'pattern', detail: 'Regex pattern', value: '"${1:pattern}"' },
+        { name: 'prefix', detail: 'Must start with' },
+        { name: 'suffix', detail: 'Must end with' },
+        { name: 'contains', detail: 'Must contain' },
+        { name: 'in', detail: 'Must be one of' },
+        { name: 'not_in', detail: 'Must not be one of' },
+        { name: 'ip', detail: 'Must be valid IP bytes', value: 'true' },
+        { name: 'ipv4', detail: 'Must be valid IPv4 bytes', value: 'true' },
+        { name: 'ipv6', detail: 'Must be valid IPv6 bytes', value: 'true' }
+      ],
+      int32: [
+        { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
+        { name: 'lt', detail: 'Less than', value: '${1:100}' },
+        { name: 'lte', detail: 'Less than or equal', value: '${1:100}' },
+        { name: 'gt', detail: 'Greater than', value: '${1:0}' },
+        { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
+        { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+      ],
+      int64: [
+        { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
+        { name: 'lt', detail: 'Less than', value: '${1:100}' },
+        { name: 'lte', detail: 'Less than or equal', value: '${1:100}' },
+        { name: 'gt', detail: 'Greater than', value: '${1:0}' },
+        { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
+        { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+      ],
+      uint32: [
+        { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
+        { name: 'lt', detail: 'Less than', value: '${1:100}' },
+        { name: 'lte', detail: 'Less than or equal', value: '${1:100}' },
+        { name: 'gt', detail: 'Greater than', value: '${1:0}' },
+        { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
+        { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+      ],
+      uint64: [
+        { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
+        { name: 'lt', detail: 'Less than', value: '${1:100}' },
+        { name: 'lte', detail: 'Less than or equal', value: '${1:100}' },
+        { name: 'gt', detail: 'Greater than', value: '${1:0}' },
+        { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
+        { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+      ],
+      sint32: [
+        { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
+        { name: 'lt', detail: 'Less than', value: '${1:100}' },
+        { name: 'lte', detail: 'Less than or equal', value: '${1:100}' },
+        { name: 'gt', detail: 'Greater than', value: '${1:0}' },
+        { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
+        { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+      ],
+      sint64: [
+        { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
+        { name: 'lt', detail: 'Less than', value: '${1:100}' },
+        { name: 'lte', detail: 'Less than or equal', value: '${1:100}' },
+        { name: 'gt', detail: 'Greater than', value: '${1:0}' },
+        { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
+        { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+      ],
+      fixed32: [
+        { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
+        { name: 'lt', detail: 'Less than', value: '${1:100}' },
+        { name: 'lte', detail: 'Less than or equal', value: '${1:100}' },
+        { name: 'gt', detail: 'Greater than', value: '${1:0}' },
+        { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
+        { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+      ],
+      fixed64: [
+        { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
+        { name: 'lt', detail: 'Less than', value: '${1:100}' },
+        { name: 'lte', detail: 'Less than or equal', value: '${1:100}' },
+        { name: 'gt', detail: 'Greater than', value: '${1:0}' },
+        { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
+        { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+      ],
+      sfixed32: [
+        { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
+        { name: 'lt', detail: 'Less than', value: '${1:100}' },
+        { name: 'lte', detail: 'Less than or equal', value: '${1:100}' },
+        { name: 'gt', detail: 'Greater than', value: '${1:0}' },
+        { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
+        { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+      ],
+      sfixed64: [
+        { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
+        { name: 'lt', detail: 'Less than', value: '${1:100}' },
+        { name: 'lte', detail: 'Less than or equal', value: '${1:100}' },
+        { name: 'gt', detail: 'Greater than', value: '${1:0}' },
+        { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
+        { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+      ],
+      float: [
+        { name: 'const', detail: 'Must equal this value', value: '${1:0.0}' },
+        { name: 'lt', detail: 'Less than', value: '${1:100.0}' },
+        { name: 'lte', detail: 'Less than or equal', value: '${1:100.0}' },
+        { name: 'gt', detail: 'Greater than', value: '${1:0.0}' },
+        { name: 'gte', detail: 'Greater than or equal', value: '${1:0.0}' },
+        { name: 'in', detail: 'Must be one of', value: '[${1:1.0}, ${2:2.0}]' },
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0.0}]' },
+        { name: 'finite', detail: 'Must be finite (not NaN or Inf)', value: 'true' }
+      ],
+      double: [
+        { name: 'const', detail: 'Must equal this value', value: '${1:0.0}' },
+        { name: 'lt', detail: 'Less than', value: '${1:100.0}' },
+        { name: 'lte', detail: 'Less than or equal', value: '${1:100.0}' },
+        { name: 'gt', detail: 'Greater than', value: '${1:0.0}' },
+        { name: 'gte', detail: 'Greater than or equal', value: '${1:0.0}' },
+        { name: 'in', detail: 'Must be one of', value: '[${1:1.0}, ${2:2.0}]' },
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0.0}]' },
+        { name: 'finite', detail: 'Must be finite (not NaN or Inf)', value: 'true' }
+      ],
+      bool: [
+        { name: 'const', detail: 'Must equal this value', value: '${1:true}' }
+      ],
+      enum: [
+        { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
+        { name: 'defined_only', detail: 'Must be a defined enum value', value: 'true' },
+        { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}]' },
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+      ],
+      repeated: [
+        { name: 'min_items', detail: 'Minimum items', value: '${1:1}' },
+        { name: 'max_items', detail: 'Maximum items', value: '${1:100}' },
+        { name: 'unique', detail: 'Items must be unique', value: 'true' },
+        { name: 'items', detail: 'Constraints for each item' }
+      ],
+      map: [
+        { name: 'min_pairs', detail: 'Minimum key-value pairs', value: '${1:1}' },
+        { name: 'max_pairs', detail: 'Maximum key-value pairs', value: '${1:100}' },
+        { name: 'keys', detail: 'Constraints for keys' },
+        { name: 'values', detail: 'Constraints for values' }
+      ],
+      any: [
+        { name: 'in', detail: 'Type URLs must be one of', value: '["${1:type.googleapis.com/Example}"]' },
+        { name: 'not_in', detail: 'Type URLs must not be one of', value: '["${1:type.googleapis.com/Forbidden}"]' }
+      ],
+      duration: [
+        { name: 'const', detail: 'Must equal this duration' },
+        { name: 'lt', detail: 'Less than', value: '{ seconds: ${1:60} }' },
+        { name: 'lte', detail: 'Less than or equal', value: '{ seconds: ${1:60} }' },
+        { name: 'gt', detail: 'Greater than', value: '{ seconds: ${1:0} }' },
+        { name: 'gte', detail: 'Greater than or equal', value: '{ seconds: ${1:0} }' },
+        { name: 'in', detail: 'Must be one of' },
+        { name: 'not_in', detail: 'Must not be one of' }
+      ],
+      timestamp: [
+        { name: 'const', detail: 'Must equal this timestamp' },
+        { name: 'lt', detail: 'Less than' },
+        { name: 'lte', detail: 'Less than or equal' },
+        { name: 'gt', detail: 'Greater than' },
+        { name: 'gte', detail: 'Greater than or equal' },
+        { name: 'lt_now', detail: 'Must be in the past', value: 'true' },
+        { name: 'gt_now', detail: 'Must be in the future', value: 'true' },
+        { name: 'within', detail: 'Must be within duration of now', value: '{ seconds: ${1:3600} }' }
+      ]
+    };
+
+    const options = typeOptions[fieldType] || [];
+
+    return options.map((opt, index) => ({
+      label: opt.name,
+      kind: CompletionItemKind.Property,
+      detail: opt.detail,
+      insertText: opt.value ? `${opt.name} = ${opt.value}` : `${opt.name} = `,
+      insertTextFormat: opt.value?.includes('$') ? InsertTextFormat.Snippet : InsertTextFormat.PlainText,
+      sortText: String(index).padStart(2, '0')
     }));
   }
 
@@ -700,5 +1085,338 @@ export class CompletionProvider {
     }
 
     return suggestions.slice(0, 5); // Return top 5 suggestions
+  }
+
+  /**
+   * Check if the cursor is inside a CEL expression (buf.validate option)
+   * Returns context info including the parent message name for field lookups
+   */
+  private getCelContext(
+    position: Position,
+    documentText: string
+  ): { messageName: string; inExpression: boolean } | undefined {
+    const lines = documentText.split('\n');
+    const currentLine = position.line;
+
+    // Track brace depth to find if we're inside an option block
+    let optionBraceDepth = 0;
+    let inCelOption = false;
+    let messageName: string | undefined;
+    let messageStartLine = -1;
+
+    // First, find which message we're in
+    let braceDepth = 0;
+    for (let i = 0; i <= currentLine; i++) {
+      const line = lines[i];
+      const trimmedLine = line.trim();
+
+      // Track message declarations
+      const messageMatch = trimmedLine.match(/^message\s+(\w+)\s*\{/);
+      if (messageMatch) {
+        if (braceDepth === 0) {
+          messageName = messageMatch[1];
+          messageStartLine = i;
+        }
+        braceDepth++;
+        continue;
+      }
+
+      // Track enum/service declarations (these reset our message context at same level)
+      if (/^(enum|service)\s+\w+\s*\{/.test(trimmedLine) && braceDepth === 0) {
+        messageName = undefined;
+        messageStartLine = -1;
+      }
+
+      // Count braces on the line
+      for (const char of line) {
+        if (char === '{') {
+          braceDepth++;
+        } else if (char === '}') {
+          braceDepth--;
+          if (braceDepth === 0) {
+            // Exited the message
+            messageName = undefined;
+            messageStartLine = -1;
+          }
+        }
+      }
+    }
+
+    if (!messageName) {
+      return undefined;
+    }
+
+    // Now check if we're inside a CEL option block
+    optionBraceDepth = 0;
+    inCelOption = false;
+
+    for (let i = messageStartLine; i <= currentLine; i++) {
+      const line = lines[i];
+      const trimmedLine = line.trim();
+
+      // Check for buf.validate CEL option start
+      if (trimmedLine.includes('option') &&
+          (trimmedLine.includes('buf.validate') || trimmedLine.includes('.cel'))) {
+        if (trimmedLine.includes('{')) {
+          inCelOption = true;
+          optionBraceDepth = 1;
+          // Count any additional braces on the same line
+          for (let j = line.indexOf('{') + 1; j < line.length; j++) {
+            if (line[j] === '{') optionBraceDepth++;
+            if (line[j] === '}') optionBraceDepth--;
+          }
+          continue;
+        }
+      }
+
+      if (inCelOption) {
+        for (const char of line) {
+          if (char === '{') optionBraceDepth++;
+          if (char === '}') optionBraceDepth--;
+        }
+        if (optionBraceDepth === 0) {
+          inCelOption = false;
+        }
+      }
+    }
+
+    if (!inCelOption) {
+      return undefined;
+    }
+
+    // Check if we're inside an expression string (between quotes)
+    const lineUpToCursor = lines[currentLine].substring(0, position.character);
+    const inExpression = this.isInsideCelExpressionString(lineUpToCursor);
+
+    return { messageName, inExpression };
+  }
+
+  /**
+   * Check if we're inside a CEL expression string
+   */
+  private isInsideCelExpressionString(text: string): boolean {
+    // Count unescaped quotes to determine if we're inside a string
+    let inString = false;
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === '"' && (i === 0 || text[i - 1] !== '\\')) {
+        inString = !inString;
+      }
+    }
+    return inString;
+  }
+
+  /**
+   * Get CEL-specific completions
+   */
+  private getCelCompletions(
+    uri: string,
+    _position: Position,
+    beforeCursor: string,
+    context: { messageName: string; inExpression: boolean }
+  ): CompletionItem[] {
+    const completions: CompletionItem[] = [];
+
+    if (context.inExpression) {
+      // Inside a CEL expression string - provide field and function completions
+
+      // Check if user is typing after "this."
+      if (beforeCursor.match(/this\.\s*$/)) {
+        completions.push(...this.getCelFieldCompletions(uri, context.messageName));
+      }
+      // Also suggest "this" if they haven't started yet
+      else if (beforeCursor.match(/[\s(!"']\s*$/) || beforeCursor.match(/^\s*"$/)) {
+        completions.push({
+          label: 'this',
+          kind: CompletionItemKind.Variable,
+          detail: 'Reference to current message',
+          documentation: 'Use "this" to access fields of the current message in CEL expressions',
+          insertText: 'this.',
+          sortText: '0this'
+        });
+        completions.push(...this.getCelFunctionCompletions());
+      }
+      // Provide general CEL functions
+      else {
+        completions.push(...this.getCelFunctionCompletions());
+        // Also suggest this. for field access
+        if (!beforeCursor.includes('this.')) {
+          completions.push({
+            label: 'this',
+            kind: CompletionItemKind.Variable,
+            detail: 'Reference to current message',
+            insertText: 'this.',
+            sortText: '0this'
+          });
+        }
+      }
+    } else {
+      // Inside CEL option block but not in an expression string
+      // Provide CEL option field completions
+      completions.push(...this.getCelOptionFieldCompletions(beforeCursor));
+    }
+
+    return completions;
+  }
+
+  /**
+   * Get field completions for CEL expressions based on the message
+   */
+  private getCelFieldCompletions(uri: string, messageName: string): CompletionItem[] {
+    const completions: CompletionItem[] = [];
+    const protoFile = this.analyzer.getFile(uri);
+
+    if (!protoFile) {
+      return completions;
+    }
+
+    // Find the message definition
+    const findMessage = (
+      messages: import('../core/ast').MessageDefinition[],
+      name: string
+    ): import('../core/ast').MessageDefinition | undefined => {
+      for (const msg of messages) {
+        if (msg.name === name) {
+          return msg;
+        }
+        const nested = findMessage(msg.nestedMessages, name);
+        if (nested) {
+          return nested;
+        }
+      }
+      return undefined;
+    };
+
+    const message = findMessage(protoFile.messages, messageName);
+    if (!message) {
+      return completions;
+    }
+
+    // Add field completions
+    for (const field of message.fields) {
+      completions.push({
+        label: field.name,
+        kind: CompletionItemKind.Field,
+        detail: `${field.fieldType}${field.modifier ? ` (${field.modifier})` : ''}`,
+        documentation: `Field ${field.name} with type ${field.fieldType}`,
+        insertText: field.name,
+        sortText: '0' + field.name
+      });
+    }
+
+    // Add map field completions
+    for (const mapField of message.maps) {
+      completions.push({
+        label: mapField.name,
+        kind: CompletionItemKind.Field,
+        detail: `map<${mapField.keyType}, ${mapField.valueType}>`,
+        documentation: `Map field ${mapField.name}`,
+        insertText: mapField.name,
+        sortText: '0' + mapField.name
+      });
+    }
+
+    // Add oneof field completions
+    for (const oneof of message.oneofs) {
+      for (const field of oneof.fields) {
+        completions.push({
+          label: field.name,
+          kind: CompletionItemKind.Field,
+          detail: `${field.fieldType} (oneof ${oneof.name})`,
+          documentation: `Oneof field ${field.name} in ${oneof.name}`,
+          insertText: field.name,
+          sortText: '0' + field.name
+        });
+      }
+    }
+
+    return completions;
+  }
+
+  /**
+   * Get CEL function completions
+   */
+  private getCelFunctionCompletions(): CompletionItem[] {
+    const celFunctions = [
+      // Field presence
+      { name: 'has', snippet: 'has(this.${1:field})', detail: 'Check if field is set', doc: 'Returns true if the field is set (not default value)' },
+
+      // String functions
+      { name: 'size', snippet: 'size(${1:value})', detail: 'Get size/length', doc: 'Returns the size of a string, bytes, list, or map' },
+      { name: 'startsWith', snippet: '${1:string}.startsWith(${2:prefix})', detail: 'Check string prefix', doc: 'Returns true if string starts with prefix' },
+      { name: 'endsWith', snippet: '${1:string}.endsWith(${2:suffix})', detail: 'Check string suffix', doc: 'Returns true if string ends with suffix' },
+      { name: 'contains', snippet: '${1:string}.contains(${2:substring})', detail: 'Check substring', doc: 'Returns true if string contains substring' },
+      { name: 'matches', snippet: '${1:string}.matches(${2:regex})', detail: 'Regex match', doc: 'Returns true if string matches the regex pattern' },
+
+      // List functions
+      { name: 'all', snippet: '${1:list}.all(${2:x}, ${3:predicate})', detail: 'Check all elements', doc: 'Returns true if predicate is true for all elements' },
+      { name: 'exists', snippet: '${1:list}.exists(${2:x}, ${3:predicate})', detail: 'Check any element', doc: 'Returns true if predicate is true for any element' },
+      { name: 'exists_one', snippet: '${1:list}.exists_one(${2:x}, ${3:predicate})', detail: 'Check exactly one', doc: 'Returns true if predicate is true for exactly one element' },
+      { name: 'filter', snippet: '${1:list}.filter(${2:x}, ${3:predicate})', detail: 'Filter list', doc: 'Returns elements where predicate is true' },
+      { name: 'map', snippet: '${1:list}.map(${2:x}, ${3:transform})', detail: 'Map list', doc: 'Transforms each element' },
+
+      // Type conversions
+      { name: 'int', snippet: 'int(${1:value})', detail: 'Convert to int', doc: 'Converts value to integer' },
+      { name: 'uint', snippet: 'uint(${1:value})', detail: 'Convert to uint', doc: 'Converts value to unsigned integer' },
+      { name: 'double', snippet: 'double(${1:value})', detail: 'Convert to double', doc: 'Converts value to double' },
+      { name: 'string', snippet: 'string(${1:value})', detail: 'Convert to string', doc: 'Converts value to string' },
+      { name: 'bytes', snippet: 'bytes(${1:value})', detail: 'Convert to bytes', doc: 'Converts value to bytes' },
+      { name: 'bool', snippet: 'bool(${1:value})', detail: 'Convert to bool', doc: 'Converts value to boolean' },
+      { name: 'type', snippet: 'type(${1:value})', detail: 'Get type', doc: 'Returns the type of the value' },
+
+      // Duration/Timestamp (buf.validate specific)
+      { name: 'duration', snippet: 'duration(${1:value})', detail: 'Create duration', doc: 'Creates a duration from a string like "3600s"' },
+      { name: 'timestamp', snippet: 'timestamp(${1:value})', detail: 'Create timestamp', doc: 'Creates a timestamp from a string' },
+    ];
+
+    return celFunctions.map(fn => ({
+      label: fn.name,
+      kind: CompletionItemKind.Function,
+      detail: fn.detail,
+      documentation: fn.doc,
+      insertText: fn.snippet,
+      insertTextFormat: InsertTextFormat.Snippet,
+      sortText: '1' + fn.name
+    }));
+  }
+
+  /**
+   * Get CEL option field completions (id, message, expression, etc.)
+   */
+  private getCelOptionFieldCompletions(beforeCursor: string): CompletionItem[] {
+    // Check if we're at a position where we'd type a field name
+    const trimmed = beforeCursor.trim();
+    if (trimmed.endsWith('{') || trimmed.endsWith(',') || trimmed.endsWith(';') || trimmed === '') {
+      return [
+        {
+          label: 'id',
+          kind: CompletionItemKind.Property,
+          detail: 'CEL rule identifier',
+          documentation: 'Unique identifier for this validation rule',
+          insertText: 'id: "${1:RuleName}"',
+          insertTextFormat: InsertTextFormat.Snippet,
+          sortText: '0id'
+        },
+        {
+          label: 'message',
+          kind: CompletionItemKind.Property,
+          detail: 'Error message',
+          documentation: 'Human-readable error message when validation fails',
+          insertText: 'message: "${1:Validation failed}"',
+          insertTextFormat: InsertTextFormat.Snippet,
+          sortText: '1message'
+        },
+        {
+          label: 'expression',
+          kind: CompletionItemKind.Property,
+          detail: 'CEL expression',
+          documentation: 'CEL expression that evaluates to true for valid data or returns error string',
+          insertText: 'expression:\n      "${1:this.field != \\"\\"}"',
+          insertTextFormat: InsertTextFormat.Snippet,
+          sortText: '2expression'
+        }
+      ];
+    }
+
+    return [];
   }
 }

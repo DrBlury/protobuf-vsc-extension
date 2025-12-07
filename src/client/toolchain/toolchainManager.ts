@@ -234,6 +234,128 @@ export class ToolchainManager {
     }
   }
 
+  /**
+   * Configure settings to use the managed (extension-installed) toolchain.
+   * This updates protobuf.buf.path, protobuf.protoc.path, and protobuf.externalLinter.bufPath
+   * to point to the extension's managed binaries.
+   */
+  public async useManagedToolchain(): Promise<void> {
+    const managedBufPath = this.getManagedToolPath('buf');
+    const managedProtocPath = this.getManagedToolPath('protoc');
+
+    // Check if managed tools exist
+    const bufExists = fs.existsSync(managedBufPath);
+    const protocExists = fs.existsSync(managedProtocPath);
+
+    if (!bufExists && !protocExists) {
+      const install = await vscode.window.showWarningMessage(
+        'No managed tools found. Would you like to install them first?',
+        'Install buf', 'Install protoc', 'Install both', 'Cancel'
+      );
+
+      if (install === 'Install buf') {
+        await this.installTool('buf');
+      } else if (install === 'Install protoc') {
+        await this.installTool('protoc');
+      } else if (install === 'Install both') {
+        await this.installTool('buf');
+        await this.installTool('protoc');
+      } else {
+        return;
+      }
+    }
+
+    // Ask user for scope
+    const scope = await vscode.window.showQuickPick(
+      [
+        { label: 'Workspace', description: 'Apply to current workspace only', target: vscode.ConfigurationTarget.Workspace },
+        { label: 'Global', description: 'Apply to all workspaces', target: vscode.ConfigurationTarget.Global }
+      ],
+      { placeHolder: 'Where should the managed toolchain settings be applied?' }
+    );
+
+    if (!scope) {
+      return;
+    }
+
+    const configTarget = scope.target;
+    const updatedSettings: string[] = [];
+
+    try {
+      // Update buf.path
+      if (fs.existsSync(managedBufPath)) {
+        await vscode.workspace.getConfiguration('protobuf.buf').update('path', managedBufPath, configTarget);
+        await vscode.workspace.getConfiguration('protobuf.externalLinter').update('bufPath', managedBufPath, configTarget);
+        updatedSettings.push('buf');
+        this.outputChannel.appendLine(`Set protobuf.buf.path to ${managedBufPath}`);
+        this.outputChannel.appendLine(`Set protobuf.externalLinter.bufPath to ${managedBufPath}`);
+      }
+
+      // Update protoc.path
+      if (fs.existsSync(managedProtocPath)) {
+        await vscode.workspace.getConfiguration('protobuf.protoc').update('path', managedProtocPath, configTarget);
+        updatedSettings.push('protoc');
+        this.outputChannel.appendLine(`Set protobuf.protoc.path to ${managedProtocPath}`);
+      }
+
+      if (updatedSettings.length > 0) {
+        vscode.window.showInformationMessage(
+          `Configured to use managed toolchain: ${updatedSettings.join(', ')} (${scope.label})`
+        );
+      } else {
+        vscode.window.showWarningMessage('No managed tools were found to configure.');
+      }
+    } catch (e) {
+      const msg = `Failed to update settings: ${e instanceof Error ? e.message : String(e)}`;
+      this.outputChannel.appendLine(msg);
+      vscode.window.showErrorMessage(msg);
+    }
+  }
+
+  /**
+   * Configure settings to use the system-installed (PATH) toolchain.
+   * This resets protobuf.buf.path, protobuf.protoc.path, and protobuf.externalLinter.bufPath
+   * to their default values (just the command names), relying on the system PATH.
+   */
+  public async useSystemToolchain(): Promise<void> {
+    // Ask user for scope
+    const scope = await vscode.window.showQuickPick(
+      [
+        { label: 'Workspace', description: 'Apply to current workspace only', target: vscode.ConfigurationTarget.Workspace },
+        { label: 'Global', description: 'Apply to all workspaces', target: vscode.ConfigurationTarget.Global }
+      ],
+      { placeHolder: 'Where should the system toolchain settings be applied?' }
+    );
+
+    if (!scope) {
+      return;
+    }
+
+    const configTarget = scope.target;
+
+    try {
+      // Reset to default values (command names only, uses PATH)
+      await vscode.workspace.getConfiguration('protobuf.buf').update('path', 'buf', configTarget);
+      await vscode.workspace.getConfiguration('protobuf.protoc').update('path', 'protoc', configTarget);
+      await vscode.workspace.getConfiguration('protobuf.externalLinter').update('bufPath', 'buf', configTarget);
+
+      this.outputChannel.appendLine('Set protobuf.buf.path to buf (system PATH)');
+      this.outputChannel.appendLine('Set protobuf.protoc.path to protoc (system PATH)');
+      this.outputChannel.appendLine('Set protobuf.externalLinter.bufPath to buf (system PATH)');
+
+      vscode.window.showInformationMessage(
+        `Configured to use system toolchain from PATH (${scope.label})`
+      );
+
+      // Re-check tools to update status bar
+      await this.checkTools();
+    } catch (e) {
+      const msg = `Failed to update settings: ${e instanceof Error ? e.message : String(e)}`;
+      this.outputChannel.appendLine(msg);
+      vscode.window.showErrorMessage(msg);
+    }
+  }
+
   private async promptInstall(toolName: string): Promise<void> {
       const action = await vscode.window.showInformationMessage(
           `Do you want to install/update ${toolName}?`,

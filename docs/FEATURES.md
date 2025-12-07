@@ -21,6 +21,15 @@ This document provides a comprehensive list of all features in the Protobuf VSC 
 - ✅ **Keyword Completions** - Proto keyword suggestions
 - ✅ **Option Completions** - Field and file option suggestions
 - ✅ **Auto-import** - Automatically add imports when completing types
+- ✅ **CEL Expression Completions** - Smart completions for protovalidate CEL expressions
+
+### CEL / Protovalidate Support
+
+- ✅ **CEL Option Completions** - Suggests id, message, expression fields
+- ✅ **Field References** - Suggests message fields after `this.`
+- ✅ **CEL Functions** - Completions for has(), size(), matches(), etc.
+- ✅ **Context-Aware** - Knows which message you're in for field suggestions
+- ✅ **Proper Formatting** - Handles multi-line CEL expressions correctly
 
 ### Hover Information
 

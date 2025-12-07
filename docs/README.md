@@ -11,7 +11,7 @@ Welcome to the comprehensive documentation for the Protobuf VSC extension. This 
 - [Document Links](./document-links.md) - Clickable import paths
 - [Hover Information](./hover.md) - Rich symbol information on hover
 - [Code Actions](./code-actions.md) - Quick fixes and refactoring
-- [Completions](./completions.md) - Smart IntelliSense suggestions
+- [Completions](./completions.md) - Smart IntelliSense suggestions (including CEL/protovalidate)
 - [Symbol Search](./symbol-search.md) - Fuzzy workspace symbol search
 
 ### Advanced Features

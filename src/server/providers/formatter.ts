@@ -118,6 +118,11 @@ export class ProtoFormatter {
     const formattedLines: string[] = [];
     let indentLevel = 0;
     let inBlockComment = false;
+    // Track depth inside option blocks (aggregate options like CEL)
+    // When > 0, we're inside a multi-line option and should not format lines
+    let optionBraceDepth = 0;
+    // Track depth inside inline field options [...] containing braces
+    let inlineOptionBraceDepth = 0;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -142,6 +147,80 @@ export class ProtoFormatter {
       if (trimmedLine === '') {
         formattedLines.push('');
         continue;
+      }
+
+      // Track multi-line option blocks (e.g., option (buf.validate.message).cel = { ... })
+      // When inside an option block, preserve lines as-is with proper indentation
+      if (optionBraceDepth > 0) {
+        // Count opening and closing braces on this line
+        const openBraces = (trimmedLine.match(/\{/g) || []).length;
+        const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+
+        // Adjust indent for closing brace
+        if (trimmedLine.startsWith('}') && indentLevel > 0) {
+          indentLevel--;
+        }
+
+        formattedLines.push(this.getIndent(indentLevel) + trimmedLine);
+
+        // Adjust indent for opening brace
+        if (openBraces > closeBraces) {
+          indentLevel++;
+        }
+
+        optionBraceDepth += openBraces - closeBraces;
+        continue;
+      }
+
+      // Track inline field options with braces (e.g., field = 1 [(buf.validate.field).cel = { ... }])
+      if (inlineOptionBraceDepth > 0) {
+        const openBraces = (trimmedLine.match(/\{/g) || []).length;
+        const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+
+        // Adjust indent for closing brace
+        if (trimmedLine.startsWith('}') && indentLevel > 0) {
+          indentLevel--;
+        }
+
+        formattedLines.push(this.getIndent(indentLevel) + trimmedLine);
+
+        // Adjust indent for opening brace
+        if (openBraces > closeBraces) {
+          indentLevel++;
+        }
+
+        inlineOptionBraceDepth += openBraces - closeBraces;
+        continue;
+      }
+
+      // Check if this line starts an option with an opening brace (multi-line option)
+      if (trimmedLine.startsWith('option') && trimmedLine.includes('{')) {
+        const openBraces = (trimmedLine.match(/\{/g) || []).length;
+        const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+        optionBraceDepth = openBraces - closeBraces;
+
+        formattedLines.push(this.getIndent(indentLevel) + trimmedLine);
+
+        if (optionBraceDepth > 0) {
+          indentLevel++;
+        }
+        continue;
+      }
+
+      // Check if this line has inline field options with braces (e.g., string city = 1 [(buf.validate.field).cel = {)
+      if (trimmedLine.includes('[') && trimmedLine.includes('{')) {
+        const bracketStart = trimmedLine.indexOf('[');
+        const afterBracket = trimmedLine.slice(bracketStart);
+        const openBraces = (afterBracket.match(/\{/g) || []).length;
+        const closeBraces = (afterBracket.match(/\}/g) || []).length;
+
+        if (openBraces > closeBraces) {
+          // Multi-line inline option - preserve and track
+          inlineOptionBraceDepth = openBraces - closeBraces;
+          formattedLines.push(this.getIndent(indentLevel) + trimmedLine);
+          indentLevel++;
+          continue;
+        }
       }
 
       // Check for closing brace
@@ -279,9 +358,64 @@ export class ProtoFormatter {
     const contextStack: Array<{ type: string; fieldCounter: number }> = [];
     const increment = this.settings.renumberIncrement || 1;
 
+    // Track depth inside option blocks (aggregate options like CEL)
+    // When > 0, we're inside a multi-line option and should not renumber anything
+    let optionBraceDepth = 0;
+    // Track depth inside inline field options [...] containing braces
+    let inlineOptionBraceDepth = 0;
+
     for (let i = 0; i < lines.length; i++) {
       let line = lines[i];
       const trimmedLine = line.trim();
+
+      // Track multi-line option blocks (e.g., option (buf.validate.message).cel = { ... })
+      // Count braces to know when we exit the option block
+      if (optionBraceDepth > 0) {
+        // Count opening and closing braces on this line
+        const openBraces = (trimmedLine.match(/\{/g) || []).length;
+        const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+        optionBraceDepth += openBraces - closeBraces;
+
+        // Don't process lines inside option blocks - just pass them through
+        result.push(line);
+        continue;
+      }
+
+      // Track inline field options with braces (e.g., field = 1 [(buf.validate.field).cel = { ... }])
+      if (inlineOptionBraceDepth > 0) {
+        const openBraces = (trimmedLine.match(/\{/g) || []).length;
+        const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+        inlineOptionBraceDepth += openBraces - closeBraces;
+
+        // Don't process lines inside inline option blocks - just pass them through
+        result.push(line);
+        continue;
+      }
+
+      // Check if this line starts an option with an opening brace (multi-line option)
+      if (trimmedLine.startsWith('option') && trimmedLine.includes('{')) {
+        const openBraces = (trimmedLine.match(/\{/g) || []).length;
+        const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+        optionBraceDepth = openBraces - closeBraces;
+        result.push(line);
+        continue;
+      }
+
+      // Check if this line has inline field options with braces (e.g., string city = 1 [(buf.validate.field).cel = {)
+      // This is a field definition with [...] containing a { that doesn't close on same line
+      if (trimmedLine.includes('[') && trimmedLine.includes('{')) {
+        const bracketStart = trimmedLine.indexOf('[');
+        const afterBracket = trimmedLine.slice(bracketStart);
+        const openBraces = (afterBracket.match(/\{/g) || []).length;
+        const closeBraces = (afterBracket.match(/\}/g) || []).length;
+
+        if (openBraces > closeBraces) {
+          // Multi-line inline option - preserve the line as-is and track brace depth
+          inlineOptionBraceDepth = openBraces - closeBraces;
+          result.push(line);
+          continue;
+        }
+      }
 
       // Check for message/enum/oneof/service start
       if (/^(message|enum)\s+\w+\s*\{/.test(trimmedLine)) {

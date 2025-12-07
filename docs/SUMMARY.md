@@ -38,6 +38,8 @@ This document summarizes all the work completed to enhance the Protobuf VSC exte
 - ✅ Fuzzy workspace symbol search
 - ✅ Template system
 - ✅ Toolchain Management (protoc/buf installation and management)
+- ✅ Quick Toolchain Switching (Use Managed/System commands)
+- ✅ CEL / Protovalidate Support (completions for buf.validate expressions)
 - ✅ Code Generation (configurable codegen profiles)
 - ✅ Schema Diff (Git-based file comparison)
 - ✅ Playground (gRPC request testing)

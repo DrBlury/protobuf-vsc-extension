@@ -70,6 +70,16 @@
     "option": {
       "patterns": [
         {
+          "comment": "CEL validation option with aggregate value",
+          "begin": "\\b(option)\\s+(\\([\\w.]+\\)(?:\\.[\\w]+)*)\\s*=\\s*\\{",
+          "end": "\\}\\s*;",
+          "beginCaptures": {
+            "1": { "name": "keyword.other.option.proto" },
+            "2": { "name": "variable.other.option.proto" }
+          },
+          "patterns": [{ "include": "#celOptionBody" }]
+        },
+        {
           "begin": "\\b(option)\\s+",
           "end": ";",
           "beginCaptures": {
@@ -81,6 +91,121 @@
             { "include": "#numbers" },
             { "include": "#constants" }
           ]
+        }
+      ]
+    },
+    "celOptionBody": {
+      "patterns": [
+        { "include": "#comments" },
+        {
+          "comment": "CEL option field with string value containing CEL expression",
+          "begin": "\\b(expression)\\s*:\\s*",
+          "end": "(?=\\b(?:id|message|expression)\\s*:|\\})",
+          "beginCaptures": {
+            "1": { "name": "support.type.property-name.cel.proto" }
+          },
+          "patterns": [{ "include": "#celExpressionString" }]
+        },
+        {
+          "comment": "CEL option field names",
+          "match": "\\b(id|message)\\s*:",
+          "captures": {
+            "1": { "name": "support.type.property-name.cel.proto" }
+          }
+        },
+        { "include": "#strings" },
+        { "include": "#numbers" },
+        { "include": "#constants" }
+      ]
+    },
+    "celExpressionString": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.cel.proto",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "include": "#celExpressionContent" }]
+        },
+        {
+          "name": "string.quoted.single.cel.proto",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.proto",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "celExpressionContent": {
+      "patterns": [
+        {
+          "name": "constant.character.escape.proto",
+          "match": "\\\\."
+        },
+        {
+          "comment": "CEL this keyword",
+          "name": "variable.language.this.cel.proto",
+          "match": "\\bthis\\b"
+        },
+        {
+          "comment": "CEL field access after this",
+          "match": "(?<=this\\.)([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "variable.other.property.cel.proto" }
+          }
+        },
+        {
+          "comment": "CEL built-in functions",
+          "name": "support.function.cel.proto",
+          "match": "\\b(has|size|exists|all|exists_one|filter|map|type|dyn|int|uint|double|bool|string|bytes|list|timestamp|duration|matches|startsWith|endsWith|contains|getDate|getDayOfMonth|getDayOfWeek|getDayOfYear|getFullYear|getHours|getMilliseconds|getMinutes|getMonth|getSeconds)\\b"
+        },
+        {
+          "comment": "CEL comparison operators",
+          "name": "keyword.operator.comparison.cel.proto",
+          "match": "==|!=|<=|>=|<|>"
+        },
+        {
+          "comment": "CEL logical operators",
+          "name": "keyword.operator.logical.cel.proto",
+          "match": "\\|\\||&&|!"
+        },
+        {
+          "comment": "CEL arithmetic operators",
+          "name": "keyword.operator.arithmetic.cel.proto",
+          "match": "\\+|-|\\*|/|%"
+        },
+        {
+          "comment": "CEL ternary operator",
+          "name": "keyword.operator.ternary.cel.proto",
+          "match": "\\?|:"
+        },
+        {
+          "comment": "CEL membership operator",
+          "name": "keyword.operator.membership.cel.proto",
+          "match": "\\bin\\b"
+        },
+        {
+          "comment": "CEL boolean literals",
+          "name": "constant.language.boolean.cel.proto",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "comment": "CEL null literal",
+          "name": "constant.language.null.cel.proto",
+          "match": "\\bnull\\b"
+        },
+        {
+          "comment": "CEL numbers",
+          "name": "constant.numeric.cel.proto",
+          "match": "\\b\\d+(\\.\\d+)?([eE][+-]?\\d+)?\\b"
+        },
+        {
+          "comment": "CEL identifiers (variables, field names)",
+          "name": "variable.other.cel.proto",
+          "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
         }
       ]
     },
@@ -248,6 +373,24 @@
     },
     "field": {
       "patterns": [
+        {
+          "comment": "Field with inline CEL validation option",
+          "begin": "\\b(optional|required|repeated)?\\s*([\\w.]+)\\s+(\\w+)\\s*=\\s*(\\d+)\\s*\\[\\s*(\\([\\w.]+\\)(?:\\.[\\w]+)*)\\s*=\\s*\\{",
+          "end": "\\}\\s*\\]\\s*;",
+          "beginCaptures": {
+            "1": { "name": "keyword.other.modifier.proto" },
+            "2": {
+              "patterns": [
+                { "include": "#types" },
+                { "match": "[\\w.]+", "name": "entity.name.type.proto" }
+              ]
+            },
+            "3": { "name": "variable.other.field.proto" },
+            "4": { "name": "constant.numeric.proto" },
+            "5": { "name": "variable.other.option.proto" }
+          },
+          "patterns": [{ "include": "#celOptionBody" }]
+        },
         {
           "match": "\\b(optional|required|repeated)\\s+([\\w.]+)\\s+(\\w+)\\s*=\\s*(\\d+)",
           "captures": {

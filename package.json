@@ -2,7 +2,7 @@
   "name": "protobuf-vsc",
   "displayName": "Protobuf VSC",
   "description": "Comprehensive Protocol Buffers support for VS Code with syntax highlighting, IntelliSense, diagnostics, formatting, protoc compilation, breaking change detection, and more",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "publisher": "DrBlury",
   "author": {
     "name": "Julian Bensch",
@@ -333,7 +333,12 @@
         "protobuf.buf.path": {
           "type": "string",
           "default": "buf",
-          "description": "Path to the buf CLI. Defaults to 'buf' in PATH"
+          "description": "Path to the buf CLI. Defaults to 'buf' in PATH. Ignored when 'protobuf.buf.useManaged' is true."
+        },
+        "protobuf.buf.useManaged": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use the buf CLI installed by the Protobuf VSC extension instead of the system PATH. When enabled, the extension will use its own managed buf binary."
         },
         "protobuf.breaking.enabled": {
           "type": "boolean",
@@ -530,6 +535,16 @@
       {
         "command": "protobuf.toolchain.manage",
         "title": "Manage Protobuf Toolchain",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.toolchain.useManaged",
+        "title": "Use Managed Toolchain (buf & protoc)",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.toolchain.useSystem",
+        "title": "Use System Toolchain (buf & protoc from PATH)",
         "category": "Protobuf"
       },
       {

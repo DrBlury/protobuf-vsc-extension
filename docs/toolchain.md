@@ -81,6 +81,28 @@ Configure custom tool paths in your settings:
 }
 ```
 
+### Quick Toolchain Switching
+
+The extension provides two commands to quickly switch between managed and system toolchains:
+
+#### Use Managed Toolchain
+
+Run the command: `Protobuf: Use Managed Toolchain (buf & protoc)`
+
+This command:
+- Configures settings to use the extension's installed `buf` and `protoc`
+- Lets you choose between Workspace or Global scope
+- Automatically installs tools if they're not already managed
+
+#### Use System Toolchain
+
+Run the command: `Protobuf: Use System Toolchain (buf & protoc from PATH)`
+
+This command:
+- Resets settings to use `buf` and `protoc` from your system PATH
+- Lets you choose between Workspace or Global scope
+- Useful when you want to use locally installed tools (e.g., via Homebrew)
+
 ### Automatic Detection
 
 The extension automatically checks for tools:
@@ -122,6 +144,8 @@ If you get permission errors:
 ## Commands
 
 - `protobuf.toolchain.manage` - Open toolchain management interface
+- `protobuf.toolchain.useManaged` - Configure settings to use managed (extension-installed) tools
+- `protobuf.toolchain.useSystem` - Configure settings to use system PATH tools
 
 ## Output Channel
 
@@ -135,6 +159,7 @@ The toolchain manager logs all operations to the "Protobuf" output channel. Open
 2. **Check status regularly** - The status bar indicator shows toolchain health at a glance
 3. **Keep tools updated** - Reinstall tools periodically to get the latest versions
 4. **Configure paths explicitly** - If using system tools, configure paths explicitly in settings
+5. **Use quick switch commands** - Use `Use Managed Toolchain` or `Use System Toolchain` commands for easy switching
 
 ---
 

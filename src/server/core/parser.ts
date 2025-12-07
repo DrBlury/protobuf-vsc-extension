@@ -222,10 +222,10 @@ export class ProtoParser {
         continue;
       }
 
-      // Identifier or keyword
+      // Identifier or keyword (dots are now handled as punctuation for option paths)
       if (/[a-zA-Z_]/.test(text[i])) {
         const start = i;
-        while (i < text.length && /[a-zA-Z0-9_.]/.test(text[i])) {
+        while (i < text.length && /[a-zA-Z0-9_]/.test(text[i])) {
           i++;
           character++;
         }
@@ -239,8 +239,8 @@ export class ProtoParser {
         continue;
       }
 
-      // Punctuation
-      const punctuation = '{}[]()<>;=,';
+      // Punctuation (including dot for option path separators)
+      const punctuation = '{}[]()<>;=,.:';
       if (punctuation.includes(text[i])) {
         tokens.push({
           type: 'punctuation',
@@ -283,6 +283,28 @@ export class ProtoParser {
       throw new Error(`Expected ${type}${value ? ` "${value}"` : ''}, got ${token?.type} "${token?.value}"`);
     }
     return token;
+  }
+
+  /**
+   * Parse a qualified identifier (e.g., "google.protobuf.Timestamp" or "buf.validate.field")
+   * Returns both the combined value and the range covering all parts.
+   */
+  private parseQualifiedIdentifier(): { value: string; range: Range } {
+    const firstToken = this.expect('identifier');
+    let value = firstToken.value;
+    let endRange = firstToken.range;
+
+    while (this.match('punctuation', '.')) {
+      this.advance(); // consume the dot
+      const nextToken = this.expect('identifier');
+      value += '.' + nextToken.value;
+      endRange = nextToken.range;
+    }
+
+    return {
+      value,
+      range: { start: firstToken.range.start, end: endRange.end }
+    };
   }
 
   private match(type: string, value?: string): boolean {
@@ -382,13 +404,13 @@ export class ProtoParser {
 
   private parsePackage(): PackageStatement {
     const startToken = this.expect('identifier', 'package');
-    const nameToken = this.expect('identifier');
+    const nameInfo = this.parseQualifiedIdentifier();
     this.expect('punctuation', ';');
 
     const node: PackageStatement = {
       type: 'package',
-      name: nameToken.value,
-      range: { start: startToken.range.start, end: nameToken.range.end }
+      name: nameInfo.value,
+      range: { start: startToken.range.start, end: nameInfo.range.end }
     };
     this.attachComment(node, startToken);
     return node;
@@ -422,50 +444,84 @@ export class ProtoParser {
     // Handle parenthesized option names
     if (this.match('punctuation', '(')) {
       this.advance();
-      const nameToken = this.expect('identifier');
-      name = `(${nameToken.value})`;
+      const qualifiedName = this.parseQualifiedIdentifier();
+      name = `(${qualifiedName.value})`;
       this.expect('punctuation', ')');
     } else {
       name = this.expect('identifier').value;
     }
 
-    // Handle nested option names
-    while (this.match('punctuation', '.') || this.match('identifier')) {
-      if (this.match('punctuation', '.')) {
-        this.advance();
-        name += '.';
-      }
+    // Handle nested option names (like .cel after the parenthesized part)
+    while (this.match('punctuation', '.')) {
+      this.advance();
       if (this.match('identifier')) {
-        name += this.advance()!.value;
+        name += '.' + this.advance()!.value;
       }
     }
 
     this.expect('punctuation', '=');
-    const valueToken = this.advance()!;
+
     let value: string | number | boolean;
+    let endRange: Range;
 
-    if (valueToken.type === 'string') {
-      value = valueToken.value.slice(1, -1);
-    } else if (valueToken.type === 'number') {
-      value = parseFloat(valueToken.value);
-    } else if (valueToken.value === 'true') {
-      value = true;
-    } else if (valueToken.value === 'false') {
-      value = false;
+    // Check for aggregate option value (braces)
+    if (this.match('punctuation', '{')) {
+      // Parse aggregate option value - skip everything until matching closing brace
+      value = this.parseAggregateOptionValue();
+      endRange = this.peek()?.range || startToken.range;
+      this.expect('punctuation', ';');
     } else {
-      value = valueToken.value;
-    }
+      const valueToken = this.advance()!;
+      endRange = valueToken.range;
 
-    this.expect('punctuation', ';');
+      if (valueToken.type === 'string') {
+        value = valueToken.value.slice(1, -1);
+      } else if (valueToken.type === 'number') {
+        value = parseFloat(valueToken.value);
+      } else if (valueToken.value === 'true') {
+        value = true;
+      } else if (valueToken.value === 'false') {
+        value = false;
+      } else {
+        value = valueToken.value;
+      }
+
+      this.expect('punctuation', ';');
+    }
 
     const node: OptionStatement = {
       type: 'option',
       name,
       value,
-      range: { start: startToken.range.start, end: valueToken.range.end }
+      range: { start: startToken.range.start, end: endRange.end }
     };
     this.attachComment(node, startToken);
     return node;
+  }
+
+  /**
+   * Parse an aggregate option value (text format within braces)
+   * This handles complex options like buf.validate.message.cel
+   */
+  private parseAggregateOptionValue(): string {
+    this.expect('punctuation', '{');
+    let braceDepth = 1;
+    const parts: string[] = ['{'];
+
+    while (!this.isAtEnd() && braceDepth > 0) {
+      const token = this.advance();
+      if (!token) break;
+
+      if (token.type === 'punctuation' && token.value === '{') {
+        braceDepth++;
+      } else if (token.type === 'punctuation' && token.value === '}') {
+        braceDepth--;
+      }
+
+      parts.push(token.value);
+    }
+
+    return parts.join(' ');
   }
 
   private parseMessage(): MessageDefinition {
@@ -566,9 +622,9 @@ export class ProtoParser {
       }
     }
 
-    const typeToken = this.expect('identifier');
+    const typeInfo = this.parseQualifiedIdentifier();
     if (!firstToken) {
-        firstToken = typeToken;
+        firstToken = this.peek();
     }
 
     const nameToken = this.expect('identifier');
@@ -581,13 +637,13 @@ export class ProtoParser {
     const node: FieldDefinition = {
       type: 'field',
       modifier,
-      fieldType: typeToken.value,
-      fieldTypeRange: typeToken.range,
+      fieldType: typeInfo.value,
+      fieldTypeRange: typeInfo.range,
       name: nameToken.value,
       nameRange: nameToken.range,
       number: parseInt(numberToken.value, 10),
       options,
-      range: { start: typeToken.range.start, end: numberToken.range.end }
+      range: { start: typeInfo.range.start, end: numberToken.range.end }
     };
     if (firstToken) {
         this.attachComment(node, firstToken);
@@ -612,26 +668,45 @@ export class ProtoParser {
       let name = '';
       if (this.match('punctuation', '(')) {
         this.advance();
-        name = `(${this.expect('identifier').value})`;
+        // Handle qualified names like buf.validate.field
+        let qualifiedName = this.expect('identifier').value;
+        while (this.match('punctuation', '.')) {
+          this.advance();
+          qualifiedName += '.' + this.expect('identifier').value;
+        }
+        name = `(${qualifiedName})`;
         this.expect('punctuation', ')');
+
+        // Handle suffix like .cel, .string.min_len
+        while (this.match('punctuation', '.')) {
+          this.advance();
+          name += '.' + this.expect('identifier').value;
+        }
       } else {
         name = this.expect('identifier').value;
       }
 
       this.expect('punctuation', '=');
-      const valueToken = this.advance()!;
+
       let value: string | number | boolean;
 
-      if (valueToken.type === 'string') {
-        value = valueToken.value.slice(1, -1);
-      } else if (valueToken.type === 'number') {
-        value = parseFloat(valueToken.value);
-      } else if (valueToken.value === 'true') {
-        value = true;
-      } else if (valueToken.value === 'false') {
-        value = false;
+      // Check for aggregate option value (braces)
+      if (this.match('punctuation', '{')) {
+        value = this.parseAggregateOptionValue();
       } else {
-        value = valueToken.value;
+        const valueToken = this.advance()!;
+
+        if (valueToken.type === 'string') {
+          value = valueToken.value.slice(1, -1);
+        } else if (valueToken.type === 'number') {
+          value = parseFloat(valueToken.value);
+        } else if (valueToken.value === 'true') {
+          value = true;
+        } else if (valueToken.value === 'false') {
+          value = false;
+        } else {
+          value = valueToken.value;
+        }
       }
 
       options.push({ name, value });
@@ -646,7 +721,7 @@ export class ProtoParser {
     this.expect('punctuation', '<');
     const keyTypeToken = this.expect('identifier');
     this.expect('punctuation', ',');
-    const valueTypeToken = this.expect('identifier');
+    const valueTypeInfo = this.parseQualifiedIdentifier();
     this.expect('punctuation', '>');
     const nameToken = this.expect('identifier');
     this.expect('punctuation', '=');
@@ -657,8 +732,8 @@ export class ProtoParser {
     const node: MapFieldDefinition = {
       type: 'map',
       keyType: keyTypeToken.value,
-      valueType: valueTypeToken.value,
-      valueTypeRange: valueTypeToken.range,
+      valueType: valueTypeInfo.value,
+      valueTypeRange: valueTypeInfo.range,
       name: nameToken.value,
       nameRange: nameToken.range,
       number: parseInt(numberToken.value, 10),
@@ -808,7 +883,7 @@ export class ProtoParser {
       inputStream = true;
     }
 
-    const inputTypeToken = this.expect('identifier');
+    const inputTypeInfo = this.parseQualifiedIdentifier();
     this.expect('punctuation', ')');
     this.expect('identifier', 'returns');
     this.expect('punctuation', '(');
@@ -819,21 +894,21 @@ export class ProtoParser {
       outputStream = true;
     }
 
-    const outputTypeToken = this.expect('identifier');
+    const outputTypeInfo = this.parseQualifiedIdentifier();
     this.expect('punctuation', ')');
 
     const rpc: RpcDefinition = {
       type: 'rpc',
       name: nameToken.value,
       nameRange: nameToken.range,
-      inputType: inputTypeToken.value,
-      inputTypeRange: inputTypeToken.range,
+      inputType: inputTypeInfo.value,
+      inputTypeRange: inputTypeInfo.range,
       inputStream,
-      outputType: outputTypeToken.value,
-      outputTypeRange: outputTypeToken.range,
+      outputType: outputTypeInfo.value,
+      outputTypeRange: outputTypeInfo.range,
       outputStream,
       options: [],
-      range: { start: startToken.range.start, end: outputTypeToken.range.end }
+      range: { start: startToken.range.start, end: outputTypeInfo.range.end }
     };
     this.attachComment(rpc, startToken);
 
@@ -859,13 +934,13 @@ export class ProtoParser {
 
   private parseExtend(): ExtendDefinition {
     const startToken = this.expect('identifier', 'extend');
-    const messageNameToken = this.expect('identifier');
+    const messageNameInfo = this.parseQualifiedIdentifier();
     this.expect('punctuation', '{');
 
     const extend: ExtendDefinition = {
       type: 'extend',
-      messageName: messageNameToken.value,
-      messageNameRange: messageNameToken.range,
+      messageName: messageNameInfo.value,
+      messageNameRange: messageNameInfo.range,
       fields: [],
       range: { start: startToken.range.start, end: startToken.range.end }
     };

@@ -1,8 +1,8 @@
 version: v2
 plugins:
   - remote: buf.build/protocolbuffers/go:v1.36.10
-    out: ../src
+    out: .gen/go
     opt:
-      - module=drblury/event-driven-service
+      - module=com.example.api.v1
 inputs:
   - directory: .

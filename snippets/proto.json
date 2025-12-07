@@ -166,5 +166,117 @@
     "prefix": "optdeprecated",
     "body": ["[deprecated = true]"],
     "description": "Deprecated field option"
+  },
+  "buf.validate.message cel": {
+    "prefix": "celvalidate",
+    "body": [
+      "option (buf.validate.message).cel = {",
+      "\tid: \"${1:validation_id}\",",
+      "\tmessage: \"${2:Validation failed}\",",
+      "\texpression:",
+      "\t\"${3:!has(this.field)}\"",
+      "\t\"? '${4:Field is required}'\"",
+      "\t\": ''\"",
+      "};"
+    ],
+    "description": "Buf CEL message validation option"
+  },
+  "buf.validate.message cel either-or": {
+    "prefix": "celeither",
+    "body": [
+      "option (buf.validate.message).cel = {",
+      "\tid: \"${1:either_field1_or_field2}\",",
+      "\tmessage: \"${2:Either field1 or field2 must be set}\",",
+      "\texpression:",
+      "\t\"!(has(this.${3:field1}) || has(this.${4:field2}))\"",
+      "\t\"? 'Either ${3:field1} or ${4:field2} must be set'\"",
+      "\t\": ''\"",
+      "};"
+    ],
+    "description": "Buf CEL either/or validation (one of two fields required)"
+  },
+  "buf.validate.message cel mutually exclusive": {
+    "prefix": "celmutex",
+    "body": [
+      "option (buf.validate.message).cel = {",
+      "\tid: \"${1:only_one_field}\",",
+      "\tmessage: \"${2:Only one field can be set, not both}\",",
+      "\texpression:",
+      "\t\"has(this.${3:field1}) && has(this.${4:field2})\"",
+      "\t\"? 'Only one of ${3:field1} or ${4:field2} can be set, not both'\"",
+      "\t\": ''\"",
+      "};"
+    ],
+    "description": "Buf CEL mutually exclusive validation (at most one field)"
+  },
+  "buf.validate.message cel size check": {
+    "prefix": "celsize",
+    "body": [
+      "option (buf.validate.message).cel = {",
+      "\tid: \"${1:field_size_check}\",",
+      "\tmessage: \"${2:Field must have required size}\",",
+      "\texpression:",
+      "\t\"!(size(this.${3:field}) == ${4:2})\"",
+      "\t\"? '${3:field} must be ${4:2} characters long'\"",
+      "\t\": ''\"",
+      "};"
+    ],
+    "description": "Buf CEL size validation for repeated fields or strings"
+  },
+  "buf.validate.message cel conditional": {
+    "prefix": "celif",
+    "body": [
+      "option (buf.validate.message).cel = {",
+      "\tid: \"${1:conditional_validation}\",",
+      "\tmessage: \"${2:If field1 is set, field2 must also be set}\",",
+      "\texpression:",
+      "\t\"has(this.${3:field1}) != has(this.${4:field2})\"",
+      "\t\"? 'Both ${3:field1} and ${4:field2} must be set together'\"",
+      "\t\": ''\"",
+      "};"
+    ],
+    "description": "Buf CEL conditional validation (both fields must be set together)"
+  },
+  "buf.validate.field cel": {
+    "prefix": "celfieldvalidate",
+    "body": [
+      "${1:type} ${2:field_name} = ${3:1} [(buf.validate.field).cel = {",
+      "\tid: \"${4:field_validation}\",",
+      "\tmessage: \"${5:Field validation failed}\",",
+      "\texpression:",
+      "\t\"!(${6:this > 0})\"",
+      "\t\"? '${7:Value must be positive}'\"",
+      "\t\": ''\"",
+      "}];"
+    ],
+    "description": "Buf CEL field-level validation option (inline on field)"
+  },
+  "buf.validate.field cel string pattern": {
+    "prefix": "celpattern",
+    "body": [
+      "string ${1:field_name} = ${2:1} [(buf.validate.field).cel = {",
+      "\tid: \"${3:string_pattern}\",",
+      "\tmessage: \"${4:String must match pattern}\",",
+      "\texpression:",
+      "\t\"!this.matches('${5:^[a-z]+$}')\"",
+      "\t\"? 'Value must match pattern ${5:^[a-z]+$}'\"",
+      "\t\": ''\"",
+      "}];"
+    ],
+    "description": "Buf CEL string pattern validation (inline on field)"
+  },
+  "buf.validate.field cel range": {
+    "prefix": "celrange",
+    "body": [
+      "${1:int32} ${2:field_name} = ${3:1} [(buf.validate.field).cel = {",
+      "\tid: \"${4:number_range}\",",
+      "\tmessage: \"${5:Number must be in range}\",",
+      "\texpression:",
+      "\t\"!(this >= ${6:0} && this <= ${7:100})\"",
+      "\t\"? 'Value must be between ${6:0} and ${7:100}'\"",
+      "\t\": ''\"",
+      "}];"
+    ],
+    "description": "Buf CEL numeric range validation (inline on field)"
   }
 }

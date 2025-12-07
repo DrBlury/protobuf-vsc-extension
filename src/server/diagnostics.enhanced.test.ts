@@ -205,4 +205,49 @@ service UserService {
       expect(diags.length).toBeGreaterThanOrEqual(0);
     });
   });
+
+  describe('Inline Option Syntax Validation', () => {
+    it('should detect stray semicolon in aggregate option value', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+message User {
+  string city = 1 [(buf.validate.field).cel = {;
+    id: "test"
+  }];
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const diags = diagnosticsProvider.validate(uri, file, content);
+
+      const syntaxError = diags.find(d =>
+        d.message.includes('unexpected semicolon') &&
+        d.severity === DiagnosticSeverity.Error
+      );
+      expect(syntaxError).toBeDefined();
+    });
+
+    it('should not flag valid aggregate option value', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+message User {
+  string city = 1 [(buf.validate.field).cel = {
+    id: "test"
+  }];
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const diags = diagnosticsProvider.validate(uri, file, content);
+
+      const syntaxError = diags.find(d =>
+        d.message.includes('unexpected semicolon')
+      );
+      expect(syntaxError).toBeUndefined();
+    });
+  });
 });

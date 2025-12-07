@@ -168,6 +168,126 @@ message User {
 }
 ```
 
+### 8. CEL Expression Completions (buf.validate / protovalidate)
+
+**When it appears:** Inside CEL validation expressions using `buf.validate`
+
+The extension provides intelligent completions for [CEL (Common Expression Language)](https://cel.dev/) expressions used with [protovalidate](https://github.com/bufbuild/protovalidate) validation rules.
+
+#### CEL Option Field Completions
+
+**When it appears:** Inside a `buf.validate` option block
+
+**What it suggests:**
+- `id` - Unique identifier for the validation rule
+- `message` - Human-readable error message
+- `expression` - CEL expression for validation
+
+**Example:**
+
+```proto
+message User {
+  option (buf.validate.message).cel = {
+    |  // Suggests: id, message, expression
+  };
+}
+```
+
+#### CEL Expression Completions
+
+**When it appears:** Inside the `expression` string of a CEL rule
+
+**What it suggests:**
+- `this` - Reference to the current message
+- Message fields (after typing `this.`)
+- CEL functions (size, has, startsWith, etc.)
+
+**Example:**
+
+```proto
+message User {
+  string email = 1;
+  string name = 2;
+
+  option (buf.validate.message).cel = {
+    id: "User.EmailRequired",
+    message: "Email is required",
+    expression:
+      "|  // Type "this." → suggests: email, name
+  };
+}
+```
+
+#### Supported CEL Functions
+
+The extension provides completions for common CEL functions:
+
+**Field Presence:**
+- `has(this.field)` - Check if a field is set
+
+**String Functions:**
+- `size(value)` - Get string/list/map length
+- `string.startsWith(prefix)` - Check string prefix
+- `string.endsWith(suffix)` - Check string suffix
+- `string.contains(substring)` - Check for substring
+- `string.matches(regex)` - Regex pattern matching
+
+**List Functions:**
+- `list.all(x, predicate)` - Check all elements match
+- `list.exists(x, predicate)` - Check any element matches
+- `list.exists_one(x, predicate)` - Check exactly one matches
+- `list.filter(x, predicate)` - Filter elements
+- `list.map(x, transform)` - Transform elements
+
+**Type Conversions:**
+- `int(value)`, `uint(value)`, `double(value)`
+- `string(value)`, `bytes(value)`, `bool(value)`
+- `type(value)` - Get type of value
+
+**Duration/Timestamp:**
+- `duration(value)` - Create duration from string
+- `timestamp(value)` - Create timestamp from string
+
+#### Complete CEL Example
+
+```proto
+syntax = "proto3";
+
+package example.v1;
+
+import "buf/validate/validate.proto";
+
+message Address {
+  // Message-level validation
+  option (buf.validate.message).cel = {
+    id: "Address.StreetOrPOBox",
+    message: "Either street or PO box must be set",
+    expression:
+      "has(this.street) != has(this.po_box)"
+      "? 'Either street or po_box must be set, but not both'"
+      ": ''"
+  };
+
+  // Field-level validation with CEL
+  string city = 1 [(buf.validate.field).cel = {
+    id: "city_pattern",
+    message: "City must contain only letters",
+    expression:
+      "!this.matches('^[a-zA-Z\\\\s]+$')"
+      "? 'City must contain only letters and spaces'"
+      ": ''"
+  }];
+
+  string country = 2 [(buf.validate.field).string = {
+    len: 2,  // ISO country code
+  }];
+
+  optional string street = 3;
+  optional string po_box = 4;
+  string zip = 5;
+}
+```
+
 ## Configuration
 
 ### Auto-import

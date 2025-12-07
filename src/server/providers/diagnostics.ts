@@ -484,6 +484,26 @@ export class DiagnosticsProvider {
         });
       }
     }
+
+    // Check field options for syntax errors
+    if (field.options) {
+      for (const option of field.options) {
+        if (typeof option.value === 'string' && option.value.startsWith('{')) {
+          // Check for invalid aggregate option value syntax
+          // Aggregate values should start with '{ identifier' not '{ ;' or '{ }'
+          const trimmedValue = option.value.replace(/^\{\s*/, '');
+          if (trimmedValue.startsWith(';')) {
+            diagnostics.push({
+              severity: DiagnosticSeverity.Error,
+              range: this.toRange(field.range),
+              message: `Invalid syntax in option '${option.name}': unexpected semicolon after opening brace`,
+              source: DIAGNOSTIC_SOURCE,
+              code: ERROR_CODES.PARSE_ERROR
+            });
+          }
+        }
+      }
+    }
   }
 
   private validateMapField(
@@ -629,7 +649,7 @@ export class DiagnosticsProvider {
     // Validate fields within the group recursively
     // Groups are like messages, so we can validate them similarly
     const fullName = containerName ? `${containerName}.${group.name}` : group.name;
-    
+
     // Collect reserved numbers and names from group
     const groupReservedNumbers = new Set<number>();
     const groupReservedNames = new Set<string>();
