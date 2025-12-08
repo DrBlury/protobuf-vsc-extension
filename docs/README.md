@@ -13,6 +13,7 @@ Welcome to the comprehensive documentation for the Protobuf VSC extension. This 
 - [Code Actions](./code-actions.md) - Quick fixes and refactoring
 - [Completions](./completions.md) - Smart IntelliSense suggestions (including CEL/protovalidate)
 - [Symbol Search](./symbol-search.md) - Fuzzy workspace symbol search
+- [Snippets](./snippets.md) - Code snippets library
 
 ### Advanced Features
 
@@ -22,6 +23,8 @@ Welcome to the comprehensive documentation for the Protobuf VSC extension. This 
 - [Schema Graph](./schema-graph.md) - Visual schema visualization
 - [Schema Diff](./schema-diff.md) - Compare proto files against Git references
 - [Migration](./migration.md) - Convert proto2 to proto3
+- [gRPC Integration](./grpc.md) - gRPC service analysis and code generation
+- [Google API Support](./google-api.md) - HTTP annotations and Google API patterns
 
 ### Developer Tools
 
