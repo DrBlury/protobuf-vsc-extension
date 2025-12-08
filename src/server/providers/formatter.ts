@@ -18,6 +18,13 @@ export interface FormatterSettings {
   alignFields?: boolean;
 }
 
+interface AlignmentData {
+  maxFieldNameLength: number;
+  maxTypeLength: number;
+  isOptionBlock: boolean;
+  maxKeyLength: number;
+}
+
 const DEFAULT_SETTINGS: FormatterSettings = {
   indentSize: 2,
   useTabIndent: false,
@@ -119,7 +126,7 @@ export class ProtoFormatter {
     const lines = text.split('\n');
     
     // If alignment is enabled, first pass to collect alignment info
-    let alignmentInfo: Map<number, { maxFieldNameLength: number; maxTypeLength: number; isOptionBlock: boolean; maxKeyLength: number }> | undefined;
+    let alignmentInfo: Map<number, AlignmentData> | undefined;
     if (this.settings.alignFields) {
       alignmentInfo = this.calculateAlignmentInfo(lines);
     }
@@ -297,10 +304,11 @@ export class ProtoFormatter {
     }
 
     // Format map fields
-    const mapMatch = line.match(/^map\s*<\s*(\w+)\s*,\s*(\S+)\s*>\s+(\w+)\s*=\s*(\d+)(.*)$/);
+    // Use [^>]+ to capture everything up to the closing > for value type
+    const mapMatch = line.match(/^map\s*<\s*(\w+)\s*,\s*([^>]+)\s*>\s+(\w+)\s*=\s*(\d+)(.*)$/);
     if (mapMatch) {
       const [, keyType, valueType, name, number, rest] = mapMatch;
-      return `${indent}map<${keyType}, ${valueType}> ${name} = ${number}${rest}`;
+      return `${indent}map<${keyType}, ${valueType.trim()}> ${name} = ${number}${rest}`;
     }
 
     // Format enum values - strip any duplicate = N patterns
@@ -337,8 +345,8 @@ export class ProtoFormatter {
   /**
    * Calculate alignment info for each message/enum/option block
    */
-  private calculateAlignmentInfo(lines: string[]): Map<number, { maxFieldNameLength: number; maxTypeLength: number; isOptionBlock: boolean; maxKeyLength: number }> {
-    const alignmentInfo = new Map<number, { maxFieldNameLength: number; maxTypeLength: number; isOptionBlock: boolean; maxKeyLength: number }>();
+  private calculateAlignmentInfo(lines: string[]): Map<number, AlignmentData> {
+    const alignmentInfo = new Map<number, AlignmentData>();
     let blockStartLine = -1;
     let blockDepth = 0;
     let inOptionBlock = false;
@@ -424,10 +432,11 @@ export class ProtoFormatter {
       }
 
       // Map field pattern: map<K, V> name = number
-      const mapMatch = trimmedLine.match(/^map\s*<\s*(\w+)\s*,\s*(\S+)\s*>\s+(\w+)\s*=/);
+      // Use [^>]+ to capture everything up to the closing > for value type
+      const mapMatch = trimmedLine.match(/^map\s*<\s*(\w+)\s*,\s*([^>]+)\s*>\s+(\w+)\s*=/);
       if (mapMatch) {
         const [, keyType, valueType, name] = mapMatch;
-        const mapType = `map<${keyType}, ${valueType}>`;
+        const mapType = `map<${keyType}, ${valueType.trim()}>`;
         maxTypeLength = Math.max(maxTypeLength, mapType.length);
         maxFieldNameLength = Math.max(maxFieldNameLength, name.length);
         continue;
@@ -447,7 +456,7 @@ export class ProtoFormatter {
   /**
    * Format a field line with alignment
    */
-  private formatLineWithAlignment(line: string, indentLevel: number, alignmentData?: { maxFieldNameLength: number; maxTypeLength: number; isOptionBlock: boolean; maxKeyLength: number }): string {
+  private formatLineWithAlignment(line: string, indentLevel: number, alignmentData?: AlignmentData): string {
     if (!alignmentData || alignmentData.isOptionBlock) {
       return this.formatLine(line, indentLevel);
     }
@@ -471,10 +480,11 @@ export class ProtoFormatter {
     }
 
     // Format map fields with alignment
-    const mapMatch = line.match(/^map\s*<\s*(\w+)\s*,\s*(\S+)\s*>\s+(\w+)\s*=\s*(\d+)(.*)$/);
+    // Use [^>]+ to capture everything up to the closing > for value type
+    const mapMatch = line.match(/^map\s*<\s*(\w+)\s*,\s*([^>]+)\s*>\s+(\w+)\s*=\s*(\d+)(.*)$/);
     if (mapMatch) {
       const [, keyType, valueType, name, number, rest] = mapMatch;
-      const mapType = `map<${keyType}, ${valueType}>`;
+      const mapType = `map<${keyType}, ${valueType.trim()}>`;
       const typePadding = ' '.repeat(Math.max(0, maxTypeLength - mapType.length));
       const namePadding = ' '.repeat(Math.max(0, maxFieldNameLength - name.length));
       return `${indent}${mapType}${typePadding} ${name}${namePadding} = ${number}${rest}`;
@@ -496,7 +506,7 @@ export class ProtoFormatter {
   /**
    * Format an option block line with alignment (e.g., CEL expressions)
    */
-  private formatOptionLine(line: string, indentLevel: number, alignmentData?: { maxFieldNameLength: number; maxTypeLength: number; isOptionBlock: boolean; maxKeyLength: number }): string {
+  private formatOptionLine(line: string, indentLevel: number, alignmentData?: AlignmentData): string {
     const indent = this.getIndent(indentLevel);
 
     if (!alignmentData || !alignmentData.isOptionBlock) {
