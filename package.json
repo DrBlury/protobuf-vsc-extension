@@ -140,6 +140,11 @@
           "maximum": 200,
           "description": "Maximum line length for formatting"
         },
+        "protobuf.formatter.alignFields": {
+          "type": "boolean",
+          "default": true,
+          "description": "Align field names and field numbers for prettier formatting. When enabled, field numbers and option keys are vertically aligned."
+        },
         "protobuf.includes": {
           "type": "array",
           "items": {

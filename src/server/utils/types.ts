@@ -17,6 +17,7 @@ export interface Settings {
     maxLineLength: number;
     formatter: {
       preset: string;
+      alignFields?: boolean;
     };
     includes: string[];
     renumber: {
@@ -99,7 +100,8 @@ export const defaultSettings: Settings = {
     useTabIndent: false,
     maxLineLength: DEFAULT_CONFIG.MAX_LINE_LENGTH,
     formatter: {
-      preset: 'minimal'
+      preset: 'minimal',
+      alignFields: true
     },
     includes: [],
     renumber: {

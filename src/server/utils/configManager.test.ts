@@ -125,7 +125,8 @@ describe('ConfigManager', () => {
       renumberOnFormat: settings.protobuf.renumber.onFormat,
       renumberStartNumber: settings.protobuf.renumber.startNumber,
       renumberIncrement: settings.protobuf.renumber.increment,
-      preset: settings.protobuf.formatter.preset
+      preset: settings.protobuf.formatter.preset,
+      alignFields: settings.protobuf.formatter.alignFields
     });
   });
 

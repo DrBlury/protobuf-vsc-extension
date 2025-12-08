@@ -78,7 +78,8 @@ export function updateProvidersWithSettings(
     renumberOnFormat: settings.protobuf.renumber.onFormat,
     renumberStartNumber: settings.protobuf.renumber.startNumber,
     renumberIncrement: settings.protobuf.renumber.increment,
-    preset: settings.protobuf.formatter?.preset as 'minimal' | 'google' | 'buf' | 'custom'
+    preset: settings.protobuf.formatter?.preset as 'minimal' | 'google' | 'buf' | 'custom',
+    alignFields: settings.protobuf.formatter?.alignFields
   });
 
   // Update renumber settings
