@@ -5,3 +5,4 @@ out/
 .DS_Store
 coverage/
 tsconfig.tsbuildinfo
+*.tsbuildinfo
