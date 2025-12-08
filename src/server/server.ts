@@ -71,7 +71,7 @@ import {
 import { normalizePath, getErrorMessage } from './utils/utils';
 import { Settings, defaultSettings } from './utils/types';
 import { GOOGLE_WELL_KNOWN_FILES, GOOGLE_WELL_KNOWN_PROTOS } from './utils/googleWellKnown';
-import { scanWorkspaceForProtoFiles } from './utils/workspace';
+import { scanWorkspaceForProtoFiles, scanImportPaths } from './utils/workspace';
 import { updateProvidersWithSettings } from './utils/configManager';
 import { debounce } from './utils/debounce';
 import { ContentHashCache, simpleHash } from './utils/cache';
@@ -347,7 +347,7 @@ connection.onDidChangeConfiguration((change: { settings: typeof globalSettings }
     globalSettings = change.settings || defaultSettings;
 
     // Update all providers with new settings using config manager
-    updateProvidersWithSettings(
+    const userIncludePaths = updateProvidersWithSettings(
       globalSettings,
       providers.diagnostics,
       providers.formatter,
@@ -358,8 +358,14 @@ connection.onDidChangeConfiguration((change: { settings: typeof globalSettings }
       providers.externalLinter,
       providers.clangFormat,
       wellKnownIncludePath,
-      wellKnownCacheDir
+      wellKnownCacheDir,
+      workspaceFolders
     );
+
+    // Scan user-configured import paths for proto files (e.g., .buf-deps)
+    if (userIncludePaths.length > 0) {
+      scanImportPaths(userIncludePaths, providers.parser, providers.analyzer);
+    }
   }
 
   // Revalidate all documents

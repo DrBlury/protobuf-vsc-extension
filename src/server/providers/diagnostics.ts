@@ -57,8 +57,28 @@ export class DiagnosticsProvider {
   private settings: DiagnosticsSettings = DEFAULT_SETTINGS;
   private currentDocumentText?: string;
 
+  // Common patterns for external dependency directories
+  private static readonly EXTERNAL_DEP_PATTERNS = [
+    '/.buf-deps/',      // Buf exported dependencies
+    '/vendor/',         // Go vendor directory
+    '/third_party/',    // Common third-party directory
+    '/external/',       // External dependencies
+    '/node_modules/',   // Node modules (unlikely for proto but possible)
+  ];
+
   constructor(analyzer: SemanticAnalyzer) {
     this.analyzer = analyzer;
+  }
+
+  /**
+   * Check if a file is in an external dependency directory
+   * These files should not be validated as they are managed by external tools
+   */
+  private isExternalDependencyFile(uri: string): boolean {
+    const normalizedUri = uri.replace(/\\/g, '/');
+    return DiagnosticsProvider.EXTERNAL_DEP_PATTERNS.some(pattern =>
+      normalizedUri.includes(pattern)
+    );
   }
 
   updateSettings(settings: Partial<DiagnosticsSettings>): void {
@@ -66,6 +86,12 @@ export class DiagnosticsProvider {
   }
 
   validate(uri: string, file: ProtoFile, documentText?: string): Diagnostic[] {
+    // Skip validation for external dependency files (e.g., .buf-deps, vendor directories)
+    // These are generated/exported files that should be validated by their source tools
+    if (this.isExternalDependencyFile(uri)) {
+      return [];
+    }
+
     // Store document text for documentation comment checking
     this.currentDocumentText = documentText;
     const diagnostics: Diagnostic[] = [];

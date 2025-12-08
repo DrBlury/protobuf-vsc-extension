@@ -27,7 +27,20 @@ const LOG_LEVEL_MAP: Record<string, LogLevel> = {
 };
 
 /**
+ * Expands VS Code variables like ${workspaceFolder} in a path
+ */
+function expandVariables(value: string, workspaceFolders: string[]): string {
+  // Use the first workspace folder for ${workspaceFolder}
+  const workspaceFolder = workspaceFolders[0] || '';
+  return value
+    .replace(/\$\{workspaceRoot\}/g, workspaceFolder)
+    .replace(/\$\{workspaceFolder\}/g, workspaceFolder)
+    .replace(/\$\{env\.(\w+)\}/g, (_: string, name: string) => process.env[name] || '');
+}
+
+/**
  * Updates all providers with new settings
+ * @returns The expanded include paths that were configured
  */
 export function updateProvidersWithSettings(
   settings: Settings,
@@ -40,8 +53,9 @@ export function updateProvidersWithSettings(
   externalLinter: ExternalLinterProvider,
   clangFormat: ClangFormatProvider,
   wellKnownIncludePath: string | undefined,
-  wellKnownCacheDir: string | undefined
-): void {
+  wellKnownCacheDir: string | undefined,
+  workspaceFolders: string[] = []
+): string[] {
   // Update diagnostics settings
   const diag = settings.protobuf.diagnostics;
   diagnosticsProvider.updateSettings({
@@ -76,8 +90,9 @@ export function updateProvidersWithSettings(
     skipReservedRange: renumberSettings.skipInternalRange
   });
 
-  // Update analyzer with import paths
-  const includePaths = [...(settings.protobuf.includes || [])];
+  // Update analyzer with import paths (expand variables like ${workspaceFolder})
+  const rawIncludePaths = settings.protobuf.includes || [];
+  const includePaths = rawIncludePaths.map(p => expandVariables(p, workspaceFolders));
   if (wellKnownIncludePath && !includePaths.includes(wellKnownIncludePath)) {
     includePaths.push(wellKnownIncludePath);
   }
@@ -138,4 +153,8 @@ export function updateProvidersWithSettings(
       logger.info('Verbose logging enabled - all operations will be logged in detail');
     }
   }
+
+  // Return the user-configured include paths (expanded) for scanning
+  // Note: includePaths already computed above with variable expansion
+  return includePaths.filter(p => p !== wellKnownIncludePath && p !== wellKnownCacheDir);
 }

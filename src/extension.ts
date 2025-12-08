@@ -108,19 +108,68 @@ export async function activate(context: vscode.ExtensionContext) {
       return;
     }
 
+    // Parse buf.yaml to get dependencies
+    const bufYamlPath = pathModule.join(bufYamlDir, 'buf.yaml');
+    const bufYamlContent = fs.readFileSync(bufYamlPath, 'utf-8');
+
+    // Simple YAML parsing for deps array
+    const depsMatch = bufYamlContent.match(/^deps:\s*\n((?:\s+-\s+.+\n?)+)/m);
+    const deps: string[] = [];
+    if (depsMatch) {
+      const depsLines = depsMatch[1].split('\n');
+      for (const line of depsLines) {
+        const depMatch = line.match(/^\s+-\s+(.+)/);
+        if (depMatch) {
+          deps.push(depMatch[1].trim());
+        }
+      }
+    }
+
+    if (deps.length === 0) {
+      vscode.window.showWarningMessage('No dependencies found in buf.yaml. Add dependencies using the "deps:" section.');
+      return;
+    }
+
     const outputDir = '.buf-deps';
     const terminal = vscode.window.createTerminal('Buf Export');
     terminal.show();
-    terminal.sendText(`cd "${bufYamlDir}" && buf export . --output=${outputDir}`);
 
-    vscode.window.showInformationMessage(
-      `Exporting buf dependencies to ${outputDir}/. After export completes, add "${bufYamlDir}/${outputDir}" to "protobuf.includes" in settings.`,
-      'Open Settings'
-    ).then(selection => {
-      if (selection === 'Open Settings') {
-        vscode.commands.executeCommand('workbench.action.openSettings', 'protobuf.includes');
-      }
+    // First, remove the existing .buf-deps directory, then export each dependency
+    // This ensures we only get dependencies, not source files
+    const exportCommands = deps.map(dep => `buf export ${dep} --output=${outputDir}`).join(' && ');
+    terminal.sendText(`cd "${bufYamlDir}" && rm -rf ${outputDir} && ${exportCommands}`);
+
+    // Check if the path is already in protobuf.includes
+    const absoluteOutputPath = pathModule.join(bufYamlDir, outputDir);
+    const workspaceFolderPath = workspaceFolder.uri.fsPath;
+    const currentIncludes: string[] = vscode.workspace.getConfiguration('protobuf').get('includes') || [];
+
+    // Check if path is already configured (with or without ${workspaceFolder} variable)
+    const isAlreadyConfigured = currentIncludes.some(includePath => {
+      // Expand ${workspaceFolder} variable if present
+      const expandedPath = includePath.replace(/\$\{workspaceFolder\}/g, workspaceFolderPath);
+      return expandedPath === absoluteOutputPath;
     });
+
+    if (isAlreadyConfigured) {
+      vscode.window.showInformationMessage(
+        `Exporting ${deps.length} buf dependencies to ${outputDir}/. Path is already configured in "protobuf.includes".`
+      );
+    } else {
+      // Use ${workspaceFolder} variable in suggested path if possible for better portability
+      const suggestedPath = absoluteOutputPath.startsWith(workspaceFolderPath)
+        ? '${workspaceFolder}' + absoluteOutputPath.slice(workspaceFolderPath.length)
+        : absoluteOutputPath;
+
+      vscode.window.showInformationMessage(
+        `Exporting ${deps.length} buf dependencies to ${outputDir}/. After export completes, add "${suggestedPath}" to "protobuf.includes" in settings.`,
+        'Open Settings'
+      ).then(selection => {
+        if (selection === 'Open Settings') {
+          vscode.commands.executeCommand('workbench.action.openSettings', 'protobuf.includes');
+        }
+      });
+    }
   }));
 
   // Server module path
