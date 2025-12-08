@@ -304,11 +304,12 @@ export class ProtoFormatter {
     }
 
     // Format map fields
-    // Use [^>]+ to capture everything up to the closing > for value type
-    const mapMatch = line.match(/^map\s*<\s*(\w+)\s*,\s*([^>]+)\s*>\s+(\w+)\s*=\s*(\d+)(.*)$/);
+    // Handle nested maps like map<K, map<K2, V2>>
+    const mapMatch = line.match(/^map\s*<(.+)>\s+(\w+)\s*=\s*(\d+)(.*)$/);
     if (mapMatch) {
-      const [, keyType, valueType, name, number, rest] = mapMatch;
-      return `${indent}map<${keyType}, ${valueType.trim()}> ${name} = ${number}${rest}`;
+      const [, mapContent, name, number, rest] = mapMatch;
+      const { keyType, valueType } = this.parseMapTypes(mapContent);
+      return `${indent}map<${keyType}, ${valueType}> ${name} = ${number}${rest}`;
     }
 
     // Format enum values - strip any duplicate = N patterns
@@ -340,6 +341,33 @@ export class ProtoFormatter {
     }
 
     return indent + line;
+  }
+
+  /**
+   * Parse map<K, V> types handling nested angle brackets
+   */
+  private parseMapTypes(mapContent: string): { keyType: string; valueType: string } {
+    let depth = 0;
+    let commaPos = -1;
+    
+    for (let i = 0; i < mapContent.length; i++) {
+      if (mapContent[i] === '<') depth++;
+      if (mapContent[i] === '>') depth--;
+      if (mapContent[i] === ',' && depth === 0) {
+        commaPos = i;
+        break;
+      }
+    }
+    
+    if (commaPos === -1) {
+      // Fallback if no comma found at depth 0
+      const parts = mapContent.split(',');
+      return { keyType: parts[0]?.trim() || '', valueType: parts.slice(1).join(',').trim() };
+    }
+    
+    const keyType = mapContent.slice(0, commaPos).trim();
+    const valueType = mapContent.slice(commaPos + 1).trim();
+    return { keyType, valueType };
   }
 
   /**
@@ -432,11 +460,13 @@ export class ProtoFormatter {
       }
 
       // Map field pattern: map<K, V> name = number
-      // Use [^>]+ to capture everything up to the closing > for value type
-      const mapMatch = trimmedLine.match(/^map\s*<\s*(\w+)\s*,\s*([^>]+)\s*>\s+(\w+)\s*=/);
+      // Need to handle nested maps like map<K, map<K2, V2>>
+      const mapMatch = trimmedLine.match(/^map\s*<(.+)>\s+(\w+)\s*=/);
       if (mapMatch) {
-        const [, keyType, valueType, name] = mapMatch;
-        const mapType = `map<${keyType}, ${valueType.trim()}>`;
+        const [, mapContent, name] = mapMatch;
+        // Parse key and value types (find comma at depth 0)
+        const { keyType, valueType } = this.parseMapTypes(mapContent);
+        const mapType = `map<${keyType}, ${valueType}>`;
         maxTypeLength = Math.max(maxTypeLength, mapType.length);
         maxFieldNameLength = Math.max(maxFieldNameLength, name.length);
         continue;
@@ -480,11 +510,12 @@ export class ProtoFormatter {
     }
 
     // Format map fields with alignment
-    // Use [^>]+ to capture everything up to the closing > for value type
-    const mapMatch = line.match(/^map\s*<\s*(\w+)\s*,\s*([^>]+)\s*>\s+(\w+)\s*=\s*(\d+)(.*)$/);
+    // Handle nested maps like map<K, map<K2, V2>>
+    const mapMatch = line.match(/^map\s*<(.+)>\s+(\w+)\s*=\s*(\d+)(.*)$/);
     if (mapMatch) {
-      const [, keyType, valueType, name, number, rest] = mapMatch;
-      const mapType = `map<${keyType}, ${valueType.trim()}>`;
+      const [, mapContent, name, number, rest] = mapMatch;
+      const { keyType, valueType } = this.parseMapTypes(mapContent);
+      const mapType = `map<${keyType}, ${valueType}>`;
       const typePadding = ' '.repeat(Math.max(0, maxTypeLength - mapType.length));
       const namePadding = ' '.repeat(Math.max(0, maxFieldNameLength - name.length));
       return `${indent}${mapType}${typePadding} ${name}${namePadding} = ${number}${rest}`;
