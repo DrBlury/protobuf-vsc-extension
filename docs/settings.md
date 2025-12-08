@@ -145,6 +145,45 @@ Settings can be configured in:
   - `"buf"` - Use buf format (requires buf to be installed)
   - `"custom"` - Use custom formatting settings
 
+#### `protobuf.formatter.alignFields`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Align field names and field numbers for prettier formatting. When enabled:
+  - Field numbers (`=` signs) are vertically aligned within message/enum blocks
+  - Option block keys (e.g., in CEL expressions) have colons aligned vertically
+  - Each message/enum block has independent alignment based on its longest field
+
+**Example with alignment enabled (default):**
+
+```proto
+message User {
+  string             id     = 1;
+  string             name   = 2;
+  int32              age    = 3;
+  repeated string    tags   = 10;
+  map<string, int32> scores = 20;
+}
+
+option (buf.validate.message).cel = {
+  id        : "Check",
+  message   : "Validation message",
+  expression: "this.id != ''"
+};
+```
+
+**Example with alignment disabled:**
+
+```proto
+message User {
+  string id = 1;
+  string name = 2;
+  int32 age = 3;
+  repeated string tags = 10;
+  map<string, int32> scores = 20;
+}
+```
+
 ### Completion
 
 #### `protobuf.completion.autoImport`

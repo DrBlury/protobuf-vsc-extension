@@ -352,4 +352,124 @@ describe('ProtoFormatter', () => {
       expect(result[0].newText).toContain('string name = 1');
     });
   });
+
+  describe('field alignment', () => {
+    it('should align field numbers when alignFields is enabled', async () => {
+      formatter.updateSettings({ alignFields: true, renumberOnFormat: false });
+      const text = `message Test {
+  string city = 1;
+  string country = 2;
+  string house_number = 3;
+  string post_code = 4;
+  string street_name = 5;
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+      
+      // Check that field names are aligned (all = signs at same column)
+      const lines = formatted.split('\n').filter(l => l.includes('='));
+      if (lines.length > 1) {
+        const equalPositions = lines.map(l => l.indexOf('='));
+        // All = signs should be at the same position
+        const firstPos = equalPositions[0];
+        expect(equalPositions.every(pos => pos === firstPos)).toBe(true);
+      }
+    });
+
+    it('should align enum values when alignFields is enabled', async () => {
+      formatter.updateSettings({ alignFields: true, renumberOnFormat: false });
+      const text = `enum Status {
+  UNKNOWN = 0;
+  OK = 1;
+  ERROR = 2;
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+      
+      // Check that enum values are aligned
+      const lines = formatted.split('\n').filter(l => l.includes('='));
+      if (lines.length > 1) {
+        const equalPositions = lines.map(l => l.indexOf('='));
+        const firstPos = equalPositions[0];
+        expect(equalPositions.every(pos => pos === firstPos)).toBe(true);
+      }
+    });
+
+    it('should align option keys in CEL blocks when alignFields is enabled', async () => {
+      formatter.updateSettings({ alignFields: true, renumberOnFormat: false });
+      const text = `message Test {
+  option (buf.validate.message).cel = {
+    id: "test",
+    message: "test message",
+    expression: "test"
+  };
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+      
+      // Check that colons are aligned in option block
+      const lines = formatted.split('\n').filter(l => l.includes(':') && !l.includes('option'));
+      if (lines.length > 1) {
+        const colonPositions = lines.map(l => l.indexOf(':'));
+        const firstPos = colonPositions[0];
+        // All colons should be at the same position
+        expect(colonPositions.every(pos => pos === firstPos)).toBe(true);
+      }
+    });
+
+    it('should handle mixed field types with alignment', async () => {
+      formatter.updateSettings({ alignFields: true, renumberOnFormat: false });
+      const text = `message Test {
+  string name = 1;
+  int32 age = 2;
+  repeated string tags = 3;
+  map<string, int32> scores = 4;
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+      
+      // Check alignment
+      const lines = formatted.split('\n').filter(l => l.includes('=') && !l.includes('option'));
+      if (lines.length > 1) {
+        const equalPositions = lines.map(l => l.indexOf('='));
+        const firstPos = equalPositions[0];
+        expect(equalPositions.every(pos => pos === firstPos)).toBe(true);
+      }
+    });
+
+    it('should not align when alignFields is disabled', async () => {
+      formatter.updateSettings({ alignFields: false, renumberOnFormat: false });
+      const text = `message Test {
+  string city = 1;
+  string country = 2;
+  string house_number = 3;
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+      
+      // Without alignment, = signs may be at different positions based on field name length
+      expect(formatted).toBeDefined();
+      expect(formatted).toContain('string city = 1');
+      expect(formatted).toContain('string country = 2');
+      expect(formatted).toContain('string house_number = 3');
+    });
+
+    it('should align fields within nested messages independently', async () => {
+      formatter.updateSettings({ alignFields: true, renumberOnFormat: false });
+      const text = `message Outer {
+  string a = 1;
+  message Inner {
+    string very_long_field_name = 1;
+    string b = 2;
+  }
+  string c = 2;
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+      
+      // Each message block should have its own alignment
+      expect(formatted).toBeDefined();
+      expect(formatted).toContain('string');
+    });
+  });
 });

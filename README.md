@@ -51,7 +51,7 @@ Full Protocol Buffers language support for VS Code: navigation, IntelliSense, di
 - **Smart Code Actions**: Quick fixes, organize imports, proto3 conversion, and more
 - **Intelligent Completions**: Type-based field name suggestions, smart import paths, context-aware completions
 - **CEL / Protovalidate Support**: Smart completions for buf.validate CEL expressions, field references, and CEL functions
-- **Formatting**: Built-in or `clang-format`, format on save/selection (handles multi-line CEL expressions)
+- **Formatting**: Built-in with field alignment, `clang-format`, or `buf format`. Format on save/selection with smart alignment of field numbers and option keys
 - **Compilation**: Run protoc per file or all files, with custom options and variables
 - **Linting**: Buf or Protolint integration on demand or on save
 - **Breaking-change Detection**: Compare against a git ref or file baseline

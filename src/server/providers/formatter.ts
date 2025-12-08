@@ -15,6 +15,14 @@ export interface FormatterSettings {
   renumberStartNumber?: number;
   renumberIncrement?: number;
   preset?: 'minimal' | 'google' | 'buf' | 'custom';
+  alignFields?: boolean;
+}
+
+interface AlignmentData {
+  maxFieldNameLength: number;
+  maxTypeLength: number;
+  isOptionBlock: boolean;
+  maxKeyLength: number;
 }
 
 const DEFAULT_SETTINGS: FormatterSettings = {
@@ -23,7 +31,8 @@ const DEFAULT_SETTINGS: FormatterSettings = {
   renumberOnFormat: true,
   renumberStartNumber: 1,
   renumberIncrement: 1,
-  preset: 'minimal'
+  preset: 'minimal',
+  alignFields: true
 };
 
 export class ProtoFormatter {
@@ -115,6 +124,13 @@ export class ProtoFormatter {
 
   private format(text: string): string {
     const lines = text.split('\n');
+    
+    // If alignment is enabled, first pass to collect alignment info
+    let alignmentInfo: Map<number, AlignmentData> | undefined;
+    if (this.settings.alignFields) {
+      alignmentInfo = this.calculateAlignmentInfo(lines);
+    }
+
     const formattedLines: string[] = [];
     let indentLevel = 0;
     let inBlockComment = false;
@@ -123,6 +139,7 @@ export class ProtoFormatter {
     let optionBraceDepth = 0;
     // Track depth inside inline field options [...] containing braces
     let inlineOptionBraceDepth = 0;
+    let currentBlockStartLine = 0;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -150,7 +167,7 @@ export class ProtoFormatter {
       }
 
       // Track multi-line option blocks (e.g., option (buf.validate.message).cel = { ... })
-      // When inside an option block, preserve lines as-is with proper indentation
+      // When inside an option block, format with alignment
       if (optionBraceDepth > 0) {
         // Count opening and closing braces on this line
         const openBraces = (trimmedLine.match(/\{/g) || []).length;
@@ -161,7 +178,11 @@ export class ProtoFormatter {
           indentLevel--;
         }
 
-        formattedLines.push(this.getIndent(indentLevel) + trimmedLine);
+        // Format option block lines with alignment if enabled
+        const formattedLine = this.settings.alignFields && alignmentInfo
+          ? this.formatOptionLine(trimmedLine, indentLevel, alignmentInfo.get(currentBlockStartLine))
+          : this.getIndent(indentLevel) + trimmedLine;
+        formattedLines.push(formattedLine);
 
         // Adjust indent for opening brace
         if (openBraces > closeBraces) {
@@ -198,6 +219,7 @@ export class ProtoFormatter {
         const openBraces = (trimmedLine.match(/\{/g) || []).length;
         const closeBraces = (trimmedLine.match(/\}/g) || []).length;
         optionBraceDepth = openBraces - closeBraces;
+        currentBlockStartLine = i;
 
         formattedLines.push(this.getIndent(indentLevel) + trimmedLine);
 
@@ -223,14 +245,21 @@ export class ProtoFormatter {
         }
       }
 
+      // Track message/enum block starts for alignment
+      if (/^(message|enum)\s+\w+\s*\{/.test(trimmedLine)) {
+        currentBlockStartLine = i;
+      }
+
       // Check for closing brace
       const startsWithClosingBrace = trimmedLine.startsWith('}');
       if (startsWithClosingBrace && indentLevel > 0) {
         indentLevel--;
       }
 
-      // Format the line
-      const formattedLine = this.formatLine(trimmedLine, indentLevel);
+      // Format the line with alignment if enabled
+      const formattedLine = this.settings.alignFields && alignmentInfo
+        ? this.formatLineWithAlignment(trimmedLine, indentLevel, alignmentInfo.get(currentBlockStartLine))
+        : this.formatLine(trimmedLine, indentLevel);
       formattedLines.push(formattedLine);
 
       // Check for opening brace
@@ -275,15 +304,20 @@ export class ProtoFormatter {
     }
 
     // Format map fields
-    const mapMatch = line.match(/^map\s*<\s*(\w+)\s*,\s*(\S+)\s*>\s+(\w+)\s*=\s*(\d+)(.*)$/);
+    // Handle nested maps like map<K, map<K2, V2>>
+    // The greedy match (.+) is correct here - it will match all content until the last >
+    // before the field name, which is what we want for nested maps
+    const mapMatch = line.match(/^map\s*<(.+)>\s+(\w+)\s*=\s*(\d+)(.*)$/);
     if (mapMatch) {
-      const [, keyType, valueType, name, number, rest] = mapMatch;
+      const [, mapContent, name, number, rest] = mapMatch;
+      const { keyType, valueType } = this.parseMapTypes(mapContent);
       return `${indent}map<${keyType}, ${valueType}> ${name} = ${number}${rest}`;
     }
 
     // Format enum values - strip any duplicate = N patterns
     const enumValueMatch = line.match(/^(\w+)\s*=\s*(-?\d+)(.*)$/);
-    if (enumValueMatch && !line.includes('option') && !line.includes('syntax') && !line.includes('edition')) {
+    // Check that this is not a statement line (option, syntax, edition) by checking the start
+    if (enumValueMatch && !line.match(/^(option|syntax|edition)\s/)) {
       const [, name, value, rest] = enumValueMatch;
       // Strip any repeated "= N" patterns from rest, but keep options [...] and comments
       const cleanedRest = rest.replace(/\s*=\s*-?\d+/g, '');
@@ -309,6 +343,230 @@ export class ProtoFormatter {
       return line;
     }
 
+    return indent + line;
+  }
+
+  /**
+   * Parse map<K, V> types handling nested angle brackets
+   */
+  private parseMapTypes(mapContent: string): { keyType: string; valueType: string } {
+    let depth = 0;
+    let commaPos = -1;
+    
+    for (let i = 0; i < mapContent.length; i++) {
+      if (mapContent[i] === '<') depth++;
+      if (mapContent[i] === '>') depth--;
+      if (mapContent[i] === ',' && depth === 0) {
+        commaPos = i;
+        break;
+      }
+    }
+    
+    if (commaPos === -1) {
+      // Fallback: try to find the first comma (for malformed or simple cases)
+      // This handles cases where depth tracking failed or simple maps without nesting
+      const firstCommaPos = mapContent.indexOf(',');
+      if (firstCommaPos !== -1) {
+        return {
+          keyType: mapContent.slice(0, firstCommaPos).trim(),
+          valueType: mapContent.slice(firstCommaPos + 1).trim()
+        };
+      }
+      // If still no comma, return the whole content as keyType (malformed map)
+      return { keyType: mapContent.trim(), valueType: '' };
+    }
+    
+    const keyType = mapContent.slice(0, commaPos).trim();
+    const valueType = mapContent.slice(commaPos + 1).trim();
+    return { keyType, valueType };
+  }
+
+  /**
+   * Calculate alignment info for each message/enum/option block
+   */
+  private calculateAlignmentInfo(lines: string[]): Map<number, AlignmentData> {
+    const alignmentInfo = new Map<number, AlignmentData>();
+    let blockStartLine = -1;
+    let blockDepth = 0;
+    let inOptionBlock = false;
+    let maxFieldNameLength = 0;
+    let maxTypeLength = 0;
+    let maxKeyLength = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const trimmedLine = lines[i].trim();
+
+      // Track block starts (message, enum, option)
+      if (/^(message|enum)\s+\w+\s*\{/.test(trimmedLine)) {
+        if (blockStartLine >= 0 && blockDepth > 0) {
+          // Save info for previous block
+          alignmentInfo.set(blockStartLine, { maxFieldNameLength, maxTypeLength, isOptionBlock: inOptionBlock, maxKeyLength });
+        }
+        blockStartLine = i;
+        const openBraces = (trimmedLine.match(/\{/g) || []).length;
+        const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+        blockDepth = openBraces - closeBraces;
+        inOptionBlock = false;
+        maxFieldNameLength = 0;
+        maxTypeLength = 0;
+        maxKeyLength = 0;
+        continue;
+      }
+
+      if (trimmedLine.startsWith('option') && trimmedLine.includes('{')) {
+        if (blockStartLine >= 0 && blockDepth > 0) {
+          alignmentInfo.set(blockStartLine, { maxFieldNameLength, maxTypeLength, isOptionBlock: inOptionBlock, maxKeyLength });
+        }
+        blockStartLine = i;
+        const openBraces = (trimmedLine.match(/\{/g) || []).length;
+        const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+        blockDepth = openBraces - closeBraces;
+        inOptionBlock = true;
+        maxFieldNameLength = 0;
+        maxTypeLength = 0;
+        maxKeyLength = 0;
+        continue;
+      }
+
+      // Track braces for depth
+      if (trimmedLine.includes('{')) {
+        const openBraces = (trimmedLine.match(/\{/g) || []).length;
+        blockDepth += openBraces;
+      }
+      if (trimmedLine.includes('}')) {
+        const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+        blockDepth -= closeBraces;
+        if (blockDepth === 0 && blockStartLine >= 0) {
+          // Save info for completed block
+          alignmentInfo.set(blockStartLine, { maxFieldNameLength, maxTypeLength, isOptionBlock: inOptionBlock, maxKeyLength });
+          blockStartLine = -1;
+        }
+        continue;
+      }
+
+      // Only analyze direct children (blockDepth > 0, in the block)
+      if (blockDepth <= 0 || blockStartLine < 0) {
+        continue;
+      }
+
+      // Analyze option block lines (e.g., "id: value", "message: value")
+      if (inOptionBlock) {
+        const optionKeyMatch = trimmedLine.match(/^(\w+):\s*/);
+        if (optionKeyMatch) {
+          const keyLen = optionKeyMatch[1].length;
+          maxKeyLength = Math.max(maxKeyLength, keyLen);
+        }
+        continue;
+      }
+
+      // Analyze field lines for messages/enums
+      // Field pattern: [modifier] type name = number
+      const fieldMatch = trimmedLine.match(/^(optional|required|repeated)?\s*(\S+)\s+(\w+)\s*=/);
+      if (fieldMatch) {
+        const [, modifier, type, name] = fieldMatch;
+        const typeWithModifier = modifier ? `${modifier} ${type}` : type;
+        maxTypeLength = Math.max(maxTypeLength, typeWithModifier.length);
+        maxFieldNameLength = Math.max(maxFieldNameLength, name.length);
+        continue;
+      }
+
+      // Map field pattern: map<K, V> name = number
+      // Need to handle nested maps like map<K, map<K2, V2>>
+      const mapMatch = trimmedLine.match(/^map\s*<(.+)>\s+(\w+)\s*=/);
+      if (mapMatch) {
+        const [, mapContent, name] = mapMatch;
+        // Parse key and value types (find comma at depth 0)
+        const { keyType, valueType } = this.parseMapTypes(mapContent);
+        const mapType = `map<${keyType}, ${valueType}>`;
+        maxTypeLength = Math.max(maxTypeLength, mapType.length);
+        maxFieldNameLength = Math.max(maxFieldNameLength, name.length);
+        continue;
+      }
+
+      // Enum value pattern: NAME = number
+      const enumMatch = trimmedLine.match(/^(\w+)\s*=/);
+      if (enumMatch && !trimmedLine.startsWith('option')) {
+        const [, name] = enumMatch;
+        maxFieldNameLength = Math.max(maxFieldNameLength, name.length);
+      }
+    }
+
+    return alignmentInfo;
+  }
+
+  /**
+   * Format a field line with alignment
+   */
+  private formatLineWithAlignment(line: string, indentLevel: number, alignmentData?: AlignmentData): string {
+    if (!alignmentData || alignmentData.isOptionBlock) {
+      return this.formatLine(line, indentLevel);
+    }
+
+    const indent = this.getIndent(indentLevel);
+    const { maxFieldNameLength, maxTypeLength } = alignmentData;
+
+    // Handle comments
+    if (line.startsWith('//') || line.startsWith('/*')) {
+      return indent + line;
+    }
+
+    // Format field definitions with alignment
+    const fieldMatch = line.match(/^(optional|required|repeated)?\s*(\S+)\s+(\w+)\s*=\s*(\d+)(.*)$/);
+    if (fieldMatch) {
+      const [, modifier, type, name, number, rest] = fieldMatch;
+      const typeWithModifier = modifier ? `${modifier} ${type}` : type;
+      const typePadding = ' '.repeat(Math.max(0, maxTypeLength - typeWithModifier.length));
+      const namePadding = ' '.repeat(Math.max(0, maxFieldNameLength - name.length));
+      return `${indent}${typeWithModifier}${typePadding} ${name}${namePadding} = ${number}${rest}`;
+    }
+
+    // Format map fields with alignment
+    // Handle nested maps like map<K, map<K2, V2>>
+    const mapMatch = line.match(/^map\s*<(.+)>\s+(\w+)\s*=\s*(\d+)(.*)$/);
+    if (mapMatch) {
+      const [, mapContent, name, number, rest] = mapMatch;
+      const { keyType, valueType } = this.parseMapTypes(mapContent);
+      const mapType = `map<${keyType}, ${valueType}>`;
+      const typePadding = ' '.repeat(Math.max(0, maxTypeLength - mapType.length));
+      const namePadding = ' '.repeat(Math.max(0, maxFieldNameLength - name.length));
+      return `${indent}${mapType}${typePadding} ${name}${namePadding} = ${number}${rest}`;
+    }
+
+    // Format enum values with alignment
+    const enumValueMatch = line.match(/^(\w+)\s*=\s*(-?\d+)(.*)$/);
+    // Check that this is not a statement line (option, syntax, edition) by checking the start
+    if (enumValueMatch && !line.match(/^(option|syntax|edition)\s/)) {
+      const [, name, value, rest] = enumValueMatch;
+      const cleanedRest = rest.replace(/\s*=\s*-?\d+/g, '');
+      const namePadding = ' '.repeat(Math.max(0, maxFieldNameLength - name.length));
+      return `${indent}${name}${namePadding} = ${value}${cleanedRest}`;
+    }
+
+    // For other lines, use standard formatting
+    return this.formatLine(line, indentLevel);
+  }
+
+  /**
+   * Format an option block line with alignment (e.g., CEL expressions)
+   */
+  private formatOptionLine(line: string, indentLevel: number, alignmentData?: AlignmentData): string {
+    const indent = this.getIndent(indentLevel);
+
+    if (!alignmentData || !alignmentData.isOptionBlock) {
+      return indent + line;
+    }
+
+    const { maxKeyLength } = alignmentData;
+
+    // Match option key-value pairs (e.g., "id: value", "message: value")
+    const keyValueMatch = line.match(/^(\w+):\s*(.*)$/);
+    if (keyValueMatch) {
+      const [, key, value] = keyValueMatch;
+      const keyPadding = ' '.repeat(Math.max(0, maxKeyLength - key.length));
+      return `${indent}${key}${keyPadding}: ${value}`;
+    }
+
+    // For other lines (like closing braces, expressions), just add indent
     return indent + line;
   }
 
