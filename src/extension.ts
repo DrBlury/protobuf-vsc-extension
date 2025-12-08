@@ -163,9 +163,28 @@ export async function activate(context: vscode.ExtensionContext) {
 
       vscode.window.showInformationMessage(
         `Exporting ${deps.length} buf dependencies to ${outputDir}/. After export completes, add "${suggestedPath}" to "protobuf.includes" in settings.`,
+        'Add to Settings',
         'Open Settings'
-      ).then(selection => {
-        if (selection === 'Open Settings') {
+      ).then(async selection => {
+        if (selection === 'Add to Settings') {
+          // Add the path to protobuf.includes configuration
+          const config = vscode.workspace.getConfiguration('protobuf', workspaceFolder.uri);
+          const latestIncludes: string[] = config.get('includes') || [];
+          
+          // Check if path already exists (in case settings changed since initial check)
+          const alreadyExists = latestIncludes.some(includePath => {
+            const expandedPath = includePath.replace(/\$\{workspaceFolder\}/g, workspaceFolderPath);
+            return expandedPath === absoluteOutputPath;
+          });
+          
+          if (alreadyExists) {
+            vscode.window.showInformationMessage(`Path "${suggestedPath}" is already in "protobuf.includes".`);
+          } else {
+            const updatedIncludes = [...latestIncludes, suggestedPath];
+            await config.update('includes', updatedIncludes, vscode.ConfigurationTarget.WorkspaceFolder);
+            vscode.window.showInformationMessage(`Added "${suggestedPath}" to "protobuf.includes" in workspace settings.`);
+          }
+        } else if (selection === 'Open Settings') {
           vscode.commands.executeCommand('workbench.action.openSettings', 'protobuf.includes');
         }
       });
