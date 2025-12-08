@@ -305,6 +305,8 @@ export class ProtoFormatter {
 
     // Format map fields
     // Handle nested maps like map<K, map<K2, V2>>
+    // The greedy match (.+) is correct here - it will match all content until the last >
+    // before the field name, which is what we want for nested maps
     const mapMatch = line.match(/^map\s*<(.+)>\s+(\w+)\s*=\s*(\d+)(.*)$/);
     if (mapMatch) {
       const [, mapContent, name, number, rest] = mapMatch;
@@ -314,7 +316,8 @@ export class ProtoFormatter {
 
     // Format enum values - strip any duplicate = N patterns
     const enumValueMatch = line.match(/^(\w+)\s*=\s*(-?\d+)(.*)$/);
-    if (enumValueMatch && !line.includes('option') && !line.includes('syntax') && !line.includes('edition')) {
+    // Check that this is not a statement line (option, syntax, edition) by checking the start
+    if (enumValueMatch && !line.match(/^(option|syntax|edition)\s/)) {
       const [, name, value, rest] = enumValueMatch;
       // Strip any repeated "= N" patterns from rest, but keep options [...] and comments
       const cleanedRest = rest.replace(/\s*=\s*-?\d+/g, '');
@@ -360,9 +363,17 @@ export class ProtoFormatter {
     }
     
     if (commaPos === -1) {
-      // Fallback if no comma found at depth 0
-      const parts = mapContent.split(',');
-      return { keyType: parts[0]?.trim() || '', valueType: parts.slice(1).join(',').trim() };
+      // Fallback: try to find the first comma (for malformed or simple cases)
+      // This handles cases where depth tracking failed or simple maps without nesting
+      const firstCommaPos = mapContent.indexOf(',');
+      if (firstCommaPos !== -1) {
+        return {
+          keyType: mapContent.slice(0, firstCommaPos).trim(),
+          valueType: mapContent.slice(firstCommaPos + 1).trim()
+        };
+      }
+      // If still no comma, return the whole content as keyType (malformed map)
+      return { keyType: mapContent.trim(), valueType: '' };
     }
     
     const keyType = mapContent.slice(0, commaPos).trim();
@@ -523,7 +534,8 @@ export class ProtoFormatter {
 
     // Format enum values with alignment
     const enumValueMatch = line.match(/^(\w+)\s*=\s*(-?\d+)(.*)$/);
-    if (enumValueMatch && !line.includes('option') && !line.includes('syntax') && !line.includes('edition')) {
+    // Check that this is not a statement line (option, syntax, edition) by checking the start
+    if (enumValueMatch && !line.match(/^(option|syntax|edition)\s/)) {
       const [, name, value, rest] = enumValueMatch;
       const cleanedRest = rest.replace(/\s*=\s*-?\d+/g, '');
       const namePadding = ' '.repeat(Math.max(0, maxFieldNameLength - name.length));
