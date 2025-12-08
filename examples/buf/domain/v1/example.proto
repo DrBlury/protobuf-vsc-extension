@@ -1,4 +1,4 @@
-syntax = "proto3";
+edition = "2023";
 
 package domain.v1;
 import "google/type/date.proto";
