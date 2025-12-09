@@ -476,6 +476,26 @@
             },
             "description": "List of arguments for protoc"
           }
+        },
+        "protobuf.autoDetection.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic detection of protobuf tools (buf, protolint, protoc, clang-format) on startup"
+        },
+        "protobuf.autoDetection.prompted": {
+          "type": "boolean",
+          "default": false,
+          "description": "Internal flag to track if user has been prompted for auto-detection configuration"
+        },
+        "protobuf.dependencySuggestion.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic dependency suggestions when unresolved imports are detected"
+        },
+        "protobuf.dependencySuggestion.autoAdd": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically add suggested dependencies without prompting (not recommended)"
         }
       }
     },
@@ -616,6 +636,11 @@
         "category": "Protobuf"
       },
       {
+        "command": "protobuf.addBufDependencyQuick",
+        "title": "Add Buf Dependency (Quick)",
+        "category": "Protobuf"
+      },
+      {
         "command": "protobuf.exportBufDependencies",
         "title": "Export Buf Dependencies (for import resolution)",
         "category": "Protobuf"
@@ -623,6 +648,16 @@
       {
         "command": "protobuf.migrateToProto3",
         "title": "Migrate File to Proto3",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.detectTools",
+        "title": "Detect and Configure Tools",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.suggestDependencies",
+        "title": "Suggest Dependencies for Unresolved Imports",
         "category": "Protobuf"
       }
     ],

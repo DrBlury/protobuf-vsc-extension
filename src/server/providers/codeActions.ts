@@ -517,8 +517,24 @@ export class CodeActionsProvider {
 
       // Check if this looks like a buf registry dependency import
       const isBufDependency = this.isBufRegistryImport(importPath);
+      const suggestedModule = isBufDependency ? this.suggestBufModule(importPath) : null;
 
       if (isBufDependency) {
+        // Add suggestion to add dependency to buf.yaml
+        if (suggestedModule) {
+          fixes.push({
+            title: `Add '${suggestedModule}' to buf.yaml dependencies`,
+            kind: CodeActionKind.QuickFix,
+            isPreferred: true,
+            diagnostics: [diagnostic],
+            command: {
+              title: 'Add Buf Dependency',
+              command: 'protobuf.addBufDependencyQuick',
+              arguments: [suggestedModule, importPath]
+            }
+          });
+        }
+
         // Add a suggestion to run buf export
         fixes.push({
           title: `Run 'buf export' to download dependencies (${importPath})`,
@@ -1652,5 +1668,53 @@ export class CodeActionsProvider {
     ];
 
     return bufRegistryPatterns.some(pattern => pattern.test(importPath));
+  }
+
+  /**
+   * Suggest a Buf Schema Registry module for an import path
+   */
+  private suggestBufModule(importPath: string): string | null {
+    // Map of import path patterns to BSR modules
+    const moduleMap: { pattern: RegExp; module: string }[] = [
+      // Google APIs
+      { pattern: /^google\/api\//, module: 'buf.build/googleapis/googleapis' },
+      { pattern: /^google\/type\//, module: 'buf.build/googleapis/googleapis' },
+      { pattern: /^google\/rpc\//, module: 'buf.build/googleapis/googleapis' },
+      { pattern: /^google\/cloud\//, module: 'buf.build/googleapis/googleapis' },
+      { pattern: /^google\/logging\//, module: 'buf.build/googleapis/googleapis' },
+
+      // Buf Validate (protovalidate)
+      { pattern: /^buf\/validate\//, module: 'buf.build/bufbuild/protovalidate' },
+
+      // Legacy protoc-gen-validate
+      { pattern: /^validate\/validate\.proto$/, module: 'buf.build/envoyproxy/protoc-gen-validate' },
+
+      // gRPC
+      { pattern: /^grpc\//, module: 'buf.build/grpc/grpc' },
+
+      // Envoy
+      { pattern: /^envoy\//, module: 'buf.build/envoyproxy/envoy' },
+
+      // xDS
+      { pattern: /^xds\//, module: 'buf.build/cncf/xds' },
+
+      // OpenTelemetry
+      { pattern: /^opentelemetry\//, module: 'buf.build/open-telemetry/opentelemetry' },
+
+      // Cosmos SDK
+      { pattern: /^cosmos\//, module: 'buf.build/cosmos/cosmos-sdk' },
+      { pattern: /^tendermint\//, module: 'buf.build/cosmos/cosmos-sdk' },
+
+      // Connect RPC
+      { pattern: /^connectrpc\//, module: 'buf.build/connectrpc/connect' },
+    ];
+
+    for (const { pattern, module } of moduleMap) {
+      if (pattern.test(importPath)) {
+        return module;
+      }
+    }
+
+    return null;
   }
 }

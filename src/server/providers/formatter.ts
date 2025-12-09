@@ -354,8 +354,8 @@ export class ProtoFormatter {
     let commaPos = -1;
 
     for (let i = 0; i < mapContent.length; i++) {
-      if (mapContent[i] === '<') depth++;
-      if (mapContent[i] === '>') depth--;
+      if (mapContent[i] === '<') {depth++;}
+      if (mapContent[i] === '>') {depth--;}
       if (mapContent[i] === ',' && depth === 0) {
         commaPos = i;
         break;
