@@ -63,6 +63,14 @@ export class CodeActionsProvider {
       }
     }
 
+    // Source.fixAll: Fix all editions-related issues (optional/required modifiers)
+    if (!requestedKinds || requestedKinds.some(k => k === CodeActionKind.SourceFixAll || k.startsWith(CodeActionKind.SourceFixAll))) {
+      const editionsFixAction = this.createFixEditionsModifiersAction(uri, documentText);
+      if (editionsFixAction) {
+        actions.push(editionsFixAction);
+      }
+    }
+
     // Add refactoring actions based on selection
     const refactorings = this.getRefactoringActions(uri, range, documentText);
     actions.push(...refactorings);
@@ -297,6 +305,85 @@ export class CodeActionsProvider {
 
     return {
       title: 'Add missing semicolons to proto fields',
+      kind: CodeActionKind.SourceFixAll,
+      edit: {
+        changes: {
+          [uri]: edits
+        }
+      }
+    };
+  }
+
+  /**
+   * Create an action to fix all editions-specific issues:
+   * - Convert 'optional' to features.field_presence = EXPLICIT
+   * - Convert 'required' to features.field_presence = LEGACY_REQUIRED
+   */
+  private createFixEditionsModifiersAction(uri: string, documentText: string): CodeAction | null {
+    const lines = documentText.split('\n');
+    const edits: TextEdit[] = [];
+
+    // Check if this is an editions file
+    const isEditions = lines.some(line => line.trim().startsWith('edition'));
+    if (!isEditions) {
+      return null;
+    }
+
+    // Pattern to match fields with optional/required modifiers
+    const optionalFieldPattern = /^(\s*)optional\s+(\S+)\s+(\w+)\s*=\s*(\d+)\s*(\[[^\]]*\])?\s*;/;
+    const requiredFieldPattern = /^(\s*)required\s+(\S+)\s+(\w+)\s*=\s*(\d+)\s*(\[[^\]]*\])?\s*;/;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Check for 'optional' fields
+      const optionalMatch = line.match(optionalFieldPattern);
+      if (optionalMatch) {
+        const [, indent, type, name, number, existingOptions] = optionalMatch;
+        let newLine: string;
+        if (existingOptions) {
+          const optionsContent = existingOptions.slice(1, -1).trim();
+          newLine = `${indent}${type} ${name} = ${number} [${optionsContent}, features.field_presence = EXPLICIT];`;
+        } else {
+          newLine = `${indent}${type} ${name} = ${number} [features.field_presence = EXPLICIT];`;
+        }
+        edits.push({
+          range: {
+            start: { line: i, character: 0 },
+            end: { line: i, character: line.length }
+          },
+          newText: newLine
+        });
+        continue;
+      }
+
+      // Check for 'required' fields
+      const requiredMatch = line.match(requiredFieldPattern);
+      if (requiredMatch) {
+        const [, indent, type, name, number, existingOptions] = requiredMatch;
+        let newLine: string;
+        if (existingOptions) {
+          const optionsContent = existingOptions.slice(1, -1).trim();
+          newLine = `${indent}${type} ${name} = ${number} [${optionsContent}, features.field_presence = LEGACY_REQUIRED];`;
+        } else {
+          newLine = `${indent}${type} ${name} = ${number} [features.field_presence = LEGACY_REQUIRED];`;
+        }
+        edits.push({
+          range: {
+            start: { line: i, character: 0 },
+            end: { line: i, character: line.length }
+          },
+          newText: newLine
+        });
+      }
+    }
+
+    if (edits.length === 0) {
+      return null;
+    }
+
+    return {
+      title: 'Fix editions modifiers (convert optional/required to features.field_presence)',
       kind: CodeActionKind.SourceFixAll,
       edit: {
         changes: {

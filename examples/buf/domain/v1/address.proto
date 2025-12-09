@@ -40,8 +40,8 @@ message BillingAddress {
 		string type3 = 9;
 	}
 	string country = 4;
-	optional string house_number = 5;
+	string house_number = 5 [features.field_presence = EXPLICIT];
 	string zip = 6;
-	optional string post_office_box = 7;
-	optional string street = 8;
+	string post_office_box = 7 [features.field_presence = EXPLICIT];
+	string street = 8 [features.field_presence = EXPLICIT];
 }

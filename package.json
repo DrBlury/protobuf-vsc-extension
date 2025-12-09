@@ -499,6 +499,13 @@
         }
       }
     },
+    "configurationDefaults": {
+      "[proto]": {
+        "editor.codeActionsOnSave": {
+          "source.fixAll": "explicit"
+        }
+      }
+    },
     "commands": [
       {
         "command": "protobuf.debugDefinition",

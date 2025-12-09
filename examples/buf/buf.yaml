@@ -5,8 +5,8 @@ modules:
     excludes:
       - .buf-deps
 deps:
-  - buf.build/bufbuild/protovalidate
   - buf.build/googleapis/googleapis
+  - buf.build/bufbuild/protovalidate
 lint:
   use:
     - STANDARD

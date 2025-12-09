@@ -206,4 +206,124 @@ message Person {
       expect(edit?.newText).not.toContain('required');
     });
   });
+
+  describe('source.fixAll editions action', () => {
+    it('should provide source.fixAll action to fix all optional/required modifiers', () => {
+      const content = `edition = "2023";
+
+message Person {
+  optional string name = 1;
+  optional int32 age = 2;
+  required string email = 3;
+}
+`;
+      const uri = 'test://editions-fix-all.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const context: CodeActionContext = {
+        diagnostics: [],
+        only: ['source.fixAll' as any]
+      };
+
+      const actions = codeActionsProvider.getCodeActions(
+        uri,
+        { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+        context,
+        content
+      );
+
+      const fixAllAction = actions.find(a =>
+        a.title.includes('Fix editions modifiers')
+      );
+
+      expect(fixAllAction).toBeDefined();
+      expect(fixAllAction?.kind).toBe('source.fixAll');
+      expect(fixAllAction?.edit?.changes?.[uri]).toBeDefined();
+
+      const edits = fixAllAction?.edit?.changes?.[uri];
+      expect(edits?.length).toBe(3); // Should fix all three fields
+
+      // Check that optional fields get EXPLICIT
+      const nameEdit = edits?.find(e => e.newText.includes('name'));
+      expect(nameEdit?.newText).toContain('features.field_presence = EXPLICIT');
+      expect(nameEdit?.newText).not.toContain('optional');
+
+      const ageEdit = edits?.find(e => e.newText.includes('age'));
+      expect(ageEdit?.newText).toContain('features.field_presence = EXPLICIT');
+      expect(ageEdit?.newText).not.toContain('optional');
+
+      // Check that required field gets LEGACY_REQUIRED
+      const emailEdit = edits?.find(e => e.newText.includes('email'));
+      expect(emailEdit?.newText).toContain('features.field_presence = LEGACY_REQUIRED');
+      expect(emailEdit?.newText).not.toContain('required');
+    });
+
+    it('should not provide source.fixAll action for non-editions files', () => {
+      const content = `syntax = "proto3";
+
+message Person {
+  string name = 1;
+}
+`;
+      const uri = 'test://proto3-no-fix.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const context: CodeActionContext = {
+        diagnostics: [],
+        only: ['source.fixAll' as any]
+      };
+
+      const actions = codeActionsProvider.getCodeActions(
+        uri,
+        { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+        context,
+        content
+      );
+
+      const fixAllAction = actions.find(a =>
+        a.title.includes('Fix editions modifiers')
+      );
+
+      expect(fixAllAction).toBeUndefined();
+    });
+
+    it('should preserve existing options when fixing all', () => {
+      const content = `edition = "2023";
+
+message Person {
+  optional string name = 1 [deprecated = true];
+}
+`;
+      const uri = 'test://editions-fix-all-options.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const context: CodeActionContext = {
+        diagnostics: [],
+        only: ['source.fixAll' as any]
+      };
+
+      const actions = codeActionsProvider.getCodeActions(
+        uri,
+        { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+        context,
+        content
+      );
+
+      const fixAllAction = actions.find(a =>
+        a.title.includes('Fix editions modifiers')
+      );
+
+      expect(fixAllAction).toBeDefined();
+
+      const edits = fixAllAction?.edit?.changes?.[uri];
+      expect(edits?.length).toBe(1);
+
+      const edit = edits?.[0];
+      expect(edit?.newText).toContain('deprecated = true');
+      expect(edit?.newText).toContain('features.field_presence = EXPLICIT');
+    });
+  });
 });

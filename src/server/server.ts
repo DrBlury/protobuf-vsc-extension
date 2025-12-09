@@ -188,6 +188,8 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
           'refactor',
           'refactor.extract',
           'refactor.rewrite',
+          'source',
+          'source.fixAll',
           'source.organizeImports'
         ]
       },
