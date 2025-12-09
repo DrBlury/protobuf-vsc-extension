@@ -123,7 +123,7 @@ export class ProtoParser {
     while (!this.isAtEnd()) {
       try {
         this.parseTopLevel(file);
-      } catch (_e) {
+      } catch {
         // Skip to next statement on error
         this.skipToNextStatement();
       }

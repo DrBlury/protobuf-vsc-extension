@@ -1253,7 +1253,7 @@ export class CodeActionsProvider {
       }
       const dir = segments[segments.length - 2];
       return dir.replace(/[^a-zA-Z0-9_]/g, '_');
-    } catch (_e) {
+    } catch {
       return null;
     }
   }
