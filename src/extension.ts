@@ -189,7 +189,7 @@ breaking:
     }, async () => {
       const runBufDepUpdateWithAutoFix = async (retryCount: number = 0): Promise<void> => {
         const maxRetries = 3;
-        
+
         return new Promise<void>((resolve, reject) => {
           outputChannel.appendLine(`Running: ${bufPath} dep update`);
           const proc = spawn(bufPath, ['dep', 'update'], { cwd: bufYamlDir, shell: true });
@@ -210,14 +210,14 @@ breaking:
             } else {
               // Check if the error is about 'optional' or 'required' labels in editions
               const editionsErrors = parseEditionsErrors(stderrOutput, bufYamlDir);
-              
+
               if (editionsErrors.length > 0 && retryCount < maxRetries) {
                 outputChannel.appendLine(`\nDetected ${editionsErrors.length} editions compatibility issue(s). Auto-fixing...`);
-                
+
                 try {
                   await fixEditionsErrors(editionsErrors, outputChannel);
                   outputChannel.appendLine('Auto-fix applied. Retrying buf dep update...\n');
-                  
+
                   // Retry after fixing
                   await runBufDepUpdateWithAutoFix(retryCount + 1);
                   resolve();
@@ -618,10 +618,10 @@ async function runBufGenerate(uri: vscode.Uri, outputChannel: vscode.OutputChann
 function parseEditionsErrors(stderr: string, cwd: string): Array<{filePath: string; line: number; fieldName: string; label: 'optional' | 'required'}> {
   const pathModule = require('path');
   const errors: Array<{filePath: string; line: number; fieldName: string; label: 'optional' | 'required'}> = [];
-  
+
   // Pattern: file.proto:43:9:field package.Message.field_name: label 'optional' is not allowed in editions
   const regex = /^([^:]+):(\d+):\d+:field\s+[\w.]+\.(\w+):\s+label\s+'(optional|required)'\s+is\s+not\s+allowed\s+in\s+editions/gm;
-  
+
   let match;
   while ((match = regex.exec(stderr)) !== null) {
     const [, filePath, lineStr, fieldName, label] = match;
@@ -633,7 +633,7 @@ function parseEditionsErrors(stderr: string, cwd: string): Array<{filePath: stri
       label: label as 'optional' | 'required',
     });
   }
-  
+
   return errors;
 }
 
@@ -645,10 +645,10 @@ async function fixEditionsErrors(
   outputChannel: vscode.OutputChannel
 ): Promise<void> {
   const fs = require('fs');
-  
+
   // Group errors by file
   const errorsByFile = new Map<string, Array<{line: number; fieldName: string; label: 'optional' | 'required'}>>();
-  
+
   for (const error of errors) {
     const existing = errorsByFile.get(error.filePath) || [];
     existing.push({ line: error.line, fieldName: error.fieldName, label: error.label });
@@ -657,23 +657,33 @@ async function fixEditionsErrors(
 
   for (const [filePath, fileErrors] of errorsByFile) {
     try {
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        outputChannel.appendLine(`  ERROR: File not found: ${filePath}`);
+        throw new Error(`File not found: ${filePath}`);
+      }
+
       let content = fs.readFileSync(filePath, 'utf-8');
+      const originalContent = content;
       const lines = content.split('\n');
-      
+      outputChannel.appendLine(`  Reading ${filePath} (${lines.length} lines)`);
+
       // Sort errors by line number in descending order to avoid index shifts
       fileErrors.sort((a, b) => b.line - a.line);
-      
+
+      let fixCount = 0;
       for (const error of fileErrors) {
         const lineIndex = error.line - 1;
         if (lineIndex >= 0 && lineIndex < lines.length) {
           const line = lines[lineIndex];
-          
+          outputChannel.appendLine(`  Line ${error.line}: "${line.substring(0, 60)}..."`);
+
           // Match: optional/required Type name = N; or optional/required Type name = N [options];
           const fieldMatch = line.match(/^(\s*)(optional|required)\s+(\S+)\s+(\w+)\s*=\s*(\d+)\s*(\[[^\]]*\])?\s*;/);
           if (fieldMatch) {
             const [, indent, , type, name, number, existingOptions] = fieldMatch;
             const presenceValue = error.label === 'optional' ? 'EXPLICIT' : 'LEGACY_REQUIRED';
-            
+
             let newLine: string;
             if (existingOptions) {
               // Append to existing options
@@ -682,16 +692,27 @@ async function fixEditionsErrors(
             } else {
               newLine = `${indent}${type} ${name} = ${number} [features.field_presence = ${presenceValue}];`;
             }
-            
+
             lines[lineIndex] = newLine;
+            fixCount++;
             outputChannel.appendLine(`  Fixed: ${filePath}:${error.line} - converted '${error.label}' to features.field_presence = ${presenceValue}`);
+          } else {
+            outputChannel.appendLine(`  WARNING: Line ${error.line} did not match expected pattern: "${line.substring(0, 80)}"`);
           }
         }
       }
-      
-      content = lines.join('\n');
-      fs.writeFileSync(filePath, content);
-      outputChannel.appendLine(`  Saved: ${filePath}`);
+
+      if (fixCount > 0) {
+        content = lines.join('\n');
+        if (content !== originalContent) {
+          fs.writeFileSync(filePath, content, 'utf-8');
+          outputChannel.appendLine(`  Saved: ${filePath} (${fixCount} fixes applied)`);
+        } else {
+          outputChannel.appendLine(`  WARNING: No changes detected in ${filePath}`);
+        }
+      } else {
+        outputChannel.appendLine(`  WARNING: No fixes applied to ${filePath}`);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       throw new Error(`Failed to fix ${filePath}: ${msg}`);
