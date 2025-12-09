@@ -362,7 +362,14 @@ breaking:
     },
     synchronize: {
       configurationSection: 'protobuf',
-      fileEvents: vscode.workspace.createFileSystemWatcher('**/*.{proto,textproto,pbtxt,prototxt}')
+      fileEvents: [
+        vscode.workspace.createFileSystemWatcher('**/*.{proto,textproto,pbtxt,prototxt}'),
+        vscode.workspace.createFileSystemWatcher('**/buf.yaml'),
+        vscode.workspace.createFileSystemWatcher('**/buf.yml'),
+        vscode.workspace.createFileSystemWatcher('**/buf.work.yaml'),
+        vscode.workspace.createFileSystemWatcher('**/buf.work.yml'),
+        vscode.workspace.createFileSystemWatcher('**/buf.lock')
+      ]
     },
     outputChannel,
     outputChannelName: OUTPUT_CHANNEL_NAME,

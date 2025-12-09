@@ -78,6 +78,7 @@ import { ContentHashCache, simpleHash } from './utils/cache';
 import { ProviderRegistry } from './utils/providerRegistry';
 import { refreshDocumentAndImports } from './utils/documentRefresh';
 import { handleCompletion, handleHover } from './handlers';
+import { bufConfigProvider } from './services/bufConfig';
 
 // Shared types
 import { SchemaGraphRequest } from '../shared/schemaGraph';
@@ -305,9 +306,20 @@ function discoverWellKnownIncludePath(): string | undefined {
 connection.onDidChangeWatchedFiles((params: DidChangeWatchedFilesParams) => {
   let needsRevalidation = false;
   let hasFileRenameOrDelete = false;
+  let hasBufConfigChange = false;
 
   for (const change of params.changes) {
     const uri = change.uri;
+    
+    // Check if this is a buf config file change
+    if (uri.endsWith('buf.yaml') || uri.endsWith('buf.yml') || 
+        uri.endsWith('buf.work.yaml') || uri.endsWith('buf.work.yml') ||
+        uri.endsWith('buf.lock')) {
+      hasBufConfigChange = true;
+      needsRevalidation = true;
+      logger.verboseWithContext('Buf config file changed', { uri, type: change.type });
+    }
+    
     if (uri.endsWith('.proto')) {
       needsRevalidation = true;
       if (change.type === FileChangeType.Deleted) {
@@ -366,6 +378,12 @@ connection.onDidChangeWatchedFiles((params: DidChangeWatchedFilesParams) => {
   if (hasFileRenameOrDelete) {
     providers.analyzer.clearImportResolutionCache();
     logger.verboseWithContext('Cleared import resolution cache due to file rename/delete', {});
+  }
+
+  // Clear buf config cache when buf.yaml/buf.lock changes
+  if (hasBufConfigChange) {
+    bufConfigProvider.clearCache();
+    logger.verboseWithContext('Cleared buf config cache due to buf config file change', {});
   }
 
   // Re-validate all open documents when files change (handles renames, deletions, etc.)

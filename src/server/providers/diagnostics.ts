@@ -931,7 +931,7 @@ export class DiagnosticsProvider {
     // This warns users when they've exported deps locally but haven't added them to buf.yaml
     const bufConfig = bufConfigProvider.findBufConfig(uri);
     const bufDeps = bufConfig?.deps || [];
-    
+
     for (const imp of importsWithResolutions) {
       if (imp.resolvedUri && this.isBufRegistryImport(imp.importPath)) {
         const suggestedModule = this.suggestBufModule(imp.importPath);

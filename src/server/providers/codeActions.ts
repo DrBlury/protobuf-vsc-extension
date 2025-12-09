@@ -593,7 +593,7 @@ export class CodeActionsProvider {
       // Extract the suggested module from the diagnostic message
       const moduleMatch = diagnostic.message.match(/'([^']+)' is not in buf\.yaml dependencies/);
       const suggestedModule = moduleMatch ? moduleMatch[1] : null;
-      
+
       // Extract import path from message
       const importMatch = diagnostic.message.match(/Import '([^']+)' resolves/);
       const importPath = importMatch ? importMatch[1] : '';
