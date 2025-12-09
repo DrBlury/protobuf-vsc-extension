@@ -124,7 +124,7 @@ export class ProtoFormatter {
 
   private format(text: string): string {
     const lines = text.split('\n');
-    
+
     // If alignment is enabled, first pass to collect alignment info
     let alignmentInfo: Map<number, AlignmentData> | undefined;
     if (this.settings.alignFields) {
@@ -352,7 +352,7 @@ export class ProtoFormatter {
   private parseMapTypes(mapContent: string): { keyType: string; valueType: string } {
     let depth = 0;
     let commaPos = -1;
-    
+
     for (let i = 0; i < mapContent.length; i++) {
       if (mapContent[i] === '<') depth++;
       if (mapContent[i] === '>') depth--;
@@ -361,7 +361,7 @@ export class ProtoFormatter {
         break;
       }
     }
-    
+
     if (commaPos === -1) {
       // Fallback: try to find the first comma (for malformed or simple cases)
       // This handles cases where depth tracking failed or simple maps without nesting
@@ -375,7 +375,7 @@ export class ProtoFormatter {
       // If still no comma, return the whole content as keyType (malformed map)
       return { keyType: mapContent.trim(), valueType: '' };
     }
-    
+
     const keyType = mapContent.slice(0, commaPos).trim();
     const valueType = mapContent.slice(commaPos + 1).trim();
     return { keyType, valueType };
@@ -737,22 +737,19 @@ export class ProtoFormatter {
         }
 
         // Handle enum values FIRST - before field matching which would incorrectly match them
-        // Enum values: preserve authoring but strip any repeated assignments (e.g., "= 0 = 0;")
+        // Enum values: preserve alignment, just clean up any duplicate assignments
         if (currentContext.type === 'enum') {
-          const enumMatch = line.match(/^(\s*)(\w+)\s*=\s*(-?\d+)(.*)$/);
+          const enumMatch = line.match(/^(.+=\s*)(-?\d+)(.*)$/);
 
           if (enumMatch && !trimmedLine.startsWith('option')) {
-            const [, indent, valueName, firstNumber, rest] = enumMatch;
+            const [, beforeNumber, firstNumber, rest] = enumMatch;
 
-            // Separate before/after first semicolon to keep trailing comments intact
-            const semiIndex = rest.indexOf(';');
-            const beforeSemi = semiIndex >= 0 ? rest.slice(0, semiIndex) : rest;
-            const afterSemi = semiIndex >= 0 ? rest.slice(semiIndex) : ';';
+            // Remove any additional "= <number>" sequences after the first number
+            const cleanedRest = rest.replace(/(\s*=\s*-?\d+)+/g, '');
 
-            // Remove any additional "= <number>" sequences before the semicolon
-            const cleanedBeforeSemi = beforeSemi.replace(/(\s*=\s*-?\d+)+/g, '');
-
-            line = `${indent}${valueName} = ${firstNumber}${cleanedBeforeSemi}${afterSemi.startsWith(';') ? afterSemi : `;${afterSemi}`}`;
+            // Ensure line ends with semicolon
+            const hasTrailingSemi = cleanedRest.includes(';');
+            line = `${beforeNumber}${firstNumber}${cleanedRest}${hasTrailingSemi ? '' : ';'}`;
           }
 
           result.push(line);
@@ -760,41 +757,21 @@ export class ProtoFormatter {
         }
 
         // Field pattern: type name = NUMBER; or with options
-        // Map field pattern: map<K, V> name [= NUMBER] [options] [;...]
-        const mapMatch = line.match(/^(\s*)map\s*<\s*(\w+)\s*,\s*(\S+)\s*>\s+(\w+)(?:\s*=\s*(\d+))?(.*?)(;.*)?$/);
+        // Use a regex that preserves spacing by only replacing the number
+        // Match: everything before "= NUMBER" then the number, then everything after
+        const fieldNumberMatch = line.match(/^(.+=\s*)(\d+)(.*)$/);
 
-        if (mapMatch) {
-          const [, indent, keyType, valueType, fieldName, existingNumber, options = '', ending = ''] = mapMatch;
-          const numberSource = existingNumber ? parseInt(existingNumber, 10) : currentContext.fieldCounter;
+        if (fieldNumberMatch) {
+          const [, beforeNumber, existingNumberStr, afterNumber] = fieldNumberMatch;
+          const existingNumber = parseInt(existingNumberStr, 10);
 
-          let finalNumber = numberSource;
+          let finalNumber = existingNumber;
           if (finalNumber >= FIELD_NUMBER.RESERVED_RANGE_START && finalNumber <= FIELD_NUMBER.RESERVED_RANGE_END) {
             finalNumber = 20000;
           }
 
-          const endingText = ending.includes(';') ? ending : `${ending};`;
-          line = `${indent}map<${keyType}, ${valueType}> ${fieldName} = ${finalNumber}${options}${endingText}`;
-          currentContext.fieldCounter = finalNumber + increment;
-
-          result.push(line);
-          continue;
-        }
-
-        // Field pattern: type name [= NUMBER] [options] [;...]
-        const fieldMatch = line.match(/^(\s*)((?:optional|required|repeated)\s+)?(.+?)\s+(\w+)(?:\s*=\s*(\d+))?(.*?)(;.*)?$/);
-
-        if (fieldMatch) {
-          const [, indent, modifier, fieldType, fieldName, existingNumber, options = '', ending = ''] = fieldMatch;
-          const modifierPart = modifier || '';
-          const numberSource = existingNumber ? parseInt(existingNumber, 10) : currentContext.fieldCounter;
-
-          let finalNumber = numberSource;
-          if (finalNumber >= FIELD_NUMBER.RESERVED_RANGE_START && finalNumber <= FIELD_NUMBER.RESERVED_RANGE_END) {
-            finalNumber = 20000;
-          }
-
-          const endingText = ending.includes(';') ? ending : `${ending};`;
-          line = `${indent}${modifierPart}${fieldType} ${fieldName} = ${finalNumber}${options}${endingText}`;
+          // Preserve the original line structure, just replace the number
+          line = `${beforeNumber}${finalNumber}${afterNumber}`;
           currentContext.fieldCounter = finalNumber + increment;
 
           result.push(line);

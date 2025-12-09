@@ -303,15 +303,37 @@ function discoverWellKnownIncludePath(): string | undefined {
 
 // Handle file changes from workspace file watcher
 connection.onDidChangeWatchedFiles((params: DidChangeWatchedFilesParams) => {
+  let needsRevalidation = false;
+  let hasFileRenameOrDelete = false;
+
   for (const change of params.changes) {
     const uri = change.uri;
     if (uri.endsWith('.proto')) {
+      needsRevalidation = true;
       if (change.type === FileChangeType.Deleted) {
+        hasFileRenameOrDelete = true;
         providers.analyzer.removeFile(uri);
         parsedFileCache.delete(uri);
         logger.verboseWithContext('File deleted, removed from cache and analyzer', { uri });
+      } else if (change.type === FileChangeType.Created) {
+        // A new file was created - this could be part of a rename operation
+        hasFileRenameOrDelete = true;
+        // File created - try to read and parse it
+        try {
+          const filePath = URI.parse(uri).fsPath;
+          const content = fs.readFileSync(filePath, 'utf-8');
+          const contentHash = simpleHash(content);
+
+          const file = providers.parser.parse(content, uri);
+          parsedFileCache.set(uri, file, contentHash);
+          providers.analyzer.updateFile(uri, file);
+          logger.verboseWithContext('File created, parsed and cached', { uri });
+        } catch (error) {
+          parsedFileCache.delete(uri);
+          logger.verboseWithContext('Failed to parse created file', { uri, error });
+        }
       } else {
-        // File created or changed - try to read and parse it
+        // File changed - try to read and parse it
         try {
           const filePath = URI.parse(uri).fsPath;
           const content = fs.readFileSync(filePath, 'utf-8');
@@ -338,6 +360,17 @@ connection.onDidChangeWatchedFiles((params: DidChangeWatchedFilesParams) => {
         }
       }
     }
+  }
+
+  // Clear import resolution cache on file renames/deletes to force re-resolution
+  if (hasFileRenameOrDelete) {
+    providers.analyzer.clearImportResolutionCache();
+    logger.verboseWithContext('Cleared import resolution cache due to file rename/delete', {});
+  }
+
+  // Re-validate all open documents when files change (handles renames, deletions, etc.)
+  if (needsRevalidation) {
+    documents.all().forEach(validateDocument);
   }
 });
 
