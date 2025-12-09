@@ -709,9 +709,9 @@
     "compile": "tsc -b",
     "watch": "tsc -b -w",
     "lint": "eslint ./src",
-    "test": "node ./node_modules/jest/bin/jest.js",
-    "test:watch": "node ./node_modules/jest/bin/jest.js --watch",
-    "test:coverage": "node ./node_modules/jest/bin/jest.js --coverage"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
