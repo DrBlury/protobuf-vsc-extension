@@ -310,16 +310,16 @@ connection.onDidChangeWatchedFiles((params: DidChangeWatchedFilesParams) => {
 
   for (const change of params.changes) {
     const uri = change.uri;
-    
+
     // Check if this is a buf config file change
-    if (uri.endsWith('buf.yaml') || uri.endsWith('buf.yml') || 
+    if (uri.endsWith('buf.yaml') || uri.endsWith('buf.yml') ||
         uri.endsWith('buf.work.yaml') || uri.endsWith('buf.work.yml') ||
         uri.endsWith('buf.lock')) {
       hasBufConfigChange = true;
       needsRevalidation = true;
       logger.verboseWithContext('Buf config file changed', { uri, type: change.type });
     }
-    
+
     if (uri.endsWith('.proto')) {
       needsRevalidation = true;
       if (change.type === FileChangeType.Deleted) {

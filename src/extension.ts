@@ -175,7 +175,7 @@ breaking:
       outputChannel.appendLine(`Added ${moduleName} to ${bufYamlPath}`);
     }
 
-    // Run buf mod update
+    // Run buf dep update
     const config = vscode.workspace.getConfiguration('protobuf');
     const bufPath = config.get<string>('buf.path') || config.get<string>('externalLinter.bufPath') || 'buf';
     const bufYamlDir = pathModule.dirname(bufYamlPath);
@@ -188,7 +188,7 @@ breaking:
       cancellable: false
     }, async () => {
       return new Promise<void>((resolve) => {
-        const proc = spawn(bufPath, ['mod', 'update'], { cwd: bufYamlDir, shell: true });
+        const proc = spawn(bufPath, ['dep', 'update'], { cwd: bufYamlDir, shell: true });
 
         proc.stdout?.on('data', d => outputChannel.append(d.toString()));
         proc.stderr?.on('data', d => outputChannel.append(d.toString()));
@@ -197,14 +197,14 @@ breaking:
           if (code === 0) {
             vscode.window.showInformationMessage(`Added dependency '${moduleName}' and updated buf.lock`);
           } else {
-            vscode.window.showErrorMessage(`Failed to run 'buf mod update'. Check output for details.`);
+            vscode.window.showErrorMessage(`Failed to run 'buf dep update'. Check output for details.`);
           }
           resolve();
         });
 
         proc.on('error', err => {
           outputChannel.appendLine(`Error: ${err.message}`);
-          vscode.window.showErrorMessage(`Failed to run 'buf mod update': ${err.message}`);
+          vscode.window.showErrorMessage(`Failed to run 'buf dep update': ${err.message}`);
           resolve();
         });
       });

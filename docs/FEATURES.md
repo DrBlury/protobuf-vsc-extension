@@ -245,7 +245,7 @@ This document provides a comprehensive list of all features in the Protobuf VSC 
 - ✅ **Add Dependencies** - Add Buf modules from registry
 - ✅ **Automatic buf.yaml Updates** - Updates configuration automatically
 - ✅ **Module Support** - Works with buf.build modules
-- ✅ **Automatic Updates** - Runs buf mod update after adding
+- ✅ **Automatic Updates** - Runs buf dep update after adding
 - ✅ **Quick Add from Code Actions** - Add dependencies directly from code actions on unresolved imports
 
 ## Toolchain Management
@@ -273,7 +273,7 @@ This document provides a comprehensive list of all features in the Protobuf VSC 
 - ✅ **Smart Suggestions** - Maps imports to correct BSR modules
 - ✅ **Code Action Integration** - Add dependencies via lightbulb actions
 - ✅ **buf.yaml Creation** - Creates buf.yaml if needed
-- ✅ **Automatic buf mod update** - Updates dependencies after adding
+- ✅ **Automatic buf dep update** - Updates dependencies after adding
 
 ## Code Generation
 

@@ -241,11 +241,11 @@ export class DependencySuggestionProvider {
       fs.writeFileSync(bufYamlPath, content);
       this.outputChannel.appendLine(`Added ${modulesToAdd.length} dependencies to ${bufYamlPath}`);
 
-      // Run buf mod update
-      await this.runBufModUpdate(path.dirname(bufYamlPath));
+      // Run buf dep update
+      await this.runBufDepUpdate(path.dirname(bufYamlPath));
 
       vscode.window.showInformationMessage(
-        `Added ${modulesToAdd.length} dependency(ies) to buf.yaml and ran buf mod update`
+        `Added ${modulesToAdd.length} dependency(ies) to buf.yaml and ran buf dep update`
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -297,14 +297,14 @@ breaking:
       fs.writeFileSync(bufYamlPath, content);
       this.outputChannel.appendLine(`Created ${bufYamlPath}`);
 
-      // Run buf mod update
-      await this.runBufModUpdate(location.path);
+      // Run buf dep update
+      await this.runBufDepUpdate(location.path);
 
       // Open the file
       const doc = await vscode.workspace.openTextDocument(bufYamlPath);
       await vscode.window.showTextDocument(doc);
 
-      vscode.window.showInformationMessage('Created buf.yaml and ran buf mod update');
+      vscode.window.showInformationMessage('Created buf.yaml and ran buf dep update');
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       vscode.window.showErrorMessage(`Failed to create buf.yaml: ${message}`);
@@ -312,30 +312,30 @@ breaking:
   }
 
   /**
-   * Run buf mod update
+   * Run buf dep update
    */
-  private async runBufModUpdate(cwd: string): Promise<void> {
+  private async runBufDepUpdate(cwd: string): Promise<void> {
     const config = vscode.workspace.getConfiguration('protobuf');
     const bufPath = config.get<string>('buf.path') || config.get<string>('externalLinter.bufPath') || 'buf';
 
     return new Promise((resolve, reject) => {
-      this.outputChannel.appendLine(`Running: ${bufPath} mod update`);
-      const proc = spawn(bufPath, ['mod', 'update'], { cwd, shell: true });
+      this.outputChannel.appendLine(`Running: ${bufPath} dep update`);
+      const proc = spawn(bufPath, ['dep', 'update'], { cwd, shell: true });
 
       proc.stdout?.on('data', d => this.outputChannel.append(d.toString()));
       proc.stderr?.on('data', d => this.outputChannel.append(d.toString()));
 
       proc.on('close', code => {
         if (code === 0) {
-          this.outputChannel.appendLine('buf mod update completed');
+          this.outputChannel.appendLine('buf dep update completed');
           resolve();
         } else {
-          reject(new Error(`buf mod update failed with code ${code}`));
+          reject(new Error(`buf dep update failed with code ${code}`));
         }
       });
 
       proc.on('error', err => {
-        this.outputChannel.appendLine(`buf mod update error: ${err.message}`);
+        this.outputChannel.appendLine(`buf dep update error: ${err.message}`);
         reject(err);
       });
     });

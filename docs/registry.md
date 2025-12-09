@@ -8,7 +8,7 @@ Registry Management provides:
 - **Easy dependency addition** - Add Buf modules with a simple command
 - **Automatic buf.yaml updates** - Updates your configuration automatically
 - **Buf module support** - Works with modules from buf.build
-- **Automatic updates** - Runs `buf mod update` after adding dependencies
+- **Automatic updates** - Runs `buf dep update` after adding dependencies
 
 ## Prerequisites
 
@@ -60,7 +60,7 @@ deps:
 Add dependencies one at a time:
 1. Run the command for each dependency
 2. Each dependency is added to the `deps` list
-3. `buf mod update` runs after each addition
+3. `buf dep update` runs after each addition
 
 ### Example buf.yaml
 
@@ -80,7 +80,7 @@ deps:
 1. **Reads buf.yaml** - Reads your existing configuration
 2. **Adds dependency** - Appends the new module to the `deps` list
 3. **Updates file** - Writes the updated configuration
-4. **Runs buf mod update** - Fetches the dependency
+4. **Runs buf dep update** - Fetches the dependency
 
 ## Configuration
 
@@ -130,13 +130,13 @@ If you try to add a duplicate:
 - Won't add duplicates
 - Shows a message if already present
 
-### buf mod update Fails
+### buf dep update Fails
 
 If update fails:
 1. Check your internet connection
 2. Verify the module name is correct
 3. Check the Output panel for detailed errors
-4. Try running `buf mod update` manually
+4. Try running `buf dep update` manually
 
 ### Buf Not Found
 

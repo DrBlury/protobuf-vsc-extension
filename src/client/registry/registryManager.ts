@@ -42,7 +42,7 @@ export class RegistryManager {
     }
 
     // Add dependency
-    // We can try `buf mod update` but that updates deps, doesn't add them.
+    // We can try `buf dep update` but that updates deps, doesn't add them.
     // We need to edit buf.yaml.
     try {
         const content = fs.readFileSync(bufYamlPath, 'utf-8');
@@ -71,7 +71,7 @@ export class RegistryManager {
         this.outputChannel.appendLine(`Added ${moduleName} to buf.yaml`);
 
         // Run update
-        await this.runBufCommand(['mod', 'update'], rootPath);
+        await this.runBufCommand(['dep', 'update'], rootPath);
         vscode.window.showInformationMessage(`Added dependency ${moduleName}`);
 
     } catch (e) {

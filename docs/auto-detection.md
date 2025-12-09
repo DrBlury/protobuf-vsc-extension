@@ -91,7 +91,7 @@ Available actions:
 Selecting "Add to buf.yaml" will:
 
 1. Add the module to your `buf.yaml` deps section
-2. Run `buf mod update` to download the dependency
+2. Run `buf dep update` to download the dependency
 3. Update `buf.lock` with the resolved version
 
 Example buf.yaml after adding dependency:
@@ -151,7 +151,7 @@ buf.yaml not found. Create one with dependency 'buf.build/googleapis/googleapis'
 ## Best Practices
 
 1. **Use buf.yaml for dependencies** - The extension works best with a properly configured buf.yaml
-2. **Run buf mod update regularly** - Keep dependencies up to date
+2. **Run buf dep update regularly** - Keep dependencies up to date
 3. **Add .buf-deps to .gitignore** - If using buf export, exclude generated files
 4. **Configure protobuf.includes** - Point to your .buf-deps or vendor directory
 
@@ -170,7 +170,7 @@ If tools aren't being detected:
 
 If dependencies aren't resolving after adding to buf.yaml:
 
-1. Run `buf mod update` manually in terminal
+1. Run `buf dep update` manually in terminal
 2. Check buf.lock for resolved versions
 3. Verify buf.build module names are correct
 4. Check Output panel for error messages

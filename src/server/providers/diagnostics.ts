@@ -1519,35 +1519,59 @@ export class DiagnosticsProvider {
   /**
    * Validate proto3 field presence semantics
    * In proto3, fields have implicit presence - warn about common mistakes
+   * In editions, 'optional' and 'required' keywords are not allowed
    */
   private validateProto3FieldPresence(uri: string, file: ProtoFile, diagnostics: Diagnostic[]): void {
-    const isProto3 = file.syntax?.version === 'proto3' || file.edition?.edition.startsWith('2023') || file.edition?.edition.startsWith('2024');
+    const isProto3 = file.syntax?.version === 'proto3';
+    const isEdition = !!file.edition;
 
-    if (!isProto3) {
-      return; // Only validate proto3
+    if (!isProto3 && !isEdition) {
+      return; // Only validate proto3 and editions
     }
 
     for (const message of file.messages) {
-      this.checkProto3MessageFields(uri, message, diagnostics);
+      this.checkProto3MessageFields(uri, message, diagnostics, isEdition);
     }
   }
 
   private checkProto3MessageFields(
     uri: string,
     message: MessageDefinition,
-    diagnostics: Diagnostic[]
+    diagnostics: Diagnostic[],
+    isEdition: boolean
   ): void {
     for (const field of message.fields) {
-      // In proto3, optional fields need explicit 'optional' keyword for presence tracking
-      // Warn if using required (not allowed in proto3)
-      if (field.modifier === 'required') {
-        diagnostics.push({
-          severity: DiagnosticSeverity.Error,
-          range: this.toRange(field.range),
-          message: `'required' fields are not allowed in proto3. Use 'optional' for explicit presence tracking.`,
-          source: DIAGNOSTIC_SOURCE,
-          code: 'proto3-required'
-        });
+      if (isEdition) {
+        // In editions, 'optional' and 'required' keywords are NOT allowed
+        // Use features.field_presence = EXPLICIT instead
+        if (field.modifier === 'optional') {
+          diagnostics.push({
+            severity: DiagnosticSeverity.Error,
+            range: this.toRange(field.range),
+            message: `'optional' label is not allowed in editions. Use 'features.field_presence = EXPLICIT' option instead.`,
+            source: DIAGNOSTIC_SOURCE,
+            code: ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED
+          });
+        } else if (field.modifier === 'required') {
+          diagnostics.push({
+            severity: DiagnosticSeverity.Error,
+            range: this.toRange(field.range),
+            message: `'required' label is not allowed in editions. Use 'features.field_presence = LEGACY_REQUIRED' option instead.`,
+            source: DIAGNOSTIC_SOURCE,
+            code: ERROR_CODES.INVALID_FIELD_MODIFIER
+          });
+        }
+      } else {
+        // Proto3: 'required' is not allowed
+        if (field.modifier === 'required') {
+          diagnostics.push({
+            severity: DiagnosticSeverity.Error,
+            range: this.toRange(field.range),
+            message: `'required' fields are not allowed in proto3. Use 'optional' for explicit presence tracking.`,
+            source: DIAGNOSTIC_SOURCE,
+            code: 'proto3-required'
+          });
+        }
       }
 
       // Warn about implicit presence for scalar fields
@@ -1558,7 +1582,7 @@ export class DiagnosticsProvider {
 
     // Check nested messages
     for (const nested of message.nestedMessages) {
-      this.checkProto3MessageFields(uri, nested, diagnostics);
+      this.checkProto3MessageFields(uri, nested, diagnostics, isEdition);
     }
   }
 

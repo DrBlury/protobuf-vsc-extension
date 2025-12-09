@@ -817,6 +817,126 @@ export class CodeActionsProvider {
       }
     }
 
+    // Fix 'optional' not allowed in editions - convert to field_presence feature
+    if (message.includes("'optional' label is not allowed in editions")) {
+      const lines = documentText.split('\n');
+      const lineIndex = diagnostic.range.start.line;
+      const line = lines[lineIndex];
+
+      if (line) {
+        // Remove 'optional' and add [features.field_presence = EXPLICIT] option
+        // Match: optional Type name = N; or optional Type name = N [options];
+        const fieldMatch = line.match(/^(\s*)optional\s+(\S+)\s+(\w+)\s*=\s*(\d+)\s*(\[[^\]]*\])?\s*;/);
+        if (fieldMatch) {
+          const [, indent, type, name, number, existingOptions] = fieldMatch;
+          let newLine: string;
+          if (existingOptions) {
+            // Append to existing options
+            const optionsContent = existingOptions.slice(1, -1).trim();
+            newLine = `${indent}${type} ${name} = ${number} [${optionsContent}, features.field_presence = EXPLICIT];`;
+          } else {
+            newLine = `${indent}${type} ${name} = ${number} [features.field_presence = EXPLICIT];`;
+          }
+
+          fixes.push({
+            title: "Convert 'optional' to 'features.field_presence = EXPLICIT'",
+            kind: CodeActionKind.QuickFix,
+            isPreferred: true,
+            diagnostics: [diagnostic],
+            edit: {
+              changes: {
+                [uri]: [{
+                  range: {
+                    start: { line: lineIndex, character: 0 },
+                    end: { line: lineIndex, character: line.length }
+                  },
+                  newText: newLine
+                }]
+              }
+            }
+          });
+        }
+
+        // Also offer option to just remove 'optional' (uses edition default)
+        const noOptionalLine = line.replace(/\boptional\s+/, '');
+        fixes.push({
+          title: "Remove 'optional' modifier (uses edition default)",
+          kind: CodeActionKind.QuickFix,
+          diagnostics: [diagnostic],
+          edit: {
+            changes: {
+              [uri]: [{
+                range: {
+                  start: { line: lineIndex, character: 0 },
+                  end: { line: lineIndex, character: line.length }
+                },
+                newText: noOptionalLine
+              }]
+            }
+          }
+        });
+      }
+    }
+
+    // Fix 'required' not allowed in editions - convert to field_presence feature
+    if (message.includes("'required' label is not allowed in editions")) {
+      const lines = documentText.split('\n');
+      const lineIndex = diagnostic.range.start.line;
+      const line = lines[lineIndex];
+
+      if (line) {
+        // Remove 'required' and add [features.field_presence = LEGACY_REQUIRED] option
+        const fieldMatch = line.match(/^(\s*)required\s+(\S+)\s+(\w+)\s*=\s*(\d+)\s*(\[[^\]]*\])?\s*;/);
+        if (fieldMatch) {
+          const [, indent, type, name, number, existingOptions] = fieldMatch;
+          let newLine: string;
+          if (existingOptions) {
+            const optionsContent = existingOptions.slice(1, -1).trim();
+            newLine = `${indent}${type} ${name} = ${number} [${optionsContent}, features.field_presence = LEGACY_REQUIRED];`;
+          } else {
+            newLine = `${indent}${type} ${name} = ${number} [features.field_presence = LEGACY_REQUIRED];`;
+          }
+
+          fixes.push({
+            title: "Convert 'required' to 'features.field_presence = LEGACY_REQUIRED'",
+            kind: CodeActionKind.QuickFix,
+            isPreferred: true,
+            diagnostics: [diagnostic],
+            edit: {
+              changes: {
+                [uri]: [{
+                  range: {
+                    start: { line: lineIndex, character: 0 },
+                    end: { line: lineIndex, character: line.length }
+                  },
+                  newText: newLine
+                }]
+              }
+            }
+          });
+        }
+
+        // Also offer option to just remove 'required'
+        const noRequiredLine = line.replace(/\brequired\s+/, '');
+        fixes.push({
+          title: "Remove 'required' modifier",
+          kind: CodeActionKind.QuickFix,
+          diagnostics: [diagnostic],
+          edit: {
+            changes: {
+              [uri]: [{
+                range: {
+                  start: { line: lineIndex, character: 0 },
+                  end: { line: lineIndex, character: line.length }
+                },
+                newText: noRequiredLine
+              }]
+            }
+          }
+        });
+      }
+    }
+
     return fixes;
   }
 
