@@ -194,5 +194,46 @@ describe('Workspace utilities', () => {
       scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer);
       expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Workspace scan complete'));
     });
+
+    it('should scan protoSrcsDir when specified', () => {
+      const protoContent = 'syntax = "proto3"; message Test {}';
+      mockFs.readdirSync.mockReturnValue([
+        { name: 'test.proto', isDirectory: () => false, isFile: () => true }
+      ] as any);
+      mockFs.readFileSync.mockReturnValue(protoContent);
+      mockFs.existsSync.mockReturnValue(true);
+
+      const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
+
+      scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer, 'protos');
+
+      expect(mockFs.existsSync).toHaveBeenCalledWith('/workspace/protos');
+      expect(updateFileSpy).toHaveBeenCalled();
+      expect(logger.verbose).toHaveBeenCalledWith(expect.stringContaining('/workspace/protos'));
+    });
+
+    it('should skip workspace if protoSrcsDir does not exist', () => {
+      mockFs.existsSync.mockReturnValue(false);
+
+      scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer, 'protos');
+
+      expect(logger.verbose).toHaveBeenCalledWith(expect.stringContaining('does not exist'));
+      expect(mockFs.readdirSync).not.toHaveBeenCalled();
+    });
+
+    it('should scan workspace root when protoSrcsDir is empty string', () => {
+      const protoContent = 'syntax = "proto3"; message Test {}';
+      mockFs.readdirSync.mockReturnValue([
+        { name: 'test.proto', isDirectory: () => false, isFile: () => true }
+      ] as any);
+      mockFs.readFileSync.mockReturnValue(protoContent);
+
+      const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
+      scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer, '');
+
+      // Should still find and parse files in the workspace root
+      expect(updateFileSpy).toHaveBeenCalled();
+      expect(logger.verbose).toHaveBeenCalledWith(expect.stringContaining('Found'));
+    });
   });
 });

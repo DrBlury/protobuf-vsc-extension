@@ -45,11 +45,13 @@ export function findProtoFiles(dir: string, files: string[] = [], includeHidden:
  * @param workspaceFolders - Array of workspace folder paths
  * @param parser - Proto parser instance
  * @param analyzer - Semantic analyzer instance
+ * @param protoSrcsDir - Optional subdirectory to limit proto file search (e.g., 'protos')
  */
 export function scanWorkspaceForProtoFiles(
   workspaceFolders: string[],
   parser: ProtoParser,
-  analyzer: SemanticAnalyzer
+  analyzer: SemanticAnalyzer,
+  protoSrcsDir?: string
 ): void {
   logger.info(`Scanning ${workspaceFolders.length} workspace folder(s) for proto files`);
 
@@ -57,10 +59,20 @@ export function scanWorkspaceForProtoFiles(
   let parsedFiles = 0;
 
   for (const folder of workspaceFolders) {
-    const protoFiles = findProtoFiles(folder);
+    // If protoSrcsDir is specified, limit search to that subdirectory
+    const searchPath = protoSrcsDir ? path.join(folder, protoSrcsDir) : folder;
+    
+    // Check if the search path exists when protoSrcsDir is specified
+    if (protoSrcsDir && !fs.existsSync(searchPath)) {
+      logger.verbose(`Proto sources directory does not exist: ${searchPath}`);
+      continue;
+    }
+    
+    const protoFiles = findProtoFiles(searchPath);
     totalFiles += protoFiles.length;
 
-    logger.verbose(`Found ${protoFiles.length} proto file(s) in workspace folder: ${folder}`);
+    const displayPath = protoSrcsDir ? `${folder}/${protoSrcsDir}` : folder;
+    logger.verbose(`Found ${protoFiles.length} proto file(s) in workspace folder: ${displayPath}`);
 
     for (const filePath of protoFiles) {
       try {

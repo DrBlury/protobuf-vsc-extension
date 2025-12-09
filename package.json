@@ -153,6 +153,11 @@
           "default": [],
           "description": "Additional paths to search for imports"
         },
+        "protobuf.protoSrcsDir": {
+          "type": "string",
+          "default": "",
+          "description": "Optional subdirectory path to limit proto file searches (e.g., 'protos' or 'src/proto'). When set, proto files are searched in {workspaceFolder}/{protoSrcsDir}/** instead of {workspaceFolder}/**. This significantly improves performance in large repositories with many ignored files."
+        },
         "protobuf.renumber.startNumber": {
           "type": "number",
           "default": 1,

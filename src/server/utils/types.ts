@@ -20,6 +20,7 @@ export interface Settings {
       alignFields?: boolean;
     };
     includes: string[];
+    protoSrcsDir: string;
     renumber: {
       startNumber: number;
       increment: number;
@@ -104,6 +105,7 @@ export const defaultSettings: Settings = {
       alignFields: true
     },
     includes: [],
+    protoSrcsDir: '',
     renumber: {
       startNumber: DEFAULT_CONFIG.RENUMBER_START,
       increment: DEFAULT_CONFIG.RENUMBER_INCREMENT,

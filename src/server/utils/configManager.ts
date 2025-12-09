@@ -40,7 +40,7 @@ function expandVariables(value: string, workspaceFolders: string[]): string {
 
 /**
  * Updates all providers with new settings
- * @returns The expanded include paths that were configured
+ * @returns An object containing the expanded include paths and protoSrcsDir
  */
 export function updateProvidersWithSettings(
   settings: Settings,
@@ -55,7 +55,7 @@ export function updateProvidersWithSettings(
   wellKnownIncludePath: string | undefined,
   wellKnownCacheDir: string | undefined,
   workspaceFolders: string[] = []
-): string[] {
+): { includePaths: string[]; protoSrcsDir: string } {
   // Update diagnostics settings
   const diag = settings.protobuf.diagnostics;
   diagnosticsProvider.updateSettings({
@@ -155,7 +155,15 @@ export function updateProvidersWithSettings(
     }
   }
 
-  // Return the user-configured include paths (expanded) for scanning
+  // Expand protoSrcsDir with variable substitution
+  const protoSrcsDir = settings.protobuf.protoSrcsDir 
+    ? expandVariables(settings.protobuf.protoSrcsDir, workspaceFolders)
+    : '';
+
+  // Return the user-configured include paths (expanded) and protoSrcsDir for scanning
   // Note: includePaths already computed above with variable expansion
-  return includePaths.filter(p => p !== wellKnownIncludePath && p !== wellKnownCacheDir);
+  return {
+    includePaths: includePaths.filter(p => p !== wellKnownIncludePath && p !== wellKnownCacheDir),
+    protoSrcsDir
+  };
 }
