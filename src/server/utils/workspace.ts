@@ -59,31 +59,38 @@ export function scanWorkspaceForProtoFiles(
   let parsedFiles = 0;
 
   for (const folder of workspaceFolders) {
+    let searchPath: string;
+    
     // If protoSrcsDir is specified (non-empty string), limit search to that subdirectory
     // Note: empty strings are falsy in JavaScript, so they're treated as "not specified"
-    const searchPath = protoSrcsDir ? path.join(folder, protoSrcsDir) : folder;
-    
-    // Validate that searchPath is within the workspace folder (prevent path traversal)
     if (protoSrcsDir) {
-      const resolvedSearchPath = path.resolve(searchPath);
+      // Construct and validate the search path
+      const candidatePath = path.join(folder, protoSrcsDir);
+      const resolvedCandidatePath = path.resolve(candidatePath);
       const resolvedFolder = path.resolve(folder);
-      if (!resolvedSearchPath.startsWith(resolvedFolder)) {
-        logger.verbose(`Proto sources directory is outside workspace: ${searchPath}`);
+      
+      // Use path.relative to detect path traversal attempts (result starting with '..' means outside)
+      const relativePath = path.relative(resolvedFolder, resolvedCandidatePath);
+      if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+        logger.verbose(`Proto sources directory is outside workspace: ${candidatePath}`);
         continue;
       }
       
       // Check if the search path exists
-      if (!fs.existsSync(resolvedSearchPath)) {
-        logger.verbose(`Proto sources directory does not exist: ${searchPath}`);
+      if (!fs.existsSync(resolvedCandidatePath)) {
+        logger.verbose(`Proto sources directory does not exist: ${candidatePath}`);
         continue;
       }
+      
+      searchPath = candidatePath;
+    } else {
+      searchPath = folder;
     }
     
     const protoFiles = findProtoFiles(searchPath);
     totalFiles += protoFiles.length;
 
-    const displayPath = protoSrcsDir ? path.join(folder, protoSrcsDir) : folder;
-    logger.verbose(`Found ${protoFiles.length} proto file(s) in workspace folder: ${displayPath}`);
+    logger.verbose(`Found ${protoFiles.length} proto file(s) in workspace folder: ${searchPath}`);
 
     for (const filePath of protoFiles) {
       try {
