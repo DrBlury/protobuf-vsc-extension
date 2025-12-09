@@ -31,13 +31,13 @@ message Person {
 `;
       const file = parser.parse(content, 'test://editions.proto');
       analyzer.updateFile('test://editions.proto', file);
-      
+
       const diagnostics = diagnosticsProvider.validate('test://editions.proto', file, content);
-      
-      const optionalDiag = diagnostics.find(d => 
+
+      const optionalDiag = diagnostics.find(d =>
         d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED
       );
-      
+
       expect(optionalDiag).toBeDefined();
       expect(optionalDiag?.message).toContain("'optional' label is not allowed in editions");
       expect(optionalDiag?.message).toContain('features.field_presence = EXPLICIT');
@@ -53,13 +53,13 @@ message Person {
 `;
       const file = parser.parse(content, 'test://editions2024.proto');
       analyzer.updateFile('test://editions2024.proto', file);
-      
+
       const diagnostics = diagnosticsProvider.validate('test://editions2024.proto', file, content);
-      
-      const optionalDiag = diagnostics.find(d => 
+
+      const optionalDiag = diagnostics.find(d =>
         d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED
       );
-      
+
       expect(optionalDiag).toBeDefined();
     });
 
@@ -74,13 +74,13 @@ message Person {
 `;
       const file = parser.parse(content, 'test://proto3.proto');
       analyzer.updateFile('test://proto3.proto', file);
-      
+
       const diagnostics = diagnosticsProvider.validate('test://proto3.proto', file, content);
-      
-      const optionalDiag = diagnostics.find(d => 
+
+      const optionalDiag = diagnostics.find(d =>
         d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED
       );
-      
+
       expect(optionalDiag).toBeUndefined();
     });
 
@@ -94,13 +94,13 @@ message Person {
 `;
       const file = parser.parse(content, 'test://editions-repeated.proto');
       analyzer.updateFile('test://editions-repeated.proto', file);
-      
+
       const diagnostics = diagnosticsProvider.validate('test://editions-repeated.proto', file, content);
-      
-      const optionalDiag = diagnostics.find(d => 
+
+      const optionalDiag = diagnostics.find(d =>
         d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED
       );
-      
+
       expect(optionalDiag).toBeUndefined();
     });
   });
@@ -116,13 +116,13 @@ message Person {
 `;
       const file = parser.parse(content, 'test://editions-required.proto');
       analyzer.updateFile('test://editions-required.proto', file);
-      
+
       const diagnostics = diagnosticsProvider.validate('test://editions-required.proto', file, content);
-      
-      const requiredDiag = diagnostics.find(d => 
+
+      const requiredDiag = diagnostics.find(d =>
         d.message.includes("'required' label is not allowed in editions")
       );
-      
+
       expect(requiredDiag).toBeDefined();
       expect(requiredDiag?.message).toContain('features.field_presence = LEGACY_REQUIRED');
     });
@@ -142,13 +142,13 @@ message Outer {
 `;
       const file = parser.parse(content, 'test://editions-nested.proto');
       analyzer.updateFile('test://editions-nested.proto', file);
-      
+
       const diagnostics = diagnosticsProvider.validate('test://editions-nested.proto', file, content);
-      
-      const optionalDiag = diagnostics.find(d => 
+
+      const optionalDiag = diagnostics.find(d =>
         d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED
       );
-      
+
       expect(optionalDiag).toBeDefined();
     });
   });
@@ -165,14 +165,14 @@ message Person {
 `;
       const file = parser.parse(content, 'test://editions-no-modifier.proto');
       analyzer.updateFile('test://editions-no-modifier.proto', file);
-      
+
       const diagnostics = diagnosticsProvider.validate('test://editions-no-modifier.proto', file, content);
-      
-      const modifierDiag = diagnostics.find(d => 
+
+      const modifierDiag = diagnostics.find(d =>
         d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED ||
         d.message.includes("'required' label is not allowed")
       );
-      
+
       expect(modifierDiag).toBeUndefined();
     });
   });

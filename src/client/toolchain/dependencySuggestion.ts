@@ -313,24 +313,52 @@ breaking:
 
   /**
    * Run buf dep update
+   * If it fails due to editions issues (optional/required labels), auto-fix and retry
    */
-  private async runBufDepUpdate(cwd: string): Promise<void> {
+  private async runBufDepUpdate(cwd: string, retryCount: number = 0): Promise<void> {
     const config = vscode.workspace.getConfiguration('protobuf');
     const bufPath = config.get<string>('buf.path') || config.get<string>('externalLinter.bufPath') || 'buf';
+    const maxRetries = 3;
 
     return new Promise((resolve, reject) => {
       this.outputChannel.appendLine(`Running: ${bufPath} dep update`);
       const proc = spawn(bufPath, ['dep', 'update'], { cwd, shell: true });
 
-      proc.stdout?.on('data', d => this.outputChannel.append(d.toString()));
-      proc.stderr?.on('data', d => this.outputChannel.append(d.toString()));
+      let stderrOutput = '';
 
-      proc.on('close', code => {
+      proc.stdout?.on('data', d => this.outputChannel.append(d.toString()));
+      proc.stderr?.on('data', d => {
+        const str = d.toString();
+        stderrOutput += str;
+        this.outputChannel.append(str);
+      });
+
+      proc.on('close', async code => {
         if (code === 0) {
           this.outputChannel.appendLine('buf dep update completed');
           resolve();
         } else {
-          reject(new Error(`buf dep update failed with code ${code}`));
+          // Check if the error is about 'optional' or 'required' labels in editions
+          const editionsErrors = this.parseEditionsErrors(stderrOutput, cwd);
+          
+          if (editionsErrors.length > 0 && retryCount < maxRetries) {
+            this.outputChannel.appendLine(`\nDetected ${editionsErrors.length} editions compatibility issue(s). Auto-fixing...`);
+            
+            try {
+              await this.fixEditionsErrors(editionsErrors);
+              this.outputChannel.appendLine('Auto-fix applied. Retrying buf dep update...\n');
+              
+              // Retry after fixing
+              const result = await this.runBufDepUpdate(cwd, retryCount + 1);
+              resolve(result);
+            } catch (fixErr) {
+              const msg = fixErr instanceof Error ? fixErr.message : String(fixErr);
+              this.outputChannel.appendLine(`Auto-fix failed: ${msg}`);
+              reject(new Error(`buf dep update failed with code ${code}`));
+            }
+          } else {
+            reject(new Error(`buf dep update failed with code ${code}`));
+          }
         }
       });
 
@@ -339,6 +367,87 @@ breaking:
         reject(err);
       });
     });
+  }
+
+  /**
+   * Parse buf output for editions-related errors (optional/required labels)
+   */
+  private parseEditionsErrors(stderr: string, cwd: string): Array<{filePath: string; line: number; fieldName: string; label: 'optional' | 'required'}> {
+    const errors: Array<{filePath: string; line: number; fieldName: string; label: 'optional' | 'required'}> = [];
+    
+    // Pattern: file.proto:43:9:field package.Message.field_name: label 'optional' is not allowed in editions
+    const regex = /^([^:]+):(\d+):\d+:field\s+[\w.]+\.(\w+):\s+label\s+'(optional|required)'\s+is\s+not\s+allowed\s+in\s+editions/gm;
+    
+    let match;
+    while ((match = regex.exec(stderr)) !== null) {
+      const [, filePath, lineStr, fieldName, label] = match;
+      const fullPath = path.isAbsolute(filePath) ? filePath : path.join(cwd, filePath);
+      errors.push({
+        filePath: fullPath,
+        line: parseInt(lineStr, 10),
+        fieldName,
+        label: label as 'optional' | 'required',
+      });
+    }
+    
+    return errors;
+  }
+
+  /**
+   * Fix editions errors by converting optional/required to features.field_presence
+   */
+  private async fixEditionsErrors(errors: Array<{filePath: string; line: number; fieldName: string; label: 'optional' | 'required'}>): Promise<void> {
+    // Group errors by file
+    const errorsByFile = new Map<string, Array<{line: number; fieldName: string; label: 'optional' | 'required'}>>();
+    
+    for (const error of errors) {
+      const existing = errorsByFile.get(error.filePath) || [];
+      existing.push({ line: error.line, fieldName: error.fieldName, label: error.label });
+      errorsByFile.set(error.filePath, existing);
+    }
+
+    for (const [filePath, fileErrors] of errorsByFile) {
+      try {
+        let content = fs.readFileSync(filePath, 'utf-8');
+        const lines = content.split('\n');
+        
+        // Sort errors by line number in descending order to avoid index shifts
+        fileErrors.sort((a, b) => b.line - a.line);
+        
+        for (const error of fileErrors) {
+          const lineIndex = error.line - 1;
+          if (lineIndex >= 0 && lineIndex < lines.length) {
+            const line = lines[lineIndex];
+            
+            // Match: optional/required Type name = N; or optional/required Type name = N [options];
+            const fieldMatch = line.match(/^(\s*)(optional|required)\s+(\S+)\s+(\w+)\s*=\s*(\d+)\s*(\[[^\]]*\])?\s*;/);
+            if (fieldMatch) {
+              const [, indent, , type, name, number, existingOptions] = fieldMatch;
+              const presenceValue = error.label === 'optional' ? 'EXPLICIT' : 'LEGACY_REQUIRED';
+              
+              let newLine: string;
+              if (existingOptions) {
+                // Append to existing options
+                const optionsContent = existingOptions.slice(1, -1).trim();
+                newLine = `${indent}${type} ${name} = ${number} [${optionsContent}, features.field_presence = ${presenceValue}];`;
+              } else {
+                newLine = `${indent}${type} ${name} = ${number} [features.field_presence = ${presenceValue}];`;
+              }
+              
+              lines[lineIndex] = newLine;
+              this.outputChannel.appendLine(`  Fixed: ${filePath}:${error.line} - converted '${error.label}' to features.field_presence = ${presenceValue}`);
+            }
+          }
+        }
+        
+        content = lines.join('\n');
+        fs.writeFileSync(filePath, content);
+        this.outputChannel.appendLine(`  Saved: ${filePath}`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(`Failed to fix ${filePath}: ${msg}`);
+      }
+    }
   }
 
   /**
