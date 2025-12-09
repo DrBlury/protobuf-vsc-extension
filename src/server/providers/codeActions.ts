@@ -588,6 +588,31 @@ export class CodeActionsProvider {
       });
     }
 
+    // Handle resolved BSR imports that aren't in buf.yaml dependencies
+    if (message.includes('is not in buf.yaml dependencies')) {
+      // Extract the suggested module from the diagnostic message
+      const moduleMatch = diagnostic.message.match(/'([^']+)' is not in buf\.yaml dependencies/);
+      const suggestedModule = moduleMatch ? moduleMatch[1] : null;
+      
+      // Extract import path from message
+      const importMatch = diagnostic.message.match(/Import '([^']+)' resolves/);
+      const importPath = importMatch ? importMatch[1] : '';
+
+      if (suggestedModule) {
+        fixes.push({
+          title: `Add '${suggestedModule}' to buf.yaml dependencies`,
+          kind: CodeActionKind.QuickFix,
+          isPreferred: true,
+          diagnostics: [diagnostic],
+          command: {
+            title: 'Add Buf Dependency',
+            command: 'protobuf.addBufDependencyQuick',
+            arguments: [suggestedModule, importPath]
+          }
+        });
+      }
+    }
+
     if (/screaming_snake_case/i.test(message)) {
       const word = this.getWordAtRange(documentText, diagnostic.range);
       if (word) {

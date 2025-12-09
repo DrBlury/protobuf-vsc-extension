@@ -27,6 +27,7 @@ import {
 } from '../core/ast';
 import { SemanticAnalyzer } from '../core/analyzer';
 import { ERROR_CODES, DIAGNOSTIC_SOURCE } from '../utils/constants';
+import { bufConfigProvider } from '../services/bufConfig';
 
 export interface DiagnosticsSettings {
   namingConventions: boolean;
@@ -926,6 +927,27 @@ export class DiagnosticsProvider {
       }
     }
 
+    // Check resolved BSR imports that aren't in buf.yaml deps
+    // This warns users when they've exported deps locally but haven't added them to buf.yaml
+    const bufConfig = bufConfigProvider.findBufConfig(uri);
+    const bufDeps = bufConfig?.deps || [];
+    
+    for (const imp of importsWithResolutions) {
+      if (imp.resolvedUri && this.isBufRegistryImport(imp.importPath)) {
+        const suggestedModule = this.suggestBufModule(imp.importPath);
+        if (suggestedModule && !bufDeps.some(dep => dep.includes(suggestedModule) || suggestedModule.includes(dep))) {
+          const rangeInfo = importByPath.get(imp.importPath);
+          diagnostics.push({
+            severity: DiagnosticSeverity.Warning,
+            range: rangeInfo ? this.toRange(rangeInfo.range) : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+            message: `Import '${imp.importPath}' resolves but '${suggestedModule}' is not in buf.yaml dependencies. Add it to ensure consistent builds.`,
+            source: DIAGNOSTIC_SOURCE,
+            code: ERROR_CODES.MISSING_BUF_DEPENDENCY
+          });
+        }
+      }
+    }
+
     // Unused imports (resolved, not public, not referenced)
     for (const imp of importsWithResolutions) {
       if (!imp.resolvedUri) {
@@ -1664,5 +1686,56 @@ export class DiagnosticsProvider {
     ];
 
     return bufRegistryPatterns.some(pattern => pattern.test(importPath));
+  }
+
+  /**
+   * Suggest a Buf Schema Registry module for an import path
+   */
+  private suggestBufModule(importPath: string): string | null {
+    // Map of import path patterns to BSR modules
+    const moduleMap: { pattern: RegExp; module: string }[] = [
+      // Google APIs
+      { pattern: /^google\/api\//, module: 'buf.build/googleapis/googleapis' },
+      { pattern: /^google\/type\//, module: 'buf.build/googleapis/googleapis' },
+      { pattern: /^google\/rpc\//, module: 'buf.build/googleapis/googleapis' },
+      { pattern: /^google\/cloud\//, module: 'buf.build/googleapis/googleapis' },
+      { pattern: /^google\/logging\//, module: 'buf.build/googleapis/googleapis' },
+
+      // Buf Validate (protovalidate)
+      { pattern: /^buf\/validate\//, module: 'buf.build/bufbuild/protovalidate' },
+
+      // Legacy protoc-gen-validate
+      { pattern: /^validate\/validate\.proto$/, module: 'buf.build/envoyproxy/protoc-gen-validate' },
+
+      // gRPC
+      { pattern: /^grpc\//, module: 'buf.build/grpc/grpc' },
+
+      // Envoy
+      { pattern: /^envoy\//, module: 'buf.build/envoyproxy/envoy' },
+
+      // xDS
+      { pattern: /^xds\//, module: 'buf.build/cncf/xds' },
+
+      // OpenCensus
+      { pattern: /^opencensus\//, module: 'buf.build/opencensus/opencensus' },
+
+      // OpenTelemetry
+      { pattern: /^opentelemetry\//, module: 'buf.build/open-telemetry/opentelemetry' },
+
+      // Cosmos SDK
+      { pattern: /^cosmos\//, module: 'buf.build/cosmos/cosmos-sdk' },
+      { pattern: /^tendermint\//, module: 'buf.build/cosmos/cosmos-sdk' },
+
+      // Connect RPC
+      { pattern: /^connectrpc\//, module: 'buf.build/connectrpc/connect' },
+    ];
+
+    for (const { pattern, module } of moduleMap) {
+      if (pattern.test(importPath)) {
+        return module;
+      }
+    }
+
+    return null;
   }
 }

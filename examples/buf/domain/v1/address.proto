@@ -9,20 +9,20 @@ option go_package = "com.example.api.v1";
 message BillingAddress {
 	// Simple boolean validation - message is shown when expression is false
 	option (buf.validate.message).cel = {
-		id: "BillingAddress.CountryLength",
-		message: "Country must be exactly 2 letters (e.g. DE, US, FR)",
+		id        : "BillingAddress.CountryLength",
+		message   : "Country must be exactly 2 letters (e.g. DE, US, FR)",
 		expression: "size(this.country) == 2"
 	};
 	// Simple boolean validation for mutual exclusivity
 	option (buf.validate.message).cel = {
-		id: "BillingAddress.streetOrPost_office_box",
-		message: "Either street or post_office_box must be set, but not both",
+		id        : "BillingAddress.streetOrPost_office_box",
+		message   : "Either street or post_office_box must be set, but not both",
 		expression: "has(this.street) != has(this.post_office_box)"
 	};
 	// Dynamic error message - includes actual values in the error
 	option (buf.validate.message).cel = {
-		id: "BillingAddress.StreetAndHouse_number",
-		expression:
+		id        : "BillingAddress.StreetAndHouse_number",
+		expression: 
 		"has(this.street) == has(this.house_number)"
 		"? ''"
 		": 'Invalid address: street is ' + (has(this.street) ? 'set' : 'missing') + ' but house_number is ' + (has(this.house_number) ? 'set' : 'missing')"
