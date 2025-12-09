@@ -63,16 +63,26 @@ export function scanWorkspaceForProtoFiles(
     // Note: empty strings are falsy in JavaScript, so they're treated as "not specified"
     const searchPath = protoSrcsDir ? path.join(folder, protoSrcsDir) : folder;
     
-    // Check if the search path exists when protoSrcsDir is specified
-    if (protoSrcsDir && !fs.existsSync(searchPath)) {
-      logger.verbose(`Proto sources directory does not exist: ${searchPath}`);
-      continue;
+    // Validate that searchPath is within the workspace folder (prevent path traversal)
+    if (protoSrcsDir) {
+      const resolvedSearchPath = path.resolve(searchPath);
+      const resolvedFolder = path.resolve(folder);
+      if (!resolvedSearchPath.startsWith(resolvedFolder)) {
+        logger.verbose(`Proto sources directory is outside workspace: ${searchPath}`);
+        continue;
+      }
+      
+      // Check if the search path exists
+      if (!fs.existsSync(resolvedSearchPath)) {
+        logger.verbose(`Proto sources directory does not exist: ${searchPath}`);
+        continue;
+      }
     }
     
     const protoFiles = findProtoFiles(searchPath);
     totalFiles += protoFiles.length;
 
-    const displayPath = protoSrcsDir ? `${folder}/${protoSrcsDir}` : folder;
+    const displayPath = protoSrcsDir ? path.join(folder, protoSrcsDir) : folder;
     logger.verbose(`Found ${protoFiles.length} proto file(s) in workspace folder: ${displayPath}`);
 
     for (const filePath of protoFiles) {

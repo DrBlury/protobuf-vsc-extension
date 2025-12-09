@@ -156,9 +156,7 @@ export function updateProvidersWithSettings(
   }
 
   // Expand protoSrcsDir with variable substitution
-  const protoSrcsDir = settings.protobuf.protoSrcsDir 
-    ? expandVariables(settings.protobuf.protoSrcsDir, workspaceFolders)
-    : '';
+  const protoSrcsDir = expandVariables(settings.protobuf.protoSrcsDir || '', workspaceFolders);
 
   // Return the user-configured include paths (expanded) and protoSrcsDir for scanning
   // Note: includePaths already computed above with variable expansion

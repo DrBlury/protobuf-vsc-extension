@@ -235,5 +235,14 @@ describe('Workspace utilities', () => {
       expect(updateFileSpy).toHaveBeenCalled();
       expect(logger.verbose).toHaveBeenCalledWith(expect.stringContaining('Found'));
     });
+
+    it('should reject protoSrcsDir with path traversal attempts', () => {
+      mockFs.existsSync.mockReturnValue(true);
+
+      scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer, '../../../etc');
+
+      expect(logger.verbose).toHaveBeenCalledWith(expect.stringContaining('outside workspace'));
+      expect(mockFs.readdirSync).not.toHaveBeenCalled();
+    });
   });
 });
