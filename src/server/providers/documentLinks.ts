@@ -60,7 +60,7 @@ export class DocumentLinksProvider {
       if (resolvedPath && resolvedPath.endsWith('.proto')) {
         return URI.file(resolvedPath).toString();
       }
-    } catch (_e) {
+    } catch {
       // Ignore errors
     }
     return undefined;

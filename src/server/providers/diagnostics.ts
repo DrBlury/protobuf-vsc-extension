@@ -197,7 +197,7 @@ export class DiagnosticsProvider {
           source: DIAGNOSTIC_SOURCE
         });
       }
-    } catch (_e) {
+    } catch {
       // Ignore path issues
     }
   }
@@ -1196,7 +1196,7 @@ export class DiagnosticsProvider {
 
     try {
       return this.analyzer.getImportPathForFile(currentUri, definitionUri);
-    } catch (_e) {
+    } catch {
       return undefined;
     }
   }

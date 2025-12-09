@@ -75,7 +75,7 @@ export class SemanticAnalyzer {
       for (const dir of workDirs) {
         this.protoRoots.add(dir);
       }
-    } catch (_e) {
+    } catch {
       // Ignore errors
     }
 

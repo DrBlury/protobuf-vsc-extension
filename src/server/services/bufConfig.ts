@@ -134,7 +134,7 @@ export class BufConfigProvider {
           const config = this.parseBufYaml(content);
           this.configCache.set(normalizedDir, config);
           return config;
-        } catch (e) {
+        } catch {
           // Parse error, cache null
           this.configCache.set(normalizedDir, null);
           return null;
@@ -170,7 +170,7 @@ export class BufConfigProvider {
           const config = this.parseBufWorkYaml(content);
           this.workConfigCache.set(normalizedDir, config);
           return config;
-        } catch (e) {
+        } catch {
           this.workConfigCache.set(normalizedDir, null);
           return null;
         }

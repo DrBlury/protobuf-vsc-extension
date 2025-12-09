@@ -7,7 +7,6 @@
 import { DiagnosticsProvider } from './providers/diagnostics';
 import { ProtoParser } from './core/parser';
 import { SemanticAnalyzer } from './core/analyzer';
-import { DiagnosticSeverity } from 'vscode-languageserver/node';
 
 describe('DiagnosticsProvider BSR dependency validation', () => {
   const parser = new ProtoParser();
@@ -50,7 +49,7 @@ message Sample {
       const diags = diagnosticsProvider.validate(uri, file);
 
       // Should have a warning about googleapis not being in buf.yaml
-      const bufDepWarning = diags.find(d =>
+      const _bufDepWarning = diags.find(d =>
         d.message.includes('buf.build/googleapis/googleapis') &&
         d.message.includes('not in buf.yaml dependencies')
       );

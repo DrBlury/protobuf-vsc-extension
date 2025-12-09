@@ -616,7 +616,6 @@ async function runBufGenerate(uri: vscode.Uri, outputChannel: vscode.OutputChann
  * Parse buf output for editions-related errors (optional/required labels)
  */
 function parseEditionsErrors(stderr: string, cwd: string): Array<{filePath: string; line: number; fieldName: string; label: 'optional' | 'required'}> {
-  const pathModule = require('path');
   const errors: Array<{filePath: string; line: number; fieldName: string; label: 'optional' | 'required'}> = [];
 
   // Pattern: file.proto:43:9:field package.Message.field_name: label 'optional' is not allowed in editions
@@ -625,7 +624,7 @@ function parseEditionsErrors(stderr: string, cwd: string): Array<{filePath: stri
   let match;
   while ((match = regex.exec(stderr)) !== null) {
     const [, filePath, lineStr, fieldName, label] = match;
-    const fullPath = pathModule.isAbsolute(filePath) ? filePath : pathModule.join(cwd, filePath);
+    const fullPath = path.isAbsolute(filePath) ? filePath : path.join(cwd, filePath);
     errors.push({
       filePath: fullPath,
       line: parseInt(lineStr, 10),
@@ -644,7 +643,7 @@ async function fixEditionsErrors(
   errors: Array<{filePath: string; line: number; fieldName: string; label: 'optional' | 'required'}>,
   outputChannel: vscode.OutputChannel
 ): Promise<void> {
-  const fs = require('fs');
+  const fs = await import('fs');
 
   // Group errors by file
   const errorsByFile = new Map<string, Array<{line: number; fieldName: string; label: 'optional' | 'required'}>>();

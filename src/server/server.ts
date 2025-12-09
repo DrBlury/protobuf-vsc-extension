@@ -638,7 +638,7 @@ connection.onCodeLens((params) => {
   try {
     const file = providers.parser.parse(document.getText(), params.textDocument.uri);
     return providers.codeLens.getCodeLenses(params.textDocument.uri, file);
-  } catch (_e) {
+  } catch {
     return [];
   }
 });
@@ -653,7 +653,7 @@ connection.onDocumentLinks((params) => {
   try {
     const file = providers.parser.parse(document.getText(), params.textDocument.uri);
     return providers.documentLinks.getDocumentLinks(params.textDocument.uri, file);
-  } catch (_e) {
+  } catch {
     return [];
   }
 });
@@ -1056,7 +1056,7 @@ connection.onRequest(REQUEST_METHODS.CHECK_BREAKING_CHANGES, async (params: { ur
   if (baselineContent) {
     try {
       baselineFile = providers.parser.parse(baselineContent, params.uri);
-    } catch (_e) {
+    } catch {
       // Baseline file might not be valid proto
     }
   }
