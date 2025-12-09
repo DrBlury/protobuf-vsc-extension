@@ -59,7 +59,8 @@ export function scanWorkspaceForProtoFiles(
   let parsedFiles = 0;
 
   for (const folder of workspaceFolders) {
-    // If protoSrcsDir is specified, limit search to that subdirectory
+    // If protoSrcsDir is specified (non-empty string), limit search to that subdirectory
+    // Note: empty strings are falsy in JavaScript, so they're treated as "not specified"
     const searchPath = protoSrcsDir ? path.join(folder, protoSrcsDir) : folder;
     
     // Check if the search path exists when protoSrcsDir is specified

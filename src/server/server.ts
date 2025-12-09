@@ -211,6 +211,9 @@ connection.onInitialized(() => {
   }
 
   // Scan workspace for proto files on initialization
+  // Note: protoSrcsDir will be empty at this point (default), so full workspace is scanned.
+  // When configuration loads (via onDidChangeConfiguration), protoSrcsDir will be updated,
+  // and files will be rescanned as they are opened/edited.
   scanWorkspaceForProtoFiles(workspaceFolders, providers.parser, providers.analyzer, protoSrcsDir);
 });
 
