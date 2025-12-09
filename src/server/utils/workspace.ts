@@ -71,10 +71,12 @@ export function scanWorkspaceForProtoFiles(
       
       // Use path.relative to detect path traversal attempts (result starting with '..' means outside)
       const relativePath = path.relative(resolvedFolder, resolvedCandidatePath);
-      // Check if path goes outside workspace: '..' as a path component (not as part of a name)
-      // This handles: '..', '../foo', '..\foo' (Windows), '../../foo', etc.
-      // Note: We check for both '/' and '\' to handle cross-platform paths
-      if (relativePath === '..' || relativePath.startsWith('../') || relativePath.startsWith('..\\')) {
+      // Normalize path separators to forward slashes for consistent comparison across platforms
+      // This handles both path.sep differences and any backslashes in the path string
+      const normalizedRelative = relativePath.split(path.sep).join('/').split('\\').join('/');
+      // Check if path goes outside workspace: starts with '..' as a path component
+      // This handles: '..', '../foo', '../../foo', etc.
+      if (normalizedRelative === '..' || normalizedRelative.startsWith('../')) {
         logger.verbose(`Proto sources directory is outside workspace: ${candidatePath}`);
         continue;
       }
