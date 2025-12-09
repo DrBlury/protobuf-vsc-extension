@@ -1,6 +1,6 @@
 {
   "proto3 syntax": {
-    "prefix": "syntax3",
+    "prefix": ["syntax3", "p3", "syn3"],
     "body": [
       "syntax = \"proto3\";",
       "",
@@ -11,7 +11,7 @@
     "description": "Proto3 syntax declaration with package"
   },
   "proto2 syntax": {
-    "prefix": "syntax2",
+    "prefix": ["syntax2", "p2", "syn2"],
     "body": [
       "syntax = \"proto2\";",
       "",
@@ -22,32 +22,32 @@
     "description": "Proto2 syntax declaration with package"
   },
   "edition 2023": {
-    "prefix": "edition2023",
+    "prefix": ["edition2023", "ed23"],
     "body": ["edition = \"2023\";", "", "package ${1:package_name};", "", "$0"],
     "description": "Edition 2023 declaration with package"
   },
   "message": {
-    "prefix": "message",
+    "prefix": ["message", "msg", "m"],
     "body": ["message ${1:MessageName} {", "  $0", "}"],
     "description": "Message declaration"
   },
   "enum": {
-    "prefix": "enum",
+    "prefix": ["enum", "en", "e"],
     "body": ["enum ${1:EnumName} {", "  ${2:UNKNOWN} = 0;", "  $0", "}"],
     "description": "Enum declaration"
   },
   "service": {
-    "prefix": "service",
+    "prefix": ["service", "svc", "sv"],
     "body": ["service ${1:ServiceName} {", "  $0", "}"],
     "description": "Service declaration"
   },
   "rpc": {
-    "prefix": "rpc",
+    "prefix": ["rpc", "r"],
     "body": ["rpc ${1:MethodName}(${2:Request}) returns (${3:Response});"],
     "description": "RPC method declaration"
   },
   "rpc with body": {
-    "prefix": "rpcbody",
+    "prefix": ["rpcbody", "rb"],
     "body": [
       "rpc ${1:MethodName}(${2:Request}) returns (${3:Response}) {",
       "  $0",
@@ -56,114 +56,114 @@
     "description": "RPC method declaration with body for options"
   },
   "rpc stream": {
-    "prefix": "rpcstream",
+    "prefix": ["rpcstream", "rs"],
     "body": [
       "rpc ${1:MethodName}(stream ${2:Request}) returns (stream ${3:Response});"
     ],
     "description": "Bidirectional streaming RPC"
   },
   "oneof": {
-    "prefix": "oneof",
+    "prefix": ["oneof", "oo"],
     "body": ["oneof ${1:name} {", "  $0", "}"],
     "description": "Oneof declaration"
   },
   "import": {
-    "prefix": "import",
+    "prefix": ["import", "imp", "i"],
     "body": ["import \"${1:path}\";"],
     "description": "Import statement"
   },
   "import public": {
-    "prefix": "importpublic",
+    "prefix": ["importpublic", "imppub", "ip"],
     "body": ["import public \"${1:path}\";"],
     "description": "Public import statement"
   },
   "package": {
-    "prefix": "package",
+    "prefix": ["package", "pkg"],
     "body": ["package ${1:name};"],
     "description": "Package declaration"
   },
   "extend": {
-    "prefix": "extend",
+    "prefix": ["extend", "ext"],
     "body": ["extend ${1:MessageName} {", "  $0", "}"],
     "description": "Extend declaration"
   },
   "option": {
-    "prefix": "option",
+    "prefix": ["option", "opt", "o"],
     "body": ["option ${1:name} = ${2:value};"],
     "description": "Option declaration"
   },
   "field string": {
-    "prefix": "fstring",
+    "prefix": ["fstring", "fs", "str"],
     "body": ["string ${1:field_name} = ${2:1};"],
     "description": "String field"
   },
   "field int32": {
-    "prefix": "fint32",
+    "prefix": ["fint32", "fi32", "i32"],
     "body": ["int32 ${1:field_name} = ${2:1};"],
     "description": "Int32 field"
   },
   "field int64": {
-    "prefix": "fint64",
+    "prefix": ["fint64", "fi64", "i64"],
     "body": ["int64 ${1:field_name} = ${2:1};"],
     "description": "Int64 field"
   },
   "field bool": {
-    "prefix": "fbool",
+    "prefix": ["fbool", "fb", "bl"],
     "body": ["bool ${1:field_name} = ${2:1};"],
     "description": "Bool field"
   },
   "field bytes": {
-    "prefix": "fbytes",
+    "prefix": ["fbytes", "fby", "by"],
     "body": ["bytes ${1:field_name} = ${2:1};"],
     "description": "Bytes field"
   },
   "field double": {
-    "prefix": "fdouble",
+    "prefix": ["fdouble", "fd", "dbl"],
     "body": ["double ${1:field_name} = ${2:1};"],
     "description": "Double field"
   },
   "field float": {
-    "prefix": "ffloat",
+    "prefix": ["ffloat", "ff", "flt"],
     "body": ["float ${1:field_name} = ${2:1};"],
     "description": "Float field"
   },
   "field repeated": {
-    "prefix": "frepeated",
+    "prefix": ["frepeated", "frep", "rep"],
     "body": ["repeated ${1:type} ${2:field_name} = ${3:1};"],
     "description": "Repeated field"
   },
   "field map": {
-    "prefix": "fmap",
+    "prefix": ["fmap", "fm", "mp"],
     "body": ["map<${1:key_type}, ${2:value_type}> ${3:field_name} = ${4:1};"],
     "description": "Map field"
   },
   "reserved numbers": {
-    "prefix": "reservedn",
+    "prefix": ["reservedn", "resn", "rn"],
     "body": ["reserved ${1:2}, ${2:15}, ${3:9} to ${4:11};"],
     "description": "Reserved field numbers"
   },
   "reserved names": {
-    "prefix": "reserveds",
+    "prefix": ["reserveds", "ress", "rns"],
     "body": ["reserved \"${1:field_name}\";"],
     "description": "Reserved field names"
   },
   "option go_package": {
-    "prefix": "optgopackage",
+    "prefix": ["optgopackage", "gop", "ogo"],
     "body": ["option go_package = \"${1:path}\";"],
     "description": "Go package option"
   },
   "option java_package": {
-    "prefix": "optjavapackage",
+    "prefix": ["optjavapackage", "javap", "ojp"],
     "body": ["option java_package = \"${1:com.example}\";"],
     "description": "Java package option"
   },
   "option java_outer_classname": {
-    "prefix": "optjavaclass",
+    "prefix": ["optjavaclass", "javac", "ojc"],
     "body": ["option java_outer_classname = \"${1:ClassName}\";"],
     "description": "Java outer classname option"
   },
   "option deprecated": {
-    "prefix": "optdeprecated",
+    "prefix": ["optdeprecated", "dep", "depr"],
     "body": ["[deprecated = true]"],
     "description": "Deprecated field option"
   },
@@ -397,46 +397,6 @@
     ],
     "description": "Standard pagination response message"
   },
-  "gRPC error details": {
-    "prefix": "grpcerror",
-    "body": [
-      "import \"google/rpc/error_details.proto\";",
-      "",
-      "// Use google.rpc.Status for error responses",
-      "// Example:",
-      "// google.rpc.Status {",
-      "//   code = google.rpc.Code.INVALID_ARGUMENT;",
-      "//   message = \"Invalid request\";",
-      "//   details = [",
-      "//     google.rpc.BadRequest {",
-      "//       field_violations = [",
-      "//         google.rpc.BadRequest.FieldViolation {",
-      "//           field = \"field_name\";",
-      "//           description = \"Field is required\";",
-      "//         }",
-      "//       ];",
-      "//     }",
-      "//   ];",
-      "// }"
-    ],
-    "description": "gRPC error details with google.rpc.Status"
-  },
-  "gRPC RPC with timeout": {
-    "prefix": "grpctimeout",
-    "body": [
-      "rpc ${1:MethodName}(${2:Request}) returns (${3:Response}) {",
-      "  option (google.api.http) = {",
-      "    post: \"/v1/${1/(.*)/${1:/downcase}/}\";",
-      "  };",
-      "  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {",
-      "    summary: \"${4:Method description}\";",
-      "    operation_id: \"${1:MethodName}\";",
-      "    tags: \"${5:tag}\";",
-      "  };",
-      "}"
-    ],
-    "description": "RPC with HTTP mapping and OpenAPI options"
-  },
   "message with timestamps": {
     "prefix": "msgtime",
     "body": [
@@ -525,22 +485,22 @@
     "description": "Field with buf.validate constraints"
   },
   "field timestamp": {
-    "prefix": "ftimestamp",
+    "prefix": ["ftimestamp", "fts", "ts"],
     "body": ["google.protobuf.Timestamp ${1:field_name} = ${2:1};"],
     "description": "Timestamp field (requires import)"
   },
   "field duration": {
-    "prefix": "fduration",
+    "prefix": ["fduration", "fdur", "dur"],
     "body": ["google.protobuf.Duration ${1:field_name} = ${2:1};"],
     "description": "Duration field (requires import)"
   },
   "field empty": {
-    "prefix": "fempty",
+    "prefix": ["fempty", "femp"],
     "body": ["google.protobuf.Empty ${1:field_name} = ${2:1};"],
     "description": "Empty field (requires import)"
   },
   "field any": {
-    "prefix": "fany",
+    "prefix": ["fany", "fa"],
     "body": ["google.protobuf.Any ${1:field_name} = ${2:1};"],
     "description": "Any field (requires import)"
   },
@@ -633,27 +593,6 @@
     ],
     "description": "gRPC service with HTTP/JSON mapping"
   },
-  "RPC server stream": {
-    "prefix": "rpcserverstream",
-    "body": [
-      "rpc ${1:StreamData}(${2:StreamDataRequest}) returns (stream ${3:Data});"
-    ],
-    "description": "Server streaming RPC"
-  },
-  "RPC client stream": {
-    "prefix": "rpcclientstream",
-    "body": [
-      "rpc ${1:CollectData}(stream ${2:Data}) returns (${3:CollectDataResponse});"
-    ],
-    "description": "Client streaming RPC"
-  },
-  "RPC bidirectional stream": {
-    "prefix": "rpcbidistream",
-    "body": [
-      "rpc ${1:Chat}(stream ${2:Message}) returns (stream ${3:Message});"
-    ],
-    "description": "Bidirectional streaming RPC"
-  },
   "option csharp_namespace": {
     "prefix": "optcsharp",
     "body": ["option csharp_namespace = \"${1:Example.Proto}\";"],
@@ -680,12 +619,12 @@
     "description": "Swift prefix option"
   },
   "field optional": {
-    "prefix": "foptional",
+    "prefix": ["foptional", "fopt"],
     "body": ["optional ${1:type} ${2:field_name} = ${3:1};"],
     "description": "Optional field (proto2 or edition)"
   },
   "field required": {
-    "prefix": "frequired",
+    "prefix": ["frequired", "freq"],
     "body": ["required ${1:type} ${2:field_name} = ${3:1};"],
     "description": "Required field (proto2 only)"
   },
@@ -1004,5 +943,131 @@
       "}"
     ],
     "description": "Message with Google API resource descriptor and common fields"
+  },
+  "field uint32": {
+    "prefix": ["fuint32", "fu32", "u32"],
+    "body": ["uint32 ${1:field_name} = ${2:1};"],
+    "description": "Uint32 field"
+  },
+  "field uint64": {
+    "prefix": ["fuint64", "fu64", "u64"],
+    "body": ["uint64 ${1:field_name} = ${2:1};"],
+    "description": "Uint64 field"
+  },
+  "field sint32": {
+    "prefix": ["fsint32", "fsi32", "si32"],
+    "body": ["sint32 ${1:field_name} = ${2:1};"],
+    "description": "Sint32 field (ZigZag encoded, efficient for negative numbers)"
+  },
+  "field sint64": {
+    "prefix": ["fsint64", "fsi64", "si64"],
+    "body": ["sint64 ${1:field_name} = ${2:1};"],
+    "description": "Sint64 field (ZigZag encoded, efficient for negative numbers)"
+  },
+  "field fixed32": {
+    "prefix": ["ffixed32", "fx32"],
+    "body": ["fixed32 ${1:field_name} = ${2:1};"],
+    "description": "Fixed32 field (always 4 bytes, efficient for values > 2^28)"
+  },
+  "field fixed64": {
+    "prefix": ["ffixed64", "fx64"],
+    "body": ["fixed64 ${1:field_name} = ${2:1};"],
+    "description": "Fixed64 field (always 8 bytes, efficient for values > 2^56)"
+  },
+  "field sfixed32": {
+    "prefix": ["fsfixed32", "sfx32"],
+    "body": ["sfixed32 ${1:field_name} = ${2:1};"],
+    "description": "Sfixed32 field (signed fixed 4 bytes)"
+  },
+  "field sfixed64": {
+    "prefix": ["fsfixed64", "sfx64"],
+    "body": ["sfixed64 ${1:field_name} = ${2:1};"],
+    "description": "Sfixed64 field (signed fixed 8 bytes)"
+  },
+  "field message": {
+    "prefix": ["fmessage", "fmsg", "fm"],
+    "body": ["${1:MessageType} ${2:field_name} = ${3:1};"],
+    "description": "Message type field"
+  },
+  "field enum type": {
+    "prefix": ["fenum", "fe"],
+    "body": ["${1:EnumType} ${2:field_name} = ${3:1};"],
+    "description": "Enum type field"
+  },
+  "import timestamp": {
+    "prefix": ["impts", "its"],
+    "body": ["import \"google/protobuf/timestamp.proto\";"],
+    "description": "Import google.protobuf.Timestamp"
+  },
+  "import duration": {
+    "prefix": ["impdur", "idur"],
+    "body": ["import \"google/protobuf/duration.proto\";"],
+    "description": "Import google.protobuf.Duration"
+  },
+  "import any": {
+    "prefix": ["impany", "iany"],
+    "body": ["import \"google/protobuf/any.proto\";"],
+    "description": "Import google.protobuf.Any"
+  },
+  "import empty": {
+    "prefix": ["impemp", "iemp"],
+    "body": ["import \"google/protobuf/empty.proto\";"],
+    "description": "Import google.protobuf.Empty"
+  },
+  "import wrappers": {
+    "prefix": ["impwrap", "iwrap"],
+    "body": ["import \"google/protobuf/wrappers.proto\";"],
+    "description": "Import google.protobuf wrappers (StringValue, Int32Value, etc.)"
+  },
+  "import struct": {
+    "prefix": ["impstruct", "istruct"],
+    "body": ["import \"google/protobuf/struct.proto\";"],
+    "description": "Import google.protobuf.Struct (for dynamic JSON-like data)"
+  },
+  "rpc server stream": {
+    "prefix": ["rpcserverstream", "rpcss", "rss"],
+    "body": [
+      "rpc ${1:MethodName}(${2:Request}) returns (stream ${3:Response});"
+    ],
+    "description": "Server streaming RPC"
+  },
+  "rpc client stream": {
+    "prefix": ["rpcclientstream", "rpccs", "rcs"],
+    "body": [
+      "rpc ${1:MethodName}(stream ${2:Request}) returns (${3:Response});"
+    ],
+    "description": "Client streaming RPC"
+  },
+  "rpc bidirectional stream": {
+    "prefix": ["rpcbidistream", "rpcbidi", "rbs"],
+    "body": [
+      "rpc ${1:MethodName}(stream ${2:Request}) returns (stream ${3:Response});"
+    ],
+    "description": "Bidirectional streaming RPC"
+  },
+  "enum value": {
+    "prefix": ["ev", "enumv"],
+    "body": ["${1:VALUE_NAME} = ${2:0};"],
+    "description": "Enum value"
+  },
+  "comment block": {
+    "prefix": ["cmt", "/*"],
+    "body": ["/*", " * ${1:Description}", " */"],
+    "description": "Block comment"
+  },
+  "comment line": {
+    "prefix": ["//", "cml"],
+    "body": ["// ${1:Comment}"],
+    "description": "Line comment"
+  },
+  "request message": {
+    "prefix": ["req", "request"],
+    "body": ["message ${1:Method}Request {", "  $0", "}"],
+    "description": "Request message"
+  },
+  "response message": {
+    "prefix": ["res", "response"],
+    "body": ["message ${1:Method}Response {", "  $0", "}"],
+    "description": "Response message"
   }
 }
