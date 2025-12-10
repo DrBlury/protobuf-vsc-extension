@@ -7,6 +7,7 @@ import { ProtoParser } from '../core/parser';
 import { SemanticAnalyzer } from '../core/analyzer';
 import { logger } from './logger';
 import * as fs from 'fs';
+import * as path from 'path';
 
 jest.mock('fs');
 jest.mock('./logger', () => ({
@@ -205,11 +206,13 @@ describe('Workspace utilities', () => {
 
       const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
 
+      const expectedProtoDir = path.resolve('/workspace', 'protos');
+
       scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer, 'protos');
 
-      expect(mockFs.existsSync).toHaveBeenCalledWith('/workspace/protos');
+      expect(mockFs.existsSync).toHaveBeenCalledWith(expectedProtoDir);
       expect(updateFileSpy).toHaveBeenCalled();
-      expect(logger.verbose).toHaveBeenCalledWith(expect.stringContaining('/workspace/protos'));
+      expect(logger.verbose).toHaveBeenCalledWith(expect.stringContaining(expectedProtoDir));
     });
 
     it('should skip workspace if protoSrcsDir does not exist', () => {
