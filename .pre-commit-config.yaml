@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: npm-lint
+        name: npm lint
+        entry: npm
+        args: ["run", "lint", "--", "--max-warnings=0"]
+        language: system
+        pass_filenames: false
