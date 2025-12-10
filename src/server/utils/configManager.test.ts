@@ -463,4 +463,76 @@ describe('ConfigManager', () => {
       })
     );
   });
+
+  it('should return empty protoSrcsDir when not set', () => {
+    const settings: Settings = defaultSettings;
+    const result = updateProvidersWithSettings(
+      settings,
+      diagnosticsProvider,
+      formatter,
+      renumberProvider,
+      analyzer,
+      protocCompiler,
+      breakingChangeDetector,
+      externalLinter,
+      clangFormat,
+      undefined,
+      undefined
+    );
+
+    expect(result.protoSrcsDir).toBe('');
+  });
+
+  it('should return protoSrcsDir when set', () => {
+    const settings: Settings = {
+      ...defaultSettings,
+      protobuf: {
+        ...defaultSettings.protobuf,
+        protoSrcsDir: 'protos'
+      }
+    };
+
+    const result = updateProvidersWithSettings(
+      settings,
+      diagnosticsProvider,
+      formatter,
+      renumberProvider,
+      analyzer,
+      protocCompiler,
+      breakingChangeDetector,
+      externalLinter,
+      clangFormat,
+      undefined,
+      undefined
+    );
+
+    expect(result.protoSrcsDir).toBe('protos');
+  });
+
+  it('should expand variables in protoSrcsDir', () => {
+    const settings: Settings = {
+      ...defaultSettings,
+      protobuf: {
+        ...defaultSettings.protobuf,
+        protoSrcsDir: '${workspaceFolder}/src/protos'
+      }
+    };
+
+    const result = updateProvidersWithSettings(
+      settings,
+      diagnosticsProvider,
+      formatter,
+      renumberProvider,
+      analyzer,
+      protocCompiler,
+      breakingChangeDetector,
+      externalLinter,
+      clangFormat,
+      undefined,
+      undefined,
+      ['/workspace']
+    );
+
+    expect(result.protoSrcsDir).toBe('/workspace/src/protos');
+  });
 });

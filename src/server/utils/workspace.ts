@@ -45,11 +45,13 @@ export function findProtoFiles(dir: string, files: string[] = [], includeHidden:
  * @param workspaceFolders - Array of workspace folder paths
  * @param parser - Proto parser instance
  * @param analyzer - Semantic analyzer instance
+ * @param protoSrcsDir - Optional subdirectory to limit proto file search (e.g., 'protos')
  */
 export function scanWorkspaceForProtoFiles(
   workspaceFolders: string[],
   parser: ProtoParser,
-  analyzer: SemanticAnalyzer
+  analyzer: SemanticAnalyzer,
+  protoSrcsDir?: string
 ): void {
   logger.info(`Scanning ${workspaceFolders.length} workspace folder(s) for proto files`);
 
@@ -57,10 +59,43 @@ export function scanWorkspaceForProtoFiles(
   let parsedFiles = 0;
 
   for (const folder of workspaceFolders) {
-    const protoFiles = findProtoFiles(folder);
+    let searchPath: string;
+    
+    // If protoSrcsDir is specified (non-empty string), limit search to that subdirectory
+    // Note: empty strings are falsy in JavaScript, so they're treated as "not specified"
+    if (protoSrcsDir) {
+      // Construct and validate the search path
+      const candidatePath = path.join(folder, protoSrcsDir);
+      const resolvedCandidatePath = path.resolve(candidatePath);
+      const resolvedFolder = path.resolve(folder);
+      
+      // Use path.relative to detect path traversal attempts (result starting with '..' means outside)
+      const relativePath = path.relative(resolvedFolder, resolvedCandidatePath);
+      // Normalize path separators to forward slashes for consistent comparison across platforms
+      // This handles both path.sep differences and any backslashes in the path string
+      const normalizedRelative = relativePath.split(path.sep).join('/').split('\\').join('/');
+      // Check if path goes outside workspace: starts with '..' as a path component
+      // This handles: '..', '../foo', '../../foo', etc.
+      if (normalizedRelative === '..' || normalizedRelative.startsWith('../')) {
+        logger.verbose(`Proto sources directory is outside workspace: ${candidatePath}`);
+        continue;
+      }
+      
+      // Check if the search path exists
+      if (!fs.existsSync(resolvedCandidatePath)) {
+        logger.verbose(`Proto sources directory does not exist: ${candidatePath}`);
+        continue;
+      }
+      
+      searchPath = resolvedCandidatePath;
+    } else {
+      searchPath = folder;
+    }
+    
+    const protoFiles = findProtoFiles(searchPath);
     totalFiles += protoFiles.length;
 
-    logger.verbose(`Found ${protoFiles.length} proto file(s) in workspace folder: ${folder}`);
+    logger.verbose(`Found ${protoFiles.length} proto file(s) in workspace folder: ${searchPath}`);
 
     for (const filePath of protoFiles) {
       try {

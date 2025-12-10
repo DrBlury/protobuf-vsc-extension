@@ -7,6 +7,7 @@ import { ProtoParser } from '../core/parser';
 import { SemanticAnalyzer } from '../core/analyzer';
 import { logger } from './logger';
 import * as fs from 'fs';
+import * as path from 'path';
 
 jest.mock('fs');
 jest.mock('./logger', () => ({
@@ -193,6 +194,58 @@ describe('Workspace utilities', () => {
       mockFs.readdirSync.mockReturnValue([]);
       scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer);
       expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Workspace scan complete'));
+    });
+
+    it('should scan protoSrcsDir when specified', () => {
+      const protoContent = 'syntax = "proto3"; message Test {}';
+      mockFs.readdirSync.mockReturnValue([
+        { name: 'test.proto', isDirectory: () => false, isFile: () => true }
+      ] as any);
+      mockFs.readFileSync.mockReturnValue(protoContent);
+      mockFs.existsSync.mockReturnValue(true);
+
+      const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
+
+      const expectedProtoDir = path.resolve('/workspace', 'protos');
+
+      scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer, 'protos');
+
+      expect(mockFs.existsSync).toHaveBeenCalledWith(expectedProtoDir);
+      expect(updateFileSpy).toHaveBeenCalled();
+      expect(logger.verbose).toHaveBeenCalledWith(expect.stringContaining(expectedProtoDir));
+    });
+
+    it('should skip workspace if protoSrcsDir does not exist', () => {
+      mockFs.existsSync.mockReturnValue(false);
+
+      scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer, 'protos');
+
+      expect(logger.verbose).toHaveBeenCalledWith(expect.stringContaining('does not exist'));
+      expect(mockFs.readdirSync).not.toHaveBeenCalled();
+    });
+
+    it('should scan workspace root when protoSrcsDir is empty string', () => {
+      const protoContent = 'syntax = "proto3"; message Test {}';
+      mockFs.readdirSync.mockReturnValue([
+        { name: 'test.proto', isDirectory: () => false, isFile: () => true }
+      ] as any);
+      mockFs.readFileSync.mockReturnValue(protoContent);
+
+      const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
+      scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer, '');
+
+      // Should still find and parse files in the workspace root
+      expect(updateFileSpy).toHaveBeenCalled();
+      expect(logger.verbose).toHaveBeenCalledWith(expect.stringContaining('Found'));
+    });
+
+    it('should reject protoSrcsDir with path traversal attempts', () => {
+      mockFs.existsSync.mockReturnValue(true);
+
+      scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer, '../../../etc');
+
+      expect(logger.verbose).toHaveBeenCalledWith(expect.stringContaining('outside workspace'));
+      expect(mockFs.readdirSync).not.toHaveBeenCalled();
     });
   });
 });

@@ -119,6 +119,7 @@ if (wellKnownIncludePath) {
 
 let globalSettings: Settings = defaultSettings;
 let workspaceFolders: string[] = [];
+let protoSrcsDir: string = '';
 
 // Cache for parsed files to avoid re-parsing unchanged content
 const parsedFileCache = new ContentHashCache<ProtoFile>();
@@ -213,7 +214,10 @@ connection.onInitialized(() => {
   }
 
   // Scan workspace for proto files on initialization
-  scanWorkspaceForProtoFiles(workspaceFolders, providers.parser, providers.analyzer);
+  // Note: protoSrcsDir will be empty at this point (default), so full workspace is scanned.
+  // When configuration loads (via onDidChangeConfiguration), protoSrcsDir will be updated,
+  // and files will be rescanned as they are opened/edited.
+  scanWorkspaceForProtoFiles(workspaceFolders, providers.parser, providers.analyzer, protoSrcsDir);
 });
 
 
@@ -400,7 +404,7 @@ connection.onDidChangeConfiguration((change: { settings: typeof globalSettings }
     globalSettings = change.settings || defaultSettings;
 
     // Update all providers with new settings using config manager
-    const userIncludePaths = updateProvidersWithSettings(
+    const { includePaths: userIncludePaths, protoSrcsDir: newProtoSrcsDir } = updateProvidersWithSettings(
       globalSettings,
       providers.diagnostics,
       providers.formatter,
@@ -414,6 +418,9 @@ connection.onDidChangeConfiguration((change: { settings: typeof globalSettings }
       wellKnownCacheDir,
       workspaceFolders
     );
+
+    // Update protoSrcsDir
+    protoSrcsDir = newProtoSrcsDir;
 
     // Scan user-configured import paths for proto files (e.g., .buf-deps)
     if (userIncludePaths.length > 0) {
