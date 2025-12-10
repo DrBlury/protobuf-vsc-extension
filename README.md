@@ -109,32 +109,36 @@ Search for "protobuf" in VS Code settings. Common options:
 | `protobuf.externalLinter.linter` | `buf` or `protolint` | `"none"` |
 | `protobuf.clangFormat.enabled` | Use `clang-format` | `false` |
 
-Example lint setup (Buf):
+Example workspace settings (popular defaults):
 
 ```jsonc
+// .vscode/settings.json
 {
-  "protobuf.externalLinter.enabled": true,
-  "protobuf.externalLinter.linter": "buf",
-  "protobuf.externalLinter.runOnSave": true
-}
-```
+  // Formatting
+  "protobuf.formatOnSave": true,
+  "protobuf.formatter.alignFields": true,
 
-More examples:
+  // Import search paths
+  "protobuf.includes": [
+    "${workspaceFolder}/protos"
+  ],
 
-```jsonc
-// Use variables in protoc options
-{
+  // Protoc tool and outputs
+  "protobuf.protoc.path": "protoc",
   "protobuf.protoc.options": [
     "--proto_path=${workspaceFolder}",
-    "--descriptor_set_out=${workspaceFolder}/out/descriptor.pb",
-    "--include_imports"
-  ]
-}
+    "--go_out=${workspaceFolder}/gen/go",
+    "--go_opt=paths=source_relative"
+  ],
 
-// Breaking-change baseline against a file
-{
-  "protobuf.breaking.enabled": true,
-  "protobuf.breaking.againstFile": "${workspaceFolder}/schema.baseline.bin"
+  // Linting (Buf) on save
+  "protobuf.externalLinter.enabled": true,
+  "protobuf.externalLinter.linter": "buf",
+  "protobuf.externalLinter.runOnSave": true,
+
+  // IntelliSense/hover polish
+  "protobuf.completion.autoImport": true,
+  "protobuf.hover.showDocumentation": true
 }
 ```
 
