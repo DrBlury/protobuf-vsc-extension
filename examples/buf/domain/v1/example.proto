@@ -7,25 +7,25 @@ option go_package = "com.example.api.v1";
 
 // ExampleRecord demonstrates the payload this sample service works with.
 message ExampleRecord {
-	string record_id = 1;
-	string title = 2;
-	string description = 3;
-	ExampleMeta meta = 4;
-	repeated string tags = 5;
+	string          record_id   = 1;
+	string          title       = 2;
+	string          description = 3;
+	ExampleMeta     meta        = 4;
+	repeated string tags        = 5;
 }
 
 // ExampleMeta groups together additional sample fields.
 message ExampleMeta {
-	string requested_by = 1;
+	string           requested_by       = 1;
 	google.type.Date desired_start_date = 2;
-	bool requires_follow_up = 3;
-	int32 priority = 4;
+	bool             requires_follow_up = 3;
+	int32            priority           = 4;
 }
 
 // ExampleResult is emitted by event handlers once the record was processed.
 message ExampleResult {
-	string record_id = 1;
-	string status = 2;
-	string note = 3;
+	string           record_id    = 1;
+	string           status       = 2;
+	string           note         = 3;
 	google.type.Date processed_on = 4;
 }

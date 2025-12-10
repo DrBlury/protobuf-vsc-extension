@@ -143,4 +143,36 @@ build:
 
     expect(config1).toBe(config2); // Should be same object from cache
   });
+
+  it('should parse buf.yaml v2 format with modules and deps', () => {
+    const bufYaml = `version: v2
+modules:
+  - path: .
+    excludes:
+      - .buf-deps
+deps:
+  - buf.build/googleapis/googleapis
+  - buf.build/bufbuild/protovalidate
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE
+`;
+
+    const bufYamlPath = path.join(tempDir, 'buf.yaml');
+    fs.writeFileSync(bufYamlPath, bufYaml);
+
+    const config = bufConfigProvider.findBufConfig(bufYamlPath);
+
+    expect(config).toBeDefined();
+    expect(config?.version).toBe('v2');
+    expect(config?.deps).toBeDefined();
+    expect(config?.deps).toContain('buf.build/googleapis/googleapis');
+    expect(config?.deps).toContain('buf.build/bufbuild/protovalidate');
+    // Should NOT contain items from modules section
+    expect(config?.deps).not.toContain('path: .');
+    expect(config?.deps?.length).toBe(2);
+  });
 });

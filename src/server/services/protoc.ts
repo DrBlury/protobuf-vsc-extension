@@ -269,7 +269,7 @@ export class ProtocCompiler {
           files.push(fullPath);
         }
       }
-    } catch (_e) {
+    } catch {
       // Ignore permission errors
     }
 

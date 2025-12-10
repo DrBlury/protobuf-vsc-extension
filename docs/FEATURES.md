@@ -245,7 +245,8 @@ This document provides a comprehensive list of all features in the Protobuf VSC 
 - ✅ **Add Dependencies** - Add Buf modules from registry
 - ✅ **Automatic buf.yaml Updates** - Updates configuration automatically
 - ✅ **Module Support** - Works with buf.build modules
-- ✅ **Automatic Updates** - Runs buf mod update after adding
+- ✅ **Automatic Updates** - Runs buf dep update after adding
+- ✅ **Quick Add from Code Actions** - Add dependencies directly from code actions on unresolved imports
 
 ## Toolchain Management
 
@@ -257,6 +258,22 @@ This document provides a comprehensive list of all features in the Protobuf VSC 
 - ✅ **Version Management** - View and update tool versions
 - ✅ **Platform Support** - Windows, macOS (Intel/ARM), Linux
 - ✅ **Managed Tools** - Extension-managed tool installation
+
+### Auto-Detection & Configuration
+
+- ✅ **Tool Auto-Detection** - Automatically detects buf, protolint, protoc, clang-format
+- ✅ **Configuration Suggestions** - Prompts to configure detected tools
+- ✅ **Path Detection** - Finds tools in common installation paths
+- ✅ **One-time Setup** - Prompts once per session, respects user preference
+- ✅ **Scope Selection** - Choose workspace or global settings
+
+### Dependency Suggestions
+
+- ✅ **BSR Module Detection** - Recognizes Buf Schema Registry imports
+- ✅ **Smart Suggestions** - Maps imports to correct BSR modules
+- ✅ **Code Action Integration** - Add dependencies via lightbulb actions
+- ✅ **buf.yaml Creation** - Creates buf.yaml if needed
+- ✅ **Automatic buf dep update** - Updates dependencies after adding
 
 ## Code Generation
 

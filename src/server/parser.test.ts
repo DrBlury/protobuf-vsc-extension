@@ -185,6 +185,147 @@ message Response {
       // "  User user = 1;" - User starts at character 2
       expect(field.fieldTypeRange.start.character).toBe(2);
     });
+
+    it('should parse hexadecimal field numbers', () => {
+      const file = parser.parse(`
+        syntax = "proto3";
+        message MsgHex {
+          int32 f1 = 1234;
+          int32 f2 = 0x5678;
+          int32 f3 = 0x90ab;
+          int32 f4 = 0xCDEF;
+        }
+      `, 'file:///test.proto');
+
+      expect(file.messages[0].fields).toHaveLength(4);
+      expect(file.messages[0].fields[0].number).toBe(1234);
+      expect(file.messages[0].fields[1].number).toBe(0x5678);  // 22136
+      expect(file.messages[0].fields[2].number).toBe(0x90ab);  // 37035
+      expect(file.messages[0].fields[3].number).toBe(0xCDEF);  // 52719
+    });
+
+    it('should parse hexadecimal field numbers with uppercase prefix', () => {
+      const file = parser.parse(`
+        syntax = "proto3";
+        message MsgHex {
+          int32 f1 = 0X1234;
+        }
+      `, 'file:///test.proto');
+
+      expect(file.messages[0].fields[0].number).toBe(0x1234);
+    });
+
+    it('should parse octal field numbers', () => {
+      const file = parser.parse(`
+        syntax = "proto3";
+        message MsgOctal {
+          int32 f1 = 010;
+          int32 f2 = 0777;
+          int32 f3 = 0123;
+        }
+      `, 'file:///test.proto');
+
+      expect(file.messages[0].fields).toHaveLength(3);
+      expect(file.messages[0].fields[0].number).toBe(8);    // 010 octal = 8 decimal
+      expect(file.messages[0].fields[1].number).toBe(511);  // 0777 octal = 511 decimal
+      expect(file.messages[0].fields[2].number).toBe(83);   // 0123 octal = 83 decimal
+    });
+
+    it('should parse negative enum values', () => {
+      const file = parser.parse(`
+        syntax = "proto2";
+        enum SignedEnum {
+          NEGATIVE = -1;
+          ZERO = 0;
+          POSITIVE = 1;
+        }
+      `, 'file:///test.proto');
+
+      expect(file.enums[0].values).toHaveLength(3);
+      expect(file.enums[0].values[0].number).toBe(-1);
+      expect(file.enums[0].values[1].number).toBe(0);
+      expect(file.enums[0].values[2].number).toBe(1);
+    });
+
+    it('should parse hexadecimal reserved ranges', () => {
+      const file = parser.parse(`
+        syntax = "proto3";
+        message User {
+          reserved 0x10 to 0x20;
+          string name = 1;
+        }
+      `, 'file:///test.proto');
+
+      expect(file.messages[0].reserved[0].ranges).toEqual([
+        { start: 16, end: 32 }
+      ]);
+    });
+
+    it('should parse hexadecimal map field numbers', () => {
+      const file = parser.parse(`
+        syntax = "proto3";
+        message User {
+          map<string, string> metadata = 0xFF;
+        }
+      `, 'file:///test.proto');
+
+      expect(file.messages[0].maps[0].number).toBe(255);
+    });
+
+    it('should parse positive prefixed field numbers', () => {
+      const file = parser.parse(`
+        syntax = "proto3";
+        message User {
+          string name = +1;
+          int32 age = +2;
+        }
+      `, 'file:///test.proto');
+
+      expect(file.messages[0].fields[0].number).toBe(1);
+      expect(file.messages[0].fields[1].number).toBe(2);
+    });
+
+    it('should parse fully-qualified type names with leading dot', () => {
+      const file = parser.parse(`
+        syntax = "proto3";
+        message User {
+          .google.protobuf.Timestamp created_at = 1;
+        }
+      `, 'file:///test.proto');
+
+      expect(file.messages[0].fields[0].fieldType).toBe('.google.protobuf.Timestamp');
+    });
+
+    it('should parse string concatenation in options', () => {
+      const file = parser.parse(`
+        syntax = "proto3";
+        option java_package = "com.example" ".foo";
+      `, 'file:///test.proto');
+
+      expect(file.options[0].value).toBe('com.example.foo');
+    });
+
+    it('should parse inf and nan float literals in options', () => {
+      const file = parser.parse(`
+        syntax = "proto3";
+        option (my_option).max_value = inf;
+        option (my_option).min_value = nan;
+      `, 'file:///test.proto');
+
+      expect(file.options[0].value).toBe(Infinity);
+      expect(file.options[1].value).toBeNaN();
+    });
+
+    it('should parse string concatenation in field options', () => {
+      const file = parser.parse(`
+        syntax = "proto3";
+        message User {
+          string name = 1 [json_name = "user" "Name"];
+        }
+      `, 'file:///test.proto');
+
+      expect(file.messages[0].fields[0].options![0].value).toBe('userName');
+    });
   });
 
   describe('enum parsing', () => {
@@ -421,7 +562,7 @@ service UserService {
       const msg = file.messages[0];
       expect(msg.name).toBe('SearchResponse');
       expect(msg.groups).toHaveLength(1);
-      
+
       const group = msg.groups[0];
       expect(group.name).toBe('Result');
       expect(group.modifier).toBe('repeated');

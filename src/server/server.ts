@@ -78,6 +78,7 @@ import { ContentHashCache, simpleHash } from './utils/cache';
 import { ProviderRegistry } from './utils/providerRegistry';
 import { refreshDocumentAndImports } from './utils/documentRefresh';
 import { handleCompletion, handleHover } from './handlers';
+import { bufConfigProvider } from './services/bufConfig';
 
 // Shared types
 import { SchemaGraphRequest } from '../shared/schemaGraph';
@@ -188,6 +189,8 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
           'refactor',
           'refactor.extract',
           'refactor.rewrite',
+          'source',
+          'source.fixAll',
           'source.organizeImports'
         ]
       },
@@ -307,15 +310,48 @@ function discoverWellKnownIncludePath(): string | undefined {
 
 // Handle file changes from workspace file watcher
 connection.onDidChangeWatchedFiles((params: DidChangeWatchedFilesParams) => {
+  let needsRevalidation = false;
+  let hasFileRenameOrDelete = false;
+  let hasBufConfigChange = false;
+
   for (const change of params.changes) {
     const uri = change.uri;
+
+    // Check if this is a buf config file change
+    if (uri.endsWith('buf.yaml') || uri.endsWith('buf.yml') ||
+        uri.endsWith('buf.work.yaml') || uri.endsWith('buf.work.yml') ||
+        uri.endsWith('buf.lock')) {
+      hasBufConfigChange = true;
+      needsRevalidation = true;
+      logger.verboseWithContext('Buf config file changed', { uri, type: change.type });
+    }
+
     if (uri.endsWith('.proto')) {
+      needsRevalidation = true;
       if (change.type === FileChangeType.Deleted) {
+        hasFileRenameOrDelete = true;
         providers.analyzer.removeFile(uri);
         parsedFileCache.delete(uri);
         logger.verboseWithContext('File deleted, removed from cache and analyzer', { uri });
+      } else if (change.type === FileChangeType.Created) {
+        // A new file was created - this could be part of a rename operation
+        hasFileRenameOrDelete = true;
+        // File created - try to read and parse it
+        try {
+          const filePath = URI.parse(uri).fsPath;
+          const content = fs.readFileSync(filePath, 'utf-8');
+          const contentHash = simpleHash(content);
+
+          const file = providers.parser.parse(content, uri);
+          parsedFileCache.set(uri, file, contentHash);
+          providers.analyzer.updateFile(uri, file);
+          logger.verboseWithContext('File created, parsed and cached', { uri });
+        } catch (error) {
+          parsedFileCache.delete(uri);
+          logger.verboseWithContext('Failed to parse created file', { uri, error });
+        }
       } else {
-        // File created or changed - try to read and parse it
+        // File changed - try to read and parse it
         try {
           const filePath = URI.parse(uri).fsPath;
           const content = fs.readFileSync(filePath, 'utf-8');
@@ -342,6 +378,23 @@ connection.onDidChangeWatchedFiles((params: DidChangeWatchedFilesParams) => {
         }
       }
     }
+  }
+
+  // Clear import resolution cache on file renames/deletes to force re-resolution
+  if (hasFileRenameOrDelete) {
+    providers.analyzer.clearImportResolutionCache();
+    logger.verboseWithContext('Cleared import resolution cache due to file rename/delete', {});
+  }
+
+  // Clear buf config cache when buf.yaml/buf.lock changes
+  if (hasBufConfigChange) {
+    bufConfigProvider.clearCache();
+    logger.verboseWithContext('Cleared buf config cache due to buf config file change', {});
+  }
+
+  // Re-validate all open documents when files change (handles renames, deletions, etc.)
+  if (needsRevalidation) {
+    documents.all().forEach(validateDocument);
   }
 });
 
@@ -592,7 +645,7 @@ connection.onCodeLens((params) => {
   try {
     const file = providers.parser.parse(document.getText(), params.textDocument.uri);
     return providers.codeLens.getCodeLenses(params.textDocument.uri, file);
-  } catch (_e) {
+  } catch {
     return [];
   }
 });
@@ -607,7 +660,7 @@ connection.onDocumentLinks((params) => {
   try {
     const file = providers.parser.parse(document.getText(), params.textDocument.uri);
     return providers.documentLinks.getDocumentLinks(params.textDocument.uri, file);
-  } catch (_e) {
+  } catch {
     return [];
   }
 });
@@ -1010,7 +1063,7 @@ connection.onRequest(REQUEST_METHODS.CHECK_BREAKING_CHANGES, async (params: { ur
   if (baselineContent) {
     try {
       baselineFile = providers.parser.parse(baselineContent, params.uri);
-    } catch (_e) {
+    } catch {
       // Baseline file might not be valid proto
     }
   }

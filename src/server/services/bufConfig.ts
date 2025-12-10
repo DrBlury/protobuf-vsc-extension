@@ -5,6 +5,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { URI } from 'vscode-uri';
 
 export interface BufConfig {
   version: string;
@@ -37,10 +38,21 @@ export class BufConfigProvider {
   private workConfigCache = new Map<string, BufWorkConfig | null>();
 
   /**
+   * Convert a URI or file path to a normalized file path
+   */
+  private toFilePath(uriOrPath: string): string {
+    if (uriOrPath.startsWith('file://')) {
+      return URI.parse(uriOrPath).fsPath;
+    }
+    return uriOrPath;
+  }
+
+  /**
    * Find and parse buf.yaml in the directory hierarchy
    */
   findBufConfig(filePath: string): BufConfig | null {
-    const dir = path.dirname(filePath);
+    const normalizedPath = this.toFilePath(filePath);
+    const dir = path.dirname(normalizedPath);
     return this.findBufConfigInDirectory(dir);
   }
 
@@ -48,7 +60,8 @@ export class BufConfigProvider {
    * Find and parse buf.work.yaml in the directory hierarchy
    */
   findBufWorkConfig(filePath: string): BufWorkConfig | null {
-    const dir = path.dirname(filePath);
+    const normalizedPath = this.toFilePath(filePath);
+    const dir = path.dirname(normalizedPath);
     return this.findBufWorkConfigInDirectory(dir);
   }
 
@@ -121,7 +134,7 @@ export class BufConfigProvider {
           const config = this.parseBufYaml(content);
           this.configCache.set(normalizedDir, config);
           return config;
-        } catch (e) {
+        } catch {
           // Parse error, cache null
           this.configCache.set(normalizedDir, null);
           return null;
@@ -157,7 +170,7 @@ export class BufConfigProvider {
           const config = this.parseBufWorkYaml(content);
           this.workConfigCache.set(normalizedDir, config);
           return config;
-        } catch (e) {
+        } catch {
           this.workConfigCache.set(normalizedDir, null);
           return null;
         }
@@ -232,18 +245,27 @@ export class BufConfigProvider {
         continue;
       }
 
+      // Check for top-level section headers (not indented)
+      const isTopLevel = !line.startsWith(' ') && !line.startsWith('\t');
       const match = trimmed.match(/^(\w+):\s*(.*)$/);
-      if (match) {
+
+      if (match && isTopLevel) {
         const key = match[1];
         const value = match[2];
 
         if (key === 'version') {
           config.version = value;
+          currentSection = null;
         } else if (key === 'name') {
           config.name = value.replace(/^["']|["']$/g, '');
+          currentSection = null;
         } else if (key === 'deps') {
           // Handle array format
           config.deps = [];
+          currentSection = 'deps';
+        } else if (key === 'modules') {
+          // v2 format: modules section - skip items under it
+          currentSection = 'modules';
         } else if (key === 'build') {
           config.build = { roots: [] };
           currentSection = 'build';
@@ -253,7 +275,11 @@ export class BufConfigProvider {
         } else if (key === 'breaking') {
           config.breaking = {};
           currentSection = 'breaking';
-        } else if (currentSection === 'build' && key === 'roots') {
+        }
+      } else if (match && currentSection === 'build') {
+        const key = match[1];
+        const value = match[2];
+        if (key === 'roots') {
           if (!config.build) {
             config.build = { roots: [] };
           }
@@ -263,19 +289,21 @@ export class BufConfigProvider {
           }
         }
       } else if (trimmed.startsWith('-')) {
-        // Array item
+        // Array item - only process for relevant sections
         const item = trimmed.substring(1).trim().replace(/^["']|["']$/g, '');
-        if (currentSection === 'build' && config.build) {
+
+        if (currentSection === 'deps') {
+          if (!config.deps) {
+            config.deps = [];
+          }
+          config.deps.push(item);
+        } else if (currentSection === 'build' && config.build) {
           if (!config.build.roots) {
             config.build.roots = [];
           }
           config.build.roots.push(item);
-        } else if (!config.deps) {
-          config.deps = [];
         }
-        if (config.deps && currentSection !== 'build') {
-          config.deps.push(item);
-        }
+        // Ignore array items in 'modules', 'lint', 'breaking' sections for deps
       }
     }
 

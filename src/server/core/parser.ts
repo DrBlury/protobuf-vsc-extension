@@ -28,6 +28,63 @@ import {
   ProtoNode
 } from '../core/ast';
 
+/**
+ * Parse a number string that may be in decimal, hexadecimal (0x), or octal (0) format.
+ * Also handles negative and positive (+) prefixed numbers as per protobuf spec.
+ */
+function parseIntegerLiteral(value: string): number {
+  const trimmed = value.trim();
+
+  // Handle negative numbers
+  if (trimmed.startsWith('-')) {
+    return -parseIntegerLiteral(trimmed.slice(1));
+  }
+
+  // Handle explicit positive sign (per spec: [ "-" | "+" ] intLit)
+  if (trimmed.startsWith('+')) {
+    return parseIntegerLiteral(trimmed.slice(1));
+  }
+
+  // Hexadecimal (0x or 0X prefix)
+  if (trimmed.startsWith('0x') || trimmed.startsWith('0X')) {
+    return parseInt(trimmed, 16);
+  }
+
+  // Octal (0 prefix, but not just "0")
+  if (trimmed.startsWith('0') && trimmed.length > 1 && /^0[0-7]+$/.test(trimmed)) {
+    return parseInt(trimmed, 8);
+  }
+
+  // Decimal
+  return parseInt(trimmed, 10);
+}
+
+/**
+ * Parse a float literal string, handling special values 'inf' and 'nan' as per protobuf spec.
+ * Also handles +/- prefixes.
+ */
+function parseFloatLiteral(value: string): number {
+  const trimmed = value.trim().toLowerCase();
+
+  // Handle special float values per spec: floatLit = ... | "inf" | "nan"
+  if (trimmed === 'inf' || trimmed === '+inf') {
+    return Infinity;
+  }
+  if (trimmed === '-inf') {
+    return -Infinity;
+  }
+  if (trimmed === 'nan' || trimmed === '+nan' || trimmed === '-nan') {
+    return NaN;
+  }
+
+  // Handle explicit positive sign
+  if (trimmed.startsWith('+')) {
+    return parseFloat(trimmed.slice(1));
+  }
+
+  return parseFloat(value);
+}
+
 interface Token {
   type: string;
   value: string;
@@ -66,7 +123,7 @@ export class ProtoParser {
     while (!this.isAtEnd()) {
       try {
         this.parseTopLevel(file);
-      } catch (_e) {
+      } catch {
         // Skip to next statement on error
         this.skipToNextStatement();
       }
@@ -179,10 +236,10 @@ export class ProtoParser {
         continue;
       }
 
-      // Number
-      if (/[0-9]/.test(text[i]) || (text[i] === '-' && /[0-9]/.test(text[i + 1]))) {
+      // Number (including + or - prefix per spec)
+      if (/[0-9]/.test(text[i]) || ((text[i] === '-' || text[i] === '+') && /[0-9]/.test(text[i + 1]))) {
         const start = i;
-        if (text[i] === '-') {
+        if (text[i] === '-' || text[i] === '+') {
           i++;
           character++;
         }
@@ -287,12 +344,28 @@ export class ProtoParser {
 
   /**
    * Parse a qualified identifier (e.g., "google.protobuf.Timestamp" or "buf.validate.field")
+   * Also supports fully-qualified names starting with "." (e.g., ".google.protobuf.Timestamp")
+   * as per protobuf spec: messageType = [ "." ] { ident "." } messageName
    * Returns both the combined value and the range covering all parts.
    */
   private parseQualifiedIdentifier(): { value: string; range: Range } {
+    let value = '';
+    let startRange: Range | null = null;
+    let endRange: Range;
+
+    // Handle optional leading dot for fully-qualified names
+    if (this.match('punctuation', '.')) {
+      const dotToken = this.advance()!;
+      value = '.';
+      startRange = dotToken.range;
+    }
+
     const firstToken = this.expect('identifier');
-    let value = firstToken.value;
-    let endRange = firstToken.range;
+    value += firstToken.value;
+    if (!startRange) {
+      startRange = firstToken.range;
+    }
+    endRange = firstToken.range;
 
     while (this.match('punctuation', '.')) {
       this.advance(); // consume the dot
@@ -303,7 +376,7 @@ export class ProtoParser {
 
     return {
       value,
-      range: { start: firstToken.range.start, end: endRange.end }
+      range: { start: startRange.start, end: endRange.end }
     };
   }
 
@@ -475,13 +548,23 @@ export class ProtoParser {
       endRange = valueToken.range;
 
       if (valueToken.type === 'string') {
-        value = valueToken.value.slice(1, -1);
+        // Handle string concatenation per spec: strLit = strLitSingle { strLitSingle }
+        let strValue = valueToken.value.slice(1, -1);
+        while (this.match('string')) {
+          const nextStr = this.advance()!;
+          strValue += nextStr.value.slice(1, -1);
+          endRange = nextStr.range;
+        }
+        value = strValue;
       } else if (valueToken.type === 'number') {
-        value = parseFloat(valueToken.value);
+        value = parseFloatLiteral(valueToken.value);
       } else if (valueToken.value === 'true') {
         value = true;
       } else if (valueToken.value === 'false') {
         value = false;
+      } else if (valueToken.value === 'inf' || valueToken.value === 'nan') {
+        // Handle inf/nan as identifier tokens (they're parsed as identifiers)
+        value = parseFloatLiteral(valueToken.value);
       } else {
         value = valueToken.value;
       }
@@ -594,7 +677,8 @@ export class ProtoParser {
           message.groups.push(this.parseGroup());
           break;
         default:
-          if (token.type === 'identifier') {
+          // Handle fields - either starts with identifier (type name) or '.' (fully-qualified type)
+          if (token.type === 'identifier' || (token.type === 'punctuation' && token.value === '.')) {
             message.fields.push(this.parseField());
           } else {
             this.advance();
@@ -641,7 +725,7 @@ export class ProtoParser {
       fieldTypeRange: typeInfo.range,
       name: nameToken.value,
       nameRange: nameToken.range,
-      number: parseInt(numberToken.value, 10),
+      number: parseIntegerLiteral(numberToken.value),
       options,
       range: { start: typeInfo.range.start, end: numberToken.range.end }
     };
@@ -697,13 +781,22 @@ export class ProtoParser {
         const valueToken = this.advance()!;
 
         if (valueToken.type === 'string') {
-          value = valueToken.value.slice(1, -1);
+          // Handle string concatenation per spec: strLit = strLitSingle { strLitSingle }
+          let strValue = valueToken.value.slice(1, -1);
+          while (this.match('string')) {
+            const nextStr = this.advance()!;
+            strValue += nextStr.value.slice(1, -1);
+          }
+          value = strValue;
         } else if (valueToken.type === 'number') {
-          value = parseFloat(valueToken.value);
+          value = parseFloatLiteral(valueToken.value);
         } else if (valueToken.value === 'true') {
           value = true;
         } else if (valueToken.value === 'false') {
           value = false;
+        } else if (valueToken.value === 'inf' || valueToken.value === 'nan') {
+          // Handle inf/nan as identifier tokens
+          value = parseFloatLiteral(valueToken.value);
         } else {
           value = valueToken.value;
         }
@@ -736,7 +829,7 @@ export class ProtoParser {
       valueTypeRange: valueTypeInfo.range,
       name: nameToken.value,
       nameRange: nameToken.range,
-      number: parseInt(numberToken.value, 10),
+      number: parseIntegerLiteral(numberToken.value),
       range: { start: startToken.range.start, end: numberToken.range.end }
     };
     this.attachComment(node, startToken);
@@ -765,7 +858,8 @@ export class ProtoParser {
 
       if (token.value === 'option') {
         this.parseOption(); // Consume but don't store
-      } else if (token.type === 'identifier') {
+      } else if (token.type === 'identifier' || (token.type === 'punctuation' && token.value === '.')) {
+        // Handle fields - type can start with '.' for fully-qualified names
         oneof.fields.push(this.parseField());
       } else {
         this.advance();
@@ -828,7 +922,7 @@ export class ProtoParser {
       type: 'enumValue',
       name: nameToken.value,
       nameRange: nameToken.range,
-      number: parseInt(numberToken.value, 10),
+      number: parseIntegerLiteral(numberToken.value),
       options,
       range: { start: nameToken.range.start, end: numberToken.range.end }
     };
@@ -952,7 +1046,8 @@ export class ProtoParser {
         break;
       }
 
-      if (token.type === 'identifier') {
+      // Handle fields - type can start with '.' for fully-qualified names
+      if (token.type === 'identifier' || (token.type === 'punctuation' && token.value === '.')) {
         extend.fields.push(this.parseField());
       } else {
         this.advance();
@@ -980,7 +1075,7 @@ export class ProtoParser {
         const nameToken = this.advance()!;
         names.push(nameToken.value.slice(1, -1));
       } else if (this.match('number')) {
-        const startNum = parseInt(this.advance()!.value, 10);
+        const startNum = parseIntegerLiteral(this.advance()!.value);
         let endNum: number | 'max' = startNum;
 
         if (this.match('identifier', 'to')) {
@@ -989,7 +1084,7 @@ export class ProtoParser {
             this.advance();
             endNum = 'max';
           } else {
-            endNum = parseInt(this.expect('number').value, 10);
+            endNum = parseIntegerLiteral(this.expect('number').value);
           }
         }
 
@@ -1022,7 +1117,7 @@ export class ProtoParser {
       }
 
       if (this.match('number')) {
-        const startNum = parseInt(this.advance()!.value, 10);
+        const startNum = parseIntegerLiteral(this.advance()!.value);
         let endNum: number | 'max' = startNum;
 
         if (this.match('identifier', 'to')) {
@@ -1031,7 +1126,7 @@ export class ProtoParser {
             this.advance();
             endNum = 'max';
           } else {
-            endNum = parseInt(this.expect('number').value, 10);
+            endNum = parseIntegerLiteral(this.expect('number').value);
           }
         }
 
@@ -1064,7 +1159,7 @@ export class ProtoParser {
       modifier,
       name: nameToken.value,
       nameRange: nameToken.range,
-      number: parseInt(numberToken.value, 10),
+      number: parseIntegerLiteral(numberToken.value),
       fields: [],
       nestedMessages: [],
       nestedEnums: [],
@@ -1115,7 +1210,8 @@ export class ProtoParser {
           group.fields.push(this.parseField());
           break;
         default:
-          if (token.type === 'identifier') {
+          // Handle fields - type can start with '.' for fully-qualified names
+          if (token.type === 'identifier' || (token.type === 'punctuation' && token.value === '.')) {
             group.fields.push(this.parseField());
           } else {
             this.advance();

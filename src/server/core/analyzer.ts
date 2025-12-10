@@ -75,7 +75,7 @@ export class SemanticAnalyzer {
       for (const dir of workDirs) {
         this.protoRoots.add(dir);
       }
-    } catch (_e) {
+    } catch {
       // Ignore errors
     }
 
@@ -304,6 +304,14 @@ export class SemanticAnalyzer {
     }
   }
 
+  /**
+   * Clear all cached import resolutions.
+   * Call this when files are renamed or deleted to force re-resolution.
+   */
+  clearImportResolutionCache(): void {
+    this.workspace.importResolutions.clear();
+  }
+
   private removeFileSymbols(uri: string): void {
     for (const [name, symbol] of this.workspace.symbols) {
       if (symbol.location.uri === uri) {
@@ -380,7 +388,7 @@ export class SemanticAnalyzer {
     // Groups are like nested messages in terms of symbol extraction
     for (const group of message.groups) {
       const groupFullName = fullName ? `${fullName}.${group.name}` : group.name;
-      
+
       // Add group as a symbol (groups act as both a field and a message type)
       this.workspace.symbols.set(groupFullName, {
         name: group.name,

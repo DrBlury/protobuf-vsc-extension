@@ -48,7 +48,41 @@ message userMessage {  // Should be UserMessage
 
 **Fix:** Click lightbulb → "Convert to PascalCase" or "Convert to snake_case"
 
-#### 3. Add Missing Semicolons
+#### 3. Fix Editions Modifiers (Auto-fix on Save)
+
+**When it appears:** In edition 2023 files when `optional` or `required` modifiers are used
+
+**What it does:** Converts deprecated modifiers to `features.field_presence` options
+
+**Example:**
+
+```proto
+edition = "2023";
+
+message User {
+  optional string name = 1;  // 'optional' not allowed in editions
+  required string email = 2; // 'required' not allowed in editions
+}
+```
+
+**Fix:** Click lightbulb → "Convert 'optional' to 'features.field_presence = EXPLICIT'"
+
+**Auto-fix on save:** Add this to your VS Code settings to automatically fix editions modifiers when saving:
+
+```jsonc
+{
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit"
+  }
+}
+```
+
+This will convert:
+
+- `optional` fields → `[features.field_presence = EXPLICIT]`
+- `required` fields → `[features.field_presence = LEGACY_REQUIRED]`
+
+#### 4. Add Missing Semicolons
 
 **When it appears:** When a field is missing a semicolon
 

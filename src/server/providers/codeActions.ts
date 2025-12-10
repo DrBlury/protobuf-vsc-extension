@@ -63,6 +63,14 @@ export class CodeActionsProvider {
       }
     }
 
+    // Source.fixAll: Fix all editions-related issues (optional/required modifiers)
+    if (!requestedKinds || requestedKinds.some(k => k === CodeActionKind.SourceFixAll || k.startsWith(CodeActionKind.SourceFixAll))) {
+      const editionsFixAction = this.createFixEditionsModifiersAction(uri, documentText);
+      if (editionsFixAction) {
+        actions.push(editionsFixAction);
+      }
+    }
+
     // Add refactoring actions based on selection
     const refactorings = this.getRefactoringActions(uri, range, documentText);
     actions.push(...refactorings);
@@ -306,6 +314,85 @@ export class CodeActionsProvider {
     };
   }
 
+  /**
+   * Create an action to fix all editions-specific issues:
+   * - Convert 'optional' to features.field_presence = EXPLICIT
+   * - Convert 'required' to features.field_presence = LEGACY_REQUIRED
+   */
+  private createFixEditionsModifiersAction(uri: string, documentText: string): CodeAction | null {
+    const lines = documentText.split('\n');
+    const edits: TextEdit[] = [];
+
+    // Check if this is an editions file
+    const isEditions = lines.some(line => line.trim().startsWith('edition'));
+    if (!isEditions) {
+      return null;
+    }
+
+    // Pattern to match fields with optional/required modifiers
+    const optionalFieldPattern = /^(\s*)optional\s+(\S+)\s+(\w+)\s*=\s*(\d+)\s*(\[[^\]]*\])?\s*;/;
+    const requiredFieldPattern = /^(\s*)required\s+(\S+)\s+(\w+)\s*=\s*(\d+)\s*(\[[^\]]*\])?\s*;/;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Check for 'optional' fields
+      const optionalMatch = line.match(optionalFieldPattern);
+      if (optionalMatch) {
+        const [, indent, type, name, number, existingOptions] = optionalMatch;
+        let newLine: string;
+        if (existingOptions) {
+          const optionsContent = existingOptions.slice(1, -1).trim();
+          newLine = `${indent}${type} ${name} = ${number} [${optionsContent}, features.field_presence = EXPLICIT];`;
+        } else {
+          newLine = `${indent}${type} ${name} = ${number} [features.field_presence = EXPLICIT];`;
+        }
+        edits.push({
+          range: {
+            start: { line: i, character: 0 },
+            end: { line: i, character: line.length }
+          },
+          newText: newLine
+        });
+        continue;
+      }
+
+      // Check for 'required' fields
+      const requiredMatch = line.match(requiredFieldPattern);
+      if (requiredMatch) {
+        const [, indent, type, name, number, existingOptions] = requiredMatch;
+        let newLine: string;
+        if (existingOptions) {
+          const optionsContent = existingOptions.slice(1, -1).trim();
+          newLine = `${indent}${type} ${name} = ${number} [${optionsContent}, features.field_presence = LEGACY_REQUIRED];`;
+        } else {
+          newLine = `${indent}${type} ${name} = ${number} [features.field_presence = LEGACY_REQUIRED];`;
+        }
+        edits.push({
+          range: {
+            start: { line: i, character: 0 },
+            end: { line: i, character: line.length }
+          },
+          newText: newLine
+        });
+      }
+    }
+
+    if (edits.length === 0) {
+      return null;
+    }
+
+    return {
+      title: 'Fix editions modifiers (convert optional/required to features.field_presence)',
+      kind: CodeActionKind.SourceFixAll,
+      edit: {
+        changes: {
+          [uri]: edits
+        }
+      }
+    };
+  }
+
   private findEnclosingMessageName(range: Range, documentText: string): string | null {
     const lines = documentText.split('\n');
     let braceDepth = 0;
@@ -517,8 +604,24 @@ export class CodeActionsProvider {
 
       // Check if this looks like a buf registry dependency import
       const isBufDependency = this.isBufRegistryImport(importPath);
+      const suggestedModule = isBufDependency ? this.suggestBufModule(importPath) : null;
 
       if (isBufDependency) {
+        // Add suggestion to add dependency to buf.yaml
+        if (suggestedModule) {
+          fixes.push({
+            title: `Add '${suggestedModule}' to buf.yaml dependencies`,
+            kind: CodeActionKind.QuickFix,
+            isPreferred: true,
+            diagnostics: [diagnostic],
+            command: {
+              title: 'Add Buf Dependency',
+              command: 'protobuf.addBufDependencyQuick',
+              arguments: [suggestedModule, importPath]
+            }
+          });
+        }
+
         // Add a suggestion to run buf export
         fixes.push({
           title: `Run 'buf export' to download dependencies (${importPath})`,
@@ -570,6 +673,31 @@ export class CodeActionsProvider {
           }
         }
       });
+    }
+
+    // Handle resolved BSR imports that aren't in buf.yaml dependencies
+    if (message.includes('is not in buf.yaml dependencies')) {
+      // Extract the suggested module from the diagnostic message
+      const moduleMatch = diagnostic.message.match(/'([^']+)' is not in buf\.yaml dependencies/);
+      const suggestedModule = moduleMatch ? moduleMatch[1] : null;
+
+      // Extract import path from message
+      const importMatch = diagnostic.message.match(/Import '([^']+)' resolves/);
+      const importPath = importMatch ? importMatch[1] : '';
+
+      if (suggestedModule) {
+        fixes.push({
+          title: `Add '${suggestedModule}' to buf.yaml dependencies`,
+          kind: CodeActionKind.QuickFix,
+          isPreferred: true,
+          diagnostics: [diagnostic],
+          command: {
+            title: 'Add Buf Dependency',
+            command: 'protobuf.addBufDependencyQuick',
+            arguments: [suggestedModule, importPath]
+          }
+        });
+      }
     }
 
     if (/screaming_snake_case/i.test(message)) {
@@ -773,6 +901,126 @@ export class CodeActionsProvider {
             diagnostic
           ));
         }
+      }
+    }
+
+    // Fix 'optional' not allowed in editions - convert to field_presence feature
+    if (message.includes("'optional' label is not allowed in editions")) {
+      const lines = documentText.split('\n');
+      const lineIndex = diagnostic.range.start.line;
+      const line = lines[lineIndex];
+
+      if (line) {
+        // Remove 'optional' and add [features.field_presence = EXPLICIT] option
+        // Match: optional Type name = N; or optional Type name = N [options];
+        const fieldMatch = line.match(/^(\s*)optional\s+(\S+)\s+(\w+)\s*=\s*(\d+)\s*(\[[^\]]*\])?\s*;/);
+        if (fieldMatch) {
+          const [, indent, type, name, number, existingOptions] = fieldMatch;
+          let newLine: string;
+          if (existingOptions) {
+            // Append to existing options
+            const optionsContent = existingOptions.slice(1, -1).trim();
+            newLine = `${indent}${type} ${name} = ${number} [${optionsContent}, features.field_presence = EXPLICIT];`;
+          } else {
+            newLine = `${indent}${type} ${name} = ${number} [features.field_presence = EXPLICIT];`;
+          }
+
+          fixes.push({
+            title: "Convert 'optional' to 'features.field_presence = EXPLICIT'",
+            kind: CodeActionKind.QuickFix,
+            isPreferred: true,
+            diagnostics: [diagnostic],
+            edit: {
+              changes: {
+                [uri]: [{
+                  range: {
+                    start: { line: lineIndex, character: 0 },
+                    end: { line: lineIndex, character: line.length }
+                  },
+                  newText: newLine
+                }]
+              }
+            }
+          });
+        }
+
+        // Also offer option to just remove 'optional' (uses edition default)
+        const noOptionalLine = line.replace(/\boptional\s+/, '');
+        fixes.push({
+          title: "Remove 'optional' modifier (uses edition default)",
+          kind: CodeActionKind.QuickFix,
+          diagnostics: [diagnostic],
+          edit: {
+            changes: {
+              [uri]: [{
+                range: {
+                  start: { line: lineIndex, character: 0 },
+                  end: { line: lineIndex, character: line.length }
+                },
+                newText: noOptionalLine
+              }]
+            }
+          }
+        });
+      }
+    }
+
+    // Fix 'required' not allowed in editions - convert to field_presence feature
+    if (message.includes("'required' label is not allowed in editions")) {
+      const lines = documentText.split('\n');
+      const lineIndex = diagnostic.range.start.line;
+      const line = lines[lineIndex];
+
+      if (line) {
+        // Remove 'required' and add [features.field_presence = LEGACY_REQUIRED] option
+        const fieldMatch = line.match(/^(\s*)required\s+(\S+)\s+(\w+)\s*=\s*(\d+)\s*(\[[^\]]*\])?\s*;/);
+        if (fieldMatch) {
+          const [, indent, type, name, number, existingOptions] = fieldMatch;
+          let newLine: string;
+          if (existingOptions) {
+            const optionsContent = existingOptions.slice(1, -1).trim();
+            newLine = `${indent}${type} ${name} = ${number} [${optionsContent}, features.field_presence = LEGACY_REQUIRED];`;
+          } else {
+            newLine = `${indent}${type} ${name} = ${number} [features.field_presence = LEGACY_REQUIRED];`;
+          }
+
+          fixes.push({
+            title: "Convert 'required' to 'features.field_presence = LEGACY_REQUIRED'",
+            kind: CodeActionKind.QuickFix,
+            isPreferred: true,
+            diagnostics: [diagnostic],
+            edit: {
+              changes: {
+                [uri]: [{
+                  range: {
+                    start: { line: lineIndex, character: 0 },
+                    end: { line: lineIndex, character: line.length }
+                  },
+                  newText: newLine
+                }]
+              }
+            }
+          });
+        }
+
+        // Also offer option to just remove 'required'
+        const noRequiredLine = line.replace(/\brequired\s+/, '');
+        fixes.push({
+          title: "Remove 'required' modifier",
+          kind: CodeActionKind.QuickFix,
+          diagnostics: [diagnostic],
+          edit: {
+            changes: {
+              [uri]: [{
+                range: {
+                  start: { line: lineIndex, character: 0 },
+                  end: { line: lineIndex, character: line.length }
+                },
+                newText: noRequiredLine
+              }]
+            }
+          }
+        });
       }
     }
 
@@ -1005,7 +1253,7 @@ export class CodeActionsProvider {
       }
       const dir = segments[segments.length - 2];
       return dir.replace(/[^a-zA-Z0-9_]/g, '_');
-    } catch (_e) {
+    } catch {
       return null;
     }
   }
@@ -1652,5 +1900,53 @@ export class CodeActionsProvider {
     ];
 
     return bufRegistryPatterns.some(pattern => pattern.test(importPath));
+  }
+
+  /**
+   * Suggest a Buf Schema Registry module for an import path
+   */
+  private suggestBufModule(importPath: string): string | null {
+    // Map of import path patterns to BSR modules
+    const moduleMap: { pattern: RegExp; module: string }[] = [
+      // Google APIs
+      { pattern: /^google\/api\//, module: 'buf.build/googleapis/googleapis' },
+      { pattern: /^google\/type\//, module: 'buf.build/googleapis/googleapis' },
+      { pattern: /^google\/rpc\//, module: 'buf.build/googleapis/googleapis' },
+      { pattern: /^google\/cloud\//, module: 'buf.build/googleapis/googleapis' },
+      { pattern: /^google\/logging\//, module: 'buf.build/googleapis/googleapis' },
+
+      // Buf Validate (protovalidate)
+      { pattern: /^buf\/validate\//, module: 'buf.build/bufbuild/protovalidate' },
+
+      // Legacy protoc-gen-validate
+      { pattern: /^validate\/validate\.proto$/, module: 'buf.build/envoyproxy/protoc-gen-validate' },
+
+      // gRPC
+      { pattern: /^grpc\//, module: 'buf.build/grpc/grpc' },
+
+      // Envoy
+      { pattern: /^envoy\//, module: 'buf.build/envoyproxy/envoy' },
+
+      // xDS
+      { pattern: /^xds\//, module: 'buf.build/cncf/xds' },
+
+      // OpenTelemetry
+      { pattern: /^opentelemetry\//, module: 'buf.build/open-telemetry/opentelemetry' },
+
+      // Cosmos SDK
+      { pattern: /^cosmos\//, module: 'buf.build/cosmos/cosmos-sdk' },
+      { pattern: /^tendermint\//, module: 'buf.build/cosmos/cosmos-sdk' },
+
+      // Connect RPC
+      { pattern: /^connectrpc\//, module: 'buf.build/connectrpc/connect' },
+    ];
+
+    for (const { pattern, module } of moduleMap) {
+      if (pattern.test(importPath)) {
+        return module;
+      }
+    }
+
+    return null;
   }
 }

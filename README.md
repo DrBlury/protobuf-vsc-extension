@@ -60,6 +60,8 @@ Full Protocol Buffers language support for VS Code: navigation, IntelliSense, di
 - **Templates**: Pre-built templates for common proto patterns
 - **Refactoring**: Rename, renumber fields/enums, quick fixes for imports and naming
 - **Toolchain Management**: Install and manage protoc/buf directly from VS Code
+- **Auto-Detection**: Automatically detect installed tools (buf, protolint, protoc) and suggest configuration
+- **Dependency Suggestions**: Suggest adding BSR modules to buf.yaml when external imports are detected
 
 See the [Complete Features List](./docs/FEATURES.md) for a comprehensive overview of all 100+ features.
 
