@@ -55,11 +55,11 @@ export class ReferencesProvider {
     let start = character;
     let end = character;
 
-    while (start > 0 && /[a-zA-Z0-9_.]/.test(line[start - 1])) {
+    while (start > 0 && /[a-zA-Z0-9_.]/.test(line[start - 1]!)) {
       start--;
     }
 
-    while (end < line.length && /[a-zA-Z0-9_.]/.test(line[end])) {
+    while (end < line.length && /[a-zA-Z0-9_.]/.test(line[end]!)) {
       end++;
     }
 

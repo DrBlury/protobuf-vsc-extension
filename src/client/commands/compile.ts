@@ -42,7 +42,7 @@ export function registerCompileCommands(
  * @returns A disposable for the registered command
  */
 function registerCompileFileCommand(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.compileFile', async () => {
@@ -79,7 +79,7 @@ function registerCompileFileCommand(
  * @returns A disposable for the registered command
  */
 function registerCompileAllCommand(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.compileAll', async () => {
@@ -91,7 +91,7 @@ function registerCompileAllCommand(
       }
 
       const result = (await client.sendRequest(REQUEST_METHODS.COMPILE_ALL, {
-        workspaceRoot: workspaceFolders[0].uri.fsPath
+        workspaceRoot: workspaceFolders[0]!.uri.fsPath
       })) as CompileAllResult;
 
       if (result.success) {

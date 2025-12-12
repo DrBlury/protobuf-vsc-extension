@@ -189,7 +189,7 @@ export class SymbolProvider {
   private fuzzyMatch(text: string, query: string): boolean {
     let textIndex = 0;
     for (let i = 0; i < query.length; i++) {
-      const char = query[i];
+      const char = query[i]!;
       const foundIndex = text.indexOf(char, textIndex);
       if (foundIndex === -1) {
         return false;

@@ -9,7 +9,6 @@ export class SchemaGraphPanel {
   private static currentPanel: SchemaGraphPanel | undefined;
 
   private readonly panel: vscode.WebviewPanel;
-  private readonly extensionUri: vscode.Uri;
   private readonly client: LanguageClient;
   private currentScope: SchemaGraphScope;
   private sourceUri?: string;
@@ -42,13 +41,12 @@ export class SchemaGraphPanel {
 
   private constructor(
     panel: vscode.WebviewPanel,
-    extensionUri: vscode.Uri,
+    _extensionUri: vscode.Uri,
     client: LanguageClient,
     sourceUri: string | undefined,
     scope: SchemaGraphScope
   ) {
     this.panel = panel;
-    this.extensionUri = extensionUri;
     this.client = client;
     this.sourceUri = sourceUri;
     this.currentScope = scope;

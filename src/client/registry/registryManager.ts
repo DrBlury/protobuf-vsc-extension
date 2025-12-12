@@ -26,7 +26,7 @@ export class RegistryManager {
       return;
     }
 
-    const rootPath = workspaceFolders[0].uri.fsPath;
+    const rootPath = workspaceFolders[0]!.uri.fsPath;
     const bufYamlPath = path.join(rootPath, 'buf.yaml');
 
     if (!fs.existsSync(bufYamlPath)) {

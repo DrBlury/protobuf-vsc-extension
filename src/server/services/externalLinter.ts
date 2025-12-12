@@ -235,11 +235,11 @@ export class ExternalLinterProvider {
 
       while ((match = errorRegex.exec(output)) !== null) {
         results.push({
-          file: match[1],
-          line: parseInt(match[2], 10),
-          column: parseInt(match[3], 10),
+          file: match[1]!,
+          line: parseInt(match[2]!, 10),
+          column: parseInt(match[3]!, 10),
           rule: 'BUF_LINT',
-          message: match[4].trim(),
+          message: match[4]!.trim(),
           severity: 'warning'
         });
       }
@@ -275,11 +275,11 @@ export class ExternalLinterProvider {
 
       while ((match = errorRegex.exec(output)) !== null) {
         results.push({
-          file: match[1],
-          line: parseInt(match[2], 10),
-          column: parseInt(match[3], 10),
-          message: match[4].trim(),
-          rule: match[5],
+          file: match[1]!,
+          line: parseInt(match[2]!, 10),
+          column: parseInt(match[3]!, 10),
+          message: match[4]!.trim(),
+          rule: match[5]!,
           severity: 'warning'
         });
       }

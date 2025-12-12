@@ -273,7 +273,7 @@ export class ToolchainManager {
     });
 
     if (selection) {
-      const toolName = selection.label.split(' ')[1]; // extract name
+      const toolName = selection.label.split(' ')[1]!; // extract name
       await this.promptInstall(toolName);
     }
   }

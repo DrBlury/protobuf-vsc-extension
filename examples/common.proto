@@ -7,47 +7,48 @@ import "google/type/timeofday.proto";
 
 // Common timestamp wrapper
 message Date {
-	int32 year  = 1;
+	int32 year = 1;
 	int32 month = 2;
-	int32 day   = 3;
+	int32 day = 3;
 }
 
 // Common money representation
 message Money {
 	string currency_code = 1;
-	int64  units         = 2;
-	int32  nanos         = 3;
+	int64 units = 2;
+	int32 nanos = 3;
 }
 
 message Testmessage {
-	Money     testmoney   = 1;
-	BoolValue testmone    = 2;
+	Money testmoney = 1;
+	BoolValue testmone = 2;
 	TimeOfDay time_of_day = 3;
 }
 
 // Common pagination request
 message PaginationRequest {
-	int32  page_size  = 1;
+	int32 page_size = 1;
 	string page_token = 2;
+	uint32 page_number = 3; // testcomment
 }
 
 // Common pagination response
 message PaginationResponse {
 	string next_page_token = 1;
-	int32  total_count     = 2;
+	int32 total_count = 2;
 }
 
 // Common error details
 message ErrorDetails {
-	string          code    = 1;
-	string          message = 2;
+	string code = 1;
+	string message = 2;
 	repeated string details = 3;
 }
 
 // Status enum
 enum Status {
 	STATUS_UNSPECIFIED = 0;
-	STATUS_ACTIVE      = 1;
-	STATUS_INACTIVE    = 2;
-	STATUS_DELETED     = 3;
+	STATUS_ACTIVE = 1;
+	STATUS_INACTIVE = 2;
+	STATUS_DELETED = 3;
 }

@@ -5,10 +5,8 @@ import * as os from 'os';
 import { spawn } from 'child_process';
 
 export class SchemaDiffManager {
-  private outputChannel: vscode.OutputChannel;
-
-  constructor(outputChannel: vscode.OutputChannel) {
-    this.outputChannel = outputChannel;
+  constructor(_outputChannel: vscode.OutputChannel) {
+    // outputChannel reserved for future use
   }
 
   public async diffSchema(uri?: vscode.Uri): Promise<void> {

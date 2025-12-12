@@ -38,7 +38,7 @@ export function registerBreakingCommands(
  * @returns A disposable for the registered command
  */
 function registerCheckBreakingChangesCommand(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.checkBreakingChanges', async () => {

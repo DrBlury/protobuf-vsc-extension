@@ -255,8 +255,8 @@ export class BufConfigProvider {
       const match = trimmed.match(/^(\w+):\s*(.*)$/);
 
       if (match && isTopLevel) {
-        const key = match[1];
-        const value = match[2];
+        const key = match[1]!;
+        const value = match[2]!;
 
         if (key === 'version') {
           config.version = value;
@@ -345,7 +345,7 @@ export class BufConfigProvider {
         inDirectories = false;
         const match = trimmed.match(/^version:\s*(.+)$/);
         if (match) {
-          config.version = match[1].trim();
+          config.version = match[1]!.trim();
         }
       }
     }

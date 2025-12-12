@@ -31,7 +31,7 @@ export class DefinitionProvider {
     // Check if this is an import statement - navigate to the imported file
     const importMatch = lineText.match(/import\s+(weak|public)?\s*"([^"]+)"/);
     if (importMatch) {
-      const importPath = importMatch[2];
+      const importPath = importMatch[2]!;
       return this.resolveImportLocation(uri, importPath);
     }
 
@@ -176,16 +176,16 @@ export class DefinitionProvider {
     let end = character;
 
     // If cursor is on whitespace/non-word, step left once to catch the nearest symbol
-    if (start > 0 && !isIdentChar(line[start]) && isIdentChar(line[start - 1])) {
+    if (start > 0 && !isIdentChar(line[start]!) && isIdentChar(line[start - 1]!)) {
       start -= 1;
       end = start;
     }
 
-    while (start > 0 && isIdentChar(line[start - 1])) {
+    while (start > 0 && isIdentChar(line[start - 1]!)) {
       start--;
     }
 
-    while (end < line.length && isIdentChar(line[end])) {
+    while (end < line.length && isIdentChar(line[end]!)) {
       end++;
     }
 

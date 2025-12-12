@@ -33,7 +33,7 @@ export function registerRenumberCommands(
  * @returns A disposable for the registered command
  */
 function registerRenumberDocumentCommand(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.renumberDocument', async () => {
@@ -64,7 +64,7 @@ function registerRenumberDocumentCommand(
  * @returns A disposable for the registered command
  */
 function registerRenumberMessageCommand(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand(
@@ -137,7 +137,7 @@ function registerRenumberMessageCommand(
  * @returns A disposable for the registered command
  */
 function registerRenumberFromCursorCommand(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand(
@@ -178,7 +178,7 @@ function registerRenumberFromCursorCommand(
  * @returns A disposable for the registered command
  */
 function registerRenumberEnumCommand(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand(

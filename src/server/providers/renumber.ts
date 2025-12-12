@@ -126,7 +126,7 @@ export class RenumberProvider {
     // If there are fields before, continue from the last number
     const fieldsBefore = allFields.filter(f => f.range.start.line < position.line);
     if (fieldsBefore.length > 0) {
-      const lastField = fieldsBefore[fieldsBefore.length - 1];
+      const lastField = fieldsBefore[fieldsBefore.length - 1]!;
       nextNumber = lastField.number + this.settings.increment;
     }
 
@@ -333,8 +333,8 @@ export class RenumberProvider {
       return null;
     }
 
-    const numberStart = line.indexOf(match[1], line.indexOf('='));
-    const numberEnd = numberStart + match[1].length;
+    const numberStart = line.indexOf(match[1]!, line.indexOf('='));
+    const numberEnd = numberStart + match[1]!.length;
 
     return {
       range: {
@@ -357,8 +357,8 @@ export class RenumberProvider {
       return null;
     }
 
-    const numberStart = line.indexOf(match[1], line.indexOf('='));
-    const numberEnd = numberStart + match[1].length;
+    const numberStart = line.indexOf(match[1]!, line.indexOf('='));
+    const numberEnd = numberStart + match[1]!.length;
 
     return {
       range: {

@@ -33,7 +33,7 @@ export function registerImportCommands(
  * @returns A disposable for the registered command
  */
 function registerOpenImportedFileCommand(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.openImportedFile', async () => {

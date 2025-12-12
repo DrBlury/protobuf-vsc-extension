@@ -86,7 +86,7 @@ export class ProtocCompiler {
       proc.on('close', (code: number | null) => {
         if (code === 0) {
           const match = output.match(/libprotoc\s+([\d.]+)/);
-          resolve(match ? match[1] : output.trim());
+          resolve(match ? match[1]! : output.trim());
         } else {
           resolve(null);
         }
@@ -240,11 +240,11 @@ export class ProtocCompiler {
       if (match) {
         const [, file, lineStr, colStr, message] = match;
         errors.push({
-          file: file.trim(),
-          line: parseInt(lineStr, 10),
+          file: file!.trim(),
+          line: parseInt(lineStr!, 10),
           column: colStr ? parseInt(colStr, 10) : 1,
-          message: message.trim(),
-          severity: message.toLowerCase().includes('warning') ? 'warning' : 'error'
+          message: message!.trim(),
+          severity: message!.toLowerCase().includes('warning') ? 'warning' : 'error'
         });
       }
     }

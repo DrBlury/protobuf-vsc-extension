@@ -42,7 +42,7 @@ export function registerGrpcCommands(
  * List all gRPC services in workspace
  */
 function registerListGrpcServicesCommand(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.listGrpcServices', async () => {
@@ -85,7 +85,7 @@ function registerListGrpcServicesCommand(
  * Show gRPC service details
  */
 function registerShowGrpcServiceCommand(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.showGrpcService', async () => {
@@ -106,7 +106,7 @@ function registerShowGrpcServiceCommand(
     }
 
     if (servicesInFile.length === 1) {
-      showServiceDetails(servicesInFile[0]);
+      showServiceDetails(servicesInFile[0]!);
     } else {
       const selected = await vscode.window.showQuickPick(
         servicesInFile.map(s => ({
@@ -127,7 +127,7 @@ function registerShowGrpcServiceCommand(
  * Generate client stub code
  */
 function registerGenerateClientStubCommand(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.generateGrpcClientStub', async () => {
@@ -206,7 +206,7 @@ function registerGenerateClientStubCommand(
  * Generate server template code
  */
 function registerGenerateServerTemplateCommand(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.generateGrpcServerTemplate', async () => {
@@ -285,7 +285,7 @@ function registerGenerateServerTemplateCommand(
  * Show gRPC service statistics
  */
 function registerShowGrpcServiceStatsCommand(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.showGrpcServiceStats', async () => {

@@ -81,11 +81,11 @@ export class HoverProvider {
     let start = character;
     let end = character;
 
-    while (start > 0 && /[a-zA-Z0-9_.]/.test(line[start - 1])) {
+    while (start > 0 && /[a-zA-Z0-9_.]/.test(line[start - 1]!)) {
       start--;
     }
 
-    while (end < line.length && /[a-zA-Z0-9_.]/.test(line[end])) {
+    while (end < line.length && /[a-zA-Z0-9_.]/.test(line[end]!)) {
       end++;
     }
 
@@ -408,8 +408,8 @@ export class HoverProvider {
 
     // Handle dot-separated words - extract segments for matching
     const wordParts = word.split('.');
-    const firstPart = wordParts[0];
-    const lastPart = wordParts[wordParts.length - 1];
+    const firstPart = wordParts[0]!;
+    const lastPart = wordParts[wordParts.length - 1]!;
 
     // CEL functions - always show if the word matches (check both full word and last segment)
     const celFunctions: Record<string, { signature: string; description: string; example?: string }> = {
@@ -845,7 +845,7 @@ export class HoverProvider {
 
     // Handle dot-separated words - extract the last segment for constraint matching
     const wordParts = word.split('.');
-    const lastPart = wordParts[wordParts.length - 1];
+    const lastPart = wordParts[wordParts.length - 1]!;
     // Also check if this is part of a constraint path like "string.min_len"
     const checkWord = lastPart;
 

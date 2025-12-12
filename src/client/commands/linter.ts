@@ -40,7 +40,7 @@ export function registerLinterCommands(
  * @returns A disposable for the registered command
  */
 function registerRunExternalLinterCommand(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.runExternalLinter', async () => {
@@ -80,7 +80,7 @@ function registerRunExternalLinterCommand(
  * @returns A disposable for the registered command
  */
 function registerShowAvailableLintRulesCommand(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.showAvailableLintRules', async () => {

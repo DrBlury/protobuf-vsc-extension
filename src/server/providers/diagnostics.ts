@@ -161,7 +161,7 @@ export class DiagnosticsProvider {
     return diagnostics;
   }
 
-  private validateSyntaxOrEdition(uri: string, file: ProtoFile, diagnostics: Diagnostic[]): void {
+  private validateSyntaxOrEdition(_uri: string, file: ProtoFile, diagnostics: Diagnostic[]): void {
     const hasSyntax = !!file.syntax;
     const hasEdition = !!file.edition;
 
@@ -187,7 +187,7 @@ export class DiagnosticsProvider {
       if (segments.length < 2) {
         return;
       }
-      const dir = segments[segments.length - 2];
+      const dir = segments[segments.length - 2]!;
       const pkgSegments = file.package.name.split('.');
       if (!pkgSegments.includes(dir)) {
         diagnostics.push({
@@ -202,7 +202,7 @@ export class DiagnosticsProvider {
     }
   }
 
-  private validateMissingSemicolons(uri: string, text: string, diagnostics: Diagnostic[]): void {
+  private validateMissingSemicolons(_uri: string, text: string, diagnostics: Diagnostic[]): void {
     const lines = text.split('\n');
 
     const fieldLike = /^(?:optional|required|repeated)?\s*([A-Za-z_][\w<>.,]*)\s+([A-Za-z_][\w]*)(?:\s*=\s*\d+)?/;
@@ -210,7 +210,7 @@ export class DiagnosticsProvider {
     const enumValueLike = /^(?:[A-Za-z_][\w]*)\s*=\s*-?\d+(?:\s*\[.*\])?/;
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
       const trimmed = line.trim();
 
       if (trimmed === '' || trimmed.startsWith('//') || trimmed.startsWith('/*')) {
@@ -242,7 +242,7 @@ export class DiagnosticsProvider {
         severity: DiagnosticSeverity.Warning,
         range: {
           start: { line: i, character: 0 },
-          end: { line: i, character: line.length }
+          end: { line: i, character: line!.length }
         },
         message: 'Missing semicolon',
         source: DIAGNOSTIC_SOURCE
@@ -715,9 +715,9 @@ export class DiagnosticsProvider {
   }
 
   private validateEnum(
-    uri: string,
+    _uri: string,
     enumDef: EnumDefinition,
-    prefix: string,
+    _prefix: string,
     diagnostics: Diagnostic[]
   ): void {
     // Check naming convention (PascalCase)
@@ -760,7 +760,7 @@ export class DiagnosticsProvider {
     if (this.settings.discouragedConstructs && !hasZeroValue && enumDef.values.length > 0) {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
-        range: this.toRange(enumDef.values[0].range),
+        range: this.toRange(enumDef.values[0]!.range),
         message: `First enum value should be 0 in proto3`,
         source: DIAGNOSTIC_SOURCE
       });
@@ -1143,15 +1143,15 @@ export class DiagnosticsProvider {
     }
 
     const sorted = [...fields].sort((a, b) => a.number - b.number);
-    let prev = sorted[0].number;
+    let prev = sorted[0]!.number;
 
     for (let i = 1; i < sorted.length; i++) {
-      const current = sorted[i].number;
+      const current = sorted[i]!.number;
 
       if (current <= prev) {
         diagnostics.push({
           severity: DiagnosticSeverity.Warning,
-          range: this.toRange(sorted[i].range),
+          range: this.toRange(sorted[i]!.range),
           message: `Field number ${current} is not strictly increasing (previous ${prev}). Consider renumbering`,
           source: DIAGNOSTIC_SOURCE
         });
@@ -1170,7 +1170,7 @@ export class DiagnosticsProvider {
         if (missingNumbers.length > 0) {
           diagnostics.push({
             severity: DiagnosticSeverity.Hint,
-            range: this.toRange(sorted[i].range),
+            range: this.toRange(sorted[i]!.range),
             message: `Gap in field numbers between ${prev} and ${current}. Run renumber to close gaps`,
             source: DIAGNOSTIC_SOURCE
           });
@@ -1185,8 +1185,8 @@ export class DiagnosticsProvider {
     const ranges = message.reserved.map(r => r.ranges).flat();
     for (let i = 0; i < ranges.length; i++) {
       for (let j = i + 1; j < ranges.length; j++) {
-        const a = ranges[i];
-        const b = ranges[j];
+        const a = ranges[i]!;
+        const b = ranges[j]!;
         const aEnd = a.end === 'max' ? MAX_FIELD_NUMBER : a.end;
         const bEnd = b.end === 'max' ? MAX_FIELD_NUMBER : b.end;
         const overlap = Math.max(a.start, b.start) <= Math.min(aEnd, bEnd);
@@ -1418,7 +1418,7 @@ export class DiagnosticsProvider {
    * Validate extension ranges
    */
   private validateExtensions(
-    uri: string,
+    _uri: string,
     message: MessageDefinition,
     diagnostics: Diagnostic[]
   ): void {
@@ -1618,7 +1618,7 @@ export class DiagnosticsProvider {
    * Validate documentation comments
    * Check for missing documentation on public APIs
    */
-  private validateDocumentationComments(uri: string, file: ProtoFile, diagnostics: Diagnostic[]): void {
+  private validateDocumentationComments(_uri: string, file: ProtoFile, diagnostics: Diagnostic[]): void {
     // Check top-level messages (public API)
     for (const message of file.messages) {
       if (!this.hasDocumentationComment(message.range, file)) {
@@ -1682,7 +1682,7 @@ export class DiagnosticsProvider {
 
     // Check the line before the definition
     if (definitionLine > 0) {
-      const prevLine = lines[definitionLine - 1].trim();
+      const prevLine = lines[definitionLine - 1]!.trim();
       // Check for single-line comment
       if (prevLine.startsWith('//') || prevLine.startsWith('///')) {
         return true;
@@ -1691,7 +1691,7 @@ export class DiagnosticsProvider {
 
     // Check 2 lines before (for multi-line comments)
     if (definitionLine > 1) {
-      const prevLine2 = lines[definitionLine - 2].trim();
+      const prevLine2 = lines[definitionLine - 2]!.trim();
       if (prevLine2.includes('/*') || prevLine2.includes('/**')) {
         return true;
       }

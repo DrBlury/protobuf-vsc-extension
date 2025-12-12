@@ -59,7 +59,7 @@ export class ProtoFormatter {
   async formatDocument(text: string, uri?: string): Promise<TextEdit[]> {
     if (this.settings.preset === 'google' && this.clangFormat) {
       const lines = text.split('\n');
-      const range = Range.create(0, 0, lines.length, lines[lines.length - 1].length);
+      const range = Range.create(0, 0, lines.length, lines[lines.length - 1]!.length);
       const filePath = this.getFsPathFromUri(uri);
       const edits = await this.clangFormat.formatRange(text, range, filePath);
       if (edits && edits.length > 0) {
@@ -78,7 +78,7 @@ export class ProtoFormatter {
       if (formatted) {
         const lines = text.split('\n');
         return [{
-          range: Range.create(0, 0, lines.length, lines[lines.length - 1].length),
+          range: Range.create(0, 0, lines.length, lines[lines.length - 1]!.length),
           newText: formatted
         }];
       }
@@ -95,7 +95,7 @@ export class ProtoFormatter {
     return [{
       range: {
         start: { line: 0, character: 0 },
-        end: { line: lines.length - 1, character: lines[lines.length - 1].length }
+        end: { line: lines.length - 1, character: lines[lines.length - 1]!.length }
       },
       newText: formatted
     }];
@@ -128,7 +128,7 @@ export class ProtoFormatter {
     // Determine indent level at start of range
     let indentLevel = 0;
     for (let i = 0; i < startLine; i++) {
-      const line = lines[i].trim();
+      const line = lines[i]!.trim();
       if (line.includes('{') && !line.includes('}')) {
         indentLevel++;
       }
@@ -143,7 +143,7 @@ export class ProtoFormatter {
     return [{
       range: {
         start: { line: startLine, character: 0 },
-        end: { line: endLine, character: lines[endLine].length }
+        end: { line: endLine, character: lines[endLine]!.length }
       },
       newText: formatted
     }];
@@ -169,7 +169,7 @@ export class ProtoFormatter {
     let currentBlockStartLine = 0;
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
       const trimmedLine = line.trim();
 
       // Handle block comments
@@ -337,7 +337,7 @@ export class ProtoFormatter {
     const mapMatch = line.match(/^map\s*<(.+)>\s+(\w+)\s*=\s*(\d+)(.*)$/);
     if (mapMatch) {
       const [, mapContent, name, number, rest] = mapMatch;
-      const { keyType, valueType } = this.parseMapTypes(mapContent);
+      const { keyType, valueType } = this.parseMapTypes(mapContent!);
       return `${indent}map<${keyType}, ${valueType}> ${name} = ${number}${rest}`;
     }
 
@@ -347,7 +347,7 @@ export class ProtoFormatter {
     if (enumValueMatch && !line.match(/^(option|syntax|edition)\s/)) {
       const [, name, value, rest] = enumValueMatch;
       // Strip any repeated "= N" patterns from rest, but keep options [...] and comments
-      const cleanedRest = rest.replace(/\s*=\s*-?\d+/g, '');
+      const cleanedRest = rest!.replace(/\s*=\s*-?\d+/g, '');
       return `${indent}${name} = ${value}${cleanedRest}`;
     }
 
@@ -421,7 +421,7 @@ export class ProtoFormatter {
     let maxKeyLength = 0;
 
     for (let i = 0; i < lines.length; i++) {
-      const trimmedLine = lines[i].trim();
+      const trimmedLine = lines[i]!.trim();
 
       // Track block starts (message, enum, option)
       if (/^(message|enum)\s+\w+\s*\{/.test(trimmedLine)) {
@@ -480,7 +480,7 @@ export class ProtoFormatter {
       if (inOptionBlock) {
         const optionKeyMatch = trimmedLine.match(/^(\w+):\s*/);
         if (optionKeyMatch) {
-          const keyLen = optionKeyMatch[1].length;
+          const keyLen = optionKeyMatch[1]!.length;
           maxKeyLength = Math.max(maxKeyLength, keyLen);
         }
         continue;
@@ -491,9 +491,9 @@ export class ProtoFormatter {
       const fieldMatch = trimmedLine.match(/^(optional|required|repeated)?\s*(\S+)\s+(\w+)\s*=/);
       if (fieldMatch) {
         const [, modifier, type, name] = fieldMatch;
-        const typeWithModifier = modifier ? `${modifier} ${type}` : type;
+        const typeWithModifier = modifier ? `${modifier} ${type}` : type!;
         maxTypeLength = Math.max(maxTypeLength, typeWithModifier.length);
-        maxFieldNameLength = Math.max(maxFieldNameLength, name.length);
+        maxFieldNameLength = Math.max(maxFieldNameLength, name!.length);
         continue;
       }
 
@@ -503,10 +503,10 @@ export class ProtoFormatter {
       if (mapMatch) {
         const [, mapContent, name] = mapMatch;
         // Parse key and value types (find comma at depth 0)
-        const { keyType, valueType } = this.parseMapTypes(mapContent);
+        const { keyType, valueType } = this.parseMapTypes(mapContent!);
         const mapType = `map<${keyType}, ${valueType}>`;
         maxTypeLength = Math.max(maxTypeLength, mapType.length);
-        maxFieldNameLength = Math.max(maxFieldNameLength, name.length);
+        maxFieldNameLength = Math.max(maxFieldNameLength, name!.length);
         continue;
       }
 
@@ -514,7 +514,7 @@ export class ProtoFormatter {
       const enumMatch = trimmedLine.match(/^(\w+)\s*=/);
       if (enumMatch && !trimmedLine.startsWith('option')) {
         const [, name] = enumMatch;
-        maxFieldNameLength = Math.max(maxFieldNameLength, name.length);
+        maxFieldNameLength = Math.max(maxFieldNameLength, name!.length);
       }
     }
 
@@ -541,9 +541,9 @@ export class ProtoFormatter {
     const fieldMatch = line.match(/^(optional|required|repeated)?\s*(\S+)\s+(\w+)\s*=\s*(\d+)(.*)$/);
     if (fieldMatch) {
       const [, modifier, type, name, number, rest] = fieldMatch;
-      const typeWithModifier = modifier ? `${modifier} ${type}` : type;
+      const typeWithModifier = modifier ? `${modifier} ${type}` : type!;
       const typePadding = ' '.repeat(Math.max(0, maxTypeLength - typeWithModifier.length));
-      const namePadding = ' '.repeat(Math.max(0, maxFieldNameLength - name.length));
+      const namePadding = ' '.repeat(Math.max(0, maxFieldNameLength - name!.length));
       return `${indent}${typeWithModifier}${typePadding} ${name}${namePadding} = ${number}${rest}`;
     }
 
@@ -552,10 +552,10 @@ export class ProtoFormatter {
     const mapMatch = line.match(/^map\s*<(.+)>\s+(\w+)\s*=\s*(\d+)(.*)$/);
     if (mapMatch) {
       const [, mapContent, name, number, rest] = mapMatch;
-      const { keyType, valueType } = this.parseMapTypes(mapContent);
+      const { keyType, valueType } = this.parseMapTypes(mapContent!);
       const mapType = `map<${keyType}, ${valueType}>`;
       const typePadding = ' '.repeat(Math.max(0, maxTypeLength - mapType.length));
-      const namePadding = ' '.repeat(Math.max(0, maxFieldNameLength - name.length));
+      const namePadding = ' '.repeat(Math.max(0, maxFieldNameLength - name!.length));
       return `${indent}${mapType}${typePadding} ${name}${namePadding} = ${number}${rest}`;
     }
 
@@ -564,8 +564,8 @@ export class ProtoFormatter {
     // Check that this is not a statement line (option, syntax, edition) by checking the start
     if (enumValueMatch && !line.match(/^(option|syntax|edition)\s/)) {
       const [, name, value, rest] = enumValueMatch;
-      const cleanedRest = rest.replace(/\s*=\s*-?\d+/g, '');
-      const namePadding = ' '.repeat(Math.max(0, maxFieldNameLength - name.length));
+      const cleanedRest = rest!.replace(/\s*=\s*-?\d+/g, '');
+      const namePadding = ' '.repeat(Math.max(0, maxFieldNameLength - name!.length));
       return `${indent}${name}${namePadding} = ${value}${cleanedRest}`;
     }
 
@@ -589,7 +589,7 @@ export class ProtoFormatter {
     const keyValueMatch = line.match(/^(\w+):\s*(.*)$/);
     if (keyValueMatch) {
       const [, key, value] = keyValueMatch;
-      const keyPadding = ' '.repeat(Math.max(0, maxKeyLength - key.length));
+      const keyPadding = ' '.repeat(Math.max(0, maxKeyLength - key!.length));
       return `${indent}${key}${keyPadding}: ${value}`;
     }
 
@@ -650,7 +650,7 @@ export class ProtoFormatter {
     let inlineOptionBraceDepth = 0;
 
     for (let i = 0; i < lines.length; i++) {
-      let line = lines[i];
+      let line = lines[i]!;
       const trimmedLine = line.trim();
 
       // Track multi-line option blocks (e.g., option (buf.validate.message).cel = { ... })
@@ -715,7 +715,7 @@ export class ProtoFormatter {
       if (/^oneof\s+\w+\s*\{/.test(trimmedLine)) {
         // Oneofs share field numbers with parent message, so don't reset counter
         // Just mark we're in a oneof
-        const parentCounter = contextStack.length > 0 ? contextStack[contextStack.length - 1].fieldCounter : 1;
+        const parentCounter = contextStack.length > 0 ? contextStack[contextStack.length - 1]!.fieldCounter : 1;
         contextStack.push({ type: 'oneof', fieldCounter: parentCounter });
         result.push(line);
         continue;
@@ -742,7 +742,7 @@ export class ProtoFormatter {
           const popped = contextStack.pop()!;
           // If we're exiting a oneof, update parent's counter
           if (popped.type === 'oneof' && contextStack.length > 0) {
-            contextStack[contextStack.length - 1].fieldCounter = popped.fieldCounter;
+            contextStack[contextStack.length - 1]!.fieldCounter = popped.fieldCounter;
           }
         }
         result.push(line);
@@ -765,14 +765,14 @@ export class ProtoFormatter {
 
         // Handle enum values FIRST - before field matching which would incorrectly match them
         // Enum values: preserve alignment, just clean up any duplicate assignments
-        if (currentContext.type === 'enum') {
+        if (currentContext!.type === 'enum') {
           const enumMatch = line.match(/^(.+=\s*)(-?\d+)(.*)$/);
 
           if (enumMatch && !trimmedLine.startsWith('option')) {
             const [, beforeNumber, firstNumber, rest] = enumMatch;
 
             // Remove any additional "= <number>" sequences after the first number
-            const cleanedRest = rest.replace(/(\s*=\s*-?\d+)+/g, '');
+            const cleanedRest = rest!.replace(/(\s*=\s*-?\d+)+/g, '');
 
             // Ensure line ends with semicolon, but respect inline comments
             // Detect semicolon presence before any inline comment markers
@@ -819,7 +819,7 @@ export class ProtoFormatter {
 
         if (fieldNumberMatch) {
           const [, beforeNumber, existingNumberStr, afterNumber] = fieldNumberMatch;
-          const existingNumber = parseInt(existingNumberStr, 10);
+          const existingNumber = parseInt(existingNumberStr!, 10);
 
           let finalNumber = existingNumber;
           if (finalNumber >= FIELD_NUMBER.RESERVED_RANGE_START && finalNumber <= FIELD_NUMBER.RESERVED_RANGE_END) {
@@ -828,7 +828,7 @@ export class ProtoFormatter {
 
           // Preserve the original line structure, just replace the number
           line = `${beforeNumber}${finalNumber}${afterNumber}`;
-          currentContext.fieldCounter = finalNumber + increment;
+          currentContext!.fieldCounter = finalNumber + increment;
 
           result.push(line);
           continue;

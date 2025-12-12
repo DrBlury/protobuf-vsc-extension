@@ -121,7 +121,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const fs = await import('fs');
     const pathModule = await import('path');
 
-    let searchDir = editor ? pathModule.dirname(editor.document.uri.fsPath) : workspaceFolders[0].uri.fsPath;
+    let searchDir = editor ? pathModule.dirname(editor.document.uri.fsPath) : workspaceFolders[0]!.uri.fsPath;
     let bufYamlPath: string | null = null;
 
     while (searchDir !== pathModule.dirname(searchDir)) {
@@ -139,7 +139,7 @@ export async function activate(context: vscode.ExtensionContext) {
         'Create', 'Cancel'
       );
       if (create === 'Create') {
-        const rootPath = workspaceFolders[0].uri.fsPath;
+        const rootPath = workspaceFolders[0]!.uri.fsPath;
         bufYamlPath = pathModule.join(rootPath, 'buf.yaml');
         const content = `version: v2
 deps:
@@ -296,11 +296,11 @@ breaking:
     const depsMatch = bufYamlContent.match(/^deps:\s*\n((?:\s+-\s+.+\n?)+)/m);
     const deps: string[] = [];
     if (depsMatch) {
-      const depsLines = depsMatch[1].split('\n');
+      const depsLines = depsMatch[1]!.split('\n');
       for (const line of depsLines) {
         const depMatch = line.match(/^\s+-\s+(.+)/);
         if (depMatch) {
-          deps.push(depMatch[1].trim());
+          deps.push(depMatch[1]!.trim());
         }
       }
     }
@@ -484,7 +484,7 @@ breaking:
               diagnostic.message.includes("cannot be resolved")) {
             const match = diagnostic.message.match(/Import '([^']+)' cannot be resolved/);
             if (match) {
-              unresolvedImports.push(match[1]);
+              unresolvedImports.push(match[1]!);
             }
           }
         }
@@ -624,11 +624,11 @@ function parseEditionsErrors(stderr: string, cwd: string): Array<{filePath: stri
   let match;
   while ((match = regex.exec(stderr)) !== null) {
     const [, filePath, lineStr, fieldName, label] = match;
-    const fullPath = path.isAbsolute(filePath) ? filePath : path.join(cwd, filePath);
+    const fullPath = path.isAbsolute(filePath!) ? filePath! : path.join(cwd, filePath!);
     errors.push({
       filePath: fullPath,
-      line: parseInt(lineStr, 10),
-      fieldName,
+      line: parseInt(lineStr!, 10),
+      fieldName: fieldName!,
       label: label as 'optional' | 'required',
     });
   }
@@ -674,7 +674,7 @@ async function fixEditionsErrors(
       for (const error of fileErrors) {
         const lineIndex = error.line - 1;
         if (lineIndex >= 0 && lineIndex < lines.length) {
-          const line = lines[lineIndex];
+          const line = lines[lineIndex]!;
           outputChannel.appendLine(`  Line ${error.line}: "${line.substring(0, 60)}..."`);
 
           // Match: optional/required Type name = N; or optional/required Type name = N [options];
@@ -687,9 +687,9 @@ async function fixEditionsErrors(
             if (existingOptions) {
               // Append to existing options
               const optionsContent = existingOptions.slice(1, -1).trim();
-              newLine = `${indent}${type} ${name} = ${number} [${optionsContent}, features.field_presence = ${presenceValue}];`;
+              newLine = `${indent!}${type!} ${name!} = ${number!} [${optionsContent}, features.field_presence = ${presenceValue}];`;
             } else {
-              newLine = `${indent}${type} ${name} = ${number} [features.field_presence = ${presenceValue}];`;
+              newLine = `${indent!}${type!} ${name!} = ${number!} [features.field_presence = ${presenceValue}];`;
             }
 
             lines[lineIndex] = newLine;

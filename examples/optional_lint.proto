@@ -15,22 +15,22 @@ message AnotherMessage {
 
 message TestOptional {
 	// Go to Definition should work for MyMessage here
-	optional MyMessage      optional_field   = 1;
+	optional MyMessage optional_field = 1;
 
 	// Standard field for comparison
-	MyMessage               regular_field    = 2;
+	MyMessage regular_field = 2;
 
 	// Repeated still works
-	repeated MyMessage      repeated_field   = 3;
+	repeated MyMessage repeated_field = 3;
 
 	// Optional with another type
 	optional AnotherMessage another_optional = 4;
 
 	// Optional primitive
-	optional string         optional_string  = 5;
+	optional string optional_string = 5;
 
 	// Optional in map value (edge case)
-	map<string, MyMessage>  map_field        = 6;
+	map<string, MyMessage> map_field = 6;
 }
 
 // Test in RPC context

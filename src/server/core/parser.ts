@@ -95,12 +95,10 @@ interface Token {
 export class ProtoParser {
   private tokens: Token[] = [];
   private pos = 0;
-  private text = '';
   private lines: string[] = [];
   private lastComment: string | undefined;
 
   parse(text: string, _uri: string): ProtoFile {
-    this.text = text;
     this.lines = text.split('\n');
     this.tokens = this.tokenize(text);
     this.pos = 0;
@@ -146,8 +144,8 @@ export class ProtoParser {
       const startChar = character;
 
       // Skip whitespace
-      if (/\s/.test(text[i])) {
-        if (text[i] === '\n') {
+      if (/\s/.test(text[i]!)) {
+        if (text[i]! === '\n') {
           line++;
           character = 0;
         } else {
@@ -237,34 +235,34 @@ export class ProtoParser {
       }
 
       // Number (including + or - prefix per spec)
-      if (/[0-9]/.test(text[i]) || ((text[i] === '-' || text[i] === '+') && /[0-9]/.test(text[i + 1]))) {
+      if (/[0-9]/.test(text[i]!) || ((text[i]! === '-' || text[i]! === '+') && /[0-9]/.test(text[i + 1]!))) {
         const start = i;
         if (text[i] === '-' || text[i] === '+') {
           i++;
           character++;
         }
         // Handle hex, octal, or decimal
-        if (text[i] === '0' && (text[i + 1] === 'x' || text[i + 1] === 'X')) {
+        if (text[i]! === '0' && (text[i + 1] === 'x' || text[i + 1] === 'X')) {
           i += 2;
           character += 2;
-          while (i < text.length && /[0-9a-fA-F]/.test(text[i])) {
+          while (i < text.length && /[0-9a-fA-F]/.test(text[i]!)) {
             i++;
             character++;
           }
         } else {
-          while (i < text.length && /[0-9.]/.test(text[i])) {
+          while (i < text.length && /[0-9.]/.test(text[i]!)) {
             i++;
             character++;
           }
           // Handle exponent
-          if (text[i] === 'e' || text[i] === 'E') {
+          if (text[i]! === 'e' || text[i]! === 'E') {
             i++;
             character++;
-            if (text[i] === '+' || text[i] === '-') {
+            if (text[i]! === '+' || text[i]! === '-') {
               i++;
               character++;
             }
-            while (i < text.length && /[0-9]/.test(text[i])) {
+            while (i < text.length && /[0-9]/.test(text[i]!)) {
               i++;
               character++;
             }
@@ -280,13 +278,13 @@ export class ProtoParser {
       }
 
       // Identifier or keyword (dots are now handled as punctuation for option paths)
-      if (/[a-zA-Z_]/.test(text[i])) {
+      if (/[a-zA-Z_]/.test(text[i]!)) {
         const start = i;
-        while (i < text.length && /[a-zA-Z0-9_]/.test(text[i])) {
+        while (i < text.length && /[a-zA-Z0-9_]/.test(text[i]!)) {
           i++;
           character++;
         }
-        const value = text.slice(start, i);
+        const value: string = text.slice(start, i);
         tokens.push({
           type: 'identifier',
           value,
@@ -298,10 +296,10 @@ export class ProtoParser {
 
       // Punctuation (including dot for option path separators)
       const punctuation = '{}[]()<>;=,.:';
-      if (punctuation.includes(text[i])) {
+      if (punctuation.includes(text[i]!)) {
         tokens.push({
           type: 'punctuation',
-          value: text[i],
+          value: text[i]!,
           range: { start: { line: startLine, character: startChar }, end: { line, character: character + 1 } },
           comment // Attaching comment to punctuation is rare but possible if it's the only thing left
         });
@@ -323,11 +321,11 @@ export class ProtoParser {
   }
 
   private peek(): Token | null {
-    return this.pos < this.tokens.length ? this.tokens[this.pos] : null;
+    return this.pos < this.tokens.length ? this.tokens[this.pos]! : null;
   }
 
   private advance(): Token | null {
-    const token = this.pos < this.tokens.length ? this.tokens[this.pos++] : null;
+    const token = this.pos < this.tokens.length ? this.tokens[this.pos++]! : null;
     if (token?.comment) {
       this.lastComment = token.comment;
     }

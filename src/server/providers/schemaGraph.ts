@@ -100,24 +100,6 @@ export class SchemaGraphProvider {
     }
   }
 
-  private collectFromFile(
-    uri: string,
-    file: ProtoFile,
-    nodes: Map<string, SchemaGraphNode>,
-    edges: SchemaGraphEdge[]
-  ): void {
-    const pkg = file.package?.name || '';
-
-    for (const message of file.messages) {
-      this.addMessageNode(uri, pkg, message, nodes);
-      this.collectMessageEdges(uri, pkg, message, nodes, edges);
-    }
-
-    for (const enumDef of file.enums) {
-      this.addEnumNode(uri, pkg, enumDef, nodes);
-    }
-  }
-
   private addMessageNode(
     uri: string,
     pkg: string,

@@ -60,7 +60,7 @@ export class ClangFormatProvider {
         if (code === 0) {
           // Parse version from output like "clang-format version 14.0.0"
           const match = output.match(/version\s+([\d.]+)/);
-          resolve(match ? match[1] : output.trim());
+          resolve(match ? match[1]! : output.trim());
         } else {
           resolve(null);
         }
@@ -88,7 +88,7 @@ export class ClangFormatProvider {
     return [{
       range: {
         start: { line: 0, character: 0 },
-        end: { line: lines.length - 1, character: lines[lines.length - 1].length }
+        end: { line: lines.length - 1, character: lines[lines.length - 1]!.length }
       },
       newText: formatted
     }];
@@ -107,7 +107,7 @@ export class ClangFormatProvider {
     // Calculate byte offsets for the range
     let offset = 0;
     for (let i = 0; i < range.start.line; i++) {
-      offset += lines[i].length + 1; // +1 for newline
+      offset += lines[i]!.length + 1; // +1 for newline
     }
     offset += range.start.character;
 
@@ -116,11 +116,11 @@ export class ClangFormatProvider {
       if (i === range.start.line && i === range.end.line) {
         length = range.end.character - range.start.character;
       } else if (i === range.start.line) {
-        length += lines[i].length - range.start.character + 1;
+        length += lines[i]!.length - range.start.character + 1;
       } else if (i === range.end.line) {
         length += range.end.character;
       } else {
-        length += lines[i].length + 1;
+        length += lines[i]!.length + 1;
       }
     }
 
@@ -133,7 +133,7 @@ export class ClangFormatProvider {
     return [{
       range: {
         start: { line: 0, character: 0 },
-        end: { line: lines.length - 1, character: lines[lines.length - 1].length }
+        end: { line: lines.length - 1, character: lines[lines.length - 1]!.length }
       },
       newText: formatted
     }];

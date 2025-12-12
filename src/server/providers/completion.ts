@@ -6,7 +6,9 @@ import {
   CompletionItem,
   CompletionItemKind,
   InsertTextFormat,
-  Position
+  Position,
+  Range,
+  TextEdit
 } from 'vscode-languageserver/node';
 
 import { BUILTIN_TYPES, SymbolKind } from '../core/ast';
@@ -59,7 +61,7 @@ export class CompletionProvider {
 
     // Type completion after field modifier or for field type
     if (this.isTypeContext(beforeCursor)) {
-      completions.push(...this.getTypeCompletions(uri, typePrefix));
+      completions.push(...this.getTypeCompletions(uri, position, typePrefix));
     }
 
     // Keyword completions
@@ -86,7 +88,7 @@ export class CompletionProvider {
     if (this.isFieldNameContext(beforeCursor)) {
       const typeMatch = beforeCursor.match(/(?:optional|required|repeated)?\s*([A-Za-z_][\w.<>,]+)\s+$/);
       if (typeMatch) {
-        const typeName = typeMatch[1];
+        const typeName = typeMatch[1]!;
         const nameSuggestions = this.getFieldNameSuggestions(typeName);
         for (const suggestion of nameSuggestions) {
           completions.push({
@@ -131,11 +133,11 @@ export class CompletionProvider {
       return undefined;
     }
 
-    const full = match[1];
+    const full = match[1]!;
     const parts = full.split('.');
 
     if (parts.length === 1) {
-      return { partial: parts[0] };
+      return { partial: parts[0]! };
     }
 
     const partial = parts.pop() || '';
@@ -152,6 +154,7 @@ export class CompletionProvider {
 
   private getTypeCompletions(
     uri: string,
+    position: Position,
     prefix?: { qualifier?: string; partial?: string }
   ): CompletionItem[] {
     const completions: CompletionItem[] = [];
@@ -160,6 +163,14 @@ export class CompletionProvider {
     const partial = prefix?.partial?.toLowerCase() || '';
     const hasQualifier = !!qualifier;
     const hasPartial = partial.length > 0;
+
+    // Calculate the range of text to replace
+    // This includes both the qualifier (e.g., "google.protobuf.") and the partial (e.g., "Time")
+    const prefixLength = (prefix?.qualifier ? prefix.qualifier.length + 1 : 0) + (prefix?.partial?.length || 0);
+    const replaceRange: Range = {
+      start: { line: position.line, character: position.character - prefixLength },
+      end: { line: position.line, character: position.character }
+    };
 
     // Built-in types
     if (!hasQualifier) {
@@ -171,7 +182,8 @@ export class CompletionProvider {
           label: type,
           kind: CompletionItemKind.Keyword,
           detail: 'Built-in type',
-          sortText: '0' + type
+          sortText: '0' + type,
+          textEdit: TextEdit.replace(replaceRange, type)
         });
       }
     }
@@ -207,7 +219,8 @@ export class CompletionProvider {
         detail: symbol.fullName,
         filterText: `${symbol.fullName} ${symbol.name}`,
         documentation: `${symbol.kind} defined in ${symbol.containerName || 'root'}`,
-        sortText: '1' + symbol.name
+        sortText: '1' + symbol.name,
+        textEdit: TextEdit.replace(replaceRange, symbol.name)
       });
     }
 
@@ -296,7 +309,7 @@ export class CompletionProvider {
     let nestedLevel = 0;
 
     for (let i = containerStartLine + 1; i <= containerEndLine; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
 
       // Track brace level
       for (const char of line) {
@@ -313,22 +326,22 @@ export class CompletionProvider {
       if (nestedLevel <= 1) {
         const match = line.match(fieldNumberRegex);
         if (match) {
-          usedNumbers.add(parseInt(match[1], 10));
+          usedNumbers.add(parseInt(match[1]!, 10));
         }
       }
 
       // Also check for reserved statements
       const reservedMatch = line.match(/reserved\s+(.*);/);
       if (reservedMatch && nestedLevel === 0) {
-        const reservedPart = reservedMatch[1];
+        const reservedPart = reservedMatch[1]!;
         // Parse numbers and ranges like "1, 2, 15 to 20"
         const parts = reservedPart.split(',');
         for (const part of parts) {
           const trimmed = part.trim();
           const rangeMatch = trimmed.match(/(\d+)\s+to\s+(\d+|max)/);
           if (rangeMatch) {
-            const start = parseInt(rangeMatch[1], 10);
-            const end = rangeMatch[2] === 'max' ? start + 1000 : parseInt(rangeMatch[2], 10);
+            const start = parseInt(rangeMatch[1]!, 10);
+            const end = rangeMatch[2] === 'max' ? start + 1000 : parseInt(rangeMatch[2]!, 10);
             for (let n = start; n <= Math.min(end, start + 1000); n++) {
               usedNumbers.add(n);
             }
@@ -371,9 +384,9 @@ export class CompletionProvider {
 
     // Walk backwards to find the matching opening brace for the current scope
     for (let i = currentLine; i >= 0; i--) {
-      const line = lines[i];
+      const line = lines[i]!;
       for (let j = line.length - 1; j >= 0; j--) {
-        const char = line[j];
+        const char = line[j]!;
         if (char === '}') {
           braceCount++;
         }
@@ -399,7 +412,7 @@ export class CompletionProvider {
     let containerEndLine = lines.length - 1;
 
     for (let i = containerStartLine + 1; i < lines.length; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
       for (const char of line) {
         if (char === '{') {
           braceCount++;
@@ -429,7 +442,7 @@ export class CompletionProvider {
     const lookbackStart = Math.max(0, bounds.start - 2);
 
     for (let i = bounds.start; i >= lookbackStart; i--) {
-      const headerLine = lines[i];
+      const headerLine = lines[i]!;
 
       if (/\benum\s+[A-Za-z_][\w.]*/.test(headerLine)) {
         kind = 'enum';
@@ -477,7 +490,7 @@ export class CompletionProvider {
   }
 
   private getFieldAssignmentCompletions(
-    uri: string,
+    _uri: string,
     position: Position,
     documentText?: string
   ): CompletionItem[] {
@@ -531,10 +544,10 @@ export class CompletionProvider {
     const numberRegex = /=\s*(-?\d+)\s*;/;
 
     for (let i = containerInfo.start + 1; i <= containerInfo.end; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
       const match = line.match(numberRegex);
       if (match) {
-        usedNumbers.add(parseInt(match[1], 10));
+        usedNumbers.add(parseInt(match[1]!, 10));
       }
     }
 
@@ -713,7 +726,7 @@ export class CompletionProvider {
     // Pattern: (buf.validate.field).string. or (buf.validate.field).int32. etc.
     const fieldTypeMatch = beforeCursor.match(/\(buf\.validate\.field\)\.(string|bytes|int32|int64|uint32|uint64|sint32|sint64|fixed32|fixed64|sfixed32|sfixed64|float|double|bool|enum|repeated|map|any|duration|timestamp)\.$/);
     if (fieldTypeMatch) {
-      const fieldType = fieldTypeMatch[1];
+      const fieldType = fieldTypeMatch[1]!;
       return this.getBufValidateFieldTypeOptions(fieldType);
     }
 
@@ -1193,7 +1206,7 @@ export class CompletionProvider {
     // First, find which message we're in
     let braceDepth = 0;
     for (let i = 0; i <= currentLine; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
       const trimmedLine = line.trim();
 
       // Track message declarations
@@ -1237,7 +1250,7 @@ export class CompletionProvider {
     inCelOption = false;
 
     for (let i = messageStartLine; i <= currentLine; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
       const trimmedLine = line.trim();
 
       // Check for buf.validate CEL option start
@@ -1271,7 +1284,7 @@ export class CompletionProvider {
     }
 
     // Check if we're inside an expression string (between quotes)
-    const lineUpToCursor = lines[currentLine].substring(0, position.character);
+    const lineUpToCursor = lines[currentLine]!.substring(0, position.character);
     const inExpression = this.isInsideCelExpressionString(lineUpToCursor);
 
     return { messageName, inExpression };
@@ -1530,7 +1543,7 @@ export class CompletionProvider {
    * Get Google API completions (HTTP annotations, field behaviors, resources)
    */
   private getGoogleApiCompletions(
-    uri: string,
+    _uri: string,
     position: Position,
     beforeCursor: string,
     documentText: string
@@ -1571,7 +1584,7 @@ export class CompletionProvider {
     let inHttpOption = false;
 
     for (let i = 0; i <= position.line; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
 
       // Check for google.api.http option start
       if (line.includes('google.api.http') && line.includes('=')) {
@@ -1804,7 +1817,7 @@ export class CompletionProvider {
     let inResourceOption = false;
 
     for (let i = 0; i <= position.line; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
 
       // Check for google.api.resource option start
       if (line.includes('google.api.resource') && line.includes('=') && !line.includes('resource_reference')) {

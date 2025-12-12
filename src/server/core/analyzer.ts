@@ -16,6 +16,7 @@ import {
 } from '../core/ast';
 import * as path from 'path';
 import { bufConfigProvider } from '../services/bufConfig';
+import { logger } from '../utils/logger';
 
 export interface WorkspaceSymbols {
   // URI -> ProtoFile
@@ -543,9 +544,12 @@ export class SemanticAnalyzer {
       const resolvedUri = this.workspace.importResolutions.get(importPath);
       if (resolvedUri) {
         resolvedUris.push(resolvedUri);
+      } else {
+        logger.verbose(`Import not resolved: "${importPath}" from ${uri}`);
       }
     }
 
+    logger.verbose(`getImportedFileUris for ${uri}: imports=${JSON.stringify(imports)}, resolved=${resolvedUris.length}`);
     return resolvedUris;
   }
 
@@ -689,6 +693,7 @@ export class SemanticAnalyzer {
         for (const [fullName, sym] of this.workspace.symbols) {
           if (sym.location.uri === importedUri &&
               (sym.name === typeName || fullName.endsWith(`.${typeName}`))) {
+            logger.verbose(`resolveType: Found "${typeName}" as "${fullName}" in imported file`);
             return sym;
           }
         }
@@ -698,6 +703,7 @@ export class SemanticAnalyzer {
     // Note: We do NOT fall back to searching all workspace files by simple name.
     // Types from non-imported files should not be resolved - they need an import.
     // The diagnostics will flag unresolved types, and the user can add the import.
+    logger.verbose(`resolveType: Could not resolve "${typeName}" from ${currentUri} (importedUris: ${importedUris.length})`);
 
     return undefined;
   }
@@ -943,7 +949,7 @@ export class SemanticAnalyzer {
       .filter(Boolean)
       .sort((a, b) => a.length - b.length);
 
-    return cleaned[0];
+    return cleaned[0]!;
   }
 
   private findMessageDefinition(

@@ -123,7 +123,7 @@ export class DependencySuggestionProvider {
     // Show suggestion
     const moduleNames = newSuggestions.map(s => s.module.split('/').pop()).join(', ');
     const message = newSuggestions.length === 1
-      ? `Import requires "${newSuggestions[0].module}". Add to buf.yaml?`
+      ? `Import requires "${newSuggestions[0]!.module}". Add to buf.yaml?`
       : `Imports require ${newSuggestions.length} dependencies (${moduleNames}). Add to buf.yaml?`;
 
     const action = await vscode.window.showInformationMessage(
@@ -201,11 +201,11 @@ export class DependencySuggestionProvider {
       // Simple regex-based parsing for deps array
       const depsMatch = content.match(/^deps:\s*\n((?:\s+-\s+.+\n?)+)/m);
       if (depsMatch) {
-        const depsLines = depsMatch[1].split('\n');
+        const depsLines = depsMatch[1]!.split('\n');
         for (const line of depsLines) {
           const depMatch = line.match(/^\s+-\s+["']?([^"'\s]+)["']?/);
           if (depMatch) {
-            deps.push(depMatch[1].trim());
+            deps.push(depMatch[1]!.trim());
           }
         }
       }
@@ -381,11 +381,11 @@ breaking:
     let match;
     while ((match = regex.exec(stderr)) !== null) {
       const [, filePath, lineStr, fieldName, label] = match;
-      const fullPath = path.isAbsolute(filePath) ? filePath : path.join(cwd, filePath);
+      const fullPath = path.isAbsolute(filePath!) ? filePath! : path.join(cwd, filePath!);
       errors.push({
         filePath: fullPath,
-        line: parseInt(lineStr, 10),
-        fieldName,
+        line: parseInt(lineStr!, 10),
+        fieldName: fieldName!,
         label: label as 'optional' | 'required',
       });
     }
@@ -426,7 +426,7 @@ breaking:
         for (const error of fileErrors) {
           const lineIndex = error.line - 1;
           if (lineIndex >= 0 && lineIndex < lines.length) {
-            const line = lines[lineIndex];
+            const line = lines[lineIndex]!;
             this.outputChannel.appendLine(`  Line ${error.line}: "${line.substring(0, 60)}..."`);
 
             // Match: optional/required Type name = N; or optional/required Type name = N [options];
@@ -439,9 +439,9 @@ breaking:
               if (existingOptions) {
                 // Append to existing options
                 const optionsContent = existingOptions.slice(1, -1).trim();
-                newLine = `${indent}${type} ${name} = ${number} [${optionsContent}, features.field_presence = ${presenceValue}];`;
+                newLine = `${indent!}${type!} ${name!} = ${number!} [${optionsContent}, features.field_presence = ${presenceValue}];`;
               } else {
-                newLine = `${indent}${type} ${name} = ${number} [features.field_presence = ${presenceValue}];`;
+                newLine = `${indent!}${type!} ${name!} = ${number!} [features.field_presence = ${presenceValue}];`;
               }
 
               lines[lineIndex] = newLine;

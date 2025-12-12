@@ -58,9 +58,9 @@ export class OptionInspectorProvider implements vscode.TreeDataProvider<OptionIt
 
 class OptionItem extends vscode.TreeItem {
   constructor(
-    public readonly label: string,
-    public readonly description: string,
-    public readonly collapsibleState: vscode.TreeItemCollapsibleState,
+    public override readonly label: string,
+    public override readonly description: string,
+    public override readonly collapsibleState: vscode.TreeItemCollapsibleState,
     public readonly range?: { start: { line: number; character: number }; end: { line: number; character: number } }
   ) {
     super(label, collapsibleState);

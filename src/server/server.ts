@@ -430,10 +430,30 @@ connection.onDidChangeWatchedFiles((params: DidChangeWatchedFilesParams) => {
   }
 });
 
-connection.onDidChangeConfiguration((change: { settings: typeof globalSettings }) => {
+connection.onDidChangeConfiguration(async (change: { settings: unknown }) => {
   if (hasConfigurationCapability) {
-    // Update settings
-    globalSettings = change.settings || defaultSettings;
+    // Fetch configuration directly from the client to ensure we get the latest values
+    // This is more reliable than using change.settings which may have caching issues
+    try {
+      const config = await connection.workspace.getConfiguration('protobuf');
+      if (config) {
+        // Wrap in protobuf key to match Settings interface (same as onInitialized)
+        globalSettings = { protobuf: config } as Settings;
+      } else {
+        globalSettings = defaultSettings;
+      }
+    } catch {
+      // Fallback to change.settings if direct fetch fails
+      // change.settings may come in different formats depending on the LSP client
+      const settings = change.settings as Record<string, unknown> | undefined;
+      if (settings?.protobuf) {
+        globalSettings = settings as unknown as Settings;
+      } else if (settings) {
+        globalSettings = { protobuf: settings } as unknown as Settings;
+      } else {
+        globalSettings = defaultSettings;
+      }
+    }
 
     // Update all providers with new settings using config manager
     const { includePaths: userIncludePaths, protoSrcsDir: newProtoSrcsDir } = updateProvidersWithSettings(
@@ -622,18 +642,18 @@ function extractIdentifierAtPosition(line: string, character: number): string | 
   let endIndex = character;
 
   // If cursor is at a non-identifier character but immediately after one, move back
-  if (startIndex > 0 && !isIdentifierChar(line[startIndex]) && isIdentifierChar(line[startIndex - 1])) {
+  if (startIndex > 0 && !isIdentifierChar(line[startIndex]!) && isIdentifierChar(line[startIndex - 1]!)) {
     startIndex -= 1;
     endIndex = startIndex;
   }
 
   // Expand backwards to find the start of the identifier
-  while (startIndex > 0 && isIdentifierChar(line[startIndex - 1])) {
+  while (startIndex > 0 && isIdentifierChar(line[startIndex - 1]!)) {
     startIndex--;
   }
 
   // Expand forwards to find the end of the identifier
-  while (endIndex < line.length && isIdentifierChar(line[endIndex])) {
+  while (endIndex < line.length && isIdentifierChar(line[endIndex]!)) {
     endIndex++;
   }
 
@@ -743,7 +763,7 @@ connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
   const stack: { start: number; isComment: boolean }[] = [];
 
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-    const line = lines[lineIndex];
+    const line = lines[lineIndex]!;
     const trimmed = line.trim();
 
     // Multi-line comment start
@@ -752,7 +772,7 @@ connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
     }
 
     // Multi-line comment end
-    if (trimmed.includes('*/') && stack.length > 0 && stack[stack.length - 1].isComment) {
+    if (trimmed.includes('*/') && stack.length > 0 && stack[stack.length - 1]!.isComment) {
       const startInfo = stack.pop()!;
       ranges.push({
         startLine: startInfo.start,
@@ -768,7 +788,7 @@ connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
 
     // Block end
     if (trimmed.includes('}') && !trimmed.startsWith('//')) {
-      if (stack.length > 0 && !stack[stack.length - 1].isComment) {
+      if (stack.length > 0 && !stack[stack.length - 1]!.isComment) {
         const startInfo = stack.pop()!;
         if (lineIndex > startInfo.start) {
           ranges.push({

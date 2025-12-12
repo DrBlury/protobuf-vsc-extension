@@ -129,7 +129,7 @@ export class CodeActionsProvider {
     return actions;
   }
 
-  private getScaffoldingActions(uri: string, range: Range, documentText: string): CodeAction[] {
+  private getScaffoldingActions(_uri: string, range: Range, documentText: string): CodeAction[] {
     const actions: CodeAction[] = [];
     const lines = documentText.split('\n');
     const line = lines[range.start.line];
@@ -140,14 +140,14 @@ export class CodeActionsProvider {
 
     // Oneof Switch Scaffolding
     const oneofMatch = line.match(/^\s*oneof\s+(\w+)\s*\{/);
-    if (oneofMatch) {
+    if (oneofMatch?.[1]) {
         const oneofName = oneofMatch[1];
 
         // Find fields inside the oneof
         const fields: string[] = [];
         let braceDepth = 1;
         for (let i = range.start.line + 1; i < lines.length; i++) {
-            const l = lines[i].trim();
+            const l = lines[i]!.trim();
             if (l.includes('{')) {
                 braceDepth++;
             }
@@ -160,19 +160,19 @@ export class CodeActionsProvider {
 
             // Very simple field match
             const fieldMatch = l.match(/^(?:[\w.]+\s+)?(\w+)\s*=\s*\d+/);
-            if (fieldMatch && !l.startsWith('//') && !l.startsWith('option')) {
+            if (fieldMatch && fieldMatch[1] && !l.startsWith('//') && !l.startsWith('option')) {
                 fields.push(fieldMatch[1]);
             }
         }
 
         if (fields.length > 0) {
             // TypeScript Snippet
-            const tsSnippet = `switch (message.${oneofName}.case) {\n` +
+            const tsSnippet = `switch (message.${oneofName ?? ''}.case) {\n` +
                 fields.map(f => `  case '${f}':\n    // Handle ${f}\n    break;`).join('\n') +
                 `\n  default:\n    // Handle default\n}`;
 
             // Go Snippet
-            const goSnippet = `switch v := message.Get${this.toPascalCase(oneofName)}().(type) {\n` +
+            const goSnippet = `switch v := message.Get${this.toPascalCase(oneofName ?? '')}().(type) {\n` +
                 fields.map(f => `case *${this.toPascalCase(f)}:\n\t// Handle ${f}`).join('\n') +
                 `\ndefault:\n\t// Handle default\n}`;
 
@@ -268,7 +268,7 @@ export class CodeActionsProvider {
     const mapLike = /^\s*map\s*<[^>]+>\s+[A-Za-z_][\w]*(?:\s*=\s*\d+)?/;
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
       const trimmed = line.trim();
 
       if (trimmed === '' || trimmed.startsWith('//') || trimmed.startsWith('/*')) {
@@ -364,7 +364,7 @@ export class CodeActionsProvider {
     const requiredFieldPattern = /^(\s*)required\s+(\S+)\s+(\w+)\s*=\s*(\d+)\s*(\[[^\]]*\])?\s*;/;
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
 
       // Check for 'optional' fields
       const optionalMatch = line.match(optionalFieldPattern);
@@ -373,9 +373,9 @@ export class CodeActionsProvider {
         let newLine: string;
         if (existingOptions) {
           const optionsContent = existingOptions.slice(1, -1).trim();
-          newLine = `${indent}${type} ${name} = ${number} [${optionsContent}, features.field_presence = EXPLICIT];`;
+          newLine = `${indent ?? ''}${type ?? ''} ${name ?? ''} = ${number ?? ''} [${optionsContent}, features.field_presence = EXPLICIT];`;
         } else {
-          newLine = `${indent}${type} ${name} = ${number} [features.field_presence = EXPLICIT];`;
+          newLine = `${indent ?? ''}${type ?? ''} ${name ?? ''} = ${number ?? ''} [features.field_presence = EXPLICIT];`;
         }
         edits.push({
           range: {
@@ -394,9 +394,9 @@ export class CodeActionsProvider {
         let newLine: string;
         if (existingOptions) {
           const optionsContent = existingOptions.slice(1, -1).trim();
-          newLine = `${indent}${type} ${name} = ${number} [${optionsContent}, features.field_presence = LEGACY_REQUIRED];`;
+          newLine = `${indent ?? ''}${type ?? ''} ${name ?? ''} = ${number ?? ''} [${optionsContent}, features.field_presence = LEGACY_REQUIRED];`;
         } else {
-          newLine = `${indent}${type} ${name} = ${number} [features.field_presence = LEGACY_REQUIRED];`;
+          newLine = `${indent ?? ''}${type ?? ''} ${name ?? ''} = ${number ?? ''} [features.field_presence = LEGACY_REQUIRED];`;
         }
         edits.push({
           range: {
@@ -444,7 +444,7 @@ export class CodeActionsProvider {
 
       const match = line.match(/\bmessage\s+(\w+)/);
       if (match && braceDepth <= 0) {
-        return match[1];
+        return match[1] ?? null;
       }
     }
 
@@ -472,7 +472,7 @@ export class CodeActionsProvider {
 
       const match = line.match(/\benum\s+(\w+)/);
       if (match && braceDepth <= 0) {
-        return match[1];
+        return match[1] ?? null;
       }
     }
 
@@ -618,7 +618,7 @@ export class CodeActionsProvider {
 
     if (message.includes('expects one of:')) {
       const match = diagnostic.message.match(/expects one of: (.*)$/i);
-      const first = match ? match[1].split(',')[0].trim() : 'SPEED';
+      const first = match?.[1]?.split(',')[0]?.trim() ?? 'SPEED';
       fixes.push(this.replaceOptionValue(uri, diagnostic, documentText, first));
     }
 
@@ -630,7 +630,7 @@ export class CodeActionsProvider {
 
       // Extract the import path from the original diagnostic message (not lowercased)
       const importMatch = diagnostic.message.match(/Import '([^']+)' cannot be resolved/i);
-      const importPath = importMatch ? importMatch[1] : '';
+      const importPath = importMatch?.[1] ?? '';
 
       // Check if this looks like a buf registry dependency import
       const isBufDependency = this.isBufRegistryImport(importPath);
@@ -709,11 +709,11 @@ export class CodeActionsProvider {
     if (message.includes('is not in buf.yaml dependencies')) {
       // Extract the suggested module from the diagnostic message
       const moduleMatch = diagnostic.message.match(/'([^']+)' is not in buf\.yaml dependencies/);
-      const suggestedModule = moduleMatch ? moduleMatch[1] : null;
+      const suggestedModule = moduleMatch?.[1] ?? null;
 
       // Extract import path from message
       const importMatch = diagnostic.message.match(/Import '([^']+)' resolves/);
-      const importPath = importMatch ? importMatch[1] : '';
+      const importPath = importMatch?.[1] ?? '';
 
       if (suggestedModule) {
         fixes.push({
@@ -762,7 +762,7 @@ export class CodeActionsProvider {
     // Fix unknown type - suggest import
     if (message.includes('unknown type')) {
       const typeMatch = message.match(/unknown type '([^']+)'/);
-      if (typeMatch) {
+      if (typeMatch?.[1]) {
         const typeName = typeMatch[1];
         const importActions = this.suggestImportsForType(uri, typeName, documentText);
         fixes.push(...importActions);
@@ -772,7 +772,7 @@ export class CodeActionsProvider {
     // Missing import (detected by diagnostics provider)
     if (message.includes('not imported')) {
       const importMatch = diagnostic.message.match(/import "([^"]+)"/i);
-      const importPath = importMatch ? importMatch[1] : undefined;
+      const importPath = importMatch?.[1];
 
       if (importPath && !documentText.includes(`"${importPath}"`)) {
         const insertPosition = this.findImportInsertPosition(documentText);
@@ -806,8 +806,8 @@ export class CodeActionsProvider {
     // Incorrect import path for resolved type
     if (message.includes('should be imported via')) {
       const match = diagnostic.message.match(/via "([^"]+)" .*"([^"]+)"/i);
-      const expected = match ? match[1] : undefined;
-      const found = match ? match[2] : undefined;
+      const expected = match?.[1];
+      const found = match?.[2];
 
       if (expected && found) {
         const insertPosition = this.findImportInsertPosition(documentText);
@@ -855,6 +855,9 @@ export class CodeActionsProvider {
     if (message.includes("'required' is deprecated")) {
       const lines = documentText.split('\n');
       const line = lines[diagnostic.range.start.line];
+      if (!line) {
+        return fixes;
+      }
       const newLine = line.replace(/\brequired\b/, 'optional');
 
       fixes.push(this.createQuickFix(
@@ -891,20 +894,22 @@ export class CodeActionsProvider {
         // Find the field number in the line and suggest changing it
         const lines = documentText.split('\n');
         const line = lines[diagnostic.range.start.line];
-        const numberMatch = line.match(/=\s*(\d+)/);
+        if (line) {
+          const numberMatch = line.match(/=\s*(\d+)/);
 
-        if (numberMatch) {
-          const newLine = line.replace(/=\s*\d+/, `= ${nextNumber}`);
-          fixes.push(this.createQuickFix(
-            `Change field number to ${nextNumber}`,
-            uri,
-            {
-              start: { line: diagnostic.range.start.line, character: 0 },
-              end: { line: diagnostic.range.start.line, character: line.length }
-            },
-            newLine,
-            diagnostic
-          ));
+          if (numberMatch) {
+            const newLine = line.replace(/=\s*\d+/, `= ${nextNumber}`);
+            fixes.push(this.createQuickFix(
+              `Change field number to ${nextNumber}`,
+              uri,
+              {
+                start: { line: diagnostic.range.start.line, character: 0 },
+                end: { line: diagnostic.range.start.line, character: line.length }
+              },
+              newLine,
+              diagnostic
+            ));
+          }
         }
       }
     }
@@ -950,9 +955,9 @@ export class CodeActionsProvider {
           if (existingOptions) {
             // Append to existing options
             const optionsContent = existingOptions.slice(1, -1).trim();
-            newLine = `${indent}${type} ${name} = ${number} [${optionsContent}, features.field_presence = EXPLICIT];`;
+            newLine = `${indent ?? ''}${type ?? ''} ${name ?? ''} = ${number ?? ''} [${optionsContent}, features.field_presence = EXPLICIT];`;
           } else {
-            newLine = `${indent}${type} ${name} = ${number} [features.field_presence = EXPLICIT];`;
+            newLine = `${indent ?? ''}${type ?? ''} ${name ?? ''} = ${number ?? ''} [features.field_presence = EXPLICIT];`;
           }
 
           fixes.push({
@@ -1009,9 +1014,9 @@ export class CodeActionsProvider {
           let newLine: string;
           if (existingOptions) {
             const optionsContent = existingOptions.slice(1, -1).trim();
-            newLine = `${indent}${type} ${name} = ${number} [${optionsContent}, features.field_presence = LEGACY_REQUIRED];`;
+            newLine = `${indent ?? ''}${type ?? ''} ${name ?? ''} = ${number ?? ''} [${optionsContent}, features.field_presence = LEGACY_REQUIRED];`;
           } else {
-            newLine = `${indent}${type} ${name} = ${number} [features.field_presence = LEGACY_REQUIRED];`;
+            newLine = `${indent ?? ''}${type ?? ''} ${name ?? ''} = ${number ?? ''} [features.field_presence = LEGACY_REQUIRED];`;
           }
 
           fixes.push({
@@ -1077,7 +1082,7 @@ export class CodeActionsProvider {
 
       // Add "Convert to proto3" if proto2
       const file = this.analyzer.getFile(uri);
-      if (file && file.syntax?.version === 'proto2') {
+      if (file && file.syntax?.version === 'proto2' && messageMatch[2]) {
         actions.push({
           title: 'Convert message to proto3 style',
           kind: CodeActionKind.RefactorRewrite,
@@ -1115,7 +1120,7 @@ export class CodeActionsProvider {
                 start: { line: range.start.line, character: line.indexOf(';') },
                 end: { line: range.start.line, character: line.indexOf(';') + 1 }
               },
-              newText: ` [json_name = "${this.toCamelCase(fieldMatch[2])}"];`
+              newText: ` [json_name = "${this.toCamelCase(fieldMatch[2] ?? '')}"];`
             }]
           }
         }
@@ -1248,7 +1253,7 @@ export class CodeActionsProvider {
     let packageLine = -1;
 
     for (let i = 0; i < lines.length; i++) {
-      const trimmed = lines[i].trim();
+      const trimmed = lines[i]!.trim();
       if (trimmed.startsWith('syntax')) {
         syntaxLine = i;
       } else if (trimmed.startsWith('package')) {
@@ -1282,6 +1287,9 @@ export class CodeActionsProvider {
         return null;
       }
       const dir = segments[segments.length - 2];
+      if (!dir) {
+        return null;
+      }
       return dir.replace(/[^a-zA-Z0-9_]/g, '_');
     } catch {
       return null;
@@ -1356,7 +1364,7 @@ export class CodeActionsProvider {
         continue;
       }
       const match = diagnostic.message.match(/import "([^"]+)"/i);
-      if (match) {
+      if (match?.[1]) {
         const path = match[1];
         if (!documentText.includes(`"${path}"`)) {
           imports.add(path);
@@ -1438,7 +1446,7 @@ export class CodeActionsProvider {
     // Find message bounds
     let startLine = -1;
     for (let i = range.start.line; i >= 0; i--) {
-      if (/^\s*message\s+\w+\s*\{/.test(lines[i])) {
+      if (/^\s*message\s+\w+\s*\{/.test(lines[i]!)) {
         startLine = i;
         break;
       }
@@ -1450,7 +1458,7 @@ export class CodeActionsProvider {
     let braceDepth = 0;
     let endLine = -1;
     for (let i = startLine; i < lines.length; i++) {
-      for (const ch of lines[i]) {
+      for (const ch of lines[i]!) {
         if (ch === '{') {
           braceDepth++;
         }
@@ -1473,7 +1481,7 @@ export class CodeActionsProvider {
     let nextNumber = 1;
 
     for (let i = startLine + 1; i < endLine; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
       const trimmed = line.trim();
       if (trimmed === '' || trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('}')) {
         continue;
@@ -1482,7 +1490,7 @@ export class CodeActionsProvider {
       if (trimmed.includes('=')) {
         // Already numbered; attempt to keep numbering continuity
         const match = trimmed.match(/=\s*(\d+)/);
-        if (match) {
+        if (match?.[1]) {
           const num = parseInt(match[1], 10);
           if (!isNaN(num) && num >= nextNumber) {
             nextNumber = num + 1;
@@ -1501,8 +1509,8 @@ export class CodeActionsProvider {
         nextNumber = 20000;
       }
 
-      const indent = m[1];
-      const suffix = m[3] || '';
+      const indent = m[1] ?? '';
+      const suffix = m[3] ?? '';
       const newLine = `${indent}${m[0].trim()} = ${nextNumber};${suffix.includes(';') ? '' : ''}`;
 
       edits.push({
@@ -1561,7 +1569,7 @@ export class CodeActionsProvider {
     let braceLineIndex = -1;
 
     for (let i = range.start.line; i >= 0; i--) {
-      if (lines[i].includes('{')) {
+      if (lines[i]?.includes('{')) {
         braceLineIndex = i;
         break;
       }
@@ -1571,13 +1579,18 @@ export class CodeActionsProvider {
       return [];
     }
 
+    const braceLine = lines[braceLineIndex];
+    if (!braceLine) {
+      return [];
+    }
+
     // Get the enum name for generating the UNKNOWN value name
-    const enumMatch = lines[braceLineIndex].match(/enum\s+(\w+)/);
-    const enumName = enumMatch ? enumMatch[1] : 'ENUM';
+    const enumMatch = braceLine.match(/enum\s+(\w+)/);
+    const enumName = enumMatch?.[1] ?? 'ENUM';
     const unknownName = `${enumName.toUpperCase()}_UNKNOWN`;
 
     // Insert after the opening brace
-    const braceIndex = lines[braceLineIndex].indexOf('{');
+    const braceIndex = braceLine.indexOf('{');
     const indent = '  '; // Default 2-space indent
 
     return [{
@@ -1599,6 +1612,9 @@ export class CodeActionsProvider {
 
     for (let i = range.start.line; i >= 0; i--) {
       const line = lines[i];
+      if (!line) {
+        continue;
+      }
       for (let j = line.length - 1; j >= 0; j--) {
         if (line[j] === '}') {
           braceCount++;
@@ -1620,6 +1636,9 @@ export class CodeActionsProvider {
     braceCount = 1;
     for (let i = messageStartLine + 1; i < lines.length && braceCount > 0; i++) {
       const line = lines[i];
+      if (!line) {
+        continue;
+      }
 
       // Track nesting
       for (const char of line) {
@@ -1634,7 +1653,7 @@ export class CodeActionsProvider {
       // Only look at direct children (braceCount === 1)
       if (braceCount === 1) {
         const numberMatch = line.match(/=\s*(\d+)\s*[;[]/);
-        if (numberMatch) {
+        if (numberMatch?.[1]) {
           usedNumbers.add(parseInt(numberMatch[1], 10));
         }
       }
@@ -1668,7 +1687,7 @@ export class CodeActionsProvider {
     let braceCount = 0;
 
     for (let i = 0; i < lineNumber; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
       for (const char of line) {
         if (char === '{') {
           braceCount++;
@@ -1714,7 +1733,7 @@ export class CodeActionsProvider {
 
     // Find the message
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
       if (line.includes(`message ${messageName}`)) {
         messageStartLine = i;
         inMessage = true;
@@ -1786,7 +1805,7 @@ export class CodeActionsProvider {
     let lastImportLine = -1;
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+      const line = lines[i]!;
       const trimmed = line.trim();
 
       if (trimmed.startsWith('import')) {
@@ -1850,8 +1869,8 @@ export class CodeActionsProvider {
       if (a.modifier !== 'weak' && b.modifier === 'weak') {
         return 1;
       }
-      const aPath = a.text.match(/"([^"]+)"/)?.[1] || '';
-      const bPath = b.text.match(/"([^"]+)"/)?.[1] || '';
+      const aPath = a.text.match(/"([^"]+)"/)?.[1] ?? '';
+      const bPath = b.text.match(/"([^"]+)"/)?.[1] ?? '';
       return aPath.localeCompare(bPath);
     });
 
@@ -1864,14 +1883,14 @@ export class CodeActionsProvider {
 
     // Create edits
     const edits: TextEdit[] = [];
-    const firstImportLine = importLines[0].line;
+    const firstImportLine = importLines[0]!.line;
 
     // Remove old imports
     for (const imp of importLines) {
       edits.push({
         range: {
           start: { line: imp.line, character: 0 },
-          end: { line: imp.line, character: lines[imp.line].length }
+          end: { line: imp.line, character: lines[imp.line]!.length }
         },
         newText: ''
       });
