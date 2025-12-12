@@ -232,7 +232,8 @@ connection.onInitialized(async () => {
           providers.clangFormat,
           wellKnownIncludePath,
           wellKnownCacheDir,
-          workspaceFolders
+          workspaceFolders,
+          providers.codeActions
         );
 
         protoSrcsDir = newProtoSrcsDir;

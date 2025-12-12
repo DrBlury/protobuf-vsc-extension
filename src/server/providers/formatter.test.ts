@@ -345,6 +345,101 @@ describe('ProtoFormatter', () => {
       // Should NOT have semicolon after the comment
       expect(formatted).not.toMatch(/\/\/ wow!!!;/);
     });
+
+    it('should actually renumber fields with gaps, not preserve them', async () => {
+      formatter.updateSettings({ renumberOnFormat: true });
+      const text = `message Test {
+  string field1 = 1;
+  string field2 = 5;
+  string field3 = 10;
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      // Field 1 should stay at 1
+      expect(formatted).toContain('field1 = 1');
+      // Field 2 should be renumbered to 2 (not stay at 5)
+      expect(formatted).toContain('field2 = 2');
+      // Field 3 should be renumbered to 3 (not stay at 10)
+      expect(formatted).toContain('field3 = 3');
+    });
+
+    it('should renumber fields with multi-line inline options correctly', async () => {
+      formatter.updateSettings({ renumberOnFormat: true });
+      const text = `message Test {
+  string city = 1 [(buf.validate.field).cel = {
+    id: "test",
+    message: "error"
+  }];
+  oneof type {
+    string type1 = 2;
+    string type2 = 3;
+  }
+  string country = 4;
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      // city should stay at 1
+      expect(formatted).toMatch(/city\s*=\s*1/);
+      // type1 should stay at 2 (first field in oneof continues from message counter)
+      expect(formatted).toMatch(/type1\s*=\s*2/);
+      // type2 should stay at 3
+      expect(formatted).toMatch(/type2\s*=\s*3/);
+      // country should stay at 4 (continues after oneof)
+      expect(formatted).toMatch(/country\s*=\s*4/);
+    });
+
+    it('should renumber oneof fields that have duplicates', async () => {
+      formatter.updateSettings({ renumberOnFormat: true });
+      const text = `message Test {
+  string city = 1;
+  oneof type {
+    string type1 = 2;
+    string type2 = 3;
+    string type3 = 2;
+  }
+  string country = 5;
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      // city should stay at 1
+      expect(formatted).toMatch(/city\s*=\s*1/);
+      // type1 should stay at 2
+      expect(formatted).toMatch(/type1\s*=\s*2/);
+      // type2 should stay at 3
+      expect(formatted).toMatch(/type2\s*=\s*3/);
+      // type3 should be renumbered to 4 (not duplicate 2)
+      expect(formatted).toMatch(/type3\s*=\s*4/);
+      // country should be renumbered to 5
+      expect(formatted).toMatch(/country\s*=\s*5/);
+    });
+
+    it('should handle edition files with complex CEL validation', async () => {
+      formatter.updateSettings({ renumberOnFormat: true });
+      const text = `edition = "2023";
+message Test {
+  option (buf.validate.message).cel = {
+    id: "test",
+    expression:
+      "has(this.field1)"
+      "? 'yes'"
+      ": 'no'"
+  };
+  string field1 = 5;
+  string field2 = 10;
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      // Should renumber fields
+      expect(formatted).toContain('field1 = 1');
+      expect(formatted).toContain('field2 = 2');
+      // Should preserve the CEL option structure
+      expect(formatted).toContain('buf.validate.message');
+      expect(formatted).toContain('expression:');
+    });
   });
 
   describe('edge cases', () => {

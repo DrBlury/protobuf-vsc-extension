@@ -37,11 +37,11 @@ message BillingAddress {
 		option (buf.validate.oneof).required = true;
 		string type1 = 2;
 		string type2 = 3;
-		string type3 = 9;
+		string type3 = 4;
 	}
-	string country = 4;
-	string house_number = 5 [features.field_presence = EXPLICIT];
-	string zip = 6;
-	string post_office_box = 7 [features.field_presence = EXPLICIT];
-	string street = 8 [features.field_presence = EXPLICIT];
+	string country = 5;
+	string house_number = 6 [features.field_presence = EXPLICIT];
+	string zip = 7;
+	string post_office_box = 8 [features.field_presence = EXPLICIT];
+	string street = 9 [features.field_presence = EXPLICIT];
 }

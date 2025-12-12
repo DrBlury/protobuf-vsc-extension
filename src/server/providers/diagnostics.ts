@@ -27,6 +27,7 @@ import {
 } from '../core/ast';
 import { SemanticAnalyzer } from '../core/analyzer';
 import { ERROR_CODES, DIAGNOSTIC_SOURCE } from '../utils/constants';
+import { logger } from '../utils/logger';
 import { bufConfigProvider } from '../services/bufConfig';
 
 export interface DiagnosticsSettings {
@@ -104,6 +105,8 @@ export class DiagnosticsProvider {
 
     // Collect type usages for downstream checks (imports, unused imports, numbering continuity helpers)
     const usedTypeUris = this.collectUsedTypeUris(file, uri);
+
+    logger.verbose(`Validating file ${uri}: ${file.messages.length} messages, ${file.enums.length} enums, ${file.services.length} services`);
 
     // Validate messages
     for (const message of file.messages) {
@@ -280,6 +283,7 @@ export class DiagnosticsProvider {
     diagnostics: Diagnostic[]
   ): void {
     const fullName = prefix ? `${prefix}.${message.name}` : message.name;
+    logger.verbose(`Validating message '${fullName}' with ${message.fields.length} fields, ${message.oneofs.length} oneofs`);
 
     // Check naming convention (PascalCase)
     if (this.settings.namingConventions && !this.isPascalCase(message.name)) {
@@ -366,8 +370,10 @@ export class DiagnosticsProvider {
 
     // Check for duplicate field numbers
     if (this.settings.fieldTagChecks) {
+      logger.verbose(`Checking for duplicate field numbers in message '${fullName}': ${fieldNumbers.size} unique numbers, fieldTagChecks=${this.settings.fieldTagChecks}`);
       for (const [number, fields] of fieldNumbers) {
         if (fields.length > 1) {
+          logger.verbose(`Found duplicate field number ${number} used by ${fields.length} fields in '${fullName}'`);
           for (const field of fields) {
             diagnostics.push({
               severity: DiagnosticSeverity.Error,

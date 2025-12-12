@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package test;
+
+message TestDuplicates {
+	string name = 1;
+	int32 id = 2; // Duplicate field number
+	string email = 3; // Another duplicate
+}

@@ -754,7 +754,8 @@
     "test": "node ./node_modules/jest/bin/jest.js",
     "test:watch": "node ./node_modules/jest/bin/jest.js --watch",
     "test:coverage": "node ./node_modules/jest/bin/jest.js --coverage",
-    "package": "npm run compile && npx vsce package"
+    "package": "npm run compile && npx vsce package",
+    "install-local": "npm run package && code --install-extension protobuf-vsc-*.vsix --force && osascript -e 'tell application \"Visual Studio Code\" to activate' -e 'tell application \"System Events\" to keystroke \"r\" using {command down, shift down}'"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

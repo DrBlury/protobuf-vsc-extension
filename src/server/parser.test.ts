@@ -326,6 +326,46 @@ message Response {
 
       expect(file.messages[0].fields[0].options![0].value).toBe('userName');
     });
+    it('should parse complex aggregate option with multi-line string concatenation', () => {
+      const file = parser.parse(`
+        edition = "2023";
+        message Test {
+          option (buf.validate.message).cel = {
+            id: "test",
+            expression:
+              "has(this.field1)"
+              "? 'yes'"
+              ": 'no'"
+          };
+          string field1 = 1;
+        }
+      `, 'file:///test.proto');
+
+      expect(file.messages).toHaveLength(1);
+      expect(file.messages[0].name).toBe('Test');
+      expect(file.messages[0].options).toHaveLength(1);
+      expect(file.messages[0].options[0].name).toBe('(buf.validate.message).cel');
+      // The aggregate value should be captured as a string
+      expect(typeof file.messages[0].options[0].value).toBe('string');
+      expect(file.messages[0].options[0].value).toContain('expression');
+    });
+
+    it('should parse dotted field option names like features.field_presence', () => {
+      const file = parser.parse(`
+        edition = "2023";
+        message Test {
+          string field1 = 1 [features.field_presence = EXPLICIT];
+          string field2 = 2 [features.field_presence = IMPLICIT];
+        }
+      `, 'file:///test.proto');
+
+      expect(file.messages).toHaveLength(1);
+      expect(file.messages[0].fields).toHaveLength(2);
+      expect(file.messages[0].fields[0].options?.[0]?.name).toBe('features.field_presence');
+      expect(file.messages[0].fields[0].options?.[0]?.value).toBe('EXPLICIT');
+      expect(file.messages[0].fields[1].options?.[0]?.name).toBe('features.field_presence');
+      expect(file.messages[0].fields[1].options?.[0]?.value).toBe('IMPLICIT');
+    });
   });
 
   describe('enum parsing', () => {

@@ -305,8 +305,12 @@ export class ProtoFormatter {
     let result = formattedLines.join('\n');
 
     // Apply renumbering if enabled
+    logger.verbose(`Renumbering setting check: renumberOnFormat=${this.settings.renumberOnFormat} (type: ${typeof this.settings.renumberOnFormat})`);
     if (this.settings.renumberOnFormat) {
+      logger.verbose('Renumbering enabled, applying field renumbering');
       result = this.renumberFields(result);
+    } else {
+      logger.verbose('Renumbering disabled, skipping field renumbering');
     }
 
     return result;
@@ -695,7 +699,28 @@ export class ProtoFormatter {
         const closeBraces = (afterBracket.match(/\}/g) || []).length;
 
         if (openBraces > closeBraces) {
-          // Multi-line inline option - preserve the line as-is and track brace depth
+          // Multi-line inline option - we need to renumber the field but preserve the structure
+          // First, try to renumber the field if we're in a message/enum context
+          if (contextStack.length > 0) {
+            const currentContext = contextStack[contextStack.length - 1]!;
+            const fieldNumberMatch = line.match(/^(.+=\s*)(\d+)(.*)$/);
+
+            if (fieldNumberMatch && (currentContext.type === 'message' || currentContext.type === 'oneof')) {
+              const [, beforeNumber, , afterNumber] = fieldNumberMatch;
+              let finalNumber = currentContext.fieldCounter;
+
+              // Skip the internal reserved range
+              if (finalNumber >= FIELD_NUMBER.RESERVED_RANGE_START && finalNumber <= FIELD_NUMBER.RESERVED_RANGE_END) {
+                finalNumber = 20000;
+              }
+
+              // Replace with the new sequential number
+              line = `${beforeNumber}${finalNumber}${afterNumber}`;
+              currentContext.fieldCounter = finalNumber + increment;
+            }
+          }
+
+          // Track brace depth and continue to next line
           inlineOptionBraceDepth = openBraces - closeBraces;
           result.push(line);
           continue;
@@ -818,15 +843,17 @@ export class ProtoFormatter {
         const fieldNumberMatch = line.match(/^(.+=\s*)(\d+)(.*)$/);
 
         if (fieldNumberMatch) {
-          const [, beforeNumber, existingNumberStr, afterNumber] = fieldNumberMatch;
-          const existingNumber = parseInt(existingNumberStr!, 10);
+          const [, beforeNumber, , afterNumber] = fieldNumberMatch;
 
-          let finalNumber = existingNumber;
+          // Use the current field counter for renumbering
+          let finalNumber = currentContext!.fieldCounter;
+
+          // Skip the internal reserved range
           if (finalNumber >= FIELD_NUMBER.RESERVED_RANGE_START && finalNumber <= FIELD_NUMBER.RESERVED_RANGE_END) {
             finalNumber = 20000;
           }
 
-          // Preserve the original line structure, just replace the number
+          // Replace with the new sequential number
           line = `${beforeNumber}${finalNumber}${afterNumber}`;
           currentContext!.fieldCounter = finalNumber + increment;
 

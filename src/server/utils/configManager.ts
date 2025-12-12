@@ -153,11 +153,12 @@ export function updateProvidersWithSettings(
   clangFormat: ClangFormatProvider,
   wellKnownIncludePath: string | undefined,
   wellKnownCacheDir: string | undefined,
-  workspaceFolders: string[] = []
+  workspaceFolders: string[] = [],
+  codeActionsProvider?: import('../providers/codeActions').CodeActionsProvider
 ): { includePaths: string[]; protoSrcsDir: string } {
   // Update diagnostics settings
   const diag = settings.protobuf.diagnostics;
-  diagnosticsProvider.updateSettings({
+  const diagSettings = {
     namingConventions: diag.namingConventions,
     referenceChecks: diag.referenceChecks,
     importChecks: diag.importChecks,
@@ -167,10 +168,12 @@ export function updateProvidersWithSettings(
     deprecatedUsage: diag.deprecatedUsage ?? true,
     unusedSymbols: diag.unusedSymbols ?? false,
     circularDependencies: diag.circularDependencies ?? true
-  });
+  };
+  diagnosticsProvider.updateSettings(diagSettings);
+  logger.info(`Diagnostics settings: enabled=${diag.enabled}, fieldTagChecks=${diagSettings.fieldTagChecks}, duplicateFieldChecks=${diagSettings.duplicateFieldChecks}`);
 
   // Update formatter settings
-  formatter.updateSettings({
+  const formatterSettings = {
     indentSize: settings.protobuf.indentSize,
     useTabIndent: settings.protobuf.useTabIndent,
     maxLineLength: settings.protobuf.maxLineLength,
@@ -179,7 +182,18 @@ export function updateProvidersWithSettings(
     renumberIncrement: settings.protobuf.renumber.increment,
     preset: settings.protobuf.formatter?.preset as 'minimal' | 'google' | 'buf' | 'custom',
     alignFields: settings.protobuf.formatter?.alignFields
-  });
+  };
+  formatter.updateSettings(formatterSettings);
+  logger.info(`Formatter settings updated: renumberOnFormat=${formatterSettings.renumberOnFormat}, preset=${formatterSettings.preset}, alignFields=${formatterSettings.alignFields}`);
+
+  // Update code actions settings
+  if (codeActionsProvider) {
+    const codeActionsSettings = {
+      renumberOnFormat: settings.protobuf.renumber.onFormat
+    };
+    codeActionsProvider.updateSettings(codeActionsSettings);
+    logger.info(`Code actions settings updated: renumberOnFormat=${codeActionsSettings.renumberOnFormat}`);
+  }
 
   // Update renumber settings
   const renumberSettings = settings.protobuf.renumber;

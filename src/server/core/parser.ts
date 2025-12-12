@@ -121,7 +121,15 @@ export class ProtoParser {
     while (!this.isAtEnd()) {
       try {
         this.parseTopLevel(file);
-      } catch {
+      } catch (error) {
+        // Log parse error for debugging
+        if (error instanceof Error) {
+          console.error(`Parse error at position ${this.pos}: ${error.message}`);
+          const token = this.peek();
+          if (token) {
+            console.error(`  Current token: ${token.type} = "${token.value}" at line ${token.range.start.line}`);
+          }
+        }
         // Skip to next statement on error
         this.skipToNextStatement();
       }
@@ -583,6 +591,7 @@ export class ProtoParser {
   /**
    * Parse an aggregate option value (text format within braces)
    * This handles complex options like buf.validate.message.cel
+   * Includes support for multi-line string concatenation within the aggregate value
    */
   private parseAggregateOptionValue(): string {
     this.expect('punctuation', '{');
@@ -595,11 +604,26 @@ export class ProtoParser {
 
       if (token.type === 'punctuation' && token.value === '{') {
         braceDepth++;
+        parts.push(token.value);
       } else if (token.type === 'punctuation' && token.value === '}') {
         braceDepth--;
+        if (braceDepth >= 0) {  // Include closing brace
+          parts.push(token.value);
+        }
+      } else if (token.type === 'string') {
+        // Handle string concatenation: consecutive string literals should be concatenated
+        // This is common in CEL expressions that span multiple lines
+        parts.push(token.value);
+        // Look ahead for more string tokens (string concatenation)
+        while (this.match('string')) {
+          const nextStr = this.advance();
+          if (nextStr) {
+            parts.push(nextStr.value);
+          }
+        }
+      } else {
+        parts.push(token.value);
       }
-
-      parts.push(token.value);
     }
 
     return parts.join(' ');
@@ -766,6 +790,11 @@ export class ProtoParser {
         }
       } else {
         name = this.expect('identifier').value;
+        // Handle dotted names like features.field_presence
+        while (this.match('punctuation', '.')) {
+          this.advance();
+          name += '.' + this.expect('identifier').value;
+        }
       }
 
       this.expect('punctuation', '=');

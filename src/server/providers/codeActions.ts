@@ -15,19 +15,34 @@ import { ProtoFile } from '../core/ast';
 import { SemanticAnalyzer } from '../core/analyzer';
 import { RenumberProvider } from './renumber';
 import { FIELD_NUMBER } from '../utils/constants';
+import { logger } from '../utils/logger';
 
 export interface CodeActionContext {
   diagnostics: Diagnostic[];
   only?: CodeActionKind[];
 }
 
+export interface CodeActionsSettings {
+  renumberOnFormat?: boolean;
+}
+
+const DEFAULT_SETTINGS: CodeActionsSettings = {
+  renumberOnFormat: false
+};
+
 export class CodeActionsProvider {
   private analyzer: SemanticAnalyzer;
   private renumberProvider: RenumberProvider;
+  private settings: CodeActionsSettings = DEFAULT_SETTINGS;
 
   constructor(analyzer: SemanticAnalyzer, renumberProvider: RenumberProvider) {
     this.analyzer = analyzer;
     this.renumberProvider = renumberProvider;
+  }
+
+  updateSettings(settings: Partial<CodeActionsSettings>): void {
+    this.settings = { ...this.settings, ...settings };
+    logger.info(`CodeActionsProvider settings updated: renumberOnFormat=${this.settings.renumberOnFormat}`);
   }
 
   getCodeActions(
@@ -77,22 +92,26 @@ export class CodeActionsProvider {
 
     // Source action to renumber/complete missing field tags across the document
     if (!requestedKinds || requestedKinds.some(k => k === CodeActionKind.Source || k.startsWith(CodeActionKind.Source))) {
-      const renumberAction = this.createRenumberDocumentAction(uri, documentText);
-      if (renumberAction) {
-        actions.push(renumberAction);
+      if (this.settings.renumberOnFormat) {
+        const renumberAction = this.createRenumberDocumentAction(uri, documentText);
+        if (renumberAction) {
+          actions.push(renumberAction);
+        }
+
+        const messageName = this.findEnclosingMessageName(range, documentText);
+        if (messageName) {
+          const addNumbers = this.createNumberFieldsInMessageAction(uri, documentText, range, messageName);
+          if (addNumbers) {
+            actions.push(addNumbers);
+          }
+        }
+      } else {
+        logger.info('Skipping renumber source actions because renumberOnFormat=false');
       }
 
       const semicolonAction = this.createAddMissingSemicolonsAction(uri, documentText);
       if (semicolonAction) {
         actions.push(semicolonAction);
-      }
-
-      const messageName = this.findEnclosingMessageName(range, documentText);
-      if (messageName) {
-        const addNumbers = this.createNumberFieldsInMessageAction(uri, documentText, range, messageName);
-        if (addNumbers) {
-          actions.push(addNumbers);
-        }
       }
     }
 
@@ -885,30 +904,35 @@ export class CodeActionsProvider {
       ));
     }
 
-    // Fix duplicate field number
+    // Fix duplicate field number - only if renumbering is enabled
     if (message.includes('duplicate field number')) {
-      const file = this.analyzer.getFile(uri);
-      if (file) {
-        const nextNumber = this.findNextAvailableFieldNumber(file, documentText, diagnostic.range);
+      logger.info(`Code action: duplicate field number detected, renumberOnFormat=${this.settings.renumberOnFormat}`);
 
-        // Find the field number in the line and suggest changing it
-        const lines = documentText.split('\n');
-        const line = lines[diagnostic.range.start.line];
-        if (line) {
-          const numberMatch = line.match(/=\s*(\d+)/);
+      if (this.settings.renumberOnFormat) {
+        logger.info(`Code action: offering quick fix for duplicate field number`);
+        const file = this.analyzer.getFile(uri);
+        if (file) {
+          const nextNumber = this.findNextAvailableFieldNumber(file, documentText, diagnostic.range);
 
-          if (numberMatch) {
-            const newLine = line.replace(/=\s*\d+/, `= ${nextNumber}`);
-            fixes.push(this.createQuickFix(
-              `Change field number to ${nextNumber}`,
-              uri,
-              {
-                start: { line: diagnostic.range.start.line, character: 0 },
-                end: { line: diagnostic.range.start.line, character: line.length }
-              },
-              newLine,
-              diagnostic
-            ));
+          // Find the field number in the line and suggest changing it
+          const lines = documentText.split('\n');
+          const line = lines[diagnostic.range.start.line];
+          if (line) {
+            const numberMatch = line.match(/=\s*(\d+)/);
+
+            if (numberMatch) {
+              const newLine = line.replace(/=\s*\d+/, `= ${nextNumber}`);
+              fixes.push(this.createQuickFix(
+                `Change field number to ${nextNumber}`,
+                uri,
+                {
+                  start: { line: diagnostic.range.start.line, character: 0 },
+                  end: { line: diagnostic.range.start.line, character: line.length }
+                },
+                newLine,
+                diagnostic
+              ));
+            }
           }
         }
       }
