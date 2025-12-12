@@ -11,6 +11,14 @@ import { SemanticAnalyzer } from '../core/analyzer';
 import { logger } from './logger';
 import { getErrorMessage } from './utils';
 
+function toWorkspaceRelative(filePath: string, workspaceFolder: string): string {
+  const relative = path.relative(workspaceFolder, filePath);
+  if (!relative || relative.startsWith('..')) {
+    return filePath;
+  }
+  return relative.split(path.sep).join('/');
+}
+
 /**
  * Recursively find all .proto files in a directory
  * @param dir - The directory to search
@@ -96,6 +104,19 @@ export function scanWorkspaceForProtoFiles(
     totalFiles += protoFiles.length;
 
     logger.verbose(`Found ${protoFiles.length} proto file(s) in workspace folder: ${searchPath}`);
+    const relativePaths = protoFiles
+      .map(filePath => toWorkspaceRelative(filePath, folder))
+      .sort((a, b) => a.localeCompare(b));
+
+    if (relativePaths.length === 0) {
+      logger.info(`No proto files found in workspace folder "${folder}"${protoSrcsDir ? ` (limited to ${protoSrcsDir})` : ''}.`);
+    } else {
+      logger.info(`Proto files found in workspace folder "${folder}":`);
+      for (const relPath of relativePaths) {
+        const display = relPath.startsWith('.') ? relPath : `./${relPath}`;
+        logger.info(`  - ${display}`);
+      }
+    }
 
     for (const filePath of protoFiles) {
       try {

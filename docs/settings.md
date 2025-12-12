@@ -111,7 +111,7 @@ Settings can be configured in:
 
 - **Type**: `boolean`
 - **Default**: `false`
-- **Description**: Automatically format proto files on save
+- **Description**: Automatically format proto files on save. When disabled, saving `.proto`/`.textproto` files skips formatting even if VS Code's `editor.formatOnSave` is turned on. When enabled, the extension formats proto files on save even if the global editor setting is turned off (unless VS Code's `editor.formatOnSaveMode` is set to `modifications`, in which case VS Code must remain responsible for formatting).
 
 #### `protobuf.indentSize`
 

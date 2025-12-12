@@ -100,7 +100,7 @@ Search for "protobuf" in VS Code settings. Common options:
 | Setting | Purpose | Default |
 | --- | --- | --- |
 | `protobuf.formatterEnabled` | Enable built-in formatter | `true` |
-| `protobuf.formatOnSave` | Format on save | `false` |
+| `protobuf.formatOnSave` | Format on save (overrides VS Code's `editor.formatOnSave` just for `.proto`/`.textproto`). When `editor.formatOnSaveMode` is set to `modifications`, the extension defers to VS Code and will not run its own formatter while `editor.formatOnSave` is disabled. | `false` |
 | `protobuf.protoc.path` | Path to `protoc` | `"protoc"` |
 | `protobuf.protoc.options` | Extra `protoc` args | `[]` |
 | `protobuf.protoc.compileOnSave` | Compile on save | `false` |

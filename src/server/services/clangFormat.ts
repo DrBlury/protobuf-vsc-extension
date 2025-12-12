@@ -3,9 +3,10 @@
  * Uses clang-format for code formatting when available
  */
 
-import { spawn } from 'child_process';
+import { spawn, SpawnOptions } from 'child_process';
 import { TextEdit, Range } from 'vscode-languageserver/node';
 import * as path from 'path';
+import { logger } from '../utils/logger';
 
 export interface ClangFormatSettings {
   enabled: boolean;
@@ -37,10 +38,14 @@ export class ClangFormatProvider {
     }
 
     return new Promise((resolve) => {
-      const proc = spawn(this.settings.path, ['--version'], { shell: true });
+      logger.verbose(`Checking clang-format availability via "${this.settings.path}" --version`);
+      const proc = spawn(this.settings.path, ['--version']);
 
       proc.on('close', (code: number | null) => resolve(code === 0));
-      proc.on('error', () => resolve(false));
+      proc.on('error', (err) => {
+        logger.warn(`clang-format availability check failed for path "${this.settings.path}": ${err instanceof Error ? err.message : String(err)}`);
+        resolve(false);
+      });
     });
   }
 
@@ -49,7 +54,8 @@ export class ClangFormatProvider {
    */
   async getVersion(): Promise<string | null> {
     return new Promise((resolve) => {
-      const proc = spawn(this.settings.path, ['--version'], { shell: true });
+      logger.verbose(`Requesting clang-format version via "${this.settings.path}" --version`);
+      const proc = spawn(this.settings.path, ['--version']);
 
       let output = '';
       proc.stdout?.on('data', (data) => {
@@ -66,7 +72,10 @@ export class ClangFormatProvider {
         }
       });
 
-      proc.on('error', () => resolve(null));
+      proc.on('error', (err) => {
+        logger.warn(`Unable to read clang-format version from "${this.settings.path}": ${err instanceof Error ? err.message : String(err)}`);
+        resolve(null);
+      });
     });
   }
 
@@ -187,29 +196,68 @@ export class ClangFormatProvider {
         cwd = path.dirname(actualPath);
       }
 
-      const proc = spawn(this.settings.path, args, { shell: true, cwd });
+      const spawnOptions: SpawnOptions = {};
+      if (cwd) {
+        spawnOptions.cwd = cwd;
+      }
+
+      logger.verboseWithContext('Invoking clang-format', {
+        operation: 'clang-format',
+        path: this.settings.path,
+        args,
+        cwd: spawnOptions.cwd || process.cwd(),
+        filePath,
+        offset,
+        length,
+        inputLength: text.length
+      });
+
+      const start = Date.now();
+      const proc = spawn(this.settings.path, args, spawnOptions);
 
       let stdout = '';
+      let stderrOutput = '';
 
       proc.stdout?.on('data', (data: Buffer) => {
         stdout += data.toString();
       });
 
-      proc.stderr?.on('data', (_data: Buffer) => {
-        // stderr captured but not used - errors handled via close event
+      proc.stderr?.on('data', (data: Buffer) => {
+        stderrOutput += data.toString();
       });
 
       proc.on('close', (code) => {
         if (code === 0) {
+          logger.verboseWithContext('clang-format completed successfully', {
+            operation: 'clang-format',
+            filePath,
+            duration: Date.now() - start,
+            outputLength: stdout.length
+          });
           resolve(stdout);
         } else {
-          // Error logged via connection.console in parent try-catch
+          logger.verboseWithContext('clang-format failed', {
+            operation: 'clang-format',
+            filePath,
+            duration: Date.now() - start,
+            exitCode: code ?? -1,
+            stderr: stderrOutput.slice(0, 2000),
+            args
+          });
+          logger.warn(`clang-format exited with code ${code} when formatting via "${this.settings.path}". Args: ${args.join(' ')}`);
           resolve(null);
         }
       });
 
-      proc.on('error', (_err: Error) => {
-        // Error logged via connection.console in parent try-catch
+      proc.on('error', (err: Error) => {
+        logger.verboseWithContext('clang-format process error', {
+          operation: 'clang-format',
+          filePath,
+          duration: Date.now() - start,
+          error: err.message,
+          args
+        });
+        logger.warn(`Failed to run clang-format at "${this.settings.path}": ${err.message}`);
         resolve(null);
       });
 

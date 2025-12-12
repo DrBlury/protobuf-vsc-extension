@@ -5,17 +5,24 @@
 import { ClangFormatProvider } from './clangFormat';
 import { spawn } from 'child_process';
 import { Range } from 'vscode-languageserver/node';
+import { logger } from '../utils/logger';
 
 jest.mock('child_process');
 
 describe('ClangFormatProvider', () => {
   let provider: ClangFormatProvider;
   let mockSpawn: jest.MockedFunction<typeof spawn>;
+  let warnSpy: jest.SpyInstance;
 
   beforeEach(() => {
     provider = new ClangFormatProvider();
     mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
     jest.clearAllMocks();
+    warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
   });
 
   describe('updateSettings', () => {

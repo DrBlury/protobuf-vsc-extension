@@ -23,6 +23,7 @@ import { SchemaDiffManager } from './client/diff/schemaDiff';
 import { PlaygroundManager } from './client/playground/playgroundManager';
 import { OptionInspectorProvider } from './client/inspector/optionInspector';
 import { RegistryManager } from './client/registry/registryManager';
+import { SaveStateTracker } from './client/formatting/saveState';
 
 let client: LanguageClient;
 let outputChannel: vscode.OutputChannel;
@@ -36,6 +37,97 @@ let registryManager: RegistryManager;
 
 // Debounce map for dependency suggestions to avoid multiple prompts
 const dependencySuggestionDebounce = new Map<string, boolean>();
+const saveStateTracker = new SaveStateTracker();
+let modificationsModeWarningShown = false;
+
+function isProtoDocument(document: vscode.TextDocument): boolean {
+  return document.languageId === 'proto' || document.languageId === 'textproto';
+}
+
+function markSaveInProgress(uri: vscode.Uri): void {
+  saveStateTracker.mark(uri.toString());
+}
+
+function clearSaveInProgress(uri: vscode.Uri): void {
+  saveStateTracker.clear(uri.toString());
+}
+
+function shouldSkipFormatRequest(document: vscode.TextDocument): boolean {
+  if (!isProtoDocument(document)) {
+    return false;
+  }
+
+  const protoConfig = vscode.workspace.getConfiguration('protobuf', document.uri);
+  const formatOnSaveEnabled = protoConfig.get<boolean>('formatOnSave', false);
+  if (formatOnSaveEnabled) {
+    return false;
+  }
+
+  return saveStateTracker.isSaving(document.uri.toString());
+}
+
+function getFormattingOptionsForDocument(document: vscode.TextDocument): vscode.FormattingOptions {
+  const editorConfig = vscode.workspace.getConfiguration('editor', document.uri);
+  const tabSize = editorConfig.get<number>('tabSize', 4);
+  const insertSpaces = editorConfig.get<boolean>('insertSpaces', true);
+  return {
+    tabSize: Number.isInteger(tabSize) ? tabSize : 4,
+    insertSpaces
+  };
+}
+
+async function formatDocumentIfNeeded(document: vscode.TextDocument): Promise<void> {
+  if (!isProtoDocument(document)) {
+    return;
+  }
+
+  const protoConfig = vscode.workspace.getConfiguration('protobuf', document.uri);
+  const formatOnSave = protoConfig.get<boolean>('formatOnSave', false);
+  if (!formatOnSave) {
+    return;
+  }
+
+  const editorConfig = vscode.workspace.getConfiguration('editor', document.uri);
+  const editorFormatOnSave = editorConfig.get<boolean>('formatOnSave', false);
+  if (editorFormatOnSave) {
+    // VS Code will handle formatting automatically.
+    return;
+  }
+
+  const formatMode = editorConfig.get<'file' | 'modifications' | 'modificationsIfAvailable'>('formatOnSaveMode', 'file');
+  if (formatMode === 'modifications') {
+    if (!modificationsModeWarningShown) {
+      outputChannel.appendLine('Skipping manual proto formatting because editor.formatOnSaveMode is set to "modifications". Enable VS Code formatOnSave or switch formatOnSaveMode to "file" or "modificationsIfAvailable" to allow protobuf.formatOnSave.');
+      modificationsModeWarningShown = true;
+    }
+    return;
+  }
+
+  const formattingOptions = getFormattingOptionsForDocument(document);
+
+  let edits: vscode.TextEdit[] | undefined;
+  try {
+    edits = await vscode.commands.executeCommand<vscode.TextEdit[]>(
+      'vscode.executeFormatDocumentProvider',
+      document.uri,
+      formattingOptions
+    );
+  } catch (err) {
+    outputChannel.appendLine(`Failed to request proto formatting edits: ${err instanceof Error ? err.message : String(err)}`);
+    return;
+  }
+
+  if (!edits || edits.length === 0) {
+    return;
+  }
+
+  const workspaceEdit = new vscode.WorkspaceEdit();
+  workspaceEdit.set(document.uri, edits);
+  const applied = await vscode.workspace.applyEdit(workspaceEdit);
+  if (!applied) {
+    throw new Error('Failed to apply formatting edits returned by proto formatter');
+  }
+}
 
 export async function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME);
@@ -52,6 +144,42 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand('protobuf.toolchain.useSystem', () => {
     toolchainManager.useSystemToolchain();
   }));
+
+  // Respect protobuf.formatOnSave and provide manual formatting when editor.formatOnSave is disabled
+  context.subscriptions.push(
+    vscode.workspace.onWillSaveTextDocument(event => {
+      if (!isProtoDocument(event.document)) {
+        return;
+      }
+
+      markSaveInProgress(event.document.uri);
+
+      event.waitUntil(
+        formatDocumentIfNeeded(event.document).catch(err => {
+          outputChannel.appendLine(
+            `Failed to run protobuf.formatOnSave for ${event.document.uri.fsPath}: ${err instanceof Error ? err.message : String(err)}`
+          );
+        })
+      );
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument(document => {
+      if (isProtoDocument(document)) {
+        clearSaveInProgress(document.uri);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.workspace.onDidCloseTextDocument(document => {
+      if (isProtoDocument(document)) {
+        clearSaveInProgress(document.uri);
+      }
+    })
+  );
+  context.subscriptions.push({ dispose: () => saveStateTracker.dispose() });
 
   // Initialize auto-detector for tools
   autoDetector = new AutoDetector(context, outputChannel);
@@ -409,6 +537,20 @@ breaking:
         vscode.workspace.createFileSystemWatcher('**/buf.work.yml'),
         vscode.workspace.createFileSystemWatcher('**/buf.lock')
       ]
+    },
+    middleware: {
+      provideDocumentFormattingEdits: (document, options, token, next) => {
+        if (shouldSkipFormatRequest(document)) {
+          return [];
+        }
+        return next ? next(document, options, token) : [];
+      },
+      provideDocumentRangeFormattingEdits: (document, range, options, token, next) => {
+        if (shouldSkipFormatRequest(document)) {
+          return [];
+        }
+        return next ? next(document, range, options, token) : [];
+      }
     },
     outputChannel,
     outputChannelName: OUTPUT_CHANNEL_NAME,

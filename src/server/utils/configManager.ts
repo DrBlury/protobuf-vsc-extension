@@ -282,12 +282,50 @@ export function updateProvidersWithSettings(
   // Update clang-format settings
   const clangSettings = settings.protobuf.clangFormat;
   const expandedClangPath = expandPathSetting(clangSettings.path, workspaceFolders);
+  const resolvedClangPath = expandedClangPath || clangSettings.path || 'clang-format';
   clangFormat.updateSettings({
     enabled: clangSettings.enabled,
-    path: expandedClangPath || clangSettings.path,
+    path: resolvedClangPath,
     style: clangSettings.style,
     fallbackStyle: clangSettings.fallbackStyle
   });
+
+  if (clangSettings.enabled) {
+    const configuredPath = clangSettings.path?.trim() || 'clang-format';
+    const usedPath = resolvedClangPath;
+    let pathDetails = 'resolved via PATH';
+    if (path.isAbsolute(usedPath)) {
+      pathDetails = fs.existsSync(usedPath) ? 'exists' : 'missing on disk';
+    } else if (usedPath !== 'clang-format') {
+      pathDetails = 'relative path';
+    }
+
+    const expansionInfo = expandedClangPath && clangSettings.path
+      ? ` (expanded from "${clangSettings.path}")`
+      : '';
+
+    logger.info(
+      `clang-format enabled. configured="${configuredPath}" resolved="${usedPath}"${expansionInfo} (${pathDetails}). style=${clangSettings.style || 'file'}, fallback=${clangSettings.fallbackStyle || 'Google'}`
+    );
+
+    logger.verboseWithContext('clang-format configuration expanded', {
+      operation: 'config',
+      configuredPath,
+      expandedPath: expandedClangPath,
+      resolvedPath: resolvedClangPath,
+      workspaceFolders: workspaceFolders.join(', ') || '(none)',
+      style: clangSettings.style,
+      fallbackStyle: clangSettings.fallbackStyle
+    });
+  } else {
+    logger.info('clang-format disabled. Built-in formatter will handle proto files unless buf preset is selected.');
+    logger.verboseWithContext('clang-format disabled configuration snapshot', {
+      operation: 'config',
+      configuredPath: clangSettings.path,
+      style: clangSettings.style,
+      fallbackStyle: clangSettings.fallbackStyle
+    });
+  }
 
   // Update logger with debug settings
   const debugSettings = settings.protobuf.debug;
@@ -304,6 +342,18 @@ export function updateProvidersWithSettings(
 
   // Expand protoSrcsDir with variable substitution
   const protoSrcsDir = expandVariables(settings.protobuf.protoSrcsDir || '', workspaceFolders);
+
+  logger.info('Tool configuration summary:');
+  logger.info(`  protoc.path: ${expandedProtocPath || protocSettings.path || 'protoc'}`);
+  logger.info(`  protoc.compileOnSave: ${protocSettings.compileOnSave}`);
+  logger.info(`  buf.path: ${resolvedBufPath ?? 'not configured'}`);
+  logger.info(`  externalLinter.enabled: ${linterSettings.enabled} (linter=${linterSettings.linter})`);
+  logger.info(`  externalLinter.bufConfigPath: ${expandedBufConfigPath || linterSettings.bufConfigPath || 'not configured'}`);
+  logger.info(`  externalLinter.protolintPath: ${expandedProtolintPath || linterSettings.protolintPath || 'not configured'}`);
+  logger.info(`  externalLinter.protolintConfigPath: ${expandedProtolintConfigPath || linterSettings.protolintConfigPath || 'not configured'}`);
+  logger.info(`  clangFormat.path: ${resolvedClangPath} (enabled=${clangSettings.enabled})`);
+  logger.info(`  includePaths: ${includePaths.join(', ') || '(none)'}`);
+  logger.info(`  protoSrcsDir: ${protoSrcsDir || '(workspace root)'}`);
 
   // Return the user-configured include paths (expanded) and protoSrcsDir for scanning
   // Note: includePaths already computed above with variable expansion
