@@ -30,7 +30,7 @@ interface AlignmentData {
 const DEFAULT_SETTINGS: FormatterSettings = {
   indentSize: 2,
   useTabIndent: false,
-  renumberOnFormat: true,
+  renumberOnFormat: false,
   renumberStartNumber: 1,
   renumberIncrement: 1,
   preset: 'minimal',
