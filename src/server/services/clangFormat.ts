@@ -5,6 +5,7 @@
 
 import { spawn } from 'child_process';
 import { TextEdit, Range } from 'vscode-languageserver/node';
+import * as path from 'path';
 
 export interface ClangFormatSettings {
   enabled: boolean;
@@ -170,7 +171,23 @@ export class ClangFormatProvider {
         args.push(`--length=${length}`);
       }
 
-      const proc = spawn(this.settings.path, args, { shell: true });
+      // Set working directory to the file's directory so clang-format can find .clang-format config
+      // clang-format searches for config files starting from the working directory when reading from stdin
+      let cwd: string | undefined;
+      if (filePath) {
+        // Handle both file:// URIs and regular paths
+        let actualPath = filePath;
+        if (filePath.startsWith('file://')) {
+          actualPath = filePath.replace('file://', '');
+          // Handle Windows paths like file:///C:/...
+          if (actualPath.match(/^\/[A-Za-z]:\//)) {
+            actualPath = actualPath.substring(1);
+          }
+        }
+        cwd = path.dirname(actualPath);
+      }
+
+      const proc = spawn(this.settings.path, args, { shell: true, cwd });
 
       let stdout = '';
 

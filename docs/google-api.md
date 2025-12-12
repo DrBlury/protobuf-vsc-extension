@@ -18,6 +18,7 @@ When typing inside an RPC method body, the extension provides completions for:
 - **Path templates**: Common patterns with path variables
 
 Example usage:
+
 ```proto
 import "google/api/annotations.proto";
 
@@ -176,6 +177,7 @@ The extension provides enhanced support for `google.protobuf.FieldMask` fields c
 #### Field Name Suggestions
 
 When using `google.protobuf.FieldMask` as a field type, the extension suggests appropriate field names:
+
 - `update_mask`
 - `field_mask`
 - `read_mask`

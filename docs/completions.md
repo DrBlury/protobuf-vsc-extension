@@ -179,6 +179,7 @@ The extension provides intelligent completions for [CEL (Common Expression Langu
 **When it appears:** Inside a `buf.validate` option block
 
 **What it suggests:**
+
 - `id` - Unique identifier for the validation rule
 - `message` - Human-readable error message
 - `expression` - CEL expression for validation
@@ -198,6 +199,7 @@ message User {
 **When it appears:** Inside the `expression` string of a CEL rule
 
 **What it suggests:**
+
 - `this` - Reference to the current message
 - Message fields (after typing `this.`)
 - CEL functions (size, has, startsWith, etc.)
@@ -223,9 +225,11 @@ message User {
 The extension provides completions for all CEL functions as defined in the [CEL Language Specification](https://github.com/google/cel-spec/blob/master/doc/langdef.md):
 
 **Field Presence:**
+
 - `has(this.field)` - Check if a field is set
 
 **String Functions:**
+
 - `size(value)` - Get string/list/map length
 - `string.startsWith(prefix)` - Check string prefix
 - `string.endsWith(suffix)` - Check string suffix
@@ -233,6 +237,7 @@ The extension provides completions for all CEL functions as defined in the [CEL 
 - `string.matches(regex)` - Regex pattern matching
 
 **List Functions:**
+
 - `list.all(x, predicate)` - Check all elements match
 - `list.exists(x, predicate)` - Check any element matches
 - `list.exists_one(x, predicate)` - Check exactly one matches
@@ -240,6 +245,7 @@ The extension provides completions for all CEL functions as defined in the [CEL 
 - `list.map(x, transform)` - Transform elements
 
 **Type Conversions and Denotations:**
+
 - `int(value)` - Convert to integer
 - `uint(value)` - Convert to unsigned integer
 - `double(value)` - Convert to double
@@ -253,10 +259,12 @@ The extension provides completions for all CEL functions as defined in the [CEL 
 - `null_type(value)` - Type denotation for null
 
 **Duration/Timestamp Conversions:**
+
 - `duration(value)` - Create duration from string (supports "1h30m", "3600s", etc.)
 - `timestamp(value)` - Create timestamp from string (RFC3339 format)
 
 **Timestamp Getter Methods:**
+
 - `timestamp.getDate(timezone?)` - Get date component
 - `timestamp.getDayOfMonth(timezone?)` - Get day of month (1-31)
 - `timestamp.getDayOfWeek(timezone?)` - Get day of week (0=Sunday, 6=Saturday)
@@ -273,22 +281,26 @@ The extension provides completions for all CEL functions as defined in the [CEL 
 The extension supports all CEL literal types:
 
 **String Literals:**
+
 - Regular strings: `"..."` or `'...'`
 - Raw strings: `r"..."` or `R"..."` (escape sequences not interpreted)
 - Triple-quoted strings: `"""..."""` or `'''...'''`
 
 **Numeric Literals:**
+
 - Integers: `123`, `-456`
 - Hex integers: `0x1A`, `0XFF`
 - Unsigned integers: `123u`, `456U`
 - Floats: `3.14`, `1.5e10`, `-2.3E-5`
 
 **Other Literals:**
+
 - Bytes: `b"..."` or `B"..."`
 - Booleans: `true`, `false`
 - Null: `null`
 
 **Collection Literals:**
+
 - Lists: `[1, 2, 3]`
 - Maps: `{"key": "value"}`
 - Message literals: `Type{field: value}`
@@ -298,20 +310,25 @@ The extension supports all CEL literal types:
 All CEL operators are supported with proper syntax highlighting:
 
 **Arithmetic Operators:**
+
 - `+` (addition), `-` (subtraction/unary negation), `*` (multiplication), `/` (division), `%` (remainder)
 
 **Comparison Operators:**
+
 - `==` (equality), `!=` (inequality), `<` (less than), `<=` (less than or equal), `>` (greater than), `>=` (greater than or equal), `in` (membership)
 
 **Logical Operators:**
+
 - `&&` (logical AND), `||` (logical OR), `!` (logical NOT/unary)
 
 **Ternary Operator:**
+
 - `? :` (conditional: `condition ? true_expr : false_expr`)
 
 #### CEL Reserved Words
 
 The following words are reserved in CEL and cannot be used as identifiers (they are highlighted appropriately):
+
 - Keywords: `false`, `in`, `null`, `true`
 - Reserved: `as`, `break`, `const`, `continue`, `else`, `for`, `function`, `if`, `import`, `let`, `loop`, `package`, `namespace`, `return`, `var`, `void`, `while`
 
@@ -366,6 +383,7 @@ The extension provides comprehensive completions for Google API annotations comm
 **When it appears:** Inside an RPC method body when typing `option (google.api.http)`
 
 **What it suggests:**
+
 - HTTP methods: `get`, `post`, `put`, `delete`, `patch`, `custom`
 - Body mapping: `body`, `response_body`
 - Additional bindings: `additional_bindings`
@@ -384,15 +402,17 @@ service UserService {
 ```
 
 **Path template suggestions** appear when typing inside a path string:
+
 - `/v1/{resource}` - Simple resource path
 - `/v1/{parent}/children` - Nested resource path
 - `/v1/{resource}:action` - Custom action path
 
 #### Field Behavior Annotations (`google.api.field_behavior`)
 
-**When it appears:** When typing `[(google.api.field_behavior) = `
+**When it appears:** When typing `[(google.api.field_behavior) =`
 
 **What it suggests:**
+
 - `REQUIRED` - Field must be set by the client
 - `OUTPUT_ONLY` - Field is set by the server only
 - `INPUT_ONLY` - Field is set by the client but not returned
@@ -415,6 +435,7 @@ message User {
 **When it appears:** Inside a message when typing `option (google.api.resource)`
 
 **What it suggests:**
+
 - `type` - Resource type name (e.g., "example.googleapis.com/User")
 - `pattern` - Resource name pattern (e.g., "users/{user}")
 - `name_field` - Field containing the resource name
@@ -438,6 +459,7 @@ message User {
 **When it appears:** When typing `[(google.api.resource_reference) = {`
 
 **What it suggests:**
+
 - `type` - Reference to a specific resource type
 - `child_type` - Reference to a child resource type
 
@@ -458,6 +480,7 @@ message Order {
 **When it appears:** When typing option in a service definition
 
 **What it suggests:**
+
 - `(google.api.default_host)` - Default API endpoint host
 - `(google.api.oauth_scopes)` - OAuth scopes for the service
 - `(google.api.method_signature)` - Simplified method signatures
@@ -467,6 +490,7 @@ message Order {
 **When it appears:** When typing a field name after `google.protobuf.FieldMask`
 
 **What it suggests:**
+
 - `update_mask` - Common field name for partial updates
 - `field_mask` - Alternative field name
 - `read_mask` - Field name for read projections

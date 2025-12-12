@@ -22,7 +22,7 @@ message BillingAddress {
 	// Dynamic error message - includes actual values in the error
 	option (buf.validate.message).cel = {
 		id        : "BillingAddress.StreetAndHouse_number",
-		expression: 
+		expression:
 		"has(this.street) == has(this.house_number)"
 		"? ''"
 		": 'Invalid address: street is ' + (has(this.street) ? 'set' : 'missing') + ' but house_number is ' + (has(this.house_number) ? 'set' : 'missing')"

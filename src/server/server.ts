@@ -208,15 +208,47 @@ connection.onExit(() => {
   logger.info('Language server process exiting');
 });
 
-connection.onInitialized(() => {
+connection.onInitialized(async () => {
   if (hasConfigurationCapability) {
     connection.client.register(DidChangeConfigurationNotification.type, undefined);
+
+    // Fetch initial configuration from the client
+    try {
+      const config = await connection.workspace.getConfiguration('protobuf');
+      if (config) {
+        // Wrap in protobuf key to match Settings interface
+        globalSettings = { protobuf: config } as Settings;
+
+        // Apply settings to all providers
+        const { includePaths: userIncludePaths, protoSrcsDir: newProtoSrcsDir } = updateProvidersWithSettings(
+          globalSettings,
+          providers.diagnostics,
+          providers.formatter,
+          providers.renumber,
+          providers.analyzer,
+          providers.protoc,
+          providers.breaking,
+          providers.externalLinter,
+          providers.clangFormat,
+          wellKnownIncludePath,
+          wellKnownCacheDir,
+          workspaceFolders
+        );
+
+        protoSrcsDir = newProtoSrcsDir;
+
+        // Scan user-configured import paths for proto files
+        if (userIncludePaths.length > 0) {
+          scanImportPaths(userIncludePaths, providers.parser, providers.analyzer);
+        }
+      }
+    } catch (e) {
+      logger.errorWithContext('Failed to fetch initial configuration', { error: e });
+    }
   }
 
   // Scan workspace for proto files on initialization
-  // Note: protoSrcsDir will be empty at this point (default), so full workspace is scanned.
-  // When configuration loads (via onDidChangeConfiguration), protoSrcsDir will be updated,
-  // and files will be rescanned as they are opened/edited.
+  // Note: protoSrcsDir may now be set from initial config fetch above.
   scanWorkspaceForProtoFiles(workspaceFolders, providers.parser, providers.analyzer, protoSrcsDir);
 });
 

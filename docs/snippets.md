@@ -19,6 +19,7 @@ Snippets are code templates that you can insert into your proto files. Type the 
 ### Basic Syntax
 
 #### `syntax3` - Proto3 Syntax
+
 Complete proto3 file header with package declaration.
 
 ```proto
@@ -29,12 +30,15 @@ package example.v1;
 ```
 
 #### `syntax2` - Proto2 Syntax
+
 Complete proto2 file header with package declaration.
 
 #### `edition2023` - Edition 2023
+
 Edition 2023 declaration with package.
 
 #### `fileproto3` - Complete File Template
+
 Complete proto3 file with common imports and options.
 
 ```proto
@@ -53,6 +57,7 @@ option java_package = "com.example.v1";
 ### Messages
 
 #### `message` - Basic Message
+
 ```proto
 message MessageName {
   // fields
@@ -60,29 +65,37 @@ message MessageName {
 ```
 
 #### `msgtime` - Message with Timestamps
+
 Message with standard timestamp fields (created_at, updated_at, deleted_at).
 
 #### `msgmeta` - Message with Metadata
+
 Message with metadata map, labels, and tags.
 
 #### `msgstatus` - Message with Status Enum
+
 Message with associated status enum.
 
 #### `msgpaginated` - Paginated List
+
 Request and response messages for pagination.
 
 #### `msgoneof` - Message with Oneof
+
 Message with oneof field group.
 
 #### `msgnested` - Message with Nested Types
+
 Message with nested message and enum.
 
 #### `msgextend` - Message with Extensions
+
 Message with extension range and extend block.
 
 ### Fields
 
 #### Basic Field Types
+
 - `fstring` - String field
 - `fint32` - Int32 field
 - `fint64` - Int64 field
@@ -97,6 +110,7 @@ Message with extension range and extend block.
 - `fpacked` - Packed repeated field
 
 #### Well-Known Types
+
 - `ftimestamp` - Timestamp field
 - `fduration` - Duration field
 - `fempty` - Empty field
@@ -106,6 +120,7 @@ Message with extension range and extend block.
 - `fwrapper` - Wrapper type field (StringValue, Int32Value, etc.)
 
 #### `fvalidate` - Field with Validation
+
 Field with buf.validate constraints.
 
 ```proto
@@ -118,6 +133,7 @@ string field_name = 1 [
 ### Enums
 
 #### `enum` - Basic Enum
+
 ```proto
 enum EnumName {
   UNKNOWN = 0;
@@ -125,11 +141,13 @@ enum EnumName {
 ```
 
 #### `enumopt` - Enum with Options
+
 Enum with allow_alias option for value aliases.
 
 ### Services & gRPC
 
 #### `service` - Basic Service
+
 ```proto
 service ServiceName {
   // RPCs
@@ -137,64 +155,80 @@ service ServiceName {
 ```
 
 #### `grpccrud` - Complete CRUD Service
+
 Full CRUD service with all request/response messages:
+
 - Create, Get, List, Update, Delete RPCs
 - Pagination support
 - Standard request/response patterns
 
 #### `grpcstream` - Streaming Service
+
 Service with all streaming patterns:
+
 - Unary RPC
 - Server streaming
 - Client streaming
 - Bidirectional streaming
 
 #### `grpcpage` - Pagination Request
+
 Standard pagination request message.
 
 #### `grpcpageresponse` - Pagination Response
+
 Standard pagination response message.
 
 #### `grpcerror` - Error Details
+
 gRPC error details with google.rpc.Status.
 
 #### `grpchttp` - Service with HTTP Mapping
+
 gRPC service with HTTP/JSON mapping using google.api.http.
 
 #### `rpc` - Basic RPC
+
 ```proto
 rpc MethodName(Request) returns (Response);
 ```
 
 #### `rpcbody` - RPC with Body
+
 RPC with body for options.
 
 #### `rpcstream` - Bidirectional Streaming RPC
+
 ```proto
 rpc MethodName(stream Request) returns (stream Response);
 ```
 
 #### `rpcserverstream` - Server Streaming RPC
+
 ```proto
 rpc StreamData(StreamDataRequest) returns (stream Data);
 ```
 
 #### `rpcclientstream` - Client Streaming RPC
+
 ```proto
 rpc CollectData(stream Data) returns (CollectDataResponse);
 ```
 
 #### `rpcbidistream` - Bidirectional Streaming RPC
+
 ```proto
 rpc Chat(stream Message) returns (stream Message);
 ```
 
 #### `grpctimeout` - RPC with HTTP Mapping
+
 RPC with HTTP mapping and OpenAPI options.
 
 ### Google API Annotations
 
 #### HTTP Annotations
+
 - `httpget` - HTTP GET mapping for RPC method
 - `httppost` - HTTP POST mapping with request body
 - `httpput` - HTTP PUT mapping for full resource update
@@ -204,6 +238,7 @@ RPC with HTTP mapping and OpenAPI options.
 - `httpbindings` - HTTP mapping with additional bindings
 
 #### RPC with HTTP Mapping
+
 - `rpcget` - Complete RPC with HTTP GET mapping and method signature
 - `rpcpost` - Complete RPC with HTTP POST mapping
 - `rpcdelete` - Complete RPC with HTTP DELETE mapping
@@ -211,27 +246,32 @@ RPC with HTTP mapping and OpenAPI options.
 - `rpclist` - Complete RPC with HTTP List mapping
 
 #### Field Behaviors
+
 - `frequiredbehavior` - Field marked as REQUIRED
 - `foutputonly` - Field marked as OUTPUT_ONLY (server-generated)
 - `finputonly` - Field marked as INPUT_ONLY (not returned by server)
 - `fimmutable` - Field marked as IMMUTABLE (cannot be updated)
 
 #### Resource Definitions
+
 - `resource` - Google API resource descriptor with type and pattern
 - `resourcenested` - Resource with nested parent pattern
 - `fresourceref` - Field with resource reference annotation
 - `msgresource` - Complete message with resource annotation and common fields
 
 #### Service with Google API
+
 - `servicegoogleapi` - Complete Google API style service with annotations
 
 #### FieldMask
+
 - `fupdatemask` - FieldMask field for partial updates
 - `msgupdate` - Standard update request message with FieldMask
 
 ### Options
 
 #### Language-Specific Options
+
 - `optgopackage` - Go package option
 - `optjavapackage` - Java package option
 - `optjavaclass` - Java outer classname option
@@ -242,6 +282,7 @@ RPC with HTTP mapping and OpenAPI options.
 - `optswift` - Swift prefix option
 
 #### `optdeprecated` - Deprecated Field Option
+
 ```proto
 [deprecated = true]
 ```
@@ -249,6 +290,7 @@ RPC with HTTP mapping and OpenAPI options.
 ### Validation (buf.validate)
 
 #### Message-Level CEL Validation
+
 - `celvalidate` - Basic CEL validation
 - `celeither` - Either/or validation (one of two fields required)
 - `celmutex` - Mutually exclusive validation
@@ -256,6 +298,7 @@ RPC with HTTP mapping and OpenAPI options.
 - `celif` - Conditional validation
 
 #### Field-Level CEL Validation
+
 - `celfieldvalidate` - Field-level CEL validation
 - `celpattern` - String pattern validation
 - `celrange` - Numeric range validation
@@ -263,26 +306,31 @@ RPC with HTTP mapping and OpenAPI options.
 ### Other
 
 #### `import` - Import Statement
+
 ```proto
 import "path/to/file.proto";
 ```
 
 #### `importpublic` - Public Import
+
 ```proto
 import public "path/to/file.proto";
 ```
 
 #### `package` - Package Declaration
+
 ```proto
 package name;
 ```
 
 #### `option` - Option Declaration
+
 ```proto
 option name = value;
 ```
 
 #### `oneof` - Oneof Declaration
+
 ```proto
 oneof name {
   // fields
@@ -290,6 +338,7 @@ oneof name {
 ```
 
 #### `extend` - Extend Declaration
+
 ```proto
 extend MessageName {
   // fields
@@ -297,11 +346,13 @@ extend MessageName {
 ```
 
 #### `reservedn` - Reserved Numbers
+
 ```proto
 reserved 2, 15, 9 to 11;
 ```
 
 #### `reserveds` - Reserved Names
+
 ```proto
 reserved "field_name";
 ```
@@ -309,6 +360,7 @@ reserved "field_name";
 ## Common Patterns
 
 ### CRUD Service Pattern
+
 Use `grpccrud` to quickly create a complete CRUD service:
 
 1. Type `grpccrud`
@@ -316,6 +368,7 @@ Use `grpccrud` to quickly create a complete CRUD service:
 3. Tab through to customize field names and types
 
 ### Pagination Pattern
+
 Use `grpcpage` and `grpcpageresponse` for standard pagination:
 
 ```proto
@@ -334,6 +387,7 @@ message ListUsersResponse {
 ```
 
 ### Timestamp Pattern
+
 Use `msgtime` for messages that need creation/update timestamps:
 
 ```proto

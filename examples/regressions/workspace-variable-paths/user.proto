@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package test.user;
+
+import "common.proto";
+
+// User message that references types from common.proto
+// This should NOT show import errors since common.proto exists in the same workspace
+message User {
+	string id = 1;
+	string name = 2;
+	string email = 3;
+
+	// Reference to common.Timestamp - should NOT show "Unknown type" error
+	test.common.Timestamp created_at = 4;
+	test.common.Timestamp updated_at = 5;
+
+	// Reference to common.Status - should NOT show "Unknown type" error
+	test.common.Status status = 6;
+}
+
+// Another message to test cross-references
+message UserProfile {
+	User user = 1; // Reference to User in same file - should work
+	string bio = 2;
+	repeated string interests = 3;
+}

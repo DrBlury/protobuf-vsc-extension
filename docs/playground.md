@@ -5,6 +5,7 @@ The Protobuf Playground is an interactive webview that allows you to test gRPC s
 ## Overview
 
 The Playground provides:
+
 - **gRPC request testing** - Send requests to gRPC services
 - **Service discovery** - Automatically lists available services
 - **JSON request bodies** - Easy-to-use JSON input
@@ -14,6 +15,7 @@ The Playground provides:
 ## Prerequisites
 
 The Playground requires:
+
 - **grpcurl** - Must be installed and available in your PATH
 - **gRPC server** - A running gRPC server to test against
 - **Proto file** - A `.proto` file with service definitions
@@ -21,17 +23,20 @@ The Playground requires:
 ### Installing grpcurl
 
 **macOS**:
+
 ```bash
 brew install grpcurl
 ```
 
 **Linux**:
+
 ```bash
 # Download from https://github.com/fullstorydev/grpcurl/releases
 # Or use package manager if available
 ```
 
 **Windows**:
+
 ```bash
 # Download from https://github.com/fullstorydev/grpcurl/releases
 # Add to PATH
@@ -97,6 +102,7 @@ The playground opens in a side panel with:
 ### Empty Request
 
 For methods with no parameters:
+
 ```json
 {}
 ```
@@ -141,6 +147,7 @@ Currently, the playground uses plaintext connections by default. For production 
 ## Integration
 
 The playground integrates with:
+
 - **Current file** - Uses the active `.proto` file
 - **Import paths** - Respects your `protobuf.includes` settings
 - **grpcurl** - Uses `grpcurl` for service discovery and requests
@@ -150,6 +157,7 @@ The playground integrates with:
 ### Services Not Loading
 
 If services don't appear:
+
 1. Verify `grpcurl` is installed: `grpcurl --version`
 2. Check the Output panel for errors
 3. Ensure your proto file has service definitions
@@ -158,6 +166,7 @@ If services don't appear:
 ### Request Fails
 
 Common issues:
+
 1. **Server not running** - Ensure the gRPC server is running
 2. **Wrong address** - Verify the server address is correct
 3. **Connection refused** - Check firewall and network settings
@@ -167,6 +176,7 @@ Common issues:
 ### grpcurl Not Found
 
 If you see "grpcurl not found":
+
 1. Install `grpcurl` (see Prerequisites)
 2. Ensure it's in your PATH
 3. Restart VS Code after installation
@@ -174,6 +184,7 @@ If you see "grpcurl not found":
 ### Import Errors
 
 If imports fail:
+
 1. Check `protobuf.includes` settings
 2. Verify import paths exist
 3. Ensure proto files are accessible
@@ -199,6 +210,7 @@ If imports fail:
 ## Future Enhancements
 
 Planned improvements:
+
 - TLS/SSL support
 - Authentication (API keys, tokens)
 - Request history
@@ -208,5 +220,6 @@ Planned improvements:
 ---
 
 For more information, see:
+
 - [Settings Reference](./settings.md)
 - [Configuration Examples](./configuration-examples.md)

@@ -104,4 +104,109 @@ message UsesCommon {
     expect(mismatch).toBeUndefined();
     expect(missing).toBeUndefined();
   });
+
+  it('should not suggest importing a type when it is already imported from another file, even if same-named type exists elsewhere', () => {
+    // This test verifies that when a file imports "user.proto" which defines test.user.User,
+    // and we use "test.user.User" in a field, it should NOT suggest importing "example.proto"
+    // even if example.proto also has a User type (example.v1.User).
+    const localParser = new ProtoParser();
+    const localAnalyzer = new SemanticAnalyzer();
+    const localDiagnostics = new DiagnosticsProvider(localAnalyzer);
+    localAnalyzer.setWorkspaceRoots(['/workspace']);
+
+    // File 1: example.proto with example.v1.User (NOT imported by order.proto)
+    const exampleUri = 'file:///workspace/example.proto';
+    const exampleContent = `syntax = "proto3";
+package example.v1;
+
+message User {
+  string id = 1;
+  string name = 2;
+}`;
+    const exampleFile = localParser.parse(exampleContent, exampleUri);
+    localAnalyzer.updateFile(exampleUri, exampleFile);
+
+    // File 2: user.proto with test.user.User (imported by order.proto)
+    const userUri = 'file:///workspace/user.proto';
+    const userContent = `syntax = "proto3";
+package test.user;
+
+message User {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+}`;
+    const userFile = localParser.parse(userContent, userUri);
+    localAnalyzer.updateFile(userUri, userFile);
+
+    // File 3: order.proto which imports user.proto and uses test.user.User
+    const orderUri = 'file:///workspace/order.proto';
+    const orderContent = `syntax = "proto3";
+package test.order;
+
+import "user.proto";
+
+message Order {
+  string id = 1;
+  test.user.User customer = 2;
+}`;
+    const orderFile = localParser.parse(orderContent, orderUri);
+    localAnalyzer.updateFile(orderUri, orderFile);
+
+    const diags = localDiagnostics.validate(orderUri, orderFile);
+
+    // Should NOT report any "not imported" error for test.user.User
+    // since user.proto IS imported
+    const missingImport = diags.find(d => d.message.includes('not imported'));
+    const wrongSuggestion = diags.find(d => d.message.includes('example.proto'));
+
+    expect(missingImport).toBeUndefined();
+    expect(wrongSuggestion).toBeUndefined();
+  });
+
+  it('should prefer same-file type over non-imported type with same name', () => {
+    // When UserProfile uses "User" (defined in same file), it should NOT suggest
+    // importing example.proto which also has a User type
+    const localParser = new ProtoParser();
+    const localAnalyzer = new SemanticAnalyzer();
+    const localDiagnostics = new DiagnosticsProvider(localAnalyzer);
+    localAnalyzer.setWorkspaceRoots(['/workspace']);
+
+    // File 1: example.proto with example.v1.User (NOT imported)
+    const exampleUri = 'file:///workspace/example.proto';
+    const exampleContent = `syntax = "proto3";
+package example.v1;
+
+message User {
+  string id = 1;
+}`;
+    const exampleFile = localParser.parse(exampleContent, exampleUri);
+    localAnalyzer.updateFile(exampleUri, exampleFile);
+
+    // File 2: user.proto with test.user.User AND UserProfile that references User
+    const userUri = 'file:///workspace/user.proto';
+    const userContent = `syntax = "proto3";
+package test.user;
+
+message User {
+  string id = 1;
+  string name = 2;
+}
+
+message UserProfile {
+  User user = 1;
+  string bio = 2;
+}`;
+    const userFile = localParser.parse(userContent, userUri);
+    localAnalyzer.updateFile(userUri, userFile);
+
+    const diags = localDiagnostics.validate(userUri, userFile);
+
+    // Should NOT report any "not imported" error for User since it's in the same file
+    const missingImport = diags.find(d => d.message.includes('not imported'));
+    const wrongSuggestion = diags.find(d => d.message.includes('example.proto'));
+
+    expect(missingImport).toBeUndefined();
+    expect(wrongSuggestion).toBeUndefined();
+  });
 });

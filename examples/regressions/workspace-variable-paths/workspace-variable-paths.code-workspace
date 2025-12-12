@@ -1,0 +1,22 @@
+{
+  "folders": [{ "path": "." }],
+  "settings": {
+    // Test ${workspaceFolder} variable expansion in path settings
+    "protobuf.clangFormat.path": "${workspaceFolder}/bin/clang-format",
+    "protobuf.clangFormat.enabled": true,
+    "protobuf.protoc.path": "${workspaceFolder}/bin/protoc",
+
+    // Use google preset which requires clang-format
+    "protobuf.formatter.preset": "google",
+
+    // Disable external linter - user is not using buf
+    "protobuf.externalLinter.enabled": false,
+    "protobuf.externalLinter.linter": "none",
+
+    // Disable buf-related features
+    "protobuf.codegen.generateOnSave": false,
+
+    // Enable verbose logging for debugging
+    "protobuf.debug.verboseLogging": true
+  }
+}

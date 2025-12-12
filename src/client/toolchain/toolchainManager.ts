@@ -146,6 +146,15 @@ export class ToolchainManager {
         return configuredPath;
       }
       this.outputChannel.appendLine(`  ✗ Configured path not found: ${configuredPath}`);
+      // Show user-visible warning for configured but missing tool path
+      vscode.window.showWarningMessage(
+        `Protobuf: Configured ${name} path not found: ${configuredPath}. Falling back to system PATH.`,
+        'Open Settings'
+      ).then(selection => {
+        if (selection === 'Open Settings') {
+          vscode.commands.executeCommand('workbench.action.openSettings', `protobuf.${name}.path`);
+        }
+      });
     }
 
     // 2. Check managed version (installed by extension)
@@ -599,13 +608,37 @@ export class ToolchainManager {
   }
 
   private getRequiredTools(): string[] {
-    const required = new Set<string>(['protoc']);
+    const required = new Set<string>();
+
+    if (this.isProtocRequired()) {
+      required.add('protoc');
+    }
 
     if (this.isBufRequired()) {
       required.add('buf');
     }
 
     return Array.from(required);
+  }
+
+  private isProtocRequired(): boolean {
+    // protoc is required if:
+    // 1. protoc diagnostics is enabled
+    const protocConfig = vscode.workspace.getConfiguration('protobuf.protoc');
+    const protocEnabled = protocConfig.get<boolean>('enabled', false);
+    if (protocEnabled) {
+      return true;
+    }
+
+    // 2. codegen is enabled and uses protoc
+    const codegenConfig = vscode.workspace.getConfiguration('protobuf.codegen');
+    const generateOnSave = codegenConfig.get<boolean>('generateOnSave', false);
+    const codegenTool = codegenConfig.get<string>('tool', 'buf');
+    if (generateOnSave && codegenTool === 'protoc') {
+      return true;
+    }
+
+    return false;
   }
 
   private isBufRequired(): boolean {

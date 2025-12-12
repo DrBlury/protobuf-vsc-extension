@@ -5,6 +5,7 @@ The Migration feature helps you convert Protocol Buffer files from proto2 syntax
 ## Overview
 
 The migration feature:
+
 - **Converts syntax** - Changes `syntax = "proto2"` to `syntax = "proto3"`
 - **Removes required fields** - Removes `required` keyword (not supported in proto3)
 - **Removes default values** - Removes `default` option values (not supported in proto3)
@@ -29,6 +30,7 @@ The migration feature:
 The migration automatically:
 
 1. **Updates syntax declaration**:
+
    ```protobuf
    // Before
    syntax = "proto2";
@@ -38,6 +40,7 @@ The migration automatically:
    ```
 
 2. **Removes required fields**:
+
    ```protobuf
    // Before
    required string name = 1;
@@ -47,6 +50,7 @@ The migration automatically:
    ```
 
 3. **Removes default values**:
+
    ```protobuf
    // Before
    string status = 1 [default = "active"];
@@ -56,6 +60,7 @@ The migration automatically:
    ```
 
 4. **Cleans up empty options**:
+
    ```protobuf
    // Before
    string name = 1 [];
@@ -69,6 +74,7 @@ The migration automatically:
 ### Simple Migration
 
 **Before (proto2)**:
+
 ```protobuf
 syntax = "proto2";
 package example;
@@ -81,6 +87,7 @@ message User {
 ```
 
 **After (proto3)**:
+
 ```protobuf
 syntax = "proto3";
 package example;
@@ -95,6 +102,7 @@ message User {
 ### Complex Migration
 
 **Before (proto2)**:
+
 ```protobuf
 syntax = "proto2";
 package example;
@@ -112,6 +120,7 @@ enum Status {
 ```
 
 **After (proto3)**:
+
 ```protobuf
 syntax = "proto3";
 package example;
@@ -181,6 +190,7 @@ After migration, you should:
 ### No Changes Applied
 
 If no changes are made:
+
 1. File may already be proto3
 2. File may not have proto2-specific features
 3. Check the file syntax declaration
@@ -188,6 +198,7 @@ If no changes are made:
 ### Syntax Errors After Migration
 
 If you get syntax errors:
+
 1. Review the changes carefully
 2. Check for manual fixes needed
 3. Verify all required fields were removed
@@ -196,6 +207,7 @@ If you get syntax errors:
 ### Incomplete Migration
 
 If migration seems incomplete:
+
 1. Some changes require manual intervention
 2. Review the Limitations section
 3. Check for complex cases not handled automatically
@@ -220,5 +232,6 @@ If migration seems incomplete:
 ---
 
 For more information, see:
+
 - [Settings Reference](./settings.md)
 - [Code Actions](./code-actions.md)

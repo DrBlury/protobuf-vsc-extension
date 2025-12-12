@@ -5,6 +5,7 @@ The Protobuf VSC extension provides a flexible code generation system that allow
 ## Overview
 
 The code generation feature enables you to:
+
 - **Define codegen profiles** - Configure multiple code generation setups
 - **Run codegen on demand** - Generate code with a single command
 - **Variable substitution** - Use VS Code variables in your profiles
@@ -201,6 +202,7 @@ The codegen feature uses your configured `protoc` path:
 ### Profile Not Found
 
 If you see "No codegen profiles defined":
+
 1. Open Settings (`Cmd/Ctrl+,`)
 2. Search for `protobuf.codegen.profiles`
 3. Add at least one profile configuration
@@ -208,6 +210,7 @@ If you see "No codegen profiles defined":
 ### Codegen Fails
 
 Common issues:
+
 1. **Missing plugins** - Ensure codegen plugins are installed
 2. **Wrong paths** - Verify output paths exist or are writable
 3. **Import issues** - Check that `--proto_path` includes all necessary directories
@@ -216,6 +219,7 @@ Common issues:
 ### Plugin Not Found
 
 If plugins aren't found:
+
 1. Install the plugin (e.g., `npm install -g protoc-gen-ts`)
 2. Use full paths in `--plugin` flags
 3. Ensure plugins are executable
@@ -249,6 +253,7 @@ Use different profiles for different file types or locations by creating multipl
 ---
 
 For more information, see:
+
 - [Settings Reference](./settings.md)
 - [Configuration Examples](./configuration-examples.md)
 - [Toolchain Management](./toolchain.md)

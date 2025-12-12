@@ -7,6 +7,7 @@ import { URI } from 'vscode-uri';
 import { FIELD_NUMBER } from '../utils/constants';
 import { ClangFormatProvider } from '../services/clangFormat';
 import { BufFormatProvider } from '../services/bufFormat';
+import { logger } from '../utils/logger';
 
 export interface FormatterSettings {
   indentSize: number;
@@ -52,6 +53,9 @@ export class ProtoFormatter {
     this.bufFormat?.setBufPath(path);
   }
 
+  private clangFormatWarningShown = false;
+  private bufFormatWarningShown = false;
+
   async formatDocument(text: string, uri?: string): Promise<TextEdit[]> {
     if (this.settings.preset === 'google' && this.clangFormat) {
       const lines = text.split('\n');
@@ -60,6 +64,11 @@ export class ProtoFormatter {
       const edits = await this.clangFormat.formatRange(text, range, filePath);
       if (edits && edits.length > 0) {
           return edits;
+      }
+      // clang-format failed or returned no edits - log warning once
+      if (!this.clangFormatWarningShown) {
+        logger.warn('Formatter preset is "google" but clang-format failed or is not available. Falling back to minimal formatter. Check that clang-format is installed and the path is correct in settings.');
+        this.clangFormatWarningShown = true;
       }
     }
 
@@ -72,6 +81,11 @@ export class ProtoFormatter {
           range: Range.create(0, 0, lines.length, lines[lines.length - 1].length),
           newText: formatted
         }];
+      }
+      // buf format failed - log warning once
+      if (!this.bufFormatWarningShown) {
+        logger.warn('Formatter preset is "buf" but buf format failed or is not available. Falling back to minimal formatter. Check that buf is installed and the path is correct in settings.');
+        this.bufFormatWarningShown = true;
       }
     }
 
@@ -93,6 +107,11 @@ export class ProtoFormatter {
       const edits = await this.clangFormat.formatRange(text, range, filePath);
       if (edits && edits.length > 0) {
           return edits;
+      }
+      // clang-format failed for range formatting - log warning once
+      if (!this.clangFormatWarningShown) {
+        logger.warn('Formatter preset is "google" but clang-format failed or is not available. Falling back to minimal formatter.');
+        this.clangFormatWarningShown = true;
       }
     }
 
@@ -760,8 +779,8 @@ export class ProtoFormatter {
             const commentIdx = (() => {
               const slIdx = cleanedRest.indexOf('//');
               const blkIdx = cleanedRest.indexOf('/*');
-              if (slIdx === -1) return blkIdx;
-              if (blkIdx === -1) return slIdx;
+              if (slIdx === -1) {return blkIdx;}
+              if (blkIdx === -1) {return slIdx;}
               return Math.min(slIdx, blkIdx);
             })();
 

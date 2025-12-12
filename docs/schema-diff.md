@@ -5,6 +5,7 @@ The Schema Diff feature allows you to compare your current Protocol Buffer files
 ## Overview
 
 Schema Diff provides:
+
 - **Git integration** - Compare against any Git reference (commit, branch, tag)
 - **Visual comparison** - Side-by-side diff view in VS Code
 - **Easy navigation** - Jump to specific changes in the diff
@@ -74,6 +75,7 @@ Protobuf: Diff Schema → v1.0.0
 ### Code Review
 
 Before committing schema changes:
+
 1. Open the modified `.proto` file
 2. Run Schema Diff against `HEAD`
 3. Review changes in the diff view
@@ -82,6 +84,7 @@ Before committing schema changes:
 ### Schema Evolution
 
 Track how your schema has changed:
+
 1. Compare against older commits
 2. See what fields were added/removed
 3. Understand breaking changes
@@ -90,6 +93,7 @@ Track how your schema has changed:
 ### Merge Conflicts
 
 When resolving merge conflicts:
+
 1. Compare against the branch you're merging
 2. See differences clearly
 3. Make informed decisions about conflicts
@@ -105,6 +109,7 @@ When resolving merge conflicts:
 ### File Not Found at Reference
 
 If you see "Could not find file at {reference}":
+
 1. Verify the Git reference exists: `git log --oneline`
 2. Check if the file existed at that reference: `git ls-tree {reference} {file}`
 3. Ensure the file path is correct
@@ -112,6 +117,7 @@ If you see "Could not find file at {reference}":
 ### Git Not Available
 
 If Git commands fail:
+
 1. Ensure Git is installed: `git --version`
 2. Verify the workspace is a Git repository
 3. Check Git is in your PATH
@@ -119,6 +125,7 @@ If Git commands fail:
 ### Diff View Not Opening
 
 If the diff view doesn't open:
+
 1. Check the Output panel for error messages
 2. Verify the file is a `.proto` file
 3. Ensure VS Code has permission to create temporary files
@@ -130,6 +137,7 @@ If the diff view doesn't open:
 ## Integration
 
 Schema Diff works seamlessly with:
+
 - **Git integration** - Uses VS Code's Git integration
 - **File watchers** - Automatically detects file changes
 - **Editor context** - Uses the currently active file
@@ -144,5 +152,6 @@ Schema Diff works seamlessly with:
 ---
 
 For more information, see:
+
 - [Breaking Changes](./breaking-changes.md)
 - [Settings Reference](./settings.md)

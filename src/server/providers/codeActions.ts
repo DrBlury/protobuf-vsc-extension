@@ -295,8 +295,8 @@ export class CodeActionsProvider {
       const commentIdx = (() => {
         const slIdx = trimmed.indexOf('//');
         const blkIdx = trimmed.indexOf('/*');
-        if (slIdx === -1) return blkIdx;
-        if (blkIdx === -1) return slIdx;
+        if (slIdx === -1) {return blkIdx;}
+        if (blkIdx === -1) {return slIdx;}
         return Math.min(slIdx, blkIdx);
       })();
 

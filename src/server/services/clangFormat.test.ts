@@ -268,5 +268,65 @@ describe('ClangFormatProvider', () => {
       const assumeArg = capturedArgs.find(a => typeof a === 'string' && a.startsWith('--assume-filename='));
       expect(assumeArg).toBe(`--assume-filename=${filePath}`);
     });
+
+    it('should set cwd to file directory for config file discovery', async () => {
+      provider.updateSettings({ enabled: true });
+      const text = 'message Test {}';
+
+      const mockProcess: any = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        stdin: { write: jest.fn(), end: jest.fn() },
+        on: jest.fn((event: string, callback: (code?: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      };
+
+      let capturedOptions: any = null;
+      (spawn as any).mockImplementation((_cmd: any, _args: any, options: any) => {
+        capturedOptions = options;
+        return mockProcess;
+      });
+
+      const filePath = '/Users/test/workspace/protos/foo.proto';
+      await provider.formatDocument(text, filePath);
+
+      // Ensure cwd is set to the directory containing the file
+      expect(capturedOptions).toBeDefined();
+      expect(capturedOptions.cwd).toBe('/Users/test/workspace/protos');
+    });
+
+    it('should set cwd from file:// URI', async () => {
+      provider.updateSettings({ enabled: true });
+      const text = 'message Test {}';
+
+      const mockProcess: any = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        stdin: { write: jest.fn(), end: jest.fn() },
+        on: jest.fn((event: string, callback: (code?: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      };
+
+      let capturedOptions: any = null;
+      (spawn as any).mockImplementation((_cmd: any, _args: any, options: any) => {
+        capturedOptions = options;
+        return mockProcess;
+      });
+
+      const fileUri = 'file:///Users/test/workspace/protos/foo.proto';
+      await provider.formatDocument(text, fileUri);
+
+      // Ensure cwd is set to the directory containing the file
+      expect(capturedOptions).toBeDefined();
+      expect(capturedOptions.cwd).toBe('/Users/test/workspace/protos');
+    });
   });
 });

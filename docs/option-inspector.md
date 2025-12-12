@@ -5,6 +5,7 @@ The Option Inspector provides a tree view of all options defined in your Protoco
 ## Overview
 
 The Option Inspector displays:
+
 - **All options** - File, message, field, enum, and service options
 - **Option values** - Shows option names and their values
 - **Parent context** - Indicates where each option is defined
@@ -84,11 +85,13 @@ service UserService {
 ## Display Format
 
 Options are displayed as:
+
 ```
 {option_name} = {value}
 ```
 
 With parent context shown in the description:
+
 - `File: example.proto`
 - `Message: User`
 - `Field: email`
@@ -106,6 +109,7 @@ With parent context shown in the description:
 ### Auto-Refresh
 
 The inspector automatically refreshes when:
+
 - You switch between files
 - You save a file
 - Options are added or removed
@@ -115,6 +119,7 @@ The inspector automatically refreshes when:
 ### Finding Options
 
 Quickly find where options are defined:
+
 1. Open the Option Inspector
 2. Search visually for the option you need
 3. Click to navigate
@@ -122,6 +127,7 @@ Quickly find where options are defined:
 ### Reviewing Configuration
 
 Review all options in a file:
+
 1. Open a proto file
 2. Check the Option Inspector
 3. See all options at a glance
@@ -129,6 +135,7 @@ Review all options in a file:
 ### Debugging
 
 Debug option-related issues:
+
 1. See all options in one place
 2. Verify option values
 3. Check for conflicts or duplicates
@@ -136,6 +143,7 @@ Debug option-related issues:
 ## Integration
 
 The Option Inspector integrates with:
+
 - **Language Server** - Uses the language server to parse options
 - **File Watchers** - Updates when files change
 - **Editor Context** - Shows options for the active file
@@ -145,6 +153,7 @@ The Option Inspector integrates with:
 ### No Options Shown
 
 If no options appear:
+
 1. Ensure you have a `.proto` file open
 2. Check that the file has options defined
 3. Verify the language server is running
@@ -153,6 +162,7 @@ If no options appear:
 ### Options Not Updating
 
 If options don't update:
+
 1. Save the file to trigger refresh
 2. Switch to another file and back
 3. Reload the window if needed
@@ -160,6 +170,7 @@ If options don't update:
 ### Navigation Not Working
 
 If clicking doesn't navigate:
+
 1. Verify the file is still open
 2. Check that the option still exists
 3. Ensure the language server is responding
@@ -167,6 +178,7 @@ If clicking doesn't navigate:
 ## Commands
 
 The Option Inspector is automatically available in the Explorer sidebar. There are no direct commands, but it works with:
+
 - File navigation
 - Editor commands
 - Language server requests
@@ -181,6 +193,7 @@ The Option Inspector is automatically available in the Explorer sidebar. There a
 ---
 
 For more information, see:
+
 - [Hover Information](./hover.md)
 - [Code Actions](./code-actions.md)
 - [Settings Reference](./settings.md)

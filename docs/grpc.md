@@ -70,6 +70,7 @@ View statistics about your gRPC services:
 ### Go
 
 **Client Stub:**
+
 ```go
 type UserServiceClient struct {
   cc grpc.ClientConnInterface
@@ -81,6 +82,7 @@ func (c *UserServiceClient) GetUser(ctx context.Context, req *GetUserRequest) (*
 ```
 
 **Server Template:**
+
 ```go
 type UserServiceServer struct {
   // Add your dependencies here
@@ -97,6 +99,7 @@ func (s *UserServiceServer) GetUser(ctx context.Context, req *GetUserRequest) (*
 ### Java
 
 **Client Stub:**
+
 ```java
 public class UserServiceClient {
   private final UserServiceGrpc.UserServiceStub stub;
@@ -108,6 +111,7 @@ public class UserServiceClient {
 ```
 
 **Server Template:**
+
 ```java
 public class UserServiceImpl extends UserServiceGrpc.UserServiceImplBase {
   @Override
@@ -125,6 +129,7 @@ public class UserServiceImpl extends UserServiceGrpc.UserServiceImplBase {
 ### Python
 
 **Client Stub:**
+
 ```python
 class UserServiceClient:
   def __init__(self, channel):
@@ -136,6 +141,7 @@ class UserServiceClient:
 ```
 
 **Server Template:**
+
 ```python
 class UserServiceServicer(user_service_pb2_grpc.UserServiceServicer):
   def get_user(self, request, context):
@@ -148,6 +154,7 @@ class UserServiceServicer(user_service_pb2_grpc.UserServiceServicer):
 ### TypeScript
 
 **Client Stub:**
+
 ```typescript
 export class UserServiceClient {
   constructor(private client: Client) {}
@@ -159,6 +166,7 @@ export class UserServiceClient {
 ```
 
 **Server Template:**
+
 ```typescript
 export class UserServiceService implements UserServiceServiceDefinition {
   getUser(call: ServerUnaryCall<GetUserRequest, GetUserResponse>): Promise<GetUserResponse> {
@@ -173,30 +181,38 @@ export class UserServiceService implements UserServiceServiceDefinition {
 The extension recognizes and supports all gRPC streaming patterns:
 
 ### Unary RPC
+
 ```proto
 rpc GetUser(GetUserRequest) returns (GetUserResponse);
 ```
+
 - Single request, single response
 - Most common pattern
 
 ### Server Streaming
+
 ```proto
 rpc StreamUsers(StreamUsersRequest) returns (stream User);
 ```
+
 - Single request, multiple responses
 - Useful for real-time updates
 
 ### Client Streaming
+
 ```proto
 rpc CollectData(stream Data) returns (CollectDataResponse);
 ```
+
 - Multiple requests, single response
 - Useful for batch uploads
 
 ### Bidirectional Streaming
+
 ```proto
 rpc Chat(stream Message) returns (stream Message);
 ```
+
 - Multiple requests, multiple responses
 - Useful for chat, gaming, etc.
 
@@ -215,6 +231,7 @@ rpc Chat(stream Message) returns (stream Message);
 The extension includes many gRPC-specific snippets:
 
 ### Service Snippets
+
 - `grpccrud` - Complete CRUD service with request/response messages
 - `grpcstream` - Service with all streaming patterns
 - `grpchttp` - Service with HTTP/JSON mapping
@@ -222,6 +239,7 @@ The extension includes many gRPC-specific snippets:
 - `grpcpageresponse` - Pagination response message
 
 ### RPC Snippets
+
 - `rpc` - Basic RPC method
 - `rpcbody` - RPC with body for options
 - `rpcstream` - Bidirectional streaming RPC
@@ -344,18 +362,24 @@ service ChatService {
 ## Integration with Other Features
 
 ### Schema Graph
+
 Visualize service relationships in the schema graph:
+
 - Services appear as nodes
 - RPCs show connections to request/response types
 
 ### Code Actions
+
 Quick fixes for common gRPC issues:
+
 - Add missing request/response messages
 - Fix RPC signatures
 - Add service options
 
 ### Diagnostics
+
 Automatic checks for:
+
 - Undefined request/response types
 - Invalid streaming syntax
 - Missing service definitions

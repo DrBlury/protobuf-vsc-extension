@@ -584,6 +584,17 @@ export class SemanticAnalyzer {
   /**
    * Resolve a type reference to its symbol
    * Supports forward references within the same file (proto3 feature)
+   *
+   * Resolution priority:
+   * 1. Exact match (fully qualified name - must contain a dot)
+   * 2. Current package prefix
+   * 3. Parent scopes (nested types)
+   * 4. Same file symbols (for forward references)
+   * 5. Imported files' packages
+   * 6. Imported files' symbols by simple name
+   *
+   * Note: We intentionally do NOT fall back to searching all workspace files
+   * by simple name, as this would incorrectly resolve types from non-imported files.
    */
   resolveType(typeName: string, currentUri: string, currentPackage?: string): SymbolInfo | undefined {
     // Check if it's a builtin type
@@ -591,10 +602,13 @@ export class SemanticAnalyzer {
       return undefined;
     }
 
-    // Try exact match first (fully qualified name)
-    let symbol = this.workspace.symbols.get(typeName);
-    if (symbol) {
-      return symbol;
+    // Try exact match first ONLY for fully qualified names (containing a dot)
+    // Simple names like "User" should go through proper scope resolution
+    if (typeName.includes('.')) {
+      const symbol = this.workspace.symbols.get(typeName);
+      if (symbol) {
+        return symbol;
+      }
     }
 
     // Get the current file to check its imports AND its local definitions (for forward references)
@@ -603,7 +617,7 @@ export class SemanticAnalyzer {
 
     // Try with current package prefix
     if (currentPackage) {
-      symbol = this.workspace.symbols.get(`${currentPackage}.${typeName}`);
+      const symbol = this.workspace.symbols.get(`${currentPackage}.${typeName}`);
       if (symbol) {
         return symbol;
       }
@@ -613,11 +627,48 @@ export class SemanticAnalyzer {
     const parts = currentPackage?.split('.') || [];
     while (parts.length > 0) {
       const prefix = parts.join('.');
-      symbol = this.workspace.symbols.get(`${prefix}.${typeName}`);
+      const symbol = this.workspace.symbols.get(`${prefix}.${typeName}`);
       if (symbol) {
         return symbol;
       }
       parts.pop();
+    }
+
+    // IMPORTANT: Check same-file symbols BEFORE searching imported files
+    // This handles forward references and types defined in the same file
+    if (currentFile) {
+      const currentFilePackage = currentFile.package?.name || '';
+
+      // Check messages in current file
+      for (const message of currentFile.messages) {
+        if (message.name === typeName) {
+          const fullName = currentFilePackage ? `${currentFilePackage}.${message.name}` : message.name;
+          return {
+            name: message.name,
+            fullName,
+            kind: SymbolKind.Message,
+            location: { uri: currentUri, range: message.range }
+          };
+        }
+        // Check nested messages
+        const nestedSymbol = this.findNestedType(message, typeName, currentFilePackage, currentUri);
+        if (nestedSymbol) {
+          return nestedSymbol;
+        }
+      }
+
+      // Check enums in current file
+      for (const enumDef of currentFile.enums) {
+        if (enumDef.name === typeName) {
+          const fullName = currentFilePackage ? `${currentFilePackage}.${enumDef.name}` : enumDef.name;
+          return {
+            name: enumDef.name,
+            fullName,
+            kind: SymbolKind.Enum,
+            location: { uri: currentUri, range: enumDef.range }
+          };
+        }
+      }
     }
 
     // Search in imported files' packages
@@ -628,7 +679,7 @@ export class SemanticAnalyzer {
 
         // Try with imported package prefix
         if (importedPackage) {
-          symbol = this.workspace.symbols.get(`${importedPackage}.${typeName}`);
+          const symbol = this.workspace.symbols.get(`${importedPackage}.${typeName}`);
           if (symbol) {
             return symbol;
           }
@@ -644,41 +695,52 @@ export class SemanticAnalyzer {
       }
     }
 
-    // Try finding by simple name in all files (fallback for unresolved imports)
-    for (const [fullName, sym] of this.workspace.symbols) {
-      if (sym.name === typeName) {
-        return sym;
+    // Note: We do NOT fall back to searching all workspace files by simple name.
+    // Types from non-imported files should not be resolved - they need an import.
+    // The diagnostics will flag unresolved types, and the user can add the import.
+
+    return undefined;
+  }
+
+  /**
+   * Helper to find a nested type within a message definition
+   */
+  private findNestedType(
+    message: MessageDefinition,
+    typeName: string,
+    prefix: string,
+    uri: string
+  ): SymbolInfo | undefined {
+    const messageFullName = prefix ? `${prefix}.${message.name}` : message.name;
+
+    // Check nested messages
+    for (const nested of message.nestedMessages) {
+      if (nested.name === typeName) {
+        const fullName = `${messageFullName}.${nested.name}`;
+        return {
+          name: nested.name,
+          fullName,
+          kind: SymbolKind.Message,
+          location: { uri, range: nested.range }
+        };
       }
-      if (fullName.endsWith(`.${typeName}`)) {
-        return sym;
+      // Recursively check deeper nesting
+      const deeperSymbol = this.findNestedType(nested, typeName, messageFullName, uri);
+      if (deeperSymbol) {
+        return deeperSymbol;
       }
     }
 
-    // Support forward references: check current file's unextracted definitions
-    // This allows using types before they're defined in the same file
-    if (currentFile && currentPackage) {
-      // Check messages in current file
-      for (const message of currentFile.messages) {
-        if (message.name === typeName) {
-          return {
-            name: message.name,
-            fullName: `${currentPackage}.${message.name}`,
-            kind: SymbolKind.Message,
-            location: { uri: currentUri, range: message.range }
-          };
-        }
-      }
-
-      // Check enums in current file
-      for (const enumDef of currentFile.enums) {
-        if (enumDef.name === typeName) {
-          return {
-            name: enumDef.name,
-            fullName: `${currentPackage}.${enumDef.name}`,
-            kind: SymbolKind.Enum,
-            location: { uri: currentUri, range: enumDef.range }
-          };
-        }
+    // Check nested enums
+    for (const nested of message.nestedEnums) {
+      if (nested.name === typeName) {
+        const fullName = `${messageFullName}.${nested.name}`;
+        return {
+          name: nested.name,
+          fullName,
+          kind: SymbolKind.Enum,
+          location: { uri, range: nested.range }
+        };
       }
     }
 

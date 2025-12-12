@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package test.order;
+
+import "common.proto";
+import "user.proto";
+
+// Order service to test multiple imports and cross-references
+message Order {
+	string id = 1;
+
+	// Reference to User from user.proto
+	test.user.User customer = 2;
+
+	// Reference to Timestamp from common.proto
+	test.common.Timestamp order_date = 3;
+	test.common.Timestamp delivery_date = 4;
+
+	// Reference to Status from common.proto
+	test.common.Status status = 5;
+
+	repeated OrderItem items = 6;
+
+	// Nested type
+	message OrderMetadata {
+		string source = 1;
+		string campaign_id = 2;
+	}
+
+	OrderMetadata metadata = 7;
+}
+
+message OrderItem {
+	string product_id = 1;
+	int32 quantity = 2;
+	int64 price_cents = 3;
+}
+
+// Service definition to test service-related diagnostics
+service OrderService {
+	rpc CreateOrder(Order) returns (Order);
+	rpc GetOrder(GetOrderRequest) returns (Order);
+	rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+}
+
+message GetOrderRequest {
+	string id = 1;
+}
+
+message ListOrdersRequest {
+	string customer_id = 1;
+	int32 page_size = 2;
+	string page_token = 3;
+}
+
+message ListOrdersResponse {
+	repeated Order orders = 1;
+	string next_page_token = 2;
+}
