@@ -75,6 +75,8 @@ message Test {
 
   describe('number fields action', () => {
     it('should provide number fields action for message with unnumbered fields', () => {
+      provider.updateSettings({ renumberOnFormat: true });
+
       const text = `syntax = "proto3";
 message Test {
   string name;
