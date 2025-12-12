@@ -125,6 +125,91 @@ message User {
       expect(missingSemi).toBeDefined();
       expect(missingSemi?.severity).toBe(DiagnosticSeverity.Warning);
     });
+
+    it('should NOT warn for multi-line inline options', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+message User {
+  string city = 1 [(buf.validate.field).cel = {
+    id: "test",
+    message: "error"
+  }];
+  string name = 2;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const diags = diagnosticsProvider.validate(uri, file, content);
+
+      const missingSemi = diags.find(d => d.message.includes('Missing semicolon'));
+      expect(missingSemi).toBeUndefined();
+    });
+
+    it('should NOT warn for fields with multi-line array options', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+message User {
+  repeated string tags = 1 [
+    (custom.option) = "value"
+  ];
+  string name = 2;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const diags = diagnosticsProvider.validate(uri, file, content);
+
+      const missingSemi = diags.find(d => d.message.includes('Missing semicolon'));
+      expect(missingSemi).toBeUndefined();
+    });
+
+    it('should NOT warn for lines inside multi-line options with comments', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+message User {
+  string city = 1 [(buf.validate.field).cel = {
+    // This is a comment
+    id: "test",
+    message: "error"
+  }];
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const diags = diagnosticsProvider.validate(uri, file, content);
+
+      const missingSemi = diags.find(d => d.message.includes('Missing semicolon'));
+      expect(missingSemi).toBeUndefined();
+    });
+
+    it('should NOT warn when inline options start on next line after comment', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+message User {
+  string name = 2 // comment
+    [(buf.validate.field).cel = {
+        id: "name_non_empty",
+        message: "Name must not be empty",
+        expression: "this.size() > 0"
+    }];
+  string other = 3;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const diags = diagnosticsProvider.validate(uri, file, content);
+
+      const missingSemi = diags.find(d => d.message.includes('Missing semicolon'));
+      expect(missingSemi).toBeUndefined();
+    });
   });
 
   describe('Extension Range Validation', () => {

@@ -91,6 +91,92 @@ message Test {
       }
     });
 
+    it('should NOT add semicolons to multi-line inline options', () => {
+      const text = `syntax = "proto3";
+message Test {
+  string city = 1 [(buf.validate.field).cel = {
+    id: "test",
+    message: "error"
+  }];
+  string name = 2;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const range = Range.create(0, 0, 7, 0);
+      const actions = provider.getCodeActions(uri, range, { diagnostics: [] }, text);
+
+      // Should NOT have a semicolon action for this file since all fields are valid
+      const semicolonAction = actions.find(a => a.title && a.title.includes('semicolon'));
+      expect(semicolonAction).toBeUndefined();
+    });
+
+    it('should NOT add semicolons to lines inside multi-line options with comments', () => {
+      const text = `syntax = "proto3";
+message Test {
+  string city = 1 [(buf.validate.field).cel = {
+    // This is a comment inside the option
+    id: "test",
+    message: "error"
+  }];
+  string name = 2;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const range = Range.create(0, 0, 8, 0);
+      const actions = provider.getCodeActions(uri, range, { diagnostics: [] }, text);
+
+      // Should NOT have a semicolon action
+      const semicolonAction = actions.find(a => a.title && a.title.includes('semicolon'));
+      expect(semicolonAction).toBeUndefined();
+    });
+
+    it('should NOT add semicolons when inline options start on next line after comment', () => {
+      const text = `syntax = "proto3";
+message Test {
+  string name = 2 // comment
+    [(buf.validate.field).cel = {
+        id: "name_non_empty",
+        message: "Name must not be empty",
+        expression: "this.size() > 0"
+    }];
+  string other = 3;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const range = Range.create(0, 0, 9, 0);
+      const actions = provider.getCodeActions(uri, range, { diagnostics: [] }, text);
+
+      // Should NOT have a semicolon action - the field continues on the next line
+      const semicolonAction = actions.find(a => a.title && a.title.includes('semicolon'));
+      expect(semicolonAction).toBeUndefined();
+    });
+
+    it('should handle fields with multi-line array options correctly', () => {
+      const text = `syntax = "proto3";
+message Test {
+  repeated string tags = 1 [
+    (custom.option) = "value"
+  ];
+  string name = 2;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const range = Range.create(0, 0, 6, 0);
+      const actions = provider.getCodeActions(uri, range, { diagnostics: [] }, text);
+
+      // Should NOT have a semicolon action
+      const semicolonAction = actions.find(a => a.title && a.title.includes('semicolon'));
+      expect(semicolonAction).toBeUndefined();
+    });
+
     it('should add semicolons to enum values', () => {
       const text = `syntax = "proto3";
 enum Status {

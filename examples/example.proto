@@ -13,7 +13,12 @@ message User {
 	string id = 1; // wow!!!
 
 	// User's display name
-	string name = 2;
+	string name = 2 // comment
+	[(buf.validate.field).cel = {
+		id: "name_non_empty",
+		message: "Name must not be empty",
+		expression: "this.size() > 0"
+	}];
 
 	// User's status
 	UserStatus status = 3;

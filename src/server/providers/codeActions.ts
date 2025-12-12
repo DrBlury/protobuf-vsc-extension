@@ -286,11 +286,43 @@ export class CodeActionsProvider {
     const fieldLike = /^(?:optional|required|repeated)?\s*([A-Za-z_][\w<>.,]*)\s+([A-Za-z_][\w]*)(?:\s*=\s*\d+)?/;
     const mapLike = /^\s*map\s*<[^>]+>\s+[A-Za-z_][\w]*(?:\s*=\s*\d+)?/;
 
+    // Track multi-line inline options (braces/brackets inside field options [...])
+    let inlineOptionDepth = 0;
+    let inBlockComment = false;
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
       const trimmed = line.trim();
 
-      if (trimmed === '' || trimmed.startsWith('//') || trimmed.startsWith('/*')) {
+      // Handle block comments
+      if (inBlockComment) {
+        if (trimmed.includes('*/')) {
+          inBlockComment = false;
+        }
+        continue;
+      }
+
+      if (trimmed.startsWith('/*') && !trimmed.includes('*/')) {
+        inBlockComment = true;
+        continue;
+      }
+
+      if (trimmed === '' || trimmed.startsWith('//')) {
+        continue;
+      }
+
+      // Skip lines if we're inside a multi-line inline option from a previous line
+      if (inlineOptionDepth > 0) {
+        // Count brackets and braces to track when we exit the multi-line option
+        const lineWithoutStrings = trimmed.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
+        const lineWithoutComments = lineWithoutStrings.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
+
+        const openBraces = (lineWithoutComments.match(/\{/g) || []).length;
+        const closeBraces = (lineWithoutComments.match(/\}/g) || []).length;
+        const openBrackets = (lineWithoutComments.match(/\[/g) || []).length;
+        const closeBrackets = (lineWithoutComments.match(/\]/g) || []).length;
+
+        inlineOptionDepth += (openBraces - closeBraces) + (openBrackets - closeBrackets);
         continue;
       }
 
@@ -304,9 +336,67 @@ export class CodeActionsProvider {
         continue;
       }
 
+      // Check if this line starts a multi-line inline option
+      if (trimmed.includes('[') && trimmed.includes('{')) {
+        const lineWithoutStrings = trimmed.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
+        const lineWithoutComments = lineWithoutStrings.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
+
+        const openBraces = (lineWithoutComments.match(/\{/g) || []).length;
+        const closeBraces = (lineWithoutComments.match(/\}/g) || []).length;
+        const openBrackets = (lineWithoutComments.match(/\[/g) || []).length;
+        const closeBrackets = (lineWithoutComments.match(/\]/g) || []).length;
+
+        const netOpen = (openBraces - closeBraces) + (openBrackets - closeBrackets);
+        if (netOpen > 0) {
+          inlineOptionDepth = netOpen;
+          continue;
+        }
+      }
+
+      // Also check for multi-line bracket options
+      if (trimmed.includes('[') && !trimmed.includes(']')) {
+        const lineWithoutStrings = trimmed.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
+        const lineWithoutComments = lineWithoutStrings.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
+
+        const openBrackets = (lineWithoutComments.match(/\[/g) || []).length;
+        const closeBrackets = (lineWithoutComments.match(/\]/g) || []).length;
+
+        if (openBrackets > closeBrackets) {
+          inlineOptionDepth = openBrackets - closeBrackets;
+          continue;
+        }
+      }
+
       const enumValueLike = /^(?:[A-Za-z_][\w]*)\s*=\s*-?\d+(?:\s*\[.*\])?/;
       const looksLikeField = fieldLike.test(trimmed) || mapLike.test(trimmed) || enumValueLike.test(trimmed);
       if (!looksLikeField) {
+        continue;
+      }
+
+      // Look ahead: check if the next non-empty, non-comment line starts with '['
+      // This handles cases like:
+      //   string name = 2 // comment
+      //       [(option) = {...}];
+      let nextLineStartsOption = false;
+      for (let j = i + 1; j < lines.length; j++) {
+        const nextLine = lines[j]!.trim();
+        if (nextLine === '' || nextLine.startsWith('//')) {
+          continue; // Skip empty lines and comments
+        }
+        if (nextLine.startsWith('[')) {
+          nextLineStartsOption = true;
+          // Also set inlineOptionDepth to track this multi-line option
+          const lineWithoutStrings = nextLine.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
+          const lineWithoutComments = lineWithoutStrings.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
+          const openBraces = (lineWithoutComments.match(/\{/g) || []).length;
+          const closeBraces = (lineWithoutComments.match(/\}/g) || []).length;
+          const openBrackets = (lineWithoutComments.match(/\[/g) || []).length;
+          const closeBrackets = (lineWithoutComments.match(/\]/g) || []).length;
+          inlineOptionDepth = (openBraces - closeBraces) + (openBrackets - closeBrackets);
+        }
+        break; // Only check the first non-empty, non-comment line
+      }
+      if (nextLineStartsOption) {
         continue;
       }
 
