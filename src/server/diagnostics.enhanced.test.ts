@@ -309,8 +309,10 @@ service UserService {
       const uri = 'file:///test.proto';
       const file = parser.parse(content, uri);
       analyzer.updateFile(uri, file);
-
+      
+      diagnosticsProvider.updateSettings({ documentationComments: true });
       const diags = diagnosticsProvider.validate(uri, file, content);
+
       // Documentation validation would check for comments
       expect(diags.length).toBeGreaterThanOrEqual(0);
     });

@@ -167,7 +167,8 @@ export function updateProvidersWithSettings(
     discouragedConstructs: diag.discouragedConstructs,
     deprecatedUsage: diag.deprecatedUsage ?? true,
     unusedSymbols: diag.unusedSymbols ?? false,
-    circularDependencies: diag.circularDependencies ?? true
+    circularDependencies: diag.circularDependencies ?? true,
+    documentationComments: diag.documentationComments ?? true
   };
   diagnosticsProvider.updateSettings(diagSettings);
   logger.info(`Diagnostics settings: enabled=${diag.enabled}, fieldTagChecks=${diagSettings.fieldTagChecks}, duplicateFieldChecks=${diagSettings.duplicateFieldChecks}`);

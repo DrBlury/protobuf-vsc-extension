@@ -104,7 +104,8 @@ describe('ConfigManager', () => {
       discouragedConstructs: settings.protobuf.diagnostics.discouragedConstructs,
       deprecatedUsage: true,
       unusedSymbols: false,
-      circularDependencies: true
+      circularDependencies: true,
+      documentationComments: true
     });
   });
 
@@ -514,7 +515,8 @@ describe('ConfigManager', () => {
           ...defaultSettings.protobuf.diagnostics,
           deprecatedUsage: undefined as any,
           unusedSymbols: undefined as any,
-          circularDependencies: undefined as any
+          circularDependencies: undefined as any,
+          documentationComments: undefined as any
         }
       }
     };
@@ -537,7 +539,8 @@ describe('ConfigManager', () => {
       expect.objectContaining({
         deprecatedUsage: true,
         unusedSymbols: false,
-        circularDependencies: true
+        circularDependencies: true,
+        documentationComments: true
       })
     );
   });

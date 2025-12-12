@@ -40,6 +40,7 @@ export interface Settings {
       deprecatedUsage: boolean;
       unusedSymbols: boolean;
       circularDependencies: boolean;
+      documentationComments: boolean;
       severity: {
         namingConventions: string;
         referenceErrors: string;
@@ -128,6 +129,7 @@ export const defaultSettings: Settings = {
       deprecatedUsage: true,
       unusedSymbols: false,
       circularDependencies: true,
+      documentationComments: true,
       severity: {
         namingConventions: 'warning',
         referenceErrors: 'error',

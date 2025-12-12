@@ -221,6 +221,14 @@ service UserService {
 }
 ```
 
+**Configuration:**
+
+```jsonc
+{
+  "protobuf.diagnostics.documentationComments": true
+}
+```
+
 ## Severity Levels
 
 You can configure the severity of different diagnostic categories:

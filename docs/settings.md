@@ -73,6 +73,12 @@ Settings can be configured in:
 - **Default**: `true`
 - **Description**: Detect circular import dependencies
 
+#### `protobuf.diagnostics.documentationComments`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Detect undocumented APIs
+
 #### Severity Settings
 
 ##### `protobuf.diagnostics.severity.namingConventions`
@@ -527,6 +533,7 @@ Settings support VS Code-style variables in path settings (`protobuf.protoc.path
   "protobuf.diagnostics.namingConventions": true,
   "protobuf.diagnostics.deprecatedUsage": true,
   "protobuf.diagnostics.circularDependencies": true,
+  "protobuf.diagnostics.documentationComments": true,
 
   // Formatter
   "protobuf.formatterEnabled": true,
