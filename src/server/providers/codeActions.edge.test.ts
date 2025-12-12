@@ -59,6 +59,28 @@ message Test {
       expect(actions.some(a => a.title && a.title.includes('semicolon'))).toBe(true);
     });
 
+    it('should detect missing semicolon when next line has comment then field', () => {
+      const text = `syntax = "proto3";
+message User {
+  // User's status
+  UserStatus status = 3
+
+  // Creation timestamp
+  Timestamp created_at = 4;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const range = Range.create(0, 0, 8, 0);
+      const actions = provider.getCodeActions(uri, range, { diagnostics: [] }, text);
+
+      // Should have a semicolon action because line 4 (UserStatus status = 3) is missing semicolon
+      // The next non-empty/non-comment line is "Timestamp created_at = 4;" which doesn't start with [
+      const semicolonAction = actions.find(a => a.title && a.title.includes('semicolon'));
+      expect(semicolonAction).toBeDefined();
+    });
+
     it('should add semicolon before inline comments', () => {
       const text = `syntax = "proto3";
 message Test {

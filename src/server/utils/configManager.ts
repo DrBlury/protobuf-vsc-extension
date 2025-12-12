@@ -189,10 +189,11 @@ export function updateProvidersWithSettings(
   // Update code actions settings
   if (codeActionsProvider) {
     const codeActionsSettings = {
-      renumberOnFormat: settings.protobuf.renumber.onFormat
+      renumberOnFormat: settings.protobuf.renumber.onFormat,
+      formatterEnabled: settings.protobuf.formatter?.enabled ?? true
     };
     codeActionsProvider.updateSettings(codeActionsSettings);
-    logger.info(`Code actions settings updated: renumberOnFormat=${codeActionsSettings.renumberOnFormat}`);
+    logger.info(`Code actions settings updated: renumberOnFormat=${codeActionsSettings.renumberOnFormat}, formatterEnabled=${codeActionsSettings.formatterEnabled}`);
   }
 
   // Update renumber settings

@@ -13,6 +13,7 @@
   "protobuf.codegen.generateOnSave": false,
   "protobuf.codegen.tool": "buf",
 
+  // Renumber settings
   "protobuf.renumber.onFormat": false,
   "protobuf.renumber.startNumber": 1,
   "protobuf.renumber.increment": 1,
@@ -26,6 +27,9 @@
   "protobuf.diagnostics.namingConventions": true,
   "protobuf.diagnostics.referenceChecks": true,
   "protobuf.diagnostics.importChecks": true,
+
+  // Formatter settings
+  "protobuf.formatter.enabled": true,
 
   // Debug and verbose logging
   "protobuf.debug.verboseLogging": true,

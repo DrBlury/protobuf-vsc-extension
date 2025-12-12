@@ -9,7 +9,7 @@ Common configuration patterns for different use cases.
 ```jsonc
 {
   "protobuf.diagnostics.enabled": true,
-  "protobuf.formatterEnabled": true
+  "protobuf.formatter.enabled": true
 }
 ```
 
@@ -20,7 +20,7 @@ Common configuration patterns for different use cases.
 ```jsonc
 {
   "protobuf.formatOnSave": true,
-  "protobuf.formatterEnabled": true,
+  "protobuf.formatter.enabled": true,
   "editor.formatOnSave": true
 }
 ```
@@ -173,7 +173,7 @@ The extension automatically detects `buf.yaml` files - no additional configurati
   "protobuf.clangFormat.enabled": true,
   "protobuf.clangFormat.path": "clang-format",
   "protobuf.clangFormat.style": "Google",
-  "protobuf.formatterEnabled": false
+  "protobuf.formatter.enabled": false
 }
 ```
 
@@ -198,7 +198,7 @@ The extension automatically detects `buf.yaml` files - no additional configurati
   "protobuf.diagnostics.severity.fieldTagIssues": "error",
 
   // Formatter
-  "protobuf.formatterEnabled": true,
+  "protobuf.formatter.enabled": true,
   "protobuf.formatOnSave": true,
   "protobuf.indentSize": 2,
   "protobuf.maxLineLength": 120,

@@ -24,10 +24,12 @@ export interface CodeActionContext {
 
 export interface CodeActionsSettings {
   renumberOnFormat?: boolean;
+  formatterEnabled?: boolean;
 }
 
 const DEFAULT_SETTINGS: CodeActionsSettings = {
-  renumberOnFormat: false
+  renumberOnFormat: false,
+  formatterEnabled: true
 };
 
 export class CodeActionsProvider {
@@ -109,9 +111,14 @@ export class CodeActionsProvider {
         logger.info('Skipping renumber source actions because renumberOnFormat=false');
       }
 
-      const semicolonAction = this.createAddMissingSemicolonsAction(uri, documentText);
-      if (semicolonAction) {
-        actions.push(semicolonAction);
+      // Only provide semicolon fix when formatter is enabled
+      if (this.settings.formatterEnabled) {
+        const semicolonAction = this.createAddMissingSemicolonsAction(uri, documentText);
+        if (semicolonAction) {
+          actions.push(semicolonAction);
+        }
+      } else {
+        logger.info('Skipping semicolon source action because formatterEnabled=false');
       }
     }
 
@@ -385,14 +392,7 @@ export class CodeActionsProvider {
         }
         if (nextLine.startsWith('[')) {
           nextLineStartsOption = true;
-          // Also set inlineOptionDepth to track this multi-line option
-          const lineWithoutStrings = nextLine.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
-          const lineWithoutComments = lineWithoutStrings.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
-          const openBraces = (lineWithoutComments.match(/\{/g) || []).length;
-          const closeBraces = (lineWithoutComments.match(/\}/g) || []).length;
-          const openBrackets = (lineWithoutComments.match(/\[/g) || []).length;
-          const closeBrackets = (lineWithoutComments.match(/\]/g) || []).length;
-          inlineOptionDepth = (openBraces - closeBraces) + (openBrackets - closeBrackets);
+          // Don't pre-count here - let the main loop handle it when it processes that line
         }
         break; // Only check the first non-empty, non-comment line
       }

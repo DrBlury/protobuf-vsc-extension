@@ -726,7 +726,7 @@ connection.onDocumentLinks((params) => {
 
 // Formatting
 connection.onDocumentFormatting((params: DocumentFormattingParams) => {
-  if (!globalSettings.protobuf.formatterEnabled) {
+  if (!globalSettings.protobuf.formatter.enabled) {
     return [];
   }
 
@@ -739,7 +739,7 @@ connection.onDocumentFormatting((params: DocumentFormattingParams) => {
 });
 
 connection.onDocumentRangeFormatting((params: DocumentRangeFormattingParams) => {
-  if (!globalSettings.protobuf.formatterEnabled) {
+  if (!globalSettings.protobuf.formatter.enabled) {
     return [];
   }
 

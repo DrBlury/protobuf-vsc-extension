@@ -101,11 +101,11 @@ Settings can be configured in:
 
 ### Formatter
 
-#### `protobuf.formatterEnabled`
+#### `protobuf.formatter.enabled`
 
 - **Type**: `boolean`
 - **Default**: `true`
-- **Description**: Enable/disable the formatter
+- **Description**: Enable/disable the formatter and automatic semicolon fixes. When disabled, document formatting will not run and the "Add missing semicolons" code action will not be suggested.
 
 #### `protobuf.formatOnSave`
 
@@ -529,7 +529,7 @@ Settings support VS Code-style variables in path settings (`protobuf.protoc.path
   "protobuf.diagnostics.circularDependencies": true,
 
   // Formatter
-  "protobuf.formatterEnabled": true,
+  "protobuf.formatter.enabled": true,
   "protobuf.formatOnSave": true,
   "protobuf.indentSize": 2,
 

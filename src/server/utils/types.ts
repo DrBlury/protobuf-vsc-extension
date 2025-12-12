@@ -10,12 +10,12 @@ import { DEFAULT_CONFIG } from './constants';
  */
 export interface Settings {
   protobuf: {
-    formatterEnabled: boolean;
     formatOnSave: boolean;
     indentSize: number;
     useTabIndent: boolean;
     maxLineLength: number;
     formatter: {
+      enabled: boolean;
       preset: string;
       alignFields?: boolean;
     };
@@ -98,12 +98,12 @@ export interface Settings {
  */
 export const defaultSettings: Settings = {
   protobuf: {
-    formatterEnabled: true,
     formatOnSave: false,
     indentSize: DEFAULT_CONFIG.INDENT_SIZE,
     useTabIndent: false,
     maxLineLength: DEFAULT_CONFIG.MAX_LINE_LENGTH,
     formatter: {
+      enabled: true,
       preset: 'minimal',
       alignFields: true
     },
