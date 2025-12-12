@@ -115,7 +115,7 @@ export const defaultSettings: Settings = {
       preserveReserved: true,
       skipInternalRange: true,
       autoSuggestNext: true,
-      onFormat: true
+      onFormat: false
     },
     diagnostics: {
       enabled: true,
