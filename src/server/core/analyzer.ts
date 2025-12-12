@@ -50,6 +50,22 @@ export class SemanticAnalyzer {
     this.importPaths = paths;
   }
 
+  /**
+   * Generate a cache key for import resolution.
+   * Simple filename imports (without '/') need per-file resolution
+   * because different files in different directories might import different files
+   * with the same simple name.
+   * Path-based imports (with '/') can be cached globally.
+   */
+  private getImportCacheKey(sourceUri: string, importPath: string): string {
+    // Simple filename imports need per-file resolution
+    if (!importPath.includes('/')) {
+      return `${sourceUri}|||${importPath}`;
+    }
+    // Path-based imports can be resolved globally
+    return importPath;
+  }
+
   setWorkspaceRoots(roots: string[]): void {
     this.workspaceRoots = roots.map(r => r.replace(/\\/g, '/'));
   }
@@ -120,14 +136,17 @@ export class SemanticAnalyzer {
       }
 
       for (const importPath of importPaths) {
+        // Use composite cache key for per-file resolution of simple imports
+        const cacheKey = this.getImportCacheKey(fileUri, importPath);
+
         // Skip if already resolved
-        if (this.workspace.importResolutions.has(importPath)) {
+        if (this.workspace.importResolutions.has(cacheKey)) {
           continue;
         }
 
         // Try to match this import to the new file
         if (this.doesFileMatchImport(normalizedNewUri, importPath)) {
-          this.workspace.importResolutions.set(importPath, newFileUri);
+          this.workspace.importResolutions.set(cacheKey, newFileUri);
         }
       }
     }
@@ -175,8 +194,9 @@ export class SemanticAnalyzer {
    * 4. Simple filename imports: "file.proto"
    */
   private resolveImportPath(currentUri: string, importPath: string): string | undefined {
-    // Check if already resolved
-    const existing = this.workspace.importResolutions.get(importPath);
+    // Check if already resolved using the appropriate cache key
+    const cacheKey = this.getImportCacheKey(currentUri, importPath);
+    const existing = this.workspace.importResolutions.get(cacheKey);
     if (existing) {
       return existing;
     }
@@ -188,7 +208,7 @@ export class SemanticAnalyzer {
       const normalizedUri = this.normalizeUri(fileUri);
 
       if (this.doesFileMatchImport(normalizedUri, importPath)) {
-        this.workspace.importResolutions.set(importPath, fileUri);
+        this.workspace.importResolutions.set(cacheKey, fileUri);
         return fileUri;
       }
     }
@@ -202,7 +222,7 @@ export class SemanticAnalyzer {
     for (const [fileUri] of this.workspace.files) {
       const normalizedFileUri = this.normalizeUri(fileUri);
       if (normalizedFileUri === resolvedUri) {
-        this.workspace.importResolutions.set(importPath, fileUri);
+        this.workspace.importResolutions.set(cacheKey, fileUri);
         return fileUri;
       }
     }
@@ -215,7 +235,7 @@ export class SemanticAnalyzer {
       for (const [fileUri] of this.workspace.files) {
         const normalizedFileUri = this.normalizeUri(fileUri);
         if (normalizedFileUri === searchUri || normalizedFileUri.endsWith(searchPath)) {
-          this.workspace.importResolutions.set(importPath, fileUri);
+          this.workspace.importResolutions.set(cacheKey, fileUri);
           return fileUri;
         }
       }
@@ -229,7 +249,7 @@ export class SemanticAnalyzer {
       for (const [fileUri] of this.workspace.files) {
         const normalizedFileUri = this.normalizeUri(fileUri);
         if (normalizedFileUri === searchUri || normalizedFileUri.endsWith('/' + searchPath)) {
-          this.workspace.importResolutions.set(importPath, fileUri);
+          this.workspace.importResolutions.set(cacheKey, fileUri);
           return fileUri;
         }
       }
@@ -243,7 +263,7 @@ export class SemanticAnalyzer {
       for (const [fileUri] of this.workspace.files) {
         const normalizedFileUri = this.normalizeUri(fileUri);
         if (normalizedFileUri === searchUri || normalizedFileUri.endsWith('/' + searchPath)) {
-          this.workspace.importResolutions.set(importPath, fileUri);
+          this.workspace.importResolutions.set(cacheKey, fileUri);
           return fileUri;
         }
       }
@@ -258,7 +278,7 @@ export class SemanticAnalyzer {
       // Check if the file path contains the import path at a directory boundary
       const importPathWithSlash = '/' + normalizedImport;
       if (uriPath.includes(importPathWithSlash)) {
-        this.workspace.importResolutions.set(importPath, fileUri);
+        this.workspace.importResolutions.set(cacheKey, fileUri);
         return fileUri;
       }
     }
@@ -489,7 +509,8 @@ export class SemanticAnalyzer {
   getImportsWithResolutions(uri: string): { importPath: string; resolvedUri?: string; isResolved: boolean }[] {
     const imports = this.workspace.imports.get(uri) || [];
     return imports.map(importPath => {
-      const resolvedUri = this.workspace.importResolutions.get(importPath);
+      const cacheKey = this.getImportCacheKey(uri, importPath);
+      const resolvedUri = this.workspace.importResolutions.get(cacheKey);
       return { importPath, resolvedUri, isResolved: !!resolvedUri };
     });
   }
@@ -541,7 +562,8 @@ export class SemanticAnalyzer {
     const resolvedUris: string[] = [];
 
     for (const importPath of imports) {
-      const resolvedUri = this.workspace.importResolutions.get(importPath);
+      const cacheKey = this.getImportCacheKey(uri, importPath);
+      const resolvedUri = this.workspace.importResolutions.get(cacheKey);
       if (resolvedUri) {
         resolvedUris.push(resolvedUri);
       } else {

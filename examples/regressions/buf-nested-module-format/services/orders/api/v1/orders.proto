@@ -7,6 +7,6 @@ package example.regressions.nested;
 // builds invoked buf from the repo root, which caused buf to exit because it
 // could not locate buf.yaml when formatting nested modules.
 message OrdersDocument {
-	string id      = 1;
+	string id = 1;
 	string summary = 2;
 }

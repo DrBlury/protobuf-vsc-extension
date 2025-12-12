@@ -209,4 +209,168 @@ message UserProfile {
     expect(missingImport).toBeUndefined();
     expect(wrongSuggestion).toBeUndefined();
   });
+
+  it('should resolve simple type name from imported file by simple name', () => {
+    // When a file imports example.proto and uses "Address" (simple name without package prefix),
+    // it should be found in the imported file even though it's in a different package
+    const localParser = new ProtoParser();
+    const localAnalyzer = new SemanticAnalyzer();
+    const localDiagnostics = new DiagnosticsProvider(localAnalyzer);
+    localAnalyzer.setWorkspaceRoots(['/workspace']);
+
+    // File 1: example.proto with example.v1.Address
+    const exampleUri = 'file:///workspace/example.proto';
+    const exampleContent = `edition = "2023";
+package example.v1;
+
+message User {
+  string id = 1;
+}
+
+message Address {
+  string street = 1;
+  string city = 2;
+}`;
+    const exampleFile = localParser.parse(exampleContent, exampleUri);
+    localAnalyzer.updateFile(exampleUri, exampleFile);
+
+    // File 2: order.proto that imports example.proto and uses Address WITHOUT package prefix
+    const orderUri = 'file:///workspace/order.proto';
+    const orderContent = `edition = "2023";
+package order.v1;
+
+import "example.proto";
+
+message Order {
+  string id = 1;
+  Address shipping_address = 2;
+}`;
+    const orderFile = localParser.parse(orderContent, orderUri);
+    localAnalyzer.updateFile(orderUri, orderFile);
+
+    const diags = localDiagnostics.validate(orderUri, orderFile);
+
+    // Should NOT report "Unknown type 'Address'" since example.proto is imported
+    const unknownType = diags.find(d => d.message.includes("Unknown type 'Address'"));
+    const missingImport = diags.find(d => d.message.includes('not imported'));
+
+    expect(unknownType).toBeUndefined();
+    expect(missingImport).toBeUndefined();
+  });
+
+  it('should resolve simple type name even when order.proto is loaded BEFORE example.proto', () => {
+    // This tests the scenario where the importing file is loaded before the imported file
+    const localParser = new ProtoParser();
+    const localAnalyzer = new SemanticAnalyzer();
+    const localDiagnostics = new DiagnosticsProvider(localAnalyzer);
+    localAnalyzer.setWorkspaceRoots(['/workspace']);
+
+    // Load order.proto FIRST (before example.proto is known)
+    const orderUri = 'file:///workspace/order.proto';
+    const orderContent = `edition = "2023";
+package order.v1;
+
+import "example.proto";
+
+message Order {
+  string id = 1;
+  Address shipping_address = 2;
+}`;
+    const orderFile = localParser.parse(orderContent, orderUri);
+    localAnalyzer.updateFile(orderUri, orderFile);
+
+    // At this point, the import is unresolved
+    // Now load example.proto SECOND
+    const exampleUri = 'file:///workspace/example.proto';
+    const exampleContent = `edition = "2023";
+package example.v1;
+
+message User {
+  string id = 1;
+}
+
+message Address {
+  string street = 1;
+  string city = 2;
+}`;
+    const exampleFile = localParser.parse(exampleContent, exampleUri);
+    localAnalyzer.updateFile(exampleUri, exampleFile);
+
+    // Now validate order.proto - the import should now be resolved
+    const diags = localDiagnostics.validate(orderUri, orderFile);
+
+    // Should NOT report "Unknown type 'Address'" since example.proto is now loaded and imported
+    const unknownType = diags.find(d => d.message.includes("Unknown type 'Address'"));
+    const missingImport = diags.find(d => d.message.includes('not imported'));
+
+    expect(unknownType).toBeUndefined();
+    expect(missingImport).toBeUndefined();
+  });
+
+  it('should correctly resolve simple filename imports when multiple files with same name exist', () => {
+    // This tests that import "example.proto" in different directories resolves to the correct file
+    const localParser = new ProtoParser();
+    const localAnalyzer = new SemanticAnalyzer();
+    const localDiagnostics = new DiagnosticsProvider(localAnalyzer);
+    localAnalyzer.setWorkspaceRoots(['/workspace']);
+
+    // File 1: /workspace/dir_a/example.proto with package_a.Address
+    const exampleAUri = 'file:///workspace/dir_a/example.proto';
+    const exampleAContent = `edition = "2023";
+package package_a;
+
+message Address {
+  string street_a = 1;
+}`;
+    const exampleAFile = localParser.parse(exampleAContent, exampleAUri);
+    localAnalyzer.updateFile(exampleAUri, exampleAFile);
+
+    // File 2: /workspace/dir_b/example.proto with package_b.Address
+    const exampleBUri = 'file:///workspace/dir_b/example.proto';
+    const exampleBContent = `edition = "2023";
+package package_b;
+
+message Address {
+  string street_b = 1;
+}`;
+    const exampleBFile = localParser.parse(exampleBContent, exampleBUri);
+    localAnalyzer.updateFile(exampleBUri, exampleBFile);
+
+    // File 3: /workspace/dir_a/order.proto imports "example.proto" (should resolve to dir_a/example.proto)
+    const orderAUri = 'file:///workspace/dir_a/order.proto';
+    const orderAContent = `edition = "2023";
+package package_a;
+
+import "example.proto";
+
+message Order {
+  Address addr = 1;
+}`;
+    const orderAFile = localParser.parse(orderAContent, orderAUri);
+    localAnalyzer.updateFile(orderAUri, orderAFile);
+
+    // File 4: /workspace/dir_b/order.proto imports "example.proto" (should resolve to dir_b/example.proto)
+    const orderBUri = 'file:///workspace/dir_b/order.proto';
+    const orderBContent = `edition = "2023";
+package package_b;
+
+import "example.proto";
+
+message Order {
+  Address addr = 1;
+}`;
+    const orderBFile = localParser.parse(orderBContent, orderBUri);
+    localAnalyzer.updateFile(orderBUri, orderBFile);
+
+    // Validate both order files - neither should have unknown type errors
+    const diagsA = localDiagnostics.validate(orderAUri, orderAFile);
+    const diagsB = localDiagnostics.validate(orderBUri, orderBFile);
+
+    // Both should resolve their Address type correctly from their local example.proto
+    const unknownTypeA = diagsA.find(d => d.message.includes("Unknown type 'Address'"));
+    const unknownTypeB = diagsB.find(d => d.message.includes("Unknown type 'Address'"));
+
+    expect(unknownTypeA).toBeUndefined();
+    expect(unknownTypeB).toBeUndefined();
+  });
 });

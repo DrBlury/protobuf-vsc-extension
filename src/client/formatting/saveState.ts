@@ -1,9 +1,10 @@
 /**
  * Tracks documents currently being saved so we can suppress duplicate formatting requests.
  */
+
 export class SaveStateTracker {
   private readonly savingDocuments = new Set<string>();
-  private readonly cleanupTimers = new Map<string, NodeJS.Timeout>();
+  private readonly cleanupTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(private readonly timeoutMs: number = 10000) {}
 

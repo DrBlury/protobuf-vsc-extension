@@ -3,9 +3,9 @@ syntax = "proto3";
 package helloworld_mod;
 
 message HelloRequest {
-  string name = 1;
+	string name = 1;
 }
 
 message HelloReply {
-  string message = 1;
+	string message = 1;
 }

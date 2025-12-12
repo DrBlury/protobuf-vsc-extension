@@ -20,7 +20,7 @@ message Order {
 	common.v1.Date order_date = 3;
 
 	// Shipping address (from example.proto)
-	Address shipping_address = 4;
+	example.v1.Address shipping_address = 4;
 
 	// Order total (from common.proto)
 	Money total = 5;

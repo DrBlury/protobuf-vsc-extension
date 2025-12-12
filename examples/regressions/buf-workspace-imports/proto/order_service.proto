@@ -22,5 +22,5 @@ message GetOrderRequest {
 
 message GetOrderResponse {
 	string order_id = 1;
-	string status   = 2;
+	string status = 2;
 }

@@ -223,7 +223,7 @@ message Test {
       const position: Position = { line: 2, character: 10 };
       const lineText = '  string name = 1;';
       // 'message' is a reserved word in protobuf
-      const result = provider.rename(uri, position, lineText, 'message');
+      const _result = provider.rename(uri, position, lineText, 'message');
 
       // Implementation may or may not reject reserved words
       // This tests the validation path
@@ -283,7 +283,7 @@ message Test {}`;
 
       const position: Position = { line: 1, character: 15 };
       const lineText = '// This is a Test comment';
-      const result = provider.prepareRename(uri, position, lineText);
+      const _result = provider.prepareRename(uri, position, lineText);
 
       // Position is inside comment, should be null or undefined
       // depending on implementation
@@ -299,7 +299,7 @@ message Test {}`;
 
       const position: Position = { line: 1, character: 35 };
       const lineText = 'option java_package = "com.example.Test";';
-      const result = provider.prepareRename(uri, position, lineText);
+      const _result = provider.prepareRename(uri, position, lineText);
 
       // Position is inside string literal
     });
@@ -315,7 +315,7 @@ message Test {}`;
       // Position on "test" in package name
       const position: Position = { line: 1, character: 11 };
       const lineText = 'package my.test.package;';
-      const result = provider.prepareRename(uri, position, lineText);
+      const _result = provider.prepareRename(uri, position, lineText);
 
       // Package parts might not be renameable
     });
@@ -452,7 +452,7 @@ message Test {}`;
 
       const position: Position = { line: 1, character: 0 };
       const lineText = 'message Test {}';
-      const result = provider.prepareRename(uri, position, lineText);
+      const _result = provider.prepareRename(uri, position, lineText);
 
       // 'message' is at position 0, should handle correctly
     });

@@ -22,7 +22,12 @@ jest.mock('./logger', () => {
     logger: {
       setVerboseLogging: jest.fn(),
       setLevel: jest.fn(),
-      info: jest.fn()
+      info: jest.fn(),
+      verbose: jest.fn(),
+      verboseWithContext: jest.fn(),
+      debug: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn()
     }
   };
 });
