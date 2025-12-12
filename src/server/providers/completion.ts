@@ -66,7 +66,7 @@ export class CompletionProvider {
 
     // Keyword completions
     if (this.isKeywordContext(beforeCursor)) {
-      completions.push(...this.getKeywordCompletions(beforeCursor));
+      completions.push(...this.getKeywordCompletions(position, beforeCursor));
     }
 
     // Enum value number suggestion right after the value name
@@ -227,7 +227,7 @@ export class CompletionProvider {
     return completions;
   }
 
-  private getKeywordCompletions(_context: string): CompletionItem[] {
+  private getKeywordCompletions(position: Position, context: string): CompletionItem[] {
     const completions: CompletionItem[] = [];
 
     // Only provide simple keyword completions here
@@ -240,12 +240,21 @@ export class CompletionProvider {
       { label: 'stream', detail: 'Streaming modifier' }
     ];
 
+    // Calculate the range of the partial keyword being typed
+    const partialMatch = context.match(/(\w*)$/);
+    const partial = partialMatch?.[1] || '';
+    const replaceRange: Range = {
+      start: { line: position.line, character: position.character - partial.length },
+      end: { line: position.line, character: position.character }
+    };
+
     for (const kw of simpleKeywords) {
       completions.push({
         label: kw.label,
         kind: CompletionItemKind.Keyword,
         detail: kw.detail,
-        sortText: '2' + kw.label
+        sortText: '2' + kw.label,
+        textEdit: TextEdit.replace(replaceRange, kw.label)
       });
     }
 
