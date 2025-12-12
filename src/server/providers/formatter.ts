@@ -3,6 +3,7 @@
  */
 
 import { TextEdit, Range } from 'vscode-languageserver/node';
+import { URI } from 'vscode-uri';
 import { FIELD_NUMBER } from '../utils/constants';
 import { ClangFormatProvider } from '../services/clangFormat';
 import { BufFormatProvider } from '../services/bufFormat';
@@ -47,7 +48,11 @@ export class ProtoFormatter {
     this.settings = { ...this.settings, ...settings };
   }
 
-  async formatDocument(text: string): Promise<TextEdit[]> {
+  setBufPath(path: string): void {
+    this.bufFormat?.setBufPath(path);
+  }
+
+  async formatDocument(text: string, uri?: string): Promise<TextEdit[]> {
     if (this.settings.preset === 'google' && this.clangFormat) {
       const lines = text.split('\n');
       const range = Range.create(0, 0, lines.length, lines[lines.length - 1].length);
@@ -58,7 +63,8 @@ export class ProtoFormatter {
     }
 
     if (this.settings.preset === 'buf' && this.bufFormat) {
-      const formatted = await this.bufFormat.format(text);
+      const filePath = this.getFsPathFromUri(uri);
+      const formatted = await this.bufFormat.format(text, filePath);
       if (formatted) {
         const lines = text.split('\n');
         return [{
@@ -785,6 +791,18 @@ export class ProtoFormatter {
     }
 
     return result.join('\n');
+  }
+
+  private getFsPathFromUri(uri?: string): string | undefined {
+    if (!uri) {
+      return undefined;
+    }
+
+    try {
+      return URI.parse(uri).fsPath;
+    } catch {
+      return undefined;
+    }
   }
 }
 

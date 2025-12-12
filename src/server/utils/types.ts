@@ -55,6 +55,9 @@ export interface Settings {
       showFieldNumbers: boolean;
       showDocumentation: boolean;
     };
+    buf?: {
+      path?: string;
+    };
     protoc: {
       path: string;
       compileOnSave: boolean;
@@ -139,6 +142,9 @@ export const defaultSettings: Settings = {
     hover: {
       showFieldNumbers: true,
       showDocumentation: true
+    },
+    buf: {
+      path: DEFAULT_CONFIG.BUF_PATH
     },
     protoc: {
       path: DEFAULT_CONFIG.PROTOC_PATH,

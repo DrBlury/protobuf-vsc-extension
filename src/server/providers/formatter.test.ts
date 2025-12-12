@@ -18,7 +18,8 @@ describe('ProtoFormatter', () => {
     } as any;
 
     mockBufFormat = {
-      format: jest.fn()
+      format: jest.fn(),
+      setBufPath: jest.fn()
     } as any;
 
     formatter = new ProtoFormatter(mockClangFormat, mockBufFormat);
@@ -86,7 +87,7 @@ describe('ProtoFormatter', () => {
       const result = await formatter.formatDocument(text);
       expect(result).toHaveLength(1);
       expect(result[0].newText).toBe('formatted text');
-      expect(mockBufFormat.format).toHaveBeenCalledWith(text);
+      expect(mockBufFormat.format).toHaveBeenCalledWith(text, undefined);
     });
 
     it('should fallback to minimal when buf format returns null', async () => {
@@ -365,7 +366,7 @@ describe('ProtoFormatter', () => {
 }`;
       const result = await formatter.formatDocument(text);
       const formatted = result[0].newText;
-      
+
       // Check that field names are aligned (all = signs at same column)
       const lines = formatted.split('\n').filter(l => l.includes('='));
       if (lines.length > 1) {
@@ -385,7 +386,7 @@ describe('ProtoFormatter', () => {
 }`;
       const result = await formatter.formatDocument(text);
       const formatted = result[0].newText;
-      
+
       // Check that enum values are aligned
       const lines = formatted.split('\n').filter(l => l.includes('='));
       if (lines.length > 1) {
@@ -406,7 +407,7 @@ describe('ProtoFormatter', () => {
 }`;
       const result = await formatter.formatDocument(text);
       const formatted = result[0].newText;
-      
+
       // Check that colons are aligned in option block
       const lines = formatted.split('\n').filter(l => l.includes(':') && !l.includes('option'));
       if (lines.length > 1) {
@@ -427,7 +428,7 @@ describe('ProtoFormatter', () => {
 }`;
       const result = await formatter.formatDocument(text);
       const formatted = result[0].newText;
-      
+
       // Check alignment
       const lines = formatted.split('\n').filter(l => l.includes('=') && !l.includes('option'));
       if (lines.length > 1) {
@@ -446,7 +447,7 @@ describe('ProtoFormatter', () => {
 }`;
       const result = await formatter.formatDocument(text);
       const formatted = result[0].newText;
-      
+
       // Without alignment, = signs may be at different positions based on field name length
       expect(formatted).toBeDefined();
       expect(formatted).toContain('string city = 1');
@@ -466,7 +467,7 @@ describe('ProtoFormatter', () => {
 }`;
       const result = await formatter.formatDocument(text);
       const formatted = result[0].newText;
-      
+
       // Each message block should have its own alignment
       expect(formatted).toBeDefined();
       expect(formatted).toContain('string');

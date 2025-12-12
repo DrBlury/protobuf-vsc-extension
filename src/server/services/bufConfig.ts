@@ -116,6 +116,11 @@ export class BufConfigProvider {
     return dirs;
   }
 
+  getBufConfigDir(filePath: string): string | null {
+    const configPath = this.findBufConfigPath(filePath);
+    return configPath ? path.dirname(configPath) : null;
+  }
+
   private findBufConfigInDirectory(dir: string): BufConfig | null {
     const normalizedDir = path.normalize(dir);
 

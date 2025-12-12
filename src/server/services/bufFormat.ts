@@ -1,4 +1,6 @@
 import { spawn } from 'child_process';
+import * as path from 'path';
+import { bufConfigProvider } from './bufConfig';
 
 export class BufFormatProvider {
   private bufPath: string = 'buf';
@@ -11,12 +13,30 @@ export class BufFormatProvider {
     return new Promise((resolve) => {
       // buf format reads from stdin if no file is specified, or we can use --path to simulate file context
       const args = ['format'];
+      const spawnOptions: { shell: boolean; cwd?: string } = { shell: true };
+
       if (filePath) {
+        const normalizedFile = path.normalize(filePath);
+        const configDir = bufConfigProvider.getBufConfigDir(normalizedFile);
+        let cwd = configDir || path.dirname(normalizedFile);
+        let relativePath = configDir
+          ? path.relative(configDir, normalizedFile)
+          : path.basename(normalizedFile);
+
+        if (!relativePath) {
+          relativePath = path.basename(normalizedFile);
+        }
+
+        spawnOptions.cwd = cwd;
+
+        if (relativePath) {
+          const posixRelative = relativePath.split(path.sep).join('/');
           args.push('--path');
-          args.push(filePath);
+          args.push(posixRelative);
+        }
       }
 
-      const proc = spawn(this.bufPath, args, { shell: true });
+      const proc = spawn(this.bufPath, args, spawnOptions);
       let stdout = '';
 
       proc.stdout.on('data', (data) => {

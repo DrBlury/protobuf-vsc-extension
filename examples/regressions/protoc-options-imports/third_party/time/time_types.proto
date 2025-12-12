@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package third_party.time;
+
+message TimestampEnvelope {
+	int64 seconds = 1;
+	int32 nanos   = 2;
+}

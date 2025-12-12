@@ -471,6 +471,12 @@ async function validateDocument(document: TextDocument): Promise<void> {
     // Update analyzer (always needed for symbol resolution)
     providers.analyzer.updateFile(uri, file);
 
+    if (!globalSettings.protobuf.diagnostics.enabled) {
+      logger.verboseWithContext('Diagnostics disabled via settings, skipping publish', { uri });
+      connection.sendDiagnostics({ uri, diagnostics: [] });
+      return;
+    }
+
     // Run diagnostics
     const diagnostics = providers.diagnostics.validate(uri, file, text);
 
@@ -676,7 +682,7 @@ connection.onDocumentFormatting((params: DocumentFormattingParams) => {
     return [];
   }
 
-  return providers.formatter.formatDocument(document.getText());
+  return providers.formatter.formatDocument(document.getText(), params.textDocument.uri);
 });
 
 connection.onDocumentRangeFormatting((params: DocumentRangeFormattingParams) => {

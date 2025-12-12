@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package example.regressions.nested;
+
+// Formatting this file with the "Buf" preset now shells out to buf format
+// using the module-relative working directory (services/orders). Older
+// builds invoked buf from the repo root, which caused buf to exit because it
+// could not locate buf.yaml when formatting nested modules.
+message OrdersDocument {
+	string id      = 1;
+	string summary = 2;
+}

@@ -3,6 +3,8 @@
  * Handles loading and updating configuration settings
  */
 
+import * as fs from 'fs';
+import * as path from 'path';
 import { LogLevel } from './logger';
 import { logger } from './logger';
 import { Settings } from './types';
@@ -14,6 +16,7 @@ import { ProtocCompiler } from '../services/protoc';
 import { BreakingChangeDetector } from '../services/breaking';
 import { ExternalLinterProvider } from '../services/externalLinter';
 import { ClangFormatProvider } from '../services/clangFormat';
+import { bufConfigProvider } from '../services/bufConfig';
 
 /**
  * Map string log level to LogLevel enum
@@ -36,6 +39,87 @@ function expandVariables(value: string, workspaceFolders: string[]): string {
     .replace(/\$\{workspaceRoot\}/g, workspaceFolder)
     .replace(/\$\{workspaceFolder\}/g, workspaceFolder)
     .replace(/\$\{env\.(\w+)\}/g, (_: string, name: string) => process.env[name] || '');
+}
+
+function findExistingConfig(base: string, candidates: string[]): string | undefined {
+  for (const candidate of candidates) {
+    const resolved = path.join(base, candidate);
+    if (fs.existsSync(resolved)) {
+      return resolved;
+    }
+  }
+  return undefined;
+}
+
+function collectWorkspaceBufIncludes(workspaceFolders: string[]): string[] {
+  const includeSet = new Set<string>();
+
+  for (const folder of workspaceFolders) {
+    if (!folder) {
+      continue;
+    }
+
+    const bufConfigPath = findExistingConfig(folder, ['buf.yaml', 'buf.yml']);
+    if (bufConfigPath) {
+      try {
+        const roots = bufConfigProvider.getProtoRoots(bufConfigPath);
+        for (const root of roots) {
+          includeSet.add(path.normalize(root));
+        }
+      } catch {
+        // ignore parse errors and continue collecting
+      }
+    }
+
+    const bufWorkPath = findExistingConfig(folder, ['buf.work.yaml', 'buf.work.yml']);
+    if (bufWorkPath) {
+      try {
+        const directories = bufConfigProvider.getWorkDirectories(bufWorkPath);
+        for (const dir of directories) {
+          includeSet.add(path.normalize(dir));
+        }
+      } catch {
+        // ignore parse errors and continue collecting
+      }
+    }
+  }
+
+  return Array.from(includeSet);
+}
+
+function extractProtoPathOptions(options: string[] | undefined): string[] {
+  if (!options || options.length === 0) {
+    return [];
+  }
+
+  const protoPaths: string[] = [];
+
+  for (let i = 0; i < options.length; i++) {
+    const option = options[i];
+    if (!option) {
+      continue;
+    }
+
+    if (option.startsWith('--proto_path=')) {
+      protoPaths.push(option.substring('--proto_path='.length));
+      continue;
+    }
+
+    if (option === '--proto_path' || option === '-I') {
+      const next = options[i + 1];
+      if (next) {
+        protoPaths.push(next);
+        i++;
+      }
+      continue;
+    }
+
+    if (option.startsWith('-I') && option.length > 2) {
+      protoPaths.push(option.substring(2));
+    }
+  }
+
+  return protoPaths;
 }
 
 /**
@@ -92,14 +176,48 @@ export function updateProvidersWithSettings(
   });
 
   // Update analyzer with import paths (expand variables like ${workspaceFolder})
-  const rawIncludePaths = settings.protobuf.includes || [];
-  const includePaths = rawIncludePaths.map(p => expandVariables(p, workspaceFolders));
-  if (wellKnownIncludePath && !includePaths.includes(wellKnownIncludePath)) {
-    includePaths.push(wellKnownIncludePath);
+  const workspaceBufIncludes = collectWorkspaceBufIncludes(workspaceFolders);
+  const protoPathIncludes = extractProtoPathOptions(settings.protobuf.protoc?.options).map(p => p.trim()).filter(Boolean);
+  const rawIncludePaths = [
+    ...workspaceBufIncludes,
+    ...protoPathIncludes,
+    ...(settings.protobuf.includes || [])
+  ];
+
+  const includePaths: string[] = [];
+  const seenPaths = new Set<string>();
+
+  for (const rawPath of rawIncludePaths) {
+    if (!rawPath) {
+      continue;
+    }
+    const expanded = expandVariables(rawPath, workspaceFolders);
+    if (!expanded) {
+      continue;
+    }
+    const normalized = path.normalize(expanded);
+    if (!seenPaths.has(normalized)) {
+      seenPaths.add(normalized);
+      includePaths.push(expanded);
+    }
   }
-  if (wellKnownCacheDir && !includePaths.includes(wellKnownCacheDir)) {
-    includePaths.push(wellKnownCacheDir);
+
+  if (wellKnownIncludePath) {
+    const normalized = path.normalize(wellKnownIncludePath);
+    if (!seenPaths.has(normalized)) {
+      includePaths.push(wellKnownIncludePath);
+      seenPaths.add(normalized);
+    }
   }
+
+  if (wellKnownCacheDir) {
+    const normalized = path.normalize(wellKnownCacheDir);
+    if (!seenPaths.has(normalized)) {
+      includePaths.push(wellKnownCacheDir);
+      seenPaths.add(normalized);
+    }
+  }
+
   analyzer.setImportPaths(includePaths);
 
   // Update protoc compiler settings
@@ -132,6 +250,12 @@ export function updateProvidersWithSettings(
     protolintConfigPath: linterSettings.protolintConfigPath,
     runOnSave: linterSettings.runOnSave
   });
+
+  const configuredBufPath = settings.protobuf.buf?.path?.trim();
+  const resolvedBufPath = configuredBufPath || linterSettings.bufPath;
+  if (resolvedBufPath) {
+    formatter.setBufPath(resolvedBufPath);
+  }
 
   // Update clang-format settings
   const clangSettings = settings.protobuf.clangFormat;

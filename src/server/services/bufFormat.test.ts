@@ -121,7 +121,7 @@ describe('BufFormatProvider', () => {
       await provider.format('message Test {}', '/path/to/file.proto');
       expect(mockSpawn).toHaveBeenCalledWith(
         'buf',
-        ['format', '--path', '/path/to/file.proto'],
+        ['format', '--path', 'file.proto'],
         expect.any(Object)
       );
     });

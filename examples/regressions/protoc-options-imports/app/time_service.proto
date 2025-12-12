@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package example.regressions.protopath;
+
+import "time_types.proto";
+
+// Resolving imports through --proto_path now works without duplicating the
+// include in protobuf.includes. Point --proto_path at third_party when
+// testing older builds to observe the issue.
+message TimeRequest {
+	string timezone = 1;
+}
+
+message TimeResponse {
+	third_party.time.TimestampEnvelope current_time = 1;
+}
+
+// Provides wall clock time to clients.
+service TimeService {
+	// Returns the current time for a requested timezone.
+	rpc GetTime(TimeRequest) returns (TimeResponse);
+}

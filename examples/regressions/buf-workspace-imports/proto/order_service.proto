@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package example.regressions.workspace;
+
+import "google/api/annotations.proto";
+
+// Older builds of the extension could not locate google/api imports unless
+// users manually configured includes. This file highlights the issue because
+// the actual google/api sources sit under vendor/googleapis and are only
+// discoverable via buf.work.yaml.
+service OrderService {
+	rpc GetOrder(GetOrderRequest) returns (GetOrderResponse) {
+		option (google.api.http) = {
+			get: "/v1/orders/{order_id}"
+		};
+	}
+}
+
+message GetOrderRequest {
+	string order_id = 1;
+}
+
+message GetOrderResponse {
+	string order_id = 1;
+	string status   = 2;
+}

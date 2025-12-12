@@ -1,0 +1,12 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "protobuf.protoc.options": [
+      "--proto_path=${workspaceFolder}/third_party/time"
+    ]
+  }
+}

@@ -218,7 +218,7 @@ message User {
 
 - **Type**: `string[]`
 - **Default**: `[]`
-- **Description**: Additional paths to search for imports
+- **Description**: Additional paths to search for imports. These override/augment the automatically detected roots described below and are useful for ad-hoc directories that are not part of any Buf workspace or protoc option.
 
 **Example:**
 
@@ -228,6 +228,30 @@ message User {
     "${workspaceFolder}/protos",
     "${workspaceFolder}/third_party"
   ]
+}
+```
+
+#### Automatic import roots
+
+Even without `protobuf.includes`, the language server discovers import roots from:
+
+- `buf.yaml` files in each workspace folder (proto roots declared via `modules`, `deps`, or `build` settings)
+- `buf.work.yaml` workspaces (every directory listed under `directories` is treated as an include root)
+- `protobuf.protoc.options` entries such as `--proto_path=/path/to/includes` or `-I includes`
+
+These sources now populate the analyzer automatically, so most projects no longer need to duplicate their Buf/protoc configuration inside VS Code settings.
+
+#### `protobuf.protoSrcsDir`
+
+- **Type**: `string`
+- **Default**: `""`
+- **Description**: Optional subdirectory (relative to the workspace root) to limit proto discovery. When set, the server only scans `${workspaceFolder}/${protoSrcsDir}/**/*.proto`. This is helpful when the repository contains large non-proto trees or when you only want to index a regression sample directory.
+
+**Example:**
+
+```jsonc
+{
+  "protobuf.protoSrcsDir": "examples/regressions"
 }
 ```
 
@@ -280,6 +304,7 @@ message User {
 - **Default**: `{}`
 - **Description**: Code generation profiles. Each profile is a named array of protoc arguments.
 - **Example**:
+
   ```json
   {
     "protobuf.codegen.profiles": {
@@ -296,6 +321,7 @@ message User {
     }
   }
   ```
+
 - **Variables**: Supports VS Code variables (`${workspaceFolder}`, `${file}`, `${fileDirname}`, `${fileBasename}`, `${fileBasenameNoExtension}`)
 - **See**: [Code Generation Guide](./codegen.md) for detailed usage
 
@@ -331,6 +357,8 @@ message User {
 - **Default**: `[]`
 - **Description**: Additional protoc compiler options
 
+**Note:** `--proto_path` (`-I`) entries placed here are now mirrored into the language server's import resolver, so you no longer need to copy those directories into `protobuf.includes`.
+
 **Example:**
 
 ```jsonc
@@ -342,6 +370,34 @@ message User {
   ]
 }
 ```
+
+### Buf CLI Configuration
+
+#### `protobuf.buf.path`
+
+- **Type**: `string`
+- **Default**: `"buf"`
+- **Description**: Path to the buf CLI used for formatting (`formatter.preset = "buf"`), linting, breaking change checks, and code generation when `protobuf.codegen.tool` is `buf`.
+
+#### `protobuf.buf.useManaged`
+
+- **Type**: `boolean`
+- **Default**: `false`
+- **Description**: When `true`, ignore `protobuf.buf.path` and use the managed buf binary bundled with the extension. This is useful for teams that want reproducible toolchains without altering PATH.
+
+### Toolchain Auto-Detection
+
+#### `protobuf.autoDetection.enabled`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Automatically probe the workspace for buf, protoc, clang-format, and protolint at startup and record their locations for use in commands.
+
+#### `protobuf.autoDetection.prompted`
+
+- **Type**: `boolean`
+- **Default**: `false`
+- **Description**: Internal flag used by the extension to avoid re-prompting you about auto-detection choices. You should not need to edit this manually.
 
 ### Breaking Changes
 
