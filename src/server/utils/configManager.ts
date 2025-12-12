@@ -35,10 +35,25 @@ const LOG_LEVEL_MAP: Record<string, LogLevel> = {
 function expandVariables(value: string, workspaceFolders: string[]): string {
   // Use the first workspace folder for ${workspaceFolder}
   const workspaceFolder = workspaceFolders[0] || '';
+  const workspaceFolderBasename = workspaceFolder ? path.basename(workspaceFolder) : '';
   return value
     .replace(/\$\{workspaceRoot\}/g, workspaceFolder)
     .replace(/\$\{workspaceFolder\}/g, workspaceFolder)
-    .replace(/\$\{env\.(\w+)\}/g, (_: string, name: string) => process.env[name] || '');
+    .replace(/\$\{workspaceFolderBasename\}/g, workspaceFolderBasename)
+    .replace(/\$\{env(?::|\.)([^}]+)\}/g, (_: string, name: string) => process.env[name] || '');
+}
+
+function expandPathSetting(value: string | undefined, workspaceFolders: string[]): string | undefined {
+  if (!value) {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  return expandVariables(trimmed, workspaceFolders);
 }
 
 function findExistingConfig(base: string, candidates: string[]): string | undefined {
@@ -222,46 +237,54 @@ export function updateProvidersWithSettings(
 
   // Update protoc compiler settings
   const protocSettings = settings.protobuf.protoc;
+  const expandedProtocPath = expandPathSetting(protocSettings.path, workspaceFolders);
+  const expandedCompileAllPath = expandPathSetting(protocSettings.compileAllPath, workspaceFolders);
   protocCompiler.updateSettings({
-    path: protocSettings.path,
+    path: expandedProtocPath || protocSettings.path,
     compileOnSave: protocSettings.compileOnSave,
-    compileAllPath: protocSettings.compileAllPath,
+    compileAllPath: expandedCompileAllPath || protocSettings.compileAllPath,
     useAbsolutePath: protocSettings.useAbsolutePath,
     options: protocSettings.options
   });
 
   // Update breaking change detector settings
   const breakingSettings = settings.protobuf.breaking;
+  const expandedBreakingFilePath = expandPathSetting(breakingSettings.againstFilePath, workspaceFolders);
   breakingChangeDetector.updateSettings({
     enabled: breakingSettings.enabled,
     againstStrategy: breakingSettings.againstStrategy as 'git' | 'file' | 'none',
     againstGitRef: breakingSettings.againstGitRef,
-    againstFilePath: breakingSettings.againstFilePath
+    againstFilePath: expandedBreakingFilePath || breakingSettings.againstFilePath
   });
 
   // Update external linter settings
   const linterSettings = settings.protobuf.externalLinter;
+  const expandedLinterBufPath = expandPathSetting(linterSettings.bufPath, workspaceFolders);
+  const expandedProtolintPath = expandPathSetting(linterSettings.protolintPath, workspaceFolders);
+  const expandedBufConfigPath = expandPathSetting(linterSettings.bufConfigPath, workspaceFolders);
+  const expandedProtolintConfigPath = expandPathSetting(linterSettings.protolintConfigPath, workspaceFolders);
   externalLinter.updateSettings({
     enabled: linterSettings.enabled,
     linter: linterSettings.linter as 'buf' | 'protolint' | 'none',
-    bufPath: linterSettings.bufPath,
-    protolintPath: linterSettings.protolintPath,
-    bufConfigPath: linterSettings.bufConfigPath,
-    protolintConfigPath: linterSettings.protolintConfigPath,
+    bufPath: expandedLinterBufPath || linterSettings.bufPath,
+    protolintPath: expandedProtolintPath || linterSettings.protolintPath,
+    bufConfigPath: expandedBufConfigPath || linterSettings.bufConfigPath,
+    protolintConfigPath: expandedProtolintConfigPath || linterSettings.protolintConfigPath,
     runOnSave: linterSettings.runOnSave
   });
 
-  const configuredBufPath = settings.protobuf.buf?.path?.trim();
-  const resolvedBufPath = configuredBufPath || linterSettings.bufPath;
+  const configuredBufPath = expandPathSetting(settings.protobuf.buf?.path?.trim(), workspaceFolders);
+  const resolvedBufPath = configuredBufPath || expandedLinterBufPath;
   if (resolvedBufPath) {
     formatter.setBufPath(resolvedBufPath);
   }
 
   // Update clang-format settings
   const clangSettings = settings.protobuf.clangFormat;
+  const expandedClangPath = expandPathSetting(clangSettings.path, workspaceFolders);
   clangFormat.updateSettings({
     enabled: clangSettings.enabled,
-    path: clangSettings.path,
+    path: expandedClangPath || clangSettings.path,
     style: clangSettings.style,
     fallbackStyle: clangSettings.fallbackStyle
   });

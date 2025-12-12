@@ -56,7 +56,8 @@ export class ProtoFormatter {
     if (this.settings.preset === 'google' && this.clangFormat) {
       const lines = text.split('\n');
       const range = Range.create(0, 0, lines.length, lines[lines.length - 1].length);
-      const edits = await this.clangFormat.formatRange(text, range);
+      const filePath = this.getFsPathFromUri(uri);
+      const edits = await this.clangFormat.formatRange(text, range, filePath);
       if (edits && edits.length > 0) {
           return edits;
       }
@@ -86,9 +87,10 @@ export class ProtoFormatter {
     }];
   }
 
-  async formatRange(text: string, range: Range): Promise<TextEdit[]> {
+  async formatRange(text: string, range: Range, uri?: string): Promise<TextEdit[]> {
     if (this.settings.preset === 'google' && this.clangFormat) {
-      const edits = await this.clangFormat.formatRange(text, range);
+      const filePath = this.getFsPathFromUri(uri);
+      const edits = await this.clangFormat.formatRange(text, range, filePath);
       if (edits && edits.length > 0) {
           return edits;
       }
@@ -753,9 +755,38 @@ export class ProtoFormatter {
             // Remove any additional "= <number>" sequences after the first number
             const cleanedRest = rest.replace(/(\s*=\s*-?\d+)+/g, '');
 
-            // Ensure line ends with semicolon
-            const hasTrailingSemi = cleanedRest.includes(';');
-            line = `${beforeNumber}${firstNumber}${cleanedRest}${hasTrailingSemi ? '' : ';'}`;
+            // Ensure line ends with semicolon, but respect inline comments
+            // Detect semicolon presence before any inline comment markers
+            const commentIdx = (() => {
+              const slIdx = cleanedRest.indexOf('//');
+              const blkIdx = cleanedRest.indexOf('/*');
+              if (slIdx === -1) return blkIdx;
+              if (blkIdx === -1) return slIdx;
+              return Math.min(slIdx, blkIdx);
+            })();
+
+            let finalRest = cleanedRest;
+
+            // If there's a comment, handle semicolon placement before it
+            if (commentIdx >= 0) {
+              const beforeComment = cleanedRest.slice(0, commentIdx);
+              const comment = cleanedRest.slice(commentIdx);
+
+              // Clean up multiple semicolons and ensure exactly one before comment
+              const cleanedBefore = beforeComment.replace(/;+$/, '').trimEnd();
+              // Always add a semicolon before the comment
+              finalRest = `${cleanedBefore}; ${comment}`;
+            } else {
+              // No comment: clean up multiple semicolons and add one if needed
+              const cleanedNoComment = finalRest.replace(/;+$/, '');
+              const withoutTrailingWhitespace = cleanedNoComment.replace(/\s+$/, '');
+              finalRest = `${withoutTrailingWhitespace};`;
+            }
+
+            line = `${beforeNumber}${firstNumber}${finalRest}`;
+
+            result.push(line);
+            continue;
           }
 
           result.push(line);

@@ -285,9 +285,39 @@ export class CodeActionsProvider {
         continue;
       }
 
-      const looksLikeField = fieldLike.test(trimmed) || mapLike.test(trimmed);
+      const enumValueLike = /^(?:[A-Za-z_][\w]*)\s*=\s*-?\d+(?:\s*\[.*\])?/;
+      const looksLikeField = fieldLike.test(trimmed) || mapLike.test(trimmed) || enumValueLike.test(trimmed);
       if (!looksLikeField) {
         continue;
+      }
+
+      // Check for inline comments and insert semicolon before them
+      const commentIdx = (() => {
+        const slIdx = trimmed.indexOf('//');
+        const blkIdx = trimmed.indexOf('/*');
+        if (slIdx === -1) return blkIdx;
+        if (blkIdx === -1) return slIdx;
+        return Math.min(slIdx, blkIdx);
+      })();
+
+      let newText: string;
+      if (commentIdx >= 0) {
+        // Extract parts before and after comment marker in the trimmed line
+        const beforeCommentTrimmed = trimmed.slice(0, commentIdx).trim();
+        const comment = trimmed.slice(commentIdx);
+
+        // Clean up any existing semicolons and add exactly one
+        const cleanedBefore = beforeCommentTrimmed.replace(/;+$/, '');
+        const needsSemi = !cleanedBefore.endsWith(';');
+        const fixedLine = needsSemi ? `${cleanedBefore};` : cleanedBefore;
+
+        // Calculate indentation from original line
+        const indent = line.slice(0, line.length - trimmed.length);
+        newText = `${indent}${fixedLine} ${comment}`;
+      } else {
+        // No comment: clean up any existing semicolons and add one
+        const cleanedLine = line.trimEnd().replace(/;+$/, '');
+        newText = cleanedLine.endsWith(';') ? cleanedLine : `${cleanedLine};`;
       }
 
       edits.push({
@@ -295,7 +325,7 @@ export class CodeActionsProvider {
           start: { line: i, character: 0 },
           end: { line: i, character: line.length }
         },
-        newText: `${line.trimEnd()};`
+        newText: newText
       });
     }
 

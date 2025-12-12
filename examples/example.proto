@@ -10,7 +10,7 @@ option java_package = "com.example.api.v1";
 // Example message representing a user
 message User {
 	// Unique identifier for the user
-	string                    id         = 1;
+	string                    id         = 1; // wow!!!
 
 	// User's display name
 	string                    name       = 2;
@@ -94,7 +94,7 @@ message ListUsersRequest {
 }
 
 message ListUsersResponse {
-	repeated User users           = 1;
+	repeated User users           = 1; // this is a comment;
 	string        next_page_token = 2;
 }
 

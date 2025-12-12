@@ -319,6 +319,32 @@ describe('ProtoFormatter', () => {
       const formatted = result[0].newText;
       expect(formatted).toMatch(/map<string, int32>/);
     });
+
+    it('should not add semicolon after inline comments', async () => {
+      formatter.updateSettings({ renumberOnFormat: true });
+      const text = 'enum Status {ACTIVE = 1 // wow!!!}';
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+      // Semicolon should be before the comment, not after it
+      expect(formatted).toMatch(/ACTIVE = 1;?\s*\/\/ wow!!!/);
+      // Should NOT have semicolon after the comment
+      expect(formatted).not.toMatch(/\/\/ wow!!!;/);
+    });
+
+    it('should clean up multiple semicolons', async () => {
+      formatter.updateSettings({ renumberOnFormat: true });
+      const text = `enum Status {
+  ACTIVE = 1 ;;;;;// wow!!!
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+      // Should have exactly one semicolon before the comment
+      expect(formatted).toMatch(/ACTIVE = 1;\s*\/\/ wow!!!/);
+      // Should NOT have multiple semicolons
+      expect(formatted).not.toMatch(/;;;;;/);
+      // Should NOT have semicolon after the comment
+      expect(formatted).not.toMatch(/\/\/ wow!!!;/);
+    });
   });
 
   describe('edge cases', () => {

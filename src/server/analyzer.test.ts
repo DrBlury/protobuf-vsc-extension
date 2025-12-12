@@ -258,6 +258,28 @@ describe('SemanticAnalyzer', () => {
       expect(symbol).toBeDefined();
       expect(symbol!.fullName).toBe('common.v1.Timestamp');
     });
+
+    it('should resolve forward references within the same file', () => {
+      const file = parser.parse(`
+        syntax = "proto3";
+        package test.v1;
+        message User {
+          UserStatus status = 1;
+        }
+        enum UserStatus {
+          UNKNOWN = 0;
+          ACTIVE = 1;
+        }
+      `, 'file:///test.proto');
+
+      analyzer.updateFile('file:///test.proto', file);
+
+      const symbol = analyzer.resolveType('UserStatus', 'file:///test.proto', 'test.v1');
+
+      expect(symbol).toBeDefined();
+      expect(symbol!.fullName).toBe('test.v1.UserStatus');
+      expect(symbol!.kind).toBe(SymbolKind.Enum);
+    });
   });
 
   describe('findReferences', () => {

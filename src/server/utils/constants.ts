@@ -43,7 +43,9 @@ export const DEFAULT_CONFIG = {
   /** Default clang-format path */
   CLANG_FORMAT_PATH: 'clang-format',
   /** Default clang-format style */
-  CLANG_FORMAT_STYLE: 'Google',
+  CLANG_FORMAT_STYLE: 'file',
+  /** Default clang-format fallback style */
+  CLANG_FORMAT_FALLBACK_STYLE: 'Google',
   /** Default breaking change detection git reference */
   BREAKING_GIT_REF: 'HEAD~1'
 } as const;

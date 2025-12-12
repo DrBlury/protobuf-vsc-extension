@@ -695,7 +695,7 @@ connection.onDocumentRangeFormatting((params: DocumentRangeFormattingParams) => 
     return [];
   }
 
-  return providers.formatter.formatRange(document.getText(), params.range);
+  return providers.formatter.formatRange(document.getText(), params.range, params.textDocument.uri);
 });
 
 // Folding Ranges

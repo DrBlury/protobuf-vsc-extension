@@ -207,6 +207,7 @@ export class DiagnosticsProvider {
 
     const fieldLike = /^(?:optional|required|repeated)?\s*([A-Za-z_][\w<>.,]*)\s+([A-Za-z_][\w]*)(?:\s*=\s*\d+)?/;
     const mapLike = /^\s*map\s*<[^>]+>\s+[A-Za-z_][\w]*(?:\s*=\s*\d+)?/;
+    const enumValueLike = /^(?:[A-Za-z_][\w]*)\s*=\s*-?\d+(?:\s*\[.*\])?/;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -222,11 +223,17 @@ export class DiagnosticsProvider {
         continue;
       }
 
-      if (trimmed.endsWith(';') || trimmed.endsWith('{') || trimmed.endsWith('}')) {
+      // Allow inline comments after a semicolon: `... = 1; // comment`
+      const withoutLineComment = trimmed.replace(/\/\/.*$/, '').trim();
+      const withoutBlockComment = withoutLineComment.replace(/\/\*.*\*\/$/, '').trim();
+      if (withoutBlockComment.endsWith(';') || withoutBlockComment.endsWith('{') || withoutBlockComment.endsWith('}')) {
         continue;
       }
 
-      const looksLikeField = fieldLike.test(trimmed) || mapLike.test(trimmed);
+      const looksLikeField = fieldLike.test(trimmed) || mapLike.test(trimmed) || (
+        // Enum values inside enum blocks: NAME = NUMBER [options]
+        enumValueLike.test(trimmed)
+      );
       if (!looksLikeField) {
         continue;
       }
@@ -237,7 +244,7 @@ export class DiagnosticsProvider {
           start: { line: i, character: 0 },
           end: { line: i, character: line.length }
         },
-        message: 'Field is missing semicolon',
+        message: 'Missing semicolon',
         source: DIAGNOSTIC_SOURCE
       });
     }
@@ -1033,14 +1040,20 @@ export class DiagnosticsProvider {
       return;
     }
 
-    // Already imported, but via a mismatched path (e.g., "date.proto" instead of "google/type/date.proto")
-    if (importedVia && suggestedImport && importedVia.importPath !== suggestedImport) {
-      diagnostics.push({
-        severity: DiagnosticSeverity.Error,
-        range,
-        message: `Type '${typeName}' should be imported via "${suggestedImport}" (found "${importedVia.importPath}")`,
-        source: DIAGNOSTIC_SOURCE
-      });
+    if (importedVia) {
+      // Already imported, but check if the path is meaningfully different. Allow extra directory prefixes
+      // (common when proto_path points above the proto root) but flag imports that drop required segments.
+      if (suggestedImport && !this.areImportPathsCompatible(importedVia.importPath, suggestedImport)) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Error,
+          range,
+          message: `Type '${typeName}' should be imported via "${suggestedImport}" (found "${importedVia.importPath}")`,
+          source: DIAGNOSTIC_SOURCE
+        });
+        return;
+      }
+
+      // Import resolved successfully, no further action needed.
       return;
     }
 
@@ -1187,6 +1200,21 @@ export class DiagnosticsProvider {
         }
       }
     }
+  }
+
+  private areImportPathsCompatible(actualImport: string, canonicalImport: string): boolean {
+    const normalizedActual = actualImport.replace(/\\/g, '/');
+    const normalizedCanonical = canonicalImport.replace(/\\/g, '/');
+
+    if (normalizedActual === normalizedCanonical) {
+      return true;
+    }
+
+    if (normalizedActual.endsWith(`/${normalizedCanonical}`) || normalizedActual.endsWith(normalizedCanonical)) {
+      return true;
+    }
+
+    return false;
   }
 
   private getSuggestedImportPath(currentUri: string, definitionUri: string): string | undefined {

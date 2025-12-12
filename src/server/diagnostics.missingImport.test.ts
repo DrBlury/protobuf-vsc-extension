@@ -69,4 +69,39 @@ message Sample {
     expect(wrongImport).toBeDefined();
     expect(wrongImport?.message).toContain('google/type/date.proto');
   });
+
+  it('allows imports with additional directory prefixes when they resolve to the same file', () => {
+    const localParser = new ProtoParser();
+    const localAnalyzer = new SemanticAnalyzer();
+    const localDiagnostics = new DiagnosticsProvider(localAnalyzer);
+    localAnalyzer.setWorkspaceRoots(['/workspace/project']);
+
+    const dependencyUri = 'file:///workspace/project/protobuf/common.proto';
+    const dependencyContent = `syntax = "proto3";
+package demo;
+
+message Common {
+  string id = 1;
+}`;
+    const dependencyFile = localParser.parse(dependencyContent, dependencyUri);
+    localAnalyzer.updateFile(dependencyUri, dependencyFile);
+
+    const mainContent = `syntax = "proto3";
+import "protobuf/common.proto";
+package demo;
+
+message UsesCommon {
+  Common thing = 1;
+}`;
+    const mainUri = 'file:///workspace/project/protobuf/uses.proto';
+    const mainFile = localParser.parse(mainContent, mainUri);
+    localAnalyzer.updateFile(mainUri, mainFile);
+
+    const diags = localDiagnostics.validate(mainUri, mainFile);
+    const mismatch = diags.find(d => d.message.includes('should be imported via'));
+    const missing = diags.find(d => d.message.includes('not imported'));
+
+    expect(mismatch).toBeUndefined();
+    expect(missing).toBeUndefined();
+  });
 });

@@ -108,6 +108,7 @@ Search for "protobuf" in VS Code settings. Common options:
 | `protobuf.breaking.againstGitRef` | Git ref baseline | `"HEAD~1"` |
 | `protobuf.externalLinter.linter` | `buf` or `protolint` | `"none"` |
 | `protobuf.clangFormat.enabled` | Use `clang-format` | `false` |
+| `protobuf.clangFormat.style` | `clang-format` style (`"file"` reads `.clang-format`) | `"file"` |
 
 Example workspace settings (popular defaults):
 

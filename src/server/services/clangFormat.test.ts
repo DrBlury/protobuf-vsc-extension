@@ -237,5 +237,36 @@ describe('ClangFormatProvider', () => {
       // formatRange may return empty array if formatted text equals original
       expect(Array.isArray(result)).toBe(true);
     });
+
+    it('should pass actual file path to clang-format for config discovery', async () => {
+      provider.updateSettings({ enabled: true });
+      const text = 'message Test {\n  string name = 1;\n}';
+
+      // Capture spawn args
+      const mockProcess: any = {
+        stdout: { on: jest.fn() },
+        stdin: { write: jest.fn(), end: jest.fn() },
+        on: jest.fn((event: string, callback: (code?: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      };
+
+      let capturedArgs: any[] = [];
+      (spawn as any).mockImplementation((cmd: any, args: any) => {
+        capturedArgs = args as any[];
+        return mockProcess;
+      });
+
+      const range = Range.create(0, 0, 2, 1);
+      const filePath = '/Users/test/workspace/foo.proto';
+      await provider.formatRange(text, range, filePath);
+
+      // Ensure --assume-filename is set to the provided file path (not default file.proto)
+      const assumeArg = capturedArgs.find(a => typeof a === 'string' && a.startsWith('--assume-filename='));
+      expect(assumeArg).toBe(`--assume-filename=${filePath}`);
+    });
   });
 });

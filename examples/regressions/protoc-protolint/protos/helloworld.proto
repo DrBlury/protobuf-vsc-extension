@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package helloworld_mod;
+
+import "helloworld_mod/v1/messages/hello_messages.proto";
+
+// Modified HelloWorld Service
+service HelloWorld {
+	//Greet People
+	rpc SayHello (HelloRequest) returns (HelloReply) {}
+}

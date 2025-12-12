@@ -58,6 +58,63 @@ message Test {
 
       expect(actions.some(a => a.title && a.title.includes('semicolon'))).toBe(true);
     });
+
+    it('should add semicolon before inline comments', () => {
+      const text = `syntax = "proto3";
+message Test {
+  string name = 1 // wow!!!
+  int32 id = 2 // another comment
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const range = Range.create(2, 0, 3, 30);
+      const actions = provider.getCodeActions(uri, range, { diagnostics: [] }, text);
+
+      const semicolonAction = actions.find(a => a.title && a.title.includes('semicolon'));
+      expect(semicolonAction).toBeDefined();
+
+      if (semicolonAction && semicolonAction.edit && semicolonAction.edit.changes) {
+        const changes = semicolonAction.edit.changes[uri];
+        if (changes) {
+          // Check that the text edits insert semicolons before comments
+          for (const edit of changes) {
+            // Semicolon should not appear after comment markers
+            expect(edit.newText).not.toMatch(/\/\/ .*?;/);
+            // If there's a comment, semicolon should be before it
+            if (edit.newText.includes('//')) {
+              expect(edit.newText).toMatch(/;?\s*\/\//);
+            }
+          }
+        }
+      }
+    });
+
+    it('should add semicolons to enum values', () => {
+      const text = `syntax = "proto3";
+enum Status {
+  STATUS_UNSPECIFIED = 0
+  STATUS_ACTIVE = 1;
+}
+message Test {
+  Status status = 1
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const range = Range.create(1, 0, 6, 0);
+      const actions = provider.getCodeActions(uri, range, { diagnostics: [] }, text);
+
+      const semicolonAction = actions.find(a => a.title && a.title.includes('semicolon'));
+      expect(semicolonAction).toBeDefined();
+      const changes = semicolonAction?.edit?.changes?.[uri];
+      expect(changes).toBeDefined();
+      const combinedText = changes?.map(edit => edit.newText).join('\n') || '';
+      expect(combinedText).toMatch(/STATUS_UNSPECIFIED = 0;/);
+      expect(combinedText).toMatch(/Status status = 1;/);
+    });
   });
 
   describe('renumber actions', () => {

@@ -172,7 +172,7 @@ export const defaultSettings: Settings = {
       enabled: false,
       path: DEFAULT_CONFIG.CLANG_FORMAT_PATH,
       style: DEFAULT_CONFIG.CLANG_FORMAT_STYLE,
-      fallbackStyle: DEFAULT_CONFIG.CLANG_FORMAT_STYLE
+      fallbackStyle: DEFAULT_CONFIG.CLANG_FORMAT_FALLBACK_STYLE
     },
     debug: {
       verboseLogging: false,

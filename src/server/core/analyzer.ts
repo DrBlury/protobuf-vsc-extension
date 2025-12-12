@@ -583,6 +583,7 @@ export class SemanticAnalyzer {
 
   /**
    * Resolve a type reference to its symbol
+   * Supports forward references within the same file (proto3 feature)
    */
   resolveType(typeName: string, currentUri: string, currentPackage?: string): SymbolInfo | undefined {
     // Check if it's a builtin type
@@ -596,7 +597,8 @@ export class SemanticAnalyzer {
       return symbol;
     }
 
-    // Get the current file to check its imports
+    // Get the current file to check its imports AND its local definitions (for forward references)
+    const currentFile = this.workspace.files.get(currentUri);
     const importedUris = this.getImportedFileUris(currentUri);
 
     // Try with current package prefix
@@ -649,6 +651,34 @@ export class SemanticAnalyzer {
       }
       if (fullName.endsWith(`.${typeName}`)) {
         return sym;
+      }
+    }
+
+    // Support forward references: check current file's unextracted definitions
+    // This allows using types before they're defined in the same file
+    if (currentFile && currentPackage) {
+      // Check messages in current file
+      for (const message of currentFile.messages) {
+        if (message.name === typeName) {
+          return {
+            name: message.name,
+            fullName: `${currentPackage}.${message.name}`,
+            kind: SymbolKind.Message,
+            location: { uri: currentUri, range: message.range }
+          };
+        }
+      }
+
+      // Check enums in current file
+      for (const enumDef of currentFile.enums) {
+        if (enumDef.name === typeName) {
+          return {
+            name: enumDef.name,
+            fullName: `${currentPackage}.${enumDef.name}`,
+            kind: SymbolKind.Enum,
+            location: { uri: currentUri, range: enumDef.range }
+          };
+        }
       }
     }
 

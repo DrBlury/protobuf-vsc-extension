@@ -371,6 +371,78 @@ describe('ConfigManager', () => {
     });
   });
 
+  it('expands workspace variables in executable paths', () => {
+    const workspaceFolders = ['/workspaces/project'];
+    const settings = JSON.parse(JSON.stringify(defaultSettings)) as Settings;
+
+    settings.protobuf.protoc.path = '${workspaceFolder}/bin/protoc';
+    settings.protobuf.protoc.compileAllPath = '${workspaceFolder}/all-protos';
+    settings.protobuf.breaking = {
+      ...settings.protobuf.breaking,
+      enabled: true,
+      againstStrategy: 'file',
+      againstGitRef: 'HEAD',
+      againstFilePath: '${workspaceFolder}/baselines/current.proto'
+    };
+    settings.protobuf.externalLinter = {
+      ...settings.protobuf.externalLinter,
+      enabled: true,
+      linter: 'buf',
+      bufPath: '${workspaceFolder}/tools/buf',
+      protolintPath: '${workspaceFolder}/tools/protolint',
+      bufConfigPath: '${workspaceFolder}/configs/buf.yaml',
+      protolintConfigPath: '${workspaceFolder}/configs/protolint.yaml',
+      runOnSave: true
+    };
+    settings.protobuf.buf = {
+      path: '${workspaceFolder}/custom/buf'
+    };
+    settings.protobuf.clangFormat = {
+      ...settings.protobuf.clangFormat,
+      enabled: true,
+      path: '${workspaceFolder}/bin/clang-format',
+      style: 'file',
+      fallbackStyle: 'Google'
+    };
+
+    updateProvidersWithSettings(
+      settings,
+      diagnosticsProvider,
+      formatter,
+      renumberProvider,
+      analyzer,
+      protocCompiler,
+      breakingChangeDetector,
+      externalLinter,
+      clangFormat,
+      undefined,
+      undefined,
+      workspaceFolders
+    );
+
+    expect(protocCompiler.updateSettings).toHaveBeenCalledWith(expect.objectContaining({
+      path: '/workspaces/project/bin/protoc',
+      compileAllPath: '/workspaces/project/all-protos'
+    }));
+
+    expect(breakingChangeDetector.updateSettings).toHaveBeenCalledWith(expect.objectContaining({
+      againstFilePath: '/workspaces/project/baselines/current.proto'
+    }));
+
+    expect(externalLinter.updateSettings).toHaveBeenCalledWith(expect.objectContaining({
+      bufPath: '/workspaces/project/tools/buf',
+      protolintPath: '/workspaces/project/tools/protolint',
+      bufConfigPath: '/workspaces/project/configs/buf.yaml',
+      protolintConfigPath: '/workspaces/project/configs/protolint.yaml'
+    }));
+
+    expect(formatter.setBufPath).toHaveBeenCalledWith('/workspaces/project/custom/buf');
+
+    expect(clangFormat.updateSettings).toHaveBeenCalledWith(expect.objectContaining({
+      path: '/workspaces/project/bin/clang-format'
+    }));
+  });
+
   it('should update logger settings when debug settings present', () => {
     const settings: Settings = {
       ...defaultSettings,

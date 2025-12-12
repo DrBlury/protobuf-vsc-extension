@@ -5,6 +5,7 @@ The Protobuf VSC extension includes a built-in toolchain manager that helps you 
 ## Overview
 
 The toolchain manager provides:
+
 - **Automatic tool detection** - Checks if `protoc` and `buf` are installed
 - **Status bar indicator** - Visual feedback on toolchain health
 - **One-click installation** - Install missing tools directly from VS Code
@@ -16,6 +17,8 @@ The extension displays a status indicator in the VS Code status bar:
 
 - ✅ **Green checkmark** - All tools are installed and working
 - ⚠️ **Warning icon** - One or more tools are missing
+
+Buf is only treated as a required tool when Buf-powered features are active (Buf formatter preset, Buf linter, or Buf codegen on save). Otherwise the status bar won't warn about Buf being absent.
 
 Click the status bar indicator to open the toolchain management interface.
 
@@ -47,10 +50,12 @@ The toolchain manager automatically detects your platform and downloads the corr
 ### Managed vs System Tools
 
 The extension can use either:
+
 - **Managed tools** - Installed and managed by the extension (stored in extension storage)
 - **System tools** - Tools installed on your system PATH
 
 You can configure which to use in settings:
+
 ```json
 {
   "protobuf.protoc.path": "protoc",  // Use system protoc
@@ -63,6 +68,7 @@ If you don't specify a path, the extension will check for managed tools first, t
 ## Tool Versions
 
 The extension installs specific versions:
+
 - **protoc**: v25.1
 - **buf**: v1.28.1
 
@@ -81,6 +87,8 @@ Configure custom tool paths in your settings:
 }
 ```
 
+These settings support VS Code-style substitutions such as `${workspaceFolder}` and `${env:HOME}` to keep paths portable across machines.
+
 ### Quick Toolchain Switching
 
 The extension provides two commands to quickly switch between managed and system toolchains:
@@ -90,6 +98,7 @@ The extension provides two commands to quickly switch between managed and system
 Run the command: `Protobuf: Use Managed Toolchain (buf & protoc)`
 
 This command:
+
 - Configures settings to use the extension's installed `buf` and `protoc`
 - Lets you choose between Workspace or Global scope
 - Automatically installs tools if they're not already managed
@@ -99,6 +108,7 @@ This command:
 Run the command: `Protobuf: Use System Toolchain (buf & protoc from PATH)`
 
 This command:
+
 - Resets settings to use `buf` and `protoc` from your system PATH
 - Lets you choose between Workspace or Global scope
 - Useful when you want to use locally installed tools (e.g., via Homebrew)
@@ -106,6 +116,7 @@ This command:
 ### Automatic Detection
 
 The extension automatically checks for tools:
+
 - On extension activation
 - When you open a `.proto` file
 - When you run commands that require tools
@@ -136,6 +147,7 @@ If you get permission errors:
 
 1. The extension automatically sets executable permissions
 2. If issues persist, manually set permissions:
+
    ```bash
    chmod +x ~/.vscode/extensions/.../bin/protoc
    chmod +x ~/.vscode/extensions/.../bin/buf
@@ -150,6 +162,7 @@ If you get permission errors:
 ## Output Channel
 
 The toolchain manager logs all operations to the "Protobuf" output channel. Open it via:
+
 - View → Output → Select "Protobuf"
 - Or use the command palette: `View: Toggle Output`
 
@@ -164,5 +177,6 @@ The toolchain manager logs all operations to the "Protobuf" output channel. Open
 ---
 
 For more information, see:
+
 - [Settings Reference](./settings.md)
 - [Configuration Examples](./configuration-examples.md)

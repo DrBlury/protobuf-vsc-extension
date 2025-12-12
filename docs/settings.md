@@ -486,8 +486,8 @@ These sources now populate the analyzer automatically, so most projects no longe
 #### `protobuf.clangFormat.style`
 
 - **Type**: `string`
-- **Default**: `"Google"`
-- **Description**: clang-format style (LLVM, Google, Chromium, Mozilla, WebKit, Microsoft, GNU, or file)
+- **Default**: `"file"`
+- **Description**: clang-format style (LLVM, Google, Chromium, Mozilla, WebKit, Microsoft, GNU, or file). Using `"file"` (the default) makes the formatter read the closest `.clang-format` file.
 
 #### `protobuf.clangFormat.fallbackStyle`
 
@@ -512,16 +512,11 @@ When `protobuf.formatter.preset` is set to `"buf"`, the extension uses `buf form
 
 ## Variable Substitution
 
-Settings support VS Code variable substitution:
+Settings support VS Code-style variables in path settings (`protobuf.protoc.path`, `protobuf.clangFormat.path`, `protobuf.buf.path`, external linter paths, include paths, etc.). The following tokens are expanded:
 
-- `${workspaceFolder}` - Workspace root folder
-- `${workspaceFolderBasename}` - Name of the workspace folder
-- `${file}` - Current opened file
-- `${relativeFile}` - Current opened file relative to workspace
-- `${fileBasename}` - Current opened file's basename
-- `${fileDirname}` - Current opened file's dirname
-- `${fileExtname}` - Current opened file's extension
-- `${cwd}` - Task runner's current working directory
+- `${workspaceFolder}` / `${workspaceRoot}` - Workspace root folder
+- `${workspaceFolderBasename}` - Name of the first workspace folder
+- `${env:VAR}` or `${env.VAR}` - Environment variables
 
 ## Example Configuration
 

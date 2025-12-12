@@ -102,6 +102,31 @@ message Message2 {
     });
   });
 
+  describe('Missing semicolon detection', () => {
+    it('should warn when enum value is missing a semicolon', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+enum Status {
+  STATUS_UNSPECIFIED = 0
+  STATUS_ACTIVE = 1;
+}
+
+message User {
+  Status status = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const diags = diagnosticsProvider.validate(uri, file, content);
+
+      const missingSemi = diags.find(d => d.message.includes('Missing semicolon'));
+      expect(missingSemi).toBeDefined();
+      expect(missingSemi?.severity).toBe(DiagnosticSeverity.Warning);
+    });
+  });
+
   describe('Extension Range Validation', () => {
     it('should validate extension range bounds', () => {
       const content = `syntax = "proto2";
