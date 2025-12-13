@@ -1032,21 +1032,24 @@ export class DiagnosticsProvider {
 
     // Check resolved BSR imports that aren't in buf.yaml deps
     // This warns users when they've exported deps locally but haven't added them to buf.yaml
+    // Only check if there's actually a buf.yaml file - if not, user is not using buf CLI
     const bufConfig = bufConfigProvider.findBufConfig(uri);
-    const bufDeps = bufConfig?.deps || [];
+    if (bufConfig) {
+      const bufDeps = bufConfig.deps || [];
 
-    for (const imp of importsWithResolutions) {
-      if (imp.resolvedUri && this.isBufRegistryImport(imp.importPath)) {
-        const suggestedModule = this.suggestBufModule(imp.importPath);
-        if (suggestedModule && !bufDeps.some(dep => dep.includes(suggestedModule) || suggestedModule.includes(dep))) {
-          const rangeInfo = importByPath.get(imp.importPath);
-          diagnostics.push({
-            severity: DiagnosticSeverity.Warning,
-            range: rangeInfo ? this.toRange(rangeInfo.range) : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
-            message: `Import '${imp.importPath}' resolves but '${suggestedModule}' is not in buf.yaml dependencies. Add it to ensure consistent builds.`,
-            source: DIAGNOSTIC_SOURCE,
-            code: ERROR_CODES.MISSING_BUF_DEPENDENCY
-          });
+      for (const imp of importsWithResolutions) {
+        if (imp.resolvedUri && this.isBufRegistryImport(imp.importPath)) {
+          const suggestedModule = this.suggestBufModule(imp.importPath);
+          if (suggestedModule && !bufDeps.some(dep => dep.includes(suggestedModule) || suggestedModule.includes(dep))) {
+            const rangeInfo = importByPath.get(imp.importPath);
+            diagnostics.push({
+              severity: DiagnosticSeverity.Warning,
+              range: rangeInfo ? this.toRange(rangeInfo.range) : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+              message: `Import '${imp.importPath}' resolves but '${suggestedModule}' is not in buf.yaml dependencies. Add it to ensure consistent builds.`,
+              source: DIAGNOSTIC_SOURCE,
+              code: ERROR_CODES.MISSING_BUF_DEPENDENCY
+            });
+          }
         }
       }
     }
