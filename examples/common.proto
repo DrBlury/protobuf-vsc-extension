@@ -21,8 +21,8 @@ message Money {
 
 message Testmessage {
 	Money testmoney = 1;
-	BoolValue testmone = 2;
-	TimeOfDay time_of_day = 3;
+	google.protobuf.BoolValue testmone = 2;
+	google.type.TimeOfDay time_of_day = 3;
 }
 
 // Common pagination request

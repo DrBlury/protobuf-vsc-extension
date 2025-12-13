@@ -8,14 +8,14 @@ package protos;
 // Base message that other protos can import
 message BaseMessage
 {
-  string id = 1;
-  string name = 2;
+	string id = 1;
+	string name = 2;
 }
 
 // Common status enum
 enum Status
 {
-  STATUS_UNSPECIFIED = 0;
-  STATUS_ACTIVE = 1;
-  STATUS_INACTIVE = 2;
+	STATUS_UNSPECIFIED = 0;
+	STATUS_ACTIVE = 1;
+	STATUS_INACTIVE = 2;
 }

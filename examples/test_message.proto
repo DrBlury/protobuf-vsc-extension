@@ -6,6 +6,6 @@ package testmessage;
  */
 message TestMessage
 {                      // just a comment
-  string content = 1;  // another comment
-  int32 id = 2;        // identifier for the message
+	string content = 1; // another comment
+	int32 id = 2; // identifier for the message
 }

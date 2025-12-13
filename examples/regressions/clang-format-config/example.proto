@@ -3,5 +3,5 @@ package regressions.clangformat;
 
 message IndentExample
 {
-  string four_space = 1;
+	string four_space = 1;
 }
