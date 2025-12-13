@@ -1938,13 +1938,19 @@ export class DiagnosticsProvider {
       if (prevLine.startsWith('//') || prevLine.startsWith('///')) {
         return true;
       }
-    }
-
-    // Check 2 lines before (for multi-line comments)
-    if (definitionLine > 1) {
-      const prevLine2 = lines[definitionLine - 2]!.trim();
-      if (prevLine2.includes('/*') || prevLine2.includes('/**')) {
+      // Check for single-line block comment (e.g., /** comment */)
+      if (prevLine.startsWith('/*') && prevLine.endsWith('*/')) {
         return true;
+      }
+      // Check for end of multiline block comment (e.g., " */")
+      if (prevLine.endsWith('*/')) {
+        // Search backwards for the opening "/*" or "/**"
+        for (let i = definitionLine - 1; i >= 0; i--) {
+          const line = lines[i]!;
+          if (line.includes('/*')) {
+            return true;
+          }
+        }
       }
     }
 

@@ -309,12 +309,127 @@ service UserService {
       const uri = 'file:///test.proto';
       const file = parser.parse(content, uri);
       analyzer.updateFile(uri, file);
-      
+
       diagnosticsProvider.updateSettings({ documentationComments: true });
       const diags = diagnosticsProvider.validate(uri, file, content);
 
       // Documentation validation would check for comments
       expect(diags.length).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should recognize single-line block comment as documentation', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+/** This is a documented message */
+message TestMessage {
+  string name = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      diagnosticsProvider.updateSettings({ documentationComments: true });
+      const diags = diagnosticsProvider.validate(uri, file, content);
+
+      const missingDocDiag = diags.find(d =>
+        d.message.includes('Consider adding documentation comment') &&
+        d.message.includes('TestMessage')
+      );
+      expect(missingDocDiag).toBeUndefined();
+    });
+
+    it('should recognize multiline block comment as documentation', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+/*
+ * This is a documented message
+ * with multiple lines
+ */
+message TestMessage {
+  string name = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      diagnosticsProvider.updateSettings({ documentationComments: true });
+      const diags = diagnosticsProvider.validate(uri, file, content);
+
+      const missingDocDiag = diags.find(d =>
+        d.message.includes('Consider adding documentation comment') &&
+        d.message.includes('TestMessage')
+      );
+      expect(missingDocDiag).toBeUndefined();
+    });
+
+    it('should recognize multiline JSDoc-style comment as documentation', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+/**
+ * This is a documented message
+ * with multiple lines
+ */
+message TestMessage {
+  string name = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      diagnosticsProvider.updateSettings({ documentationComments: true });
+      const diags = diagnosticsProvider.validate(uri, file, content);
+
+      const missingDocDiag = diags.find(d =>
+        d.message.includes('Consider adding documentation comment') &&
+        d.message.includes('TestMessage')
+      );
+      expect(missingDocDiag).toBeUndefined();
+    });
+
+    it('should recognize single-line double-slash comment as documentation', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+// This is a documented message
+message TestMessage {
+  string name = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      diagnosticsProvider.updateSettings({ documentationComments: true });
+      const diags = diagnosticsProvider.validate(uri, file, content);
+
+      const missingDocDiag = diags.find(d =>
+        d.message.includes('Consider adding documentation comment') &&
+        d.message.includes('TestMessage')
+      );
+      expect(missingDocDiag).toBeUndefined();
+    });
+
+    it('should suggest documentation for undocumented message', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+message TestMessage {
+  string name = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      diagnosticsProvider.updateSettings({ documentationComments: true });
+      const diags = diagnosticsProvider.validate(uri, file, content);
+
+      const missingDocDiag = diags.find(d =>
+        d.message.includes('Consider adding documentation comment') &&
+        d.message.includes('TestMessage')
+      );
+      expect(missingDocDiag).toBeDefined();
     });
   });
 

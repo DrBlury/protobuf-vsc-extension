@@ -1,8 +1,11 @@
-syntax="proto3";
+syntax = "proto3";
 
 package testmessage;
-
-message TestMessage {
-	string content = 1;
-	int32 id = 2; // identifier for the message
+/*
+ * This is a description in multiline
+ */
+message TestMessage
+{
+  string content = 1;
+  int32 id = 2;  // identifier for the message
 }
