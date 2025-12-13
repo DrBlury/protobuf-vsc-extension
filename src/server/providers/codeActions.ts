@@ -821,6 +821,30 @@ export class CodeActionsProvider {
       });
     }
 
+    // Handle unqualified type references
+    if (message.includes('must be fully qualified')) {
+      // Extract the fully qualified name from the message
+      const fqnMatch = diagnostic.message.match(/must be fully qualified as '([^']+)'/);
+      const fullyQualifiedName = fqnMatch?.[1];
+      
+      if (fullyQualifiedName) {
+        fixes.push({
+          title: `Use fully qualified name: ${fullyQualifiedName}`,
+          kind: CodeActionKind.QuickFix,
+          isPreferred: true,
+          diagnostics: [diagnostic],
+          edit: {
+            changes: {
+              [uri]: [{
+                range: diagnostic.range,
+                newText: fullyQualifiedName
+              }]
+            }
+          }
+        });
+      }
+    }
+
     // Handle resolved BSR imports that aren't in buf.yaml dependencies
     if (message.includes('is not in buf.yaml dependencies')) {
       // Extract the suggested module from the diagnostic message

@@ -11,7 +11,7 @@ import {
   TextEdit
 } from 'vscode-languageserver/node';
 
-import { BUILTIN_TYPES, SymbolKind } from '../core/ast';
+import { BUILTIN_TYPES, SymbolKind, SymbolInfo } from '../core/ast';
 import { SemanticAnalyzer } from '../core/analyzer';
 import { FIELD_NUMBER } from '../utils/constants';
 
@@ -172,6 +172,10 @@ export class CompletionProvider {
       end: { line: position.line, character: position.character }
     };
 
+    // Get current file's package for determining if full qualification is needed
+    const currentFile = this.analyzer.getFile(uri);
+    const currentPackage = currentFile?.package?.name || '';
+
     // Built-in types
     if (!hasQualifier) {
       for (const type of BUILTIN_TYPES) {
@@ -210,6 +214,10 @@ export class CompletionProvider {
         }
       }
 
+      // Determine whether to use short name or fully qualified name
+      // Check if the short name can be resolved from the current context
+      const insertText = this.getInsertTextForType(symbol, currentPackage);
+
       completions.push({
         label: symbol.name,
         labelDetails: symbol.containerName ? { description: symbol.containerName } : undefined,
@@ -220,11 +228,41 @@ export class CompletionProvider {
         filterText: `${symbol.fullName} ${symbol.name}`,
         documentation: `${symbol.kind} defined in ${symbol.containerName || 'root'}`,
         sortText: '1' + symbol.name,
-        textEdit: TextEdit.replace(replaceRange, symbol.name)
+        textEdit: TextEdit.replace(replaceRange, insertText)
       });
     }
 
     return completions;
+  }
+
+  /**
+   * Determine the appropriate text to insert for a type completion.
+   * Returns the short name if the type is in the same package as the current file,
+   * otherwise returns the fully qualified name.
+   * For nested types in the same package, returns the parent-qualified name (e.g., "Outer.Inner").
+   */
+  private getInsertTextForType(symbol: SymbolInfo, currentPackage: string): string {
+    // Get the package of the file where the symbol is defined
+    const symbolFile = this.analyzer.getFile(symbol.location.uri);
+    const symbolPackage = symbolFile?.package?.name || '';
+    
+    // If both have no package (empty string), short name is fine
+    if (!symbolPackage && !currentPackage) {
+      return symbol.name;
+    }
+    
+    // If the symbol is in the same package
+    if (symbolPackage === currentPackage) {
+      // For nested types (e.g., "test.Outer.Inner" with package "test"), 
+      // return the relative path from the package: "Outer.Inner"
+      if (currentPackage && symbol.fullName.startsWith(currentPackage + '.')) {
+        return symbol.fullName.substring(currentPackage.length + 1);
+      }
+      return symbol.name;
+    }
+    
+    // Otherwise, use fully qualified name (symbol is in a different package)
+    return symbol.fullName;
   }
 
   private getKeywordCompletions(position: Position, context: string): CompletionItem[] {
