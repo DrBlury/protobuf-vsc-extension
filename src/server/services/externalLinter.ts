@@ -65,10 +65,16 @@ export class ExternalLinterProvider {
       : this.settings.protolintPath;
 
     return new Promise((resolve) => {
-      const proc = spawn(linterPath, ['--version'], { shell: true });
+      // Try without shell first
+      const proc = spawn(linterPath, ['--version']);
 
       proc.on('close', (code: number | null) => resolve(code === 0));
-      proc.on('error', () => resolve(false));
+      proc.on('error', () => {
+        // Fallback with shell for PATH resolution
+        const procWithShell = spawn(linterPath, ['--version'], { shell: true });
+        procWithShell.on('close', (code: number | null) => resolve(code === 0));
+        procWithShell.on('error', () => resolve(false));
+      });
     });
   }
 
@@ -136,9 +142,9 @@ export class ExternalLinterProvider {
         args.push('--path', filePath);
       }
 
+      // Try without shell first to avoid command line length limits
       const proc = spawn(this.settings.bufPath, args, {
-        cwd: this.workspaceRoot,
-        shell: true
+        cwd: this.workspaceRoot
       });
 
       let stdout = '';
@@ -157,7 +163,17 @@ export class ExternalLinterProvider {
       });
 
       proc.on('error', () => {
-        resolve([]);
+        // Fallback with shell for PATH resolution
+        const procWithShell = spawn(this.settings.bufPath, args, {
+          cwd: this.workspaceRoot,
+          shell: true
+        });
+        let shellStdout = '';
+        let shellStderr = '';
+        procWithShell.stdout?.on('data', (data) => shellStdout += data.toString());
+        procWithShell.stderr?.on('data', (data) => shellStderr += data.toString());
+        procWithShell.on('close', () => resolve(this.parseBufOutput(shellStdout || shellStderr)));
+        procWithShell.on('error', () => resolve([]));
       });
     });
   }
@@ -176,9 +192,9 @@ export class ExternalLinterProvider {
         args.push(this.workspaceRoot);
       }
 
+      // Try without shell first to avoid command line length limits
       const proc = spawn(this.settings.protolintPath, args, {
-        cwd: this.workspaceRoot,
-        shell: true
+        cwd: this.workspaceRoot
       });
 
       let stdout = '';
@@ -197,7 +213,17 @@ export class ExternalLinterProvider {
       });
 
       proc.on('error', () => {
-        resolve([]);
+        // Fallback with shell for PATH resolution
+        const procWithShell = spawn(this.settings.protolintPath, args, {
+          cwd: this.workspaceRoot,
+          shell: true
+        });
+        let shellStdout = '';
+        let shellStderr = '';
+        procWithShell.stdout?.on('data', (data) => shellStdout += data.toString());
+        procWithShell.stderr?.on('data', (data) => shellStderr += data.toString());
+        procWithShell.on('close', () => resolve(this.parseProtolintOutput(shellStdout || shellStderr)));
+        procWithShell.on('error', () => resolve([]));
       });
     });
   }
@@ -354,9 +380,9 @@ export class ExternalLinterProvider {
 
   private async getBufRules(): Promise<string[]> {
     return new Promise((resolve) => {
+      // Try without shell first
       const proc = spawn(this.settings.bufPath, ['config', 'ls-lint-rules'], {
-        cwd: this.workspaceRoot,
-        shell: true
+        cwd: this.workspaceRoot
       });
 
       let stdout = '';
@@ -371,7 +397,15 @@ export class ExternalLinterProvider {
       });
 
       proc.on('error', () => {
-        resolve([]);
+        // Fallback with shell
+        const procWithShell = spawn(this.settings.bufPath, ['config', 'ls-lint-rules'], {
+          cwd: this.workspaceRoot,
+          shell: true
+        });
+        let shellStdout = '';
+        procWithShell.stdout?.on('data', (data) => shellStdout += data.toString());
+        procWithShell.on('close', () => resolve(shellStdout.split('\n').filter(r => r.trim())));
+        procWithShell.on('error', () => resolve([]));
       });
     });
   }

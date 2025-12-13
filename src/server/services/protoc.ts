@@ -10,10 +10,17 @@ import * as os from 'os';
 
 /**
  * Maximum command line length to stay safely below OS limits.
- * Windows: 8191 chars, macOS/Linux: typically 128KB-2MB
- * We use a conservative limit to be safe across all platforms.
+ * Windows cmd.exe: 8191 chars limit
+ * We use a conservative limit to be safe.
+ * When shell: false is used, this limit doesn't apply, but we still
+ * use response files for very large argument lists for reliability.
  */
-const MAX_COMMAND_LINE_LENGTH = 8000;
+const MAX_COMMAND_LINE_LENGTH = 7000;
+
+/**
+ * Check if we're running on Windows
+ */
+const IS_WINDOWS = process.platform === 'win32';
 
 export interface ProtocSettings {
   path: string;
@@ -63,16 +70,18 @@ export class ProtocCompiler {
    */
   async isAvailable(): Promise<boolean> {
     return new Promise((resolve) => {
-      const proc = spawn(this.settings.path, ['--version'], {
-        shell: true
-      });
+      // Try without shell first (faster and avoids shell issues)
+      const proc = spawn(this.settings.path, ['--version']);
 
       proc.on('close', (code: number | null) => {
         resolve(code === 0);
       });
 
       proc.on('error', () => {
-        resolve(false);
+        // Fallback: try with shell (needed for some PATH configurations)
+        const procWithShell = spawn(this.settings.path, ['--version'], { shell: true });
+        procWithShell.on('close', (code: number | null) => resolve(code === 0));
+        procWithShell.on('error', () => resolve(false));
       });
     });
   }
@@ -82,9 +91,7 @@ export class ProtocCompiler {
    */
   async getVersion(): Promise<string | null> {
     return new Promise((resolve) => {
-      const proc = spawn(this.settings.path, ['--version'], {
-        shell: true
-      });
+      const proc = spawn(this.settings.path, ['--version']);
 
       let output = '';
       proc.stdout?.on('data', (data: Buffer) => {
@@ -101,7 +108,21 @@ export class ProtocCompiler {
       });
 
       proc.on('error', () => {
-        resolve(null);
+        // Fallback with shell
+        const procWithShell = spawn(this.settings.path, ['--version'], { shell: true });
+        let shellOutput = '';
+        procWithShell.stdout?.on('data', (data: Buffer) => {
+          shellOutput += data.toString();
+        });
+        procWithShell.on('close', (code: number | null) => {
+          if (code === 0) {
+            const match = shellOutput.match(/libprotoc\s+([\d.]+)/);
+            resolve(match ? match[1]! : shellOutput.trim());
+          } else {
+            resolve(null);
+          }
+        });
+        procWithShell.on('error', () => resolve(null));
       });
     });
   }
@@ -253,12 +274,20 @@ export class ProtocCompiler {
 
   private async runProtoc(args: string[], cwd: string): Promise<CompilationResult> {
     return new Promise((resolve) => {
+      // Resolve the command path - avoid shell: true to bypass command line length limits
+      // shell: true on Windows uses cmd.exe which has an 8191 char limit
+      const command = this.resolveCommand(this.settings.path);
+
       const options: SpawnOptions = {
         cwd,
-        shell: true
+        // Avoid shell: true to bypass Windows command line length limits
+        // This requires the command to be a direct path to an executable
+        shell: false,
+        // On Windows, we need to handle .cmd/.bat files specially
+        windowsVerbatimArguments: IS_WINDOWS
       };
 
-      const proc = spawn(this.settings.path, args, options);
+      const proc = spawn(command, args, options);
 
       let stdout = '';
       let stderr = '';
@@ -282,6 +311,13 @@ export class ProtocCompiler {
       });
 
       proc.on('error', (err: Error) => {
+        // If spawn fails without shell, try with shell as fallback
+        // This handles cases where the command is a shell alias or script
+        if (!options.shell) {
+          this.runProtocWithShell(args, cwd).then(resolve);
+          return;
+        }
+
         resolve({
           success: false,
           stdout: '',
@@ -296,6 +332,30 @@ export class ProtocCompiler {
         });
       });
     });
+  }
+
+  /**
+   * Resolve the command to an executable path.
+   * On Windows, this helps find .exe files when given just the command name.
+   */
+  private resolveCommand(command: string): string {
+    // If it's already an absolute path or contains path separators, use as-is
+    if (path.isAbsolute(command) || command.includes(path.sep) || command.includes('/')) {
+      return command;
+    }
+
+    // For simple command names like 'protoc', return as-is
+    // spawn will search PATH when shell: false
+    return command;
+  }
+
+  /**
+   * Fallback: run protoc with shell: true for cases where shell-less execution fails.
+   * Uses response file to avoid command line length limits.
+   */
+  private async runProtocWithShell(args: string[], cwd: string): Promise<CompilationResult> {
+    // Always use response file when falling back to shell to avoid length limits
+    return this.runProtocWithResponseFile(args, cwd);
   }
 
   /**

@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 import { bufConfigProvider } from './bufConfig';
 
@@ -13,7 +13,7 @@ export class BufFormatProvider {
     return new Promise((resolve) => {
       // buf format reads from stdin if no file is specified, or we can use --path to simulate file context
       const args = ['format'];
-      const spawnOptions: { shell: boolean; cwd?: string } = { shell: true };
+      const spawnOptions: { shell?: boolean; cwd?: string } = {};
 
       if (filePath) {
         const normalizedFile = path.normalize(filePath);
@@ -36,32 +36,42 @@ export class BufFormatProvider {
         }
       }
 
-      const proc = spawn(this.bufPath, args, spawnOptions);
-      let stdout = '';
+      // Try without shell first to avoid command line length limits
+      const runFormat = (useShell: boolean): void => {
+        const opts = useShell ? { ...spawnOptions, shell: true } : spawnOptions;
+        const proc = spawn(this.bufPath, args, opts) as ChildProcess;
+        let stdout = '';
 
-      proc.stdout.on('data', (data) => {
-        stdout += data.toString();
-      });
+        proc.stdout?.on('data', (data) => {
+          stdout += data.toString();
+        });
 
-      proc.stderr.on('data', (_data) => {
-        // stderr is captured but not used
-      });
+        proc.stderr?.on('data', (_data) => {
+          // stderr is captured but not used
+        });
 
-      proc.on('close', (code) => {
-        if (code === 0) {
-          resolve(stdout);
-        } else {
-          // Log error if needed
-          resolve(null);
-        }
-      });
+        proc.on('close', (code) => {
+          if (code === 0) {
+            resolve(stdout);
+          } else {
+            resolve(null);
+          }
+        });
 
-      proc.on('error', () => {
-        resolve(null);
-      });
+        proc.on('error', () => {
+          if (!useShell) {
+            // Fallback with shell for PATH resolution
+            runFormat(true);
+          } else {
+            resolve(null);
+          }
+        });
 
-      proc.stdin.write(text);
-      proc.stdin.end();
+        proc.stdin?.write(text);
+        proc.stdin?.end();
+      };
+
+      runFormat(false);
     });
   }
 }
