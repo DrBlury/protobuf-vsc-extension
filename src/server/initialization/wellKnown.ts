@@ -50,7 +50,7 @@ export function preloadGoogleWellKnownProtos(
   analyzer: SemanticAnalyzer,
   wellKnownCacheDir?: string
 ): void {
-  const resourcesRoot = path.join(__dirname, '..', '..', '..', '..', 'resources');
+  const resourcesRoot = path.resolve(process.cwd(), 'resources');
 
   for (const [importPath, fallbackContent] of Object.entries(GOOGLE_WELL_KNOWN_PROTOS)) {
     const relativePath = GOOGLE_WELL_KNOWN_FILES[importPath];
