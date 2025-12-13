@@ -363,6 +363,22 @@
             ]
           ]
         },
+        "protobuf.protoc.excludePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Folders or patterns to exclude from 'Compile All Protos'. Supports folder names (e.g., 'nanopb'), path segments (e.g., 'nanopb/tests'), and glob patterns (e.g., '**/test/**')",
+          "examples": [
+            [
+              "nanopb",
+              "third_party",
+              "**/test/**",
+              "**/tests/**"
+            ]
+          ]
+        },
         "protobuf.buf.path": {
           "type": "string",
           "default": "buf",

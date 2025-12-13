@@ -377,6 +377,33 @@ These sources now populate the analyzer automatically, so most projects no longe
 }
 ```
 
+#### `protobuf.protoc.excludePatterns`
+
+- **Type**: `string[]`
+- **Default**: `[]`
+- **Description**: Folders or patterns to exclude from "Compile All Protos". This is useful for excluding third-party libraries (like nanopb) or test directories that should not be compiled.
+
+**Supported patterns:**
+
+- **Folder names**: `"nanopb"` - Matches any folder with this name
+- **Path segments**: `"nanopb/tests"` - Matches specific paths
+- **Glob patterns**: `"**/test/**"` - Matches using wildcards
+
+**Example:**
+
+```jsonc
+{
+  "protobuf.protoc.excludePatterns": [
+    "nanopb",
+    "third_party",
+    "**/test/**",
+    "**/tests/**"
+  ]
+}
+```
+
+**Note:** For Buf users, exclude patterns should be configured in `buf.yaml` instead. See [Buf Configuration](./buf-config.md#excluding-files-and-directories) for details.
+
 ### Buf CLI Configuration
 
 #### `protobuf.buf.path`
@@ -555,6 +582,11 @@ Settings support VS Code-style variables in path settings (`protobuf.protoc.path
   "protobuf.protoc.options": [
     "--proto_path=${workspaceFolder}",
     "--go_out=${workspaceFolder}/gen/go"
+  ],
+  "protobuf.protoc.excludePatterns": [
+    "nanopb",
+    "third_party",
+    "**/test/**"
   ],
 
   // External linter

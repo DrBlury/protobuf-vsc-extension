@@ -28,6 +28,8 @@ export interface ProtocSettings {
   compileAllPath: string;
   useAbsolutePath: boolean;
   options: string[];
+  /** Glob patterns or folder names to exclude from compile all (e.g., 'test', 'nanopb', 'third_party') */
+  excludePatterns: string[];
 }
 
 export interface CompilationResult {
@@ -50,7 +52,8 @@ const DEFAULT_SETTINGS: ProtocSettings = {
   compileOnSave: false,
   compileAllPath: '',
   useAbsolutePath: false,
-  options: []
+  options: [],
+  excludePatterns: []
 };
 
 export class ProtocCompiler {
@@ -480,8 +483,9 @@ export class ProtocCompiler {
     return errors;
   }
 
-  private findProtoFiles(dir: string): string[] {
+  private findProtoFiles(dir: string, basePath?: string): string[] {
     const files: string[] = [];
+    const rootPath = basePath || dir;
 
     try {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -490,11 +494,20 @@ export class ProtocCompiler {
         const fullPath = path.join(dir, entry.name);
 
         if (entry.isDirectory()) {
-          if (!entry.name.startsWith('.') && entry.name !== 'node_modules') {
-            files.push(...this.findProtoFiles(fullPath));
+          // Skip hidden dirs and node_modules
+          if (entry.name.startsWith('.') || entry.name === 'node_modules') {
+            continue;
           }
+          // Check if directory matches any exclude pattern
+          if (this.isExcluded(fullPath, entry.name, rootPath)) {
+            continue;
+          }
+          files.push(...this.findProtoFiles(fullPath, rootPath));
         } else if (entry.isFile() && entry.name.endsWith('.proto')) {
-          files.push(fullPath);
+          // Check if file matches any exclude pattern
+          if (!this.isExcluded(fullPath, entry.name, rootPath)) {
+            files.push(fullPath);
+          }
         }
       }
     } catch {
@@ -502,6 +515,62 @@ export class ProtocCompiler {
     }
 
     return files;
+  }
+
+  /**
+   * Check if a path should be excluded based on exclude patterns.
+   * Supports:
+   * - Simple folder names: 'nanopb', 'test'
+   * - Glob-like patterns with wildcards
+   * - Path segments: 'nanopb/tests'
+   */
+  private isExcluded(fullPath: string, name: string, rootPath: string): boolean {
+    if (this.settings.excludePatterns.length === 0) {
+      return false;
+    }
+
+    const relativePath = path.relative(rootPath, fullPath).split(path.sep).join('/');
+
+    for (const pattern of this.settings.excludePatterns) {
+      // Simple name match (e.g., 'nanopb' matches any folder named 'nanopb')
+      if (pattern === name) {
+        return true;
+      }
+
+      // Check if pattern appears as a path segment
+      const segments = relativePath.split('/');
+      if (segments.includes(pattern)) {
+        return true;
+      }
+
+      // Glob-like pattern matching
+      if (this.matchGlobPattern(relativePath, pattern)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Simple glob pattern matching.
+   * Supports: * (any chars except /), ** (any chars including /), ? (single char)
+   */
+  private matchGlobPattern(path: string, pattern: string): boolean {
+    // Convert glob pattern to regex
+    let regexPattern = pattern
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape special regex chars (except * and ?)
+      .replace(/\*\*/g, '{{GLOBSTAR}}')      // Temporarily replace **
+      .replace(/\*/g, '[^/]*')                // * matches anything except /
+      .replace(/\?/g, '.')                    // ? matches single char
+      .replace(/\{\{GLOBSTAR\}\}/g, '.*');   // ** matches anything including /
+
+    try {
+      const regex = new RegExp(`^${regexPattern}$`, 'i');
+      return regex.test(path);
+    } catch {
+      return false;
+    }
   }
 }
 

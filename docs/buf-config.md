@@ -204,3 +204,49 @@ The extension's understanding of your Buf configuration:
 - **Works with buf build** - Consistent paths
 - **Supports buf lint** - Can use same config
 - **Compatible with buf breaking** - Same baseline understanding
+
+## Excluding Files and Directories
+
+When using Buf, you can exclude directories directly in your `buf.yaml` configuration file. This is the recommended approach for Buf users as it keeps your exclusion rules alongside your other Buf configuration.
+
+### Using buf.yaml excludes
+
+Add the `excludes` field under the `build` section in your `buf.yaml`:
+
+```yaml
+# buf.yaml
+version: v1
+build:
+  excludes:
+    - nanopb
+    - third_party/generated
+    - tests
+```
+
+### V2 Configuration Format
+
+For `buf.yaml` v2 format, use the `excludes` field under `modules`:
+
+```yaml
+# buf.yaml
+version: v2
+modules:
+  - path: .
+    excludes:
+      - nanopb
+      - vendor
+      - "**/testdata/**"
+```
+
+### Benefits of buf.yaml excludes
+
+Using `buf.yaml` for exclusions has several advantages:
+
+1. **Shared configuration** - All team members use the same excludes
+2. **Version controlled** - Exclusion rules are tracked with your code
+3. **Consistent tooling** - Same excludes apply to `buf build`, `buf lint`, and the extension
+4. **No VS Code dependency** - Works with CI/CD and other Buf integrations
+
+### Protoc Users
+
+If you're using protoc instead of Buf, configure exclude patterns in VS Code settings using `protobuf.protoc.excludePatterns`. See [Settings Reference](./settings.md) for details.
