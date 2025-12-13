@@ -826,22 +826,84 @@ export class CodeActionsProvider {
       // Extract the fully qualified name from the message
       const fqnMatch = diagnostic.message.match(/must be fully qualified as '([^']+)'/);
       const fullyQualifiedName = fqnMatch?.[1];
-      
+
       if (fullyQualifiedName) {
-        fixes.push({
-          title: `Use fully qualified name: ${fullyQualifiedName}`,
-          kind: CodeActionKind.QuickFix,
-          isPreferred: true,
-          diagnostics: [diagnostic],
-          edit: {
-            changes: {
-              [uri]: [{
-                range: diagnostic.range,
-                newText: fullyQualifiedName
-              }]
+        // Check if this also requires an import (new case for types found in workspace but not imported)
+        const requiresImport = message.includes('and requires import');
+        const diagnosticData = diagnostic.data as { typeName?: string; fullName?: string; symbolUri?: string } | undefined;
+
+        if (requiresImport && diagnosticData?.symbolUri) {
+          // Get the import path for the symbol's file
+          const importPath = this.analyzer.getImportPathForFile(uri, diagnosticData.symbolUri);
+          const insertPosition = this.findImportInsertPosition(documentText);
+
+          // Combined fix: qualify the type name AND add the import
+          fixes.push({
+            title: `Use '${fullyQualifiedName}' and add import`,
+            kind: CodeActionKind.QuickFix,
+            isPreferred: true,
+            diagnostics: [diagnostic],
+            edit: {
+              changes: {
+                [uri]: [
+                  {
+                    range: diagnostic.range,
+                    newText: fullyQualifiedName
+                  },
+                  {
+                    range: { start: insertPosition, end: insertPosition },
+                    newText: `import "${importPath}";\n`
+                  }
+                ]
+              }
             }
-          }
-        });
+          });
+
+          // Also offer separate actions
+          fixes.push({
+            title: `Use fully qualified name: ${fullyQualifiedName}`,
+            kind: CodeActionKind.QuickFix,
+            diagnostics: [diagnostic],
+            edit: {
+              changes: {
+                [uri]: [{
+                  range: diagnostic.range,
+                  newText: fullyQualifiedName
+                }]
+              }
+            }
+          });
+
+          fixes.push({
+            title: `Add import "${importPath}"`,
+            kind: CodeActionKind.QuickFix,
+            diagnostics: [diagnostic],
+            edit: {
+              changes: {
+                [uri]: [{
+                  range: { start: insertPosition, end: insertPosition },
+                  newText: `import "${importPath}";\n`
+                }]
+              }
+            }
+          });
+        } else {
+          // Original behavior: just qualify the type name
+          fixes.push({
+            title: `Use fully qualified name: ${fullyQualifiedName}`,
+            kind: CodeActionKind.QuickFix,
+            isPreferred: true,
+            diagnostics: [diagnostic],
+            edit: {
+              changes: {
+                [uri]: [{
+                  range: diagnostic.range,
+                  newText: fullyQualifiedName
+                }]
+              }
+            }
+          });
+        }
       }
     }
 

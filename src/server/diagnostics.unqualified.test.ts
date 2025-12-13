@@ -55,8 +55,8 @@ message TestA {
     diagnosticsProvider.updateSettings({ referenceChecks: true });
     const diags = diagnosticsProvider.validate(testaUri, testaFile, testaContent);
 
-    const unqualifiedDiag = diags.find(d => 
-      d.message.includes('must be fully qualified') && 
+    const unqualifiedDiag = diags.find(d =>
+      d.message.includes('must be fully qualified') &&
       d.message.includes('test.testb.TestB')
     );
 
@@ -154,7 +154,7 @@ message TestA {
     diagnosticsProvider.updateSettings({ referenceChecks: true });
     const diags = diagnosticsProvider.validate(testaUri, testaFile, testaContent);
 
-    const unqualifiedDiag = diags.find(d => 
+    const unqualifiedDiag = diags.find(d =>
       d.message.includes('must be fully qualified') &&
       d.message.includes('test.testb.Value')
     );
@@ -197,11 +197,11 @@ service TestService {
     diagnosticsProvider.updateSettings({ referenceChecks: true });
     const diags = diagnosticsProvider.validate(testaUri, testaFile, testaContent);
 
-    const requestDiag = diags.find(d => 
+    const requestDiag = diags.find(d =>
       d.message.includes('must be fully qualified') &&
       d.message.includes('test.testb.Request')
     );
-    const responseDiag = diags.find(d => 
+    const responseDiag = diags.find(d =>
       d.message.includes('must be fully qualified') &&
       d.message.includes('test.testb.Response')
     );
@@ -252,16 +252,120 @@ message TestA {
         testaContent
       );
 
-      const quickFix = actions.find(a => 
+      const quickFix = actions.find(a =>
         a.kind === CodeActionKind.QuickFix &&
         a.title.includes('test.testb.TestB')
       );
 
       expect(quickFix).toBeDefined();
       expect(quickFix?.edit?.changes?.[testaUri]).toBeDefined();
-      
+
       const textEdit = quickFix?.edit?.changes?.[testaUri]?.[0];
       expect(textEdit?.newText).toBe('test.testb.TestB');
+    }
+  });
+
+  it('should detect unqualified type that exists in workspace but is not imported', () => {
+    // testA/test.proto - defines TestDuplicates
+    const testAContent = `syntax = "proto3";
+
+package testA;
+
+message TestDuplicates {
+  string name = 1;
+}
+`;
+    const testAUri = 'file:///workspace/testA/test.proto';
+    const testAFile = parser.parse(testAContent, testAUri);
+    analyzer.updateFile(testAUri, testAFile);
+
+    // testB/test.proto - uses TestDuplicates without import
+    const testBContent = `syntax = "proto3";
+
+package testB;
+
+message SimpleMessage {
+  TestDuplicates duplicates = 1;
+}`;
+    const testBUri = 'file:///workspace/testB/test.proto';
+    const testBFile = parser.parse(testBContent, testBUri);
+    analyzer.updateFile(testBUri, testBFile);
+
+    diagnosticsProvider.updateSettings({ referenceChecks: true });
+    const diags = diagnosticsProvider.validate(testBUri, testBFile, testBContent);
+
+    // Should show PROTO206 (unqualified type) instead of "Unknown type"
+    const unqualifiedDiag = diags.find(d =>
+      d.message.includes('must be fully qualified') &&
+      d.message.includes('testA.TestDuplicates') &&
+      d.message.includes('requires import')
+    );
+
+    expect(unqualifiedDiag).toBeDefined();
+    expect(unqualifiedDiag?.code).toBe('PROTO206');
+
+    // Should NOT show "Unknown type" diagnostic
+    const unknownTypeDiag = diags.find(d => d.message.includes("Unknown type 'TestDuplicates'"));
+    expect(unknownTypeDiag).toBeUndefined();
+  });
+
+  it('should provide code actions to qualify type and add import for workspace types', () => {
+    // testA/test.proto - defines TestDuplicates
+    const testAContent = `syntax = "proto3";
+
+package testA;
+
+message TestDuplicates {
+  string name = 1;
+}
+`;
+    const testAUri = 'file:///workspace/testA/test.proto';
+    const testAFile = parser.parse(testAContent, testAUri);
+    analyzer.updateFile(testAUri, testAFile);
+
+    // testB/test.proto - uses TestDuplicates without import
+    const testBContent = `syntax = "proto3";
+
+package testB;
+
+message SimpleMessage {
+  TestDuplicates duplicates = 1;
+}`;
+    const testBUri = 'file:///workspace/testB/test.proto';
+    const testBFile = parser.parse(testBContent, testBUri);
+    analyzer.updateFile(testBUri, testBFile);
+
+    diagnosticsProvider.updateSettings({ referenceChecks: true });
+    const diags = diagnosticsProvider.validate(testBUri, testBFile, testBContent);
+
+    const unqualifiedDiag = diags.find(d =>
+      d.message.includes('must be fully qualified') &&
+      d.message.includes('requires import')
+    );
+
+    expect(unqualifiedDiag).toBeDefined();
+
+    if (unqualifiedDiag) {
+      const actions = codeActionsProvider.getCodeActions(
+        testBUri,
+        unqualifiedDiag.range,
+        { diagnostics: [unqualifiedDiag] },
+        testBContent
+      );
+
+      // Should have combined action
+      const combinedFix = actions.find(a =>
+        a.kind === CodeActionKind.QuickFix &&
+        a.title.includes("'testA.TestDuplicates'") &&
+        a.title.includes('add import')
+      );
+
+      expect(combinedFix).toBeDefined();
+      expect(combinedFix?.isPreferred).toBe(true);
+
+      // The combined action should have two edits
+      const edits = combinedFix?.edit?.changes?.[testBUri];
+      expect(edits).toHaveLength(2);
     }
   });
 

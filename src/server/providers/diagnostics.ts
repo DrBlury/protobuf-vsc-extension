@@ -589,13 +589,31 @@ export class DiagnosticsProvider {
     if (this.settings.referenceChecks && !BUILTIN_TYPES.includes(field.fieldType)) {
       const symbol = this.analyzer.resolveType(field.fieldType, uri, containerName);
       if (!symbol) {
-        diagnostics.push({
-          severity: DiagnosticSeverity.Error,
-          range: this.toRange(field.fieldTypeRange),
-          message: `Unknown type '${field.fieldType}'`,
-          source: DIAGNOSTIC_SOURCE,
-          code: ERROR_CODES.UNDEFINED_TYPE
-        });
+        // Type not resolved via imports - check if it exists anywhere in the workspace
+        const workspaceMatch = this.findTypeInWorkspace(field.fieldType, uri);
+        if (workspaceMatch) {
+          // Type exists in workspace but not imported - show unqualified type error
+          diagnostics.push({
+            severity: DiagnosticSeverity.Error,
+            range: this.toRange(field.fieldTypeRange),
+            message: `Type '${field.fieldType}' must be fully qualified as '${workspaceMatch.fullName}' and requires import`,
+            source: DIAGNOSTIC_SOURCE,
+            code: ERROR_CODES.UNQUALIFIED_TYPE,
+            data: {
+              typeName: field.fieldType,
+              fullName: workspaceMatch.fullName,
+              symbolUri: workspaceMatch.location.uri
+            }
+          });
+        } else {
+          diagnostics.push({
+            severity: DiagnosticSeverity.Error,
+            range: this.toRange(field.fieldTypeRange),
+            message: `Unknown type '${field.fieldType}'`,
+            source: DIAGNOSTIC_SOURCE,
+            code: ERROR_CODES.UNDEFINED_TYPE
+          });
+        }
       } else {
         this.ensureImported(uri, field.fieldType, symbol.location.uri, this.toRange(field.fieldTypeRange), diagnostics);
         // Check if an unqualified type name is used when it should be fully qualified
@@ -667,12 +685,30 @@ export class DiagnosticsProvider {
     if (this.settings.referenceChecks && !BUILTIN_TYPES.includes(mapField.valueType)) {
       const symbol = this.analyzer.resolveType(mapField.valueType, uri, containerName);
       if (!symbol) {
-        diagnostics.push({
-          severity: DiagnosticSeverity.Error,
-          range: this.toRange(mapField.valueTypeRange),
-          message: `Unknown type '${mapField.valueType}'`,
-          source: DIAGNOSTIC_SOURCE
-        });
+        // Type not resolved via imports - check if it exists anywhere in the workspace
+        const workspaceMatch = this.findTypeInWorkspace(mapField.valueType, uri);
+        if (workspaceMatch) {
+          // Type exists in workspace but not imported - show unqualified type error
+          diagnostics.push({
+            severity: DiagnosticSeverity.Error,
+            range: this.toRange(mapField.valueTypeRange),
+            message: `Type '${mapField.valueType}' must be fully qualified as '${workspaceMatch.fullName}' and requires import`,
+            source: DIAGNOSTIC_SOURCE,
+            code: ERROR_CODES.UNQUALIFIED_TYPE,
+            data: {
+              typeName: mapField.valueType,
+              fullName: workspaceMatch.fullName,
+              symbolUri: workspaceMatch.location.uri
+            }
+          });
+        } else {
+          diagnostics.push({
+            severity: DiagnosticSeverity.Error,
+            range: this.toRange(mapField.valueTypeRange),
+            message: `Unknown type '${mapField.valueType}'`,
+            source: DIAGNOSTIC_SOURCE
+          });
+        }
       } else {
         this.ensureImported(uri, mapField.valueType, symbol.location.uri, this.toRange(mapField.valueTypeRange), diagnostics);
         // Check if an unqualified type name is used when it should be fully qualified
@@ -970,12 +1006,29 @@ export class DiagnosticsProvider {
       if (this.settings.referenceChecks) {
         const inputSymbol = this.analyzer.resolveType(rpc.inputType, uri, prefix);
         if (!inputSymbol) {
-          diagnostics.push({
-            severity: DiagnosticSeverity.Error,
-            range: this.toRange(rpc.inputTypeRange),
-            message: `Unknown type '${rpc.inputType}'`,
-            source: DIAGNOSTIC_SOURCE
-          });
+          // Type not resolved via imports - check if it exists anywhere in the workspace
+          const workspaceMatch = this.findTypeInWorkspace(rpc.inputType, uri);
+          if (workspaceMatch) {
+            diagnostics.push({
+              severity: DiagnosticSeverity.Error,
+              range: this.toRange(rpc.inputTypeRange),
+              message: `Type '${rpc.inputType}' must be fully qualified as '${workspaceMatch.fullName}' and requires import`,
+              source: DIAGNOSTIC_SOURCE,
+              code: ERROR_CODES.UNQUALIFIED_TYPE,
+              data: {
+                typeName: rpc.inputType,
+                fullName: workspaceMatch.fullName,
+                symbolUri: workspaceMatch.location.uri
+              }
+            });
+          } else {
+            diagnostics.push({
+              severity: DiagnosticSeverity.Error,
+              range: this.toRange(rpc.inputTypeRange),
+              message: `Unknown type '${rpc.inputType}'`,
+              source: DIAGNOSTIC_SOURCE
+            });
+          }
         } else {
           this.ensureImported(uri, rpc.inputType, inputSymbol.location.uri, this.toRange(rpc.inputTypeRange), diagnostics);
           // Check if an unqualified type name is used when it should be fully qualified
@@ -985,12 +1038,29 @@ export class DiagnosticsProvider {
         // Check output type reference
         const outputSymbol = this.analyzer.resolveType(rpc.outputType, uri, prefix);
         if (!outputSymbol) {
-          diagnostics.push({
-            severity: DiagnosticSeverity.Error,
-            range: this.toRange(rpc.outputTypeRange),
-            message: `Unknown type '${rpc.outputType}'`,
-            source: DIAGNOSTIC_SOURCE
-          });
+          // Type not resolved via imports - check if it exists anywhere in the workspace
+          const workspaceMatch = this.findTypeInWorkspace(rpc.outputType, uri);
+          if (workspaceMatch) {
+            diagnostics.push({
+              severity: DiagnosticSeverity.Error,
+              range: this.toRange(rpc.outputTypeRange),
+              message: `Type '${rpc.outputType}' must be fully qualified as '${workspaceMatch.fullName}' and requires import`,
+              source: DIAGNOSTIC_SOURCE,
+              code: ERROR_CODES.UNQUALIFIED_TYPE,
+              data: {
+                typeName: rpc.outputType,
+                fullName: workspaceMatch.fullName,
+                symbolUri: workspaceMatch.location.uri
+              }
+            });
+          } else {
+            diagnostics.push({
+              severity: DiagnosticSeverity.Error,
+              range: this.toRange(rpc.outputTypeRange),
+              message: `Unknown type '${rpc.outputType}'`,
+              source: DIAGNOSTIC_SOURCE
+            });
+          }
         } else {
           this.ensureImported(uri, rpc.outputType, outputSymbol.location.uri, this.toRange(rpc.outputTypeRange), diagnostics);
           // Check if an unqualified type name is used when it should be fully qualified
@@ -1177,6 +1247,41 @@ export class DiagnosticsProvider {
       message: `Type '${typeName}' is not imported.${suggestionText}`.trim(),
       source: 'protobuf'
     });
+  }
+
+  /**
+   * Find a type by simple name anywhere in the workspace (not just imported files).
+   * Used to provide better diagnostics when a type exists but isn't imported.
+   *
+   * @param typeName The simple type name to search for
+   * @param currentUri The URI of the current file (to exclude from results)
+   * @returns The first matching symbol, or undefined if not found
+   */
+  private findTypeInWorkspace(typeName: string, currentUri: string): { fullName: string; location: { uri: string } } | undefined {
+    // Only search for simple (unqualified) type names
+    if (typeName.includes('.')) {
+      return undefined;
+    }
+
+    const allSymbols = this.analyzer.getAllSymbols();
+
+    // Find symbols that match the type name (message or enum)
+    for (const symbol of allSymbols) {
+      // Skip symbols from the current file
+      if (symbol.location.uri === currentUri) {
+        continue;
+      }
+
+      // Match by simple name or ending with .TypeName
+      if (symbol.name === typeName || symbol.fullName.endsWith(`.${typeName}`)) {
+        // Only return message or enum types
+        if (symbol.kind === 'message' || symbol.kind === 'enum') {
+          return symbol;
+        }
+      }
+    }
+
+    return undefined;
   }
 
   /**
