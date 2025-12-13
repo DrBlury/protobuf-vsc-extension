@@ -594,7 +594,6 @@ export class DiagnosticsProvider {
         });
       } else {
         this.ensureImported(uri, field.fieldType, symbol.location.uri, this.toRange(field.fieldTypeRange), diagnostics);
-        
         // Check if an unqualified type name is used when it should be fully qualified
         this.checkTypeQualification(uri, field.fieldType, symbol, field.fieldTypeRange, containerName, diagnostics);
       }
@@ -672,7 +671,6 @@ export class DiagnosticsProvider {
         });
       } else {
         this.ensureImported(uri, mapField.valueType, symbol.location.uri, this.toRange(mapField.valueTypeRange), diagnostics);
-        
         // Check if an unqualified type name is used when it should be fully qualified
         this.checkTypeQualification(uri, mapField.valueType, symbol, mapField.valueTypeRange, containerName, diagnostics);
       }
@@ -976,7 +974,6 @@ export class DiagnosticsProvider {
           });
         } else {
           this.ensureImported(uri, rpc.inputType, inputSymbol.location.uri, this.toRange(rpc.inputTypeRange), diagnostics);
-          
           // Check if an unqualified type name is used when it should be fully qualified
           this.checkTypeQualification(uri, rpc.inputType, inputSymbol, rpc.inputTypeRange, prefix, diagnostics);
         }
@@ -992,7 +989,6 @@ export class DiagnosticsProvider {
           });
         } else {
           this.ensureImported(uri, rpc.outputType, outputSymbol.location.uri, this.toRange(rpc.outputTypeRange), diagnostics);
-          
           // Check if an unqualified type name is used when it should be fully qualified
           this.checkTypeQualification(uri, rpc.outputType, outputSymbol, rpc.outputTypeRange, prefix, diagnostics);
         }
