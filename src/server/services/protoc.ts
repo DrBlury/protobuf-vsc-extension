@@ -6,6 +6,14 @@
 import { spawn, SpawnOptions } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
+
+/**
+ * Maximum command line length to stay safely below OS limits.
+ * Windows: 8191 chars, macOS/Linux: typically 128KB-2MB
+ * We use a conservative limit to be safe across all platforms.
+ */
+const MAX_COMMAND_LINE_LENGTH = 8000;
 
 export interface ProtocSettings {
   path: string;
@@ -107,7 +115,9 @@ export class ProtocCompiler {
   }
 
   /**
-   * Compile all proto files in the workspace
+   * Compile all proto files in the workspace.
+   * Handles large numbers of files by using a response file (@argfile)
+   * when the command line would exceed OS limits.
    */
   async compileAll(): Promise<CompilationResult> {
     const searchPath = this.settings.compileAllPath || this.workspaceRoot;
@@ -123,7 +133,68 @@ export class ProtocCompiler {
     }
 
     const args = this.buildArgs(...protoFiles);
+
+    // Check if command line would be too long
+    const commandLength = this.estimateCommandLength(args);
+
+    if (commandLength > MAX_COMMAND_LINE_LENGTH) {
+      // Use a response file to avoid command line length limits
+      return this.runProtocWithResponseFile(args, searchPath);
+    }
+
     return this.runProtoc(args, searchPath);
+  }
+
+  /**
+   * Estimate the total command line length for the given arguments.
+   * Accounts for the protoc path, spaces between arguments, and quotes around arguments with spaces.
+   */
+  private estimateCommandLength(args: string[]): number {
+    let length = this.settings.path.length; // protoc path
+    for (const arg of args) {
+      length += 1; // space separator
+      // Add 2 for quotes if arg contains spaces
+      length += arg.includes(' ') ? arg.length + 2 : arg.length;
+    }
+    return length;
+  }
+
+  /**
+   * Run protoc using a response file (@argfile) to avoid command line length limits.
+   * The response file contains all arguments, one per line.
+   */
+  private async runProtocWithResponseFile(args: string[], cwd: string): Promise<CompilationResult> {
+    // Create a temporary response file
+    const tempDir = os.tmpdir();
+    const responseFilePath = path.join(tempDir, `protoc-args-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`);
+
+    try {
+      // Write arguments to the response file, one per line
+      // Arguments with spaces need to be quoted
+      const responseContent = args.map(arg => {
+        if (arg.includes(' ') || arg.includes('"')) {
+          // Escape any existing quotes and wrap in quotes
+          return `"${arg.replace(/"/g, '\\"')}"`;
+        }
+        return arg;
+      }).join('\n');
+
+      fs.writeFileSync(responseFilePath, responseContent, 'utf-8');
+
+      // Run protoc with the response file
+      const result = await this.runProtoc([`@${responseFilePath}`], cwd);
+
+      return result;
+    } finally {
+      // Clean up the response file
+      try {
+        if (fs.existsSync(responseFilePath)) {
+          fs.unlinkSync(responseFilePath);
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
   }
 
   /**

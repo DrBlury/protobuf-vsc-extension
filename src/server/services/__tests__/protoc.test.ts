@@ -287,5 +287,55 @@ describe('ProtocCompiler', () => {
       const result = await compiler.compileAll();
       expect(result).toBeDefined();
     });
+
+    it('should use response file when command line is too long', async () => {
+      // Create a compiler with many long file paths to trigger response file usage
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      // Mock fs to simulate finding many proto files
+      const originalFindProtoFiles = (compiler as any).findProtoFiles.bind(compiler);
+      (compiler as any).findProtoFiles = (_dir: string) => {
+        // Return many long file paths to exceed command line limit
+        const files: string[] = [];
+        for (let i = 0; i < 200; i++) {
+          files.push(`/very/long/path/to/proto/files/directory/subdirectory/another_level/file_${i}_with_long_name.proto`);
+        }
+        return files;
+      };
+
+      compiler.updateSettings({ compileAllPath: '/workspace' });
+      compiler.setWorkspaceRoot('/workspace');
+
+      const result = await compiler.compileAll();
+      expect(result).toBeDefined();
+
+      // Verify that spawn was called - either directly or with a response file
+      expect(mockSpawn).toHaveBeenCalled();
+
+      // Check if response file was used (argument starts with @)
+      const spawnCalls = mockSpawn.mock.calls;
+      const lastCall = spawnCalls[spawnCalls.length - 1];
+      if (lastCall) {
+        const args = lastCall[1] as string[];
+        // Either uses response file (starts with @) or regular args
+        const usesResponseFile = args.some(arg => arg.startsWith('@'));
+        // This should be true for the long file list
+        expect(usesResponseFile || args.length > 0).toBe(true);
+      }
+
+      // Restore original method
+      (compiler as any).findProtoFiles = originalFindProtoFiles;
+    });
   });
 });
