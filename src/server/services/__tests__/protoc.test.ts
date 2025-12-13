@@ -196,6 +196,140 @@ describe('ProtocCompiler', () => {
       expect(result.success).toBe(true);
     });
 
+    it('should include --proto_path for the file directory', async () => {
+      // This test ensures protoc gets a --proto_path that encompasses the file
+      // Without this, protoc errors: "File does not reside within any path specified using --proto_path"
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/src/protos/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Should have a --proto_path argument that covers the file's directory
+      const protoPathArg = args.find(arg => arg.startsWith('--proto_path='));
+      expect(protoPathArg).toBeDefined();
+      expect(protoPathArg).toContain('/workspace/src/protos');
+    });
+
+    it('should include user-configured proto paths before file directory', async () => {
+      // User proto paths should come first for import resolution
+      compiler.updateSettings({
+        options: [
+          '--proto_path=/usr/local/include',
+          '-I/workspace/common',
+          '--go_out=gen/go'
+        ]
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/src/protos/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Should have multiple --proto_path arguments
+      const protoPathArgs = args.filter(arg => arg.startsWith('--proto_path='));
+      expect(protoPathArgs.length).toBeGreaterThanOrEqual(2);
+
+      // User proto paths should come before file directory proto path
+      const usrIncludeIndex = args.findIndex(arg => arg.includes('/usr/local/include'));
+      const commonIndex = args.findIndex(arg => arg.includes('/workspace/common'));
+      const fileProtoPathIndex = args.findIndex(arg => arg.includes('/workspace/src/protos'));
+
+      expect(usrIncludeIndex).toBeLessThan(fileProtoPathIndex);
+      expect(commonIndex).toBeLessThan(fileProtoPathIndex);
+
+      // Other options should come after proto paths
+      const goOutIndex = args.findIndex(arg => arg.includes('--go_out'));
+      expect(goOutIndex).toBeGreaterThan(fileProtoPathIndex);
+    });
+
+    it('should not duplicate proto path if user already specified file directory', async () => {
+      compiler.updateSettings({
+        options: ['--proto_path=/workspace/src/protos']
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/src/protos/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Should only have one proto path for the file directory (no duplicate)
+      const protoPathArgs = args.filter(arg => arg.includes('/workspace/src/protos'));
+      expect(protoPathArgs.length).toBe(1);
+    });
+
+    it('should support -I= format for proto paths', async () => {
+      compiler.updateSettings({
+        options: ['-I=/workspace/common']
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/src/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Should have both proto paths
+      const protoPathArgs = args.filter(arg => arg.startsWith('--proto_path='));
+      expect(protoPathArgs.length).toBe(2);
+      expect(protoPathArgs.some(arg => arg.includes('/workspace/common'))).toBe(true);
+      expect(protoPathArgs.some(arg => arg.includes('/workspace/src'))).toBe(true);
+    });
+
     it('should handle compilation errors', async () => {
       const mockProcess = {
         stdout: {
@@ -457,6 +591,291 @@ describe('ProtocCompiler', () => {
 
       expect(matchGlob('nanopb/nanopb.proto', 'nanopb/**')).toBe(true);
       expect(matchGlob('nanopb/tests/test.proto', 'nanopb/**')).toBe(true);
+    });
+  });
+
+  describe('normalizePath (internal)', () => {
+    it('should remove trailing slashes', () => {
+      const normalizePath = (compiler as any).normalizePath.bind(compiler);
+
+      const result = normalizePath('/workspace/src/');
+      expect(result.endsWith('/')).toBe(false);
+      expect(result).toContain('workspace');
+    });
+
+    it('should handle empty strings', () => {
+      const normalizePath = (compiler as any).normalizePath.bind(compiler);
+
+      expect(normalizePath('')).toBe('');
+      expect(normalizePath('   ')).toBe('');
+    });
+
+    it('should resolve relative paths', () => {
+      const normalizePath = (compiler as any).normalizePath.bind(compiler);
+
+      const result = normalizePath('./src/protos');
+      expect(result).toContain('src');
+      expect(result).toContain('protos');
+      // Should be an absolute path
+      expect(result.startsWith('/') || /^[A-Z]:/i.test(result)).toBe(true);
+    });
+  });
+
+  describe('buildArgs edge cases', () => {
+    it('should skip empty options', async () => {
+      compiler.updateSettings({
+        options: ['', '  ', '--go_out=gen/go', '']
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Should not have empty args
+      expect(args.every(arg => arg.trim() !== '')).toBe(true);
+      // Should have the go_out option
+      expect(args.some(arg => arg.includes('--go_out'))).toBe(true);
+    });
+
+    it('should handle paths with trailing slashes in user options', async () => {
+      compiler.updateSettings({
+        options: ['--proto_path=/workspace/common/']
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/src/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Proto path should be normalized (no trailing slash in the stored value)
+      const protoPathArgs = args.filter(arg => arg.startsWith('--proto_path='));
+      expect(protoPathArgs.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should handle relative proto paths in options', async () => {
+      compiler.updateSettings({
+        options: ['--proto_path=./common']
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/src/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Should have proto path args (relative path gets resolved)
+      const protoPathArgs = args.filter(arg => arg.startsWith('--proto_path='));
+      expect(protoPathArgs.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should handle -I without equals sign', async () => {
+      compiler.updateSettings({
+        options: ['-I/workspace/common']
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/src/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Should convert -I to --proto_path format
+      const protoPathArgs = args.filter(arg => arg.startsWith('--proto_path='));
+      expect(protoPathArgs.some(arg => arg.includes('common'))).toBe(true);
+    });
+
+    it('should handle multiple files from different directories', async () => {
+      // Access the private buildArgs method for testing
+      const buildArgs = (compiler as any).buildArgs.bind(compiler);
+
+      const args = buildArgs(
+        '/workspace/src/service.proto',
+        '/workspace/common/types.proto'
+      );
+
+      // Should have proto paths for both directories
+      const protoPathArgs = args.filter((arg: string) => arg.startsWith('--proto_path='));
+      expect(protoPathArgs.length).toBeGreaterThanOrEqual(2);
+
+      // Should have both files
+      expect(args.some((arg: string) => arg.includes('service.proto'))).toBe(true);
+      expect(args.some((arg: string) => arg.includes('types.proto'))).toBe(true);
+    });
+
+    it('should expand workspace variables in options', async () => {
+      compiler.setWorkspaceRoot('/my/workspace');
+      compiler.updateSettings({
+        options: ['--proto_path=${workspaceFolder}/protos']
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Should expand ${workspaceFolder}
+      expect(args.some(arg => arg.includes('/my/workspace/protos'))).toBe(true);
+      // Should not have unexpanded variable
+      expect(args.every(arg => !arg.includes('${workspaceFolder}'))).toBe(true);
+    });
+
+    it('should expand workspaceRoot variable (legacy)', async () => {
+      compiler.setWorkspaceRoot('/my/workspace');
+      compiler.updateSettings({
+        options: ['--proto_path=${workspaceRoot}/protos']
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Should expand ${workspaceRoot}
+      expect(args.some(arg => arg.includes('/my/workspace/protos'))).toBe(true);
+    });
+
+    it('should handle output options with spaces in path', async () => {
+      compiler.updateSettings({
+        options: ['--go_out=/path/with spaces/output']
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Should preserve the option with spaces
+      expect(args.some(arg => arg.includes('with spaces'))).toBe(true);
+    });
+
+    it('should not add duplicate proto_path when same as file directory', async () => {
+      // Using normalized paths - this tests the path normalization logic
+      compiler.updateSettings({
+        options: ['--proto_path=/workspace/src']  // Same as file directory
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/src/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Count proto_path args that reference /workspace/src
+      const srcProtoPathArgs = args.filter(arg =>
+        arg.startsWith('--proto_path=') && arg.includes('workspace') && arg.includes('src')
+      );
+      // Should only have one (no duplicate)
+      expect(srcProtoPathArgs.length).toBe(1);
     });
   });
 });

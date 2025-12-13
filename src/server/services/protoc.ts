@@ -303,21 +303,107 @@ export class ProtocCompiler {
   private buildArgs(...files: string[]): string[] {
     const args: string[] = [];
 
-    // Add all configured options (expand variables)
+    // Collect proto_paths from user-configured options first
+    // These are needed for imports to resolve correctly
+    const userProtoPaths = new Set<string>();
+    const otherOptions: string[] = [];
+
     for (const option of this.settings.options) {
-      args.push(this.expandVariables(option));
+      // Skip empty options
+      if (!option || option.trim() === '') {
+        continue;
+      }
+      const expanded = this.expandVariables(option);
+      if (expanded.startsWith('--proto_path=')) {
+        const protoPath = this.normalizePath(expanded.substring('--proto_path='.length));
+        if (protoPath) {
+          userProtoPaths.add(protoPath);
+        }
+      } else if (expanded.startsWith('-I=')) {
+        const protoPath = this.normalizePath(expanded.substring('-I='.length));
+        if (protoPath) {
+          userProtoPaths.add(protoPath);
+        }
+      } else if (expanded.startsWith('-I') && expanded.length > 2) {
+        const protoPath = this.normalizePath(expanded.substring(2));
+        if (protoPath) {
+          userProtoPaths.add(protoPath);
+        }
+      } else {
+        otherOptions.push(expanded);
+      }
     }
 
-    // Add the files
+    // Add user-configured proto paths first (for import resolution)
+    for (const protoPath of userProtoPaths) {
+      args.push(`--proto_path=${protoPath}`);
+    }
+
+    // Add proto_path for the directory containing the file(s)
+    // This is required by protoc - files must reside within a --proto_path
+    const fileProtoPaths = new Set<string>();
     for (const file of files) {
-      if (this.settings.useAbsolutePath) {
-        args.push(path.resolve(file));
+      const fileDir = this.normalizePath(path.dirname(path.resolve(file)));
+      // Only add if not already covered by user proto paths
+      if (fileDir && !userProtoPaths.has(fileDir)) {
+        fileProtoPaths.add(fileDir);
+      }
+    }
+    for (const protoPath of fileProtoPaths) {
+      args.push(`--proto_path=${protoPath}`);
+    }
+
+    // Add other configured options (output dirs, plugins, etc.)
+    for (const option of otherOptions) {
+      args.push(option);
+    }
+
+    // Combine all proto paths for file path resolution
+    const allProtoPaths = new Set([...userProtoPaths, ...fileProtoPaths]);
+
+    // Add the files - use basename if the file's directory is in proto paths
+    for (const file of files) {
+      const resolvedFile = path.resolve(file);
+      const fileDir = this.normalizePath(path.dirname(resolvedFile));
+      const fileName = path.basename(resolvedFile);
+
+      // If file's directory is covered by a proto_path, use relative name
+      if (fileDir && allProtoPaths.has(fileDir)) {
+        args.push(fileName);
+      } else if (this.settings.useAbsolutePath) {
+        args.push(resolvedFile);
       } else {
         args.push(file);
       }
     }
 
     return args;
+  }
+
+  /**
+   * Normalize a path for consistent comparison across platforms.
+   * - Resolves to absolute path
+   * - Removes trailing slashes
+   * - On Windows, normalizes drive letter case
+   */
+  private normalizePath(inputPath: string): string {
+    if (!inputPath || inputPath.trim() === '') {
+      return '';
+    }
+
+    let normalized = path.resolve(inputPath);
+
+    // Remove trailing slashes (but keep root slash on Unix or drive root on Windows)
+    while (normalized.length > 1 && (normalized.endsWith('/') || normalized.endsWith('\\'))) {
+      normalized = normalized.slice(0, -1);
+    }
+
+    // On Windows, normalize drive letter to uppercase for consistent comparison
+    if (IS_WINDOWS && /^[a-z]:/.test(normalized)) {
+      normalized = normalized[0].toUpperCase() + normalized.slice(1);
+    }
+
+    return normalized;
   }
 
   private expandVariables(value: string): string {
