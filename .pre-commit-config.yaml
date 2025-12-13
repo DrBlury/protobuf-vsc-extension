@@ -7,3 +7,10 @@ repos:
         args: ["run", "lint", "--", "--max-warnings=0"]
         language: system
         pass_filenames: false
+
+      - id: npm-test
+        name: npm test
+        entry: npm
+        args: ["test"]
+        language: system
+        pass_filenames: false

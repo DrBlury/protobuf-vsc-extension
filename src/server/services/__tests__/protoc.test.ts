@@ -1384,7 +1384,7 @@ describe('ProtocCompiler', () => {
           mockKill();
           // Simulate process termination - trigger close callback
           if (closeCallback) {
-            setImmediate(() => closeCallback!(null));
+            process.nextTick(() => closeCallback!(null));
           }
         })
       } as any;

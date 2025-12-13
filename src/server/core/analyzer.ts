@@ -1028,7 +1028,9 @@ export class SemanticAnalyzer {
     // Remove duplicates, keeping the first occurrence
     const seen = new Set<string>();
     const unique = cleaned.filter(c => {
-      if (seen.has(c.path)) return false;
+      if (seen.has(c.path)) {
+        return false;
+      }
       seen.add(c.path);
       return true;
     });
