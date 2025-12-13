@@ -8,7 +8,6 @@ import {
   TextDocuments,
   ProposedFeatures,
   InitializeParams,
-  TextDocumentSyncKind,
   InitializeResult,
   CompletionItem,
   TextDocumentPositionParams,
@@ -30,8 +29,7 @@ import {
   RenameParams,
   PrepareRenameParams,
   CodeActionParams,
-  CodeAction,
-  TextEdit
+  CodeAction
 } from 'vscode-languageserver/node';
 
 import * as fs from 'fs';
@@ -40,8 +38,6 @@ import { URI } from 'vscode-uri';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
 // Core functionality
-import { ProtoParser } from './core/parser';
-import { SemanticAnalyzer } from './core/analyzer';
 import {
   MessageDefinition,
   EnumDefinition,
