@@ -335,5 +335,107 @@ describe('ClangFormatProvider', () => {
       expect(capturedOptions).toBeDefined();
       expect(capturedOptions.cwd).toBe('/Users/test/workspace/protos');
     });
+
+    it('should use --style=file:<path> when configPath is provided', async () => {
+      provider.updateSettings({
+        enabled: true,
+        style: 'file',
+        fallbackStyle: 'Google',
+        configPath: '/custom/path/.clang-format'
+      });
+      const text = 'message Test {}';
+
+      const mockProcess: any = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        stdin: { write: jest.fn(), end: jest.fn() },
+        on: jest.fn((event: string, callback: (code?: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      };
+
+      let capturedArgs: string[] = [];
+      (spawn as any).mockImplementation((_cmd: any, args: string[]) => {
+        capturedArgs = args;
+        return mockProcess;
+      });
+
+      await provider.formatDocument(text);
+
+      // Ensure --style=file:<path> is passed when configPath is set
+      const styleArg = capturedArgs.find(a => a.startsWith('--style='));
+      expect(styleArg).toBe('--style=file:/custom/path/.clang-format');
+    });
+
+    it('should use --style=file without path when configPath is not provided', async () => {
+      provider.updateSettings({
+        enabled: true,
+        style: 'file',
+        fallbackStyle: 'Google',
+        configPath: ''
+      });
+      const text = 'message Test {}';
+
+      const mockProcess: any = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        stdin: { write: jest.fn(), end: jest.fn() },
+        on: jest.fn((event: string, callback: (code?: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      };
+
+      let capturedArgs: string[] = [];
+      (spawn as any).mockImplementation((_cmd: any, args: string[]) => {
+        capturedArgs = args;
+        return mockProcess;
+      });
+
+      await provider.formatDocument(text);
+
+      // Ensure --style=file is passed without path when configPath is empty
+      const styleArg = capturedArgs.find(a => a.startsWith('--style='));
+      expect(styleArg).toBe('--style=file');
+    });
+
+    it('should not use configPath when style is not file', async () => {
+      provider.updateSettings({
+        enabled: true,
+        style: 'Google',
+        fallbackStyle: 'Google',
+        configPath: '/custom/path/.clang-format'
+      });
+      const text = 'message Test {}';
+
+      const mockProcess: any = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        stdin: { write: jest.fn(), end: jest.fn() },
+        on: jest.fn((event: string, callback: (code?: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      };
+
+      let capturedArgs: string[] = [];
+      (spawn as any).mockImplementation((_cmd: any, args: string[]) => {
+        capturedArgs = args;
+        return mockProcess;
+      });
+
+      await provider.formatDocument(text);
+
+      // When style is not 'file', configPath should be ignored
+      const styleArg = capturedArgs.find(a => a.startsWith('--style='));
+      expect(styleArg).toBe('--style=Google');
+    });
   });
 });

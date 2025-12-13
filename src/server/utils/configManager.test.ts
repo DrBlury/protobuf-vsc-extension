@@ -373,7 +373,8 @@ describe('ConfigManager', () => {
       enabled: settings.protobuf.clangFormat.enabled,
       path: settings.protobuf.clangFormat.path,
       style: settings.protobuf.clangFormat.style,
-      fallbackStyle: settings.protobuf.clangFormat.fallbackStyle
+      fallbackStyle: settings.protobuf.clangFormat.fallbackStyle,
+      configPath: settings.protobuf.clangFormat.configPath
     });
   });
 
@@ -408,7 +409,8 @@ describe('ConfigManager', () => {
       enabled: true,
       path: '${workspaceFolder}/bin/clang-format',
       style: 'file',
-      fallbackStyle: 'Google'
+      fallbackStyle: 'Google',
+      configPath: '${workspaceFolder}/configs/.clang-format'
     };
 
     updateProvidersWithSettings(
@@ -445,7 +447,8 @@ describe('ConfigManager', () => {
     expect(formatter.setBufPath).toHaveBeenCalledWith('/workspaces/project/custom/buf');
 
     expect(clangFormat.updateSettings).toHaveBeenCalledWith(expect.objectContaining({
-      path: '/workspaces/project/bin/clang-format'
+      path: '/workspaces/project/bin/clang-format',
+      configPath: '/workspaces/project/configs/.clang-format'
     }));
   });
 
