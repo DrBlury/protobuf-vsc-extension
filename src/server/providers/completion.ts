@@ -216,7 +216,7 @@ export class CompletionProvider {
 
       // Determine whether to use short name or fully qualified name
       // Check if the short name can be resolved from the current context
-      const insertText = this.getInsertTextForType(symbol, uri, currentPackage);
+      const insertText = this.getInsertTextForType(symbol, currentPackage);
 
       completions.push({
         label: symbol.name,
@@ -241,7 +241,7 @@ export class CompletionProvider {
    * otherwise returns the fully qualified name.
    * For nested types in the same package, returns the parent-qualified name (e.g., "Outer.Inner").
    */
-  private getInsertTextForType(symbol: SymbolInfo, currentUri: string, currentPackage: string): string {
+  private getInsertTextForType(symbol: SymbolInfo, currentPackage: string): string {
     // Get the package of the file where the symbol is defined
     const symbolFile = this.analyzer.getFile(symbol.location.uri);
     const symbolPackage = symbolFile?.package?.name || '';
