@@ -7,6 +7,17 @@ import { spawn } from 'child_process';
 
 jest.mock('child_process');
 
+// Helper to normalize paths for cross-platform comparison
+// Converts backslashes to forward slashes and removes drive letters
+function normalizePath(p: string): string {
+  return p.replace(/\\/g, '/').replace(/^[A-Z]:/i, '');
+}
+
+// Helper to check if a path contains a given segment (cross-platform)
+function pathContains(fullPath: string, segment: string): boolean {
+  return normalizePath(fullPath).includes(normalizePath(segment));
+}
+
 describe('ProtocCompiler', () => {
   let compiler: ProtocCompiler;
   let mockSpawn: jest.MockedFunction<typeof spawn>;
@@ -640,7 +651,7 @@ describe('ProtocCompiler', () => {
       // Should have a --proto_path argument that covers the file's directory
       const protoPathArg = args.find(arg => arg.startsWith('--proto_path='));
       expect(protoPathArg).toBeDefined();
-      expect(protoPathArg).toContain('/workspace/src/protos');
+      expect(pathContains(protoPathArg!, '/workspace/src/protos')).toBe(true);
     });
 
     it('should use relative path when user proto_path covers file directory', async () => {
@@ -672,11 +683,12 @@ describe('ProtocCompiler', () => {
       // Should only have one proto path (the user specified one)
       const protoPathArgs = args.filter(arg => arg.startsWith('--proto_path='));
       expect(protoPathArgs.length).toBe(1);
-      expect(protoPathArgs[0]).toContain('/workspace');
+      expect(pathContains(protoPathArgs[0], '/workspace')).toBe(true);
 
       // File should be relative to proto_path: src/protos/test.proto
       const fileArg = args.find(arg => arg.includes('test.proto'));
-      expect(fileArg).toBe('src/protos/test.proto');
+      // Normalize for cross-platform comparison (Windows uses backslashes)
+      expect(normalizePath(fileArg!)).toBe('src/protos/test.proto');
     });
 
     it('should include user-configured proto paths before file directory', async () => {
@@ -713,9 +725,10 @@ describe('ProtocCompiler', () => {
       expect(protoPathArgs.length).toBeGreaterThanOrEqual(2);
 
       // User proto paths should come before file directory proto path
-      const usrIncludeIndex = args.findIndex(arg => arg.includes('/usr/local/include'));
-      const commonIndex = args.findIndex(arg => arg.includes('/workspace/common'));
-      const fileProtoPathIndex = args.findIndex(arg => arg.includes('/workspace/src/protos'));
+      // Use cross-platform path matching
+      const usrIncludeIndex = args.findIndex(arg => pathContains(arg, '/usr/local/include'));
+      const commonIndex = args.findIndex(arg => pathContains(arg, '/workspace/common'));
+      const fileProtoPathIndex = args.findIndex(arg => pathContains(arg, '/workspace/src/protos'));
 
       expect(usrIncludeIndex).toBeLessThan(fileProtoPathIndex);
       expect(commonIndex).toBeLessThan(fileProtoPathIndex);
@@ -750,7 +763,8 @@ describe('ProtocCompiler', () => {
       const args = spawnCall[1] as string[];
 
       // Should only have one proto path for the file directory (no duplicate)
-      const protoPathArgs = args.filter(arg => arg.includes('/workspace/src/protos'));
+      // Use cross-platform path matching
+      const protoPathArgs = args.filter(arg => pathContains(arg, '/workspace/src/protos'));
       expect(protoPathArgs.length).toBe(1);
     });
 
@@ -778,11 +792,11 @@ describe('ProtocCompiler', () => {
       const spawnCall = mockSpawn.mock.calls[0];
       const args = spawnCall[1] as string[];
 
-      // Should have both proto paths
+      // Should have both proto paths (use cross-platform matching)
       const protoPathArgs = args.filter(arg => arg.startsWith('--proto_path='));
       expect(protoPathArgs.length).toBe(2);
-      expect(protoPathArgs.some(arg => arg.includes('/workspace/common'))).toBe(true);
-      expect(protoPathArgs.some(arg => arg.includes('/workspace/src'))).toBe(true);
+      expect(protoPathArgs.some(arg => pathContains(arg, '/workspace/common'))).toBe(true);
+      expect(protoPathArgs.some(arg => pathContains(arg, '/workspace/src'))).toBe(true);
     });
 
     it('should handle compilation errors', async () => {
@@ -1268,8 +1282,8 @@ describe('ProtocCompiler', () => {
       const spawnCall = mockSpawn.mock.calls[0];
       const args = spawnCall[1] as string[];
 
-      // Should expand ${workspaceFolder}
-      expect(args.some(arg => arg.includes('/my/workspace/protos'))).toBe(true);
+      // Should expand ${workspaceFolder} (use cross-platform matching)
+      expect(args.some(arg => pathContains(arg, '/my/workspace/protos'))).toBe(true);
       // Should not have unexpanded variable
       expect(args.every(arg => !arg.includes('${workspaceFolder}'))).toBe(true);
     });
@@ -1299,8 +1313,8 @@ describe('ProtocCompiler', () => {
       const spawnCall = mockSpawn.mock.calls[0];
       const args = spawnCall[1] as string[];
 
-      // Should expand ${workspaceRoot}
-      expect(args.some(arg => arg.includes('/my/workspace/protos'))).toBe(true);
+      // Should expand ${workspaceRoot} (use cross-platform matching)
+      expect(args.some(arg => pathContains(arg, '/my/workspace/protos'))).toBe(true);
     });
 
     it('should handle output options with spaces in path', async () => {
