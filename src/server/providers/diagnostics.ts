@@ -595,7 +595,7 @@ export class DiagnosticsProvider {
       } else {
         this.ensureImported(uri, field.fieldType, symbol.location.uri, this.toRange(field.fieldTypeRange), diagnostics);
         // Check if an unqualified type name is used when it should be fully qualified
-        this.checkTypeQualification(uri, field.fieldType, symbol, field.fieldTypeRange, containerName, diagnostics);
+        this.checkTypeQualification(uri, field.fieldType, symbol, field.fieldTypeRange, diagnostics);
       }
     }
 
@@ -672,7 +672,7 @@ export class DiagnosticsProvider {
       } else {
         this.ensureImported(uri, mapField.valueType, symbol.location.uri, this.toRange(mapField.valueTypeRange), diagnostics);
         // Check if an unqualified type name is used when it should be fully qualified
-        this.checkTypeQualification(uri, mapField.valueType, symbol, mapField.valueTypeRange, containerName, diagnostics);
+        this.checkTypeQualification(uri, mapField.valueType, symbol, mapField.valueTypeRange, diagnostics);
       }
     }
 
@@ -975,7 +975,7 @@ export class DiagnosticsProvider {
         } else {
           this.ensureImported(uri, rpc.inputType, inputSymbol.location.uri, this.toRange(rpc.inputTypeRange), diagnostics);
           // Check if an unqualified type name is used when it should be fully qualified
-          this.checkTypeQualification(uri, rpc.inputType, inputSymbol, rpc.inputTypeRange, prefix, diagnostics);
+          this.checkTypeQualification(uri, rpc.inputType, inputSymbol, rpc.inputTypeRange, diagnostics);
         }
 
         // Check output type reference
@@ -990,7 +990,7 @@ export class DiagnosticsProvider {
         } else {
           this.ensureImported(uri, rpc.outputType, outputSymbol.location.uri, this.toRange(rpc.outputTypeRange), diagnostics);
           // Check if an unqualified type name is used when it should be fully qualified
-          this.checkTypeQualification(uri, rpc.outputType, outputSymbol, rpc.outputTypeRange, prefix, diagnostics);
+          this.checkTypeQualification(uri, rpc.outputType, outputSymbol, rpc.outputTypeRange, diagnostics);
         }
       }
     }
@@ -1181,7 +1181,6 @@ export class DiagnosticsProvider {
     typeName: string,
     symbol: { fullName: string; location: { uri: string } },
     range: Range,
-    currentContext: string,
     diagnostics: Diagnostic[]
   ): void {
     // If the type name is already fully qualified (contains a dot), it's fine
