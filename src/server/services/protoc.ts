@@ -153,7 +153,8 @@ export class ProtocCompiler {
       };
     }
 
-    const args = this.buildArgs(...protoFiles);
+    // Build args with proper proto_path handling for multiple files
+    const args = this.buildArgsForMultipleFiles(protoFiles, searchPath);
 
     // Check if command line would be too long
     const commandLength = this.estimateCommandLength(args);
@@ -164,6 +165,58 @@ export class ProtocCompiler {
     }
 
     return this.runProtoc(args, searchPath);
+  }
+
+  /**
+   * Build arguments for compiling multiple files.
+   * Ensures proper --proto_path coverage for all files.
+   */
+  private buildArgsForMultipleFiles(files: string[], basePath: string): string[] {
+    const args: string[] = [];
+
+    // Add the base path as a proto_path so imports work correctly
+    args.push(`--proto_path=${basePath}`);
+
+    // Collect unique directories from all files and add them as proto_paths
+    // This ensures that imports between files in different directories work
+    const uniqueDirs = new Set<string>();
+    for (const file of files) {
+      const dir = path.dirname(file);
+      // Only add if it's not the base path and not already a subdirectory of base path
+      const relativeDir = path.relative(basePath, dir);
+      if (relativeDir && !relativeDir.startsWith('..')) {
+        // It's a subdirectory of basePath, no need to add separately
+        // as --proto_path=${basePath} will cover it
+      } else if (relativeDir.startsWith('..')) {
+        // Directory is outside basePath, need to add it
+        uniqueDirs.add(dir);
+      }
+    }
+
+    // Add additional proto_paths for directories outside the base path
+    for (const dir of uniqueDirs) {
+      args.push(`--proto_path=${dir}`);
+    }
+
+    // Add all configured options (expand variables)
+    for (const option of this.settings.options) {
+      args.push(this.expandVariables(option));
+    }
+
+    // Add the files - use paths relative to basePath when possible
+    for (const file of files) {
+      const relativePath = path.relative(basePath, file);
+      // If the file is within basePath, use relative path; otherwise use absolute
+      if (!relativePath.startsWith('..')) {
+        args.push(relativePath);
+      } else if (this.settings.useAbsolutePath) {
+        args.push(path.resolve(file));
+      } else {
+        args.push(file);
+      }
+    }
+
+    return args;
   }
 
   /**
