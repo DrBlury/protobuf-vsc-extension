@@ -3,7 +3,8 @@ syntax = "proto3";
 package test.common;
 
 // Common message type that will be referenced from other files
-message Timestamp {
+message Timestamp
+{
 	int64 seconds = 1;
 	int32 nanos = 2;
 }

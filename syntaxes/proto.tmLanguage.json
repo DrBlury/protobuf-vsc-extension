@@ -404,37 +404,85 @@
       ]
     },
     "message": {
-      "begin": "\\b(message)\\s+(\\w+)\\s*\\{",
-      "end": "\\}",
-      "beginCaptures": {
-        "1": { "name": "keyword.declaration.message.proto" },
-        "2": { "name": "entity.name.type.message.proto" }
-      },
       "patterns": [
-        { "include": "#comments" },
-        { "include": "#option" },
-        { "include": "#message" },
-        { "include": "#enum" },
-        { "include": "#oneof" },
-        { "include": "#map" },
-        { "include": "#reserved" },
-        { "include": "#extensions" },
-        { "include": "#extend" },
-        { "include": "#field" }
+        {
+          "comment": "Message with brace on same line",
+          "begin": "\\b(message)\\s+(\\w+)\\s*(\\{)",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "keyword.declaration.message.proto" },
+            "2": { "name": "entity.name.type.message.proto" },
+            "3": { "name": "punctuation.definition.block.proto" }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#option" },
+            { "include": "#message" },
+            { "include": "#enum" },
+            { "include": "#oneof" },
+            { "include": "#map" },
+            { "include": "#reserved" },
+            { "include": "#extensions" },
+            { "include": "#extend" },
+            { "include": "#field" }
+          ]
+        },
+        {
+          "comment": "Message with brace on next line (no brace on same line)",
+          "begin": "\\b(message)\\s+(\\w+)(?=\\s*(?://.*)?$)",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "keyword.declaration.message.proto" },
+            "2": { "name": "entity.name.type.message.proto" }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#option" },
+            { "include": "#message" },
+            { "include": "#enum" },
+            { "include": "#oneof" },
+            { "include": "#map" },
+            { "include": "#reserved" },
+            { "include": "#extensions" },
+            { "include": "#extend" },
+            { "include": "#field" }
+          ]
+        }
       ]
     },
     "enum": {
-      "begin": "\\b(enum)\\s+(\\w+)\\s*\\{",
-      "end": "\\}",
-      "beginCaptures": {
-        "1": { "name": "keyword.declaration.enum.proto" },
-        "2": { "name": "entity.name.type.enum.proto" }
-      },
       "patterns": [
-        { "include": "#comments" },
-        { "include": "#option" },
-        { "include": "#enumValue" },
-        { "include": "#reserved" }
+        {
+          "comment": "Enum with brace on same line",
+          "begin": "\\b(enum)\\s+(\\w+)\\s*(\\{)",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "keyword.declaration.enum.proto" },
+            "2": { "name": "entity.name.type.enum.proto" },
+            "3": { "name": "punctuation.definition.block.proto" }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#option" },
+            { "include": "#enumValue" },
+            { "include": "#reserved" }
+          ]
+        },
+        {
+          "comment": "Enum with brace on next line",
+          "begin": "\\b(enum)\\s+(\\w+)(?=\\s*(?://.*)?$)",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "keyword.declaration.enum.proto" },
+            "2": { "name": "entity.name.type.enum.proto" }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#option" },
+            { "include": "#enumValue" },
+            { "include": "#reserved" }
+          ]
+        }
       ]
     },
     "enumValue": {
@@ -445,16 +493,36 @@
       }
     },
     "service": {
-      "begin": "\\b(service)\\s+(\\w+)\\s*\\{",
-      "end": "\\}",
-      "beginCaptures": {
-        "1": { "name": "keyword.declaration.service.proto" },
-        "2": { "name": "entity.name.type.service.proto" }
-      },
       "patterns": [
-        { "include": "#comments" },
-        { "include": "#option" },
-        { "include": "#rpc" }
+        {
+          "comment": "Service with brace on same line",
+          "begin": "\\b(service)\\s+(\\w+)\\s*(\\{)",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "keyword.declaration.service.proto" },
+            "2": { "name": "entity.name.type.service.proto" },
+            "3": { "name": "punctuation.definition.block.proto" }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#option" },
+            { "include": "#rpc" }
+          ]
+        },
+        {
+          "comment": "Service with brace on next line",
+          "begin": "\\b(service)\\s+(\\w+)(?=\\s*(?://.*)?$)",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "keyword.declaration.service.proto" },
+            "2": { "name": "entity.name.type.service.proto" }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#option" },
+            { "include": "#rpc" }
+          ]
+        }
       ]
     },
     "rpc": {
@@ -481,26 +549,62 @@
       ]
     },
     "oneof": {
-      "begin": "\\b(oneof)\\s+(\\w+)\\s*\\{",
-      "end": "\\}",
-      "beginCaptures": {
-        "1": { "name": "keyword.declaration.oneof.proto" },
-        "2": { "name": "variable.other.oneof.proto" }
-      },
       "patterns": [
-        { "include": "#comments" },
-        { "include": "#option" },
-        { "include": "#field" }
+        {
+          "comment": "Oneof with brace on same line",
+          "begin": "\\b(oneof)\\s+(\\w+)\\s*(\\{)",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "keyword.declaration.oneof.proto" },
+            "2": { "name": "variable.other.oneof.proto" },
+            "3": { "name": "punctuation.definition.block.proto" }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#option" },
+            { "include": "#field" }
+          ]
+        },
+        {
+          "comment": "Oneof with brace on next line",
+          "begin": "\\b(oneof)\\s+(\\w+)(?=\\s*(?://.*)?$)",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "keyword.declaration.oneof.proto" },
+            "2": { "name": "variable.other.oneof.proto" }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#option" },
+            { "include": "#field" }
+          ]
+        }
       ]
     },
     "extend": {
-      "begin": "\\b(extend)\\s+([\\w.]+)\\s*\\{",
-      "end": "\\}",
-      "beginCaptures": {
-        "1": { "name": "keyword.declaration.extend.proto" },
-        "2": { "name": "entity.name.type.proto" }
-      },
-      "patterns": [{ "include": "#comments" }, { "include": "#field" }]
+      "patterns": [
+        {
+          "comment": "Extend with brace on same line",
+          "begin": "\\b(extend)\\s+([\\w.]+)\\s*(\\{)",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "keyword.declaration.extend.proto" },
+            "2": { "name": "entity.name.type.proto" },
+            "3": { "name": "punctuation.definition.block.proto" }
+          },
+          "patterns": [{ "include": "#comments" }, { "include": "#field" }]
+        },
+        {
+          "comment": "Extend with brace on next line",
+          "begin": "\\b(extend)\\s+([\\w.]+)(?=\\s*(?://.*)?$)",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "keyword.declaration.extend.proto" },
+            "2": { "name": "entity.name.type.proto" }
+          },
+          "patterns": [{ "include": "#comments" }, { "include": "#field" }]
+        }
+      ]
     },
     "reserved": {
       "match": "\\b(reserved)\\s+(.+);",

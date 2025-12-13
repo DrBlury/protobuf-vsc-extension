@@ -1,6 +1,7 @@
 syntax = "proto3";
 package regressions.clangformat;
 
-message IndentExample {
+message IndentExample
+{
   string four_space = 1;
 }
