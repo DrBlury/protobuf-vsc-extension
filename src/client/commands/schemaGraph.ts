@@ -4,7 +4,7 @@
 
 import * as vscode from 'vscode';
 import { LanguageClient } from 'vscode-languageclient/node';
-import { SchemaGraphPanel } from '../schemaGraphPanel';
+import { SchemaGraphPanel } from '../panels/schemaGraphPanel';
 import { VALIDATION_MESSAGES } from '../../server/utils/constants';
 
 /**

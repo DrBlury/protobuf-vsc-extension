@@ -23,7 +23,7 @@ message Order {
 	example.v1.Address shipping_address = 4;
 
 	// Order total (from common.proto)
-	Money total = 5;
+	common.v1.Money total = 5;
 
 	// Order status
 	OrderStatus status = 6;
@@ -40,8 +40,8 @@ message LineItem {
 	string product_id = 1;
 	string product_name = 2;
 	int32 quantity = 3;
-	Money unit_price = 4;
-	Money total_price = 5;
+	common.v1.Money unit_price = 4;
+	common.v1.Money total_price = 5;
 }
 
 // Order status

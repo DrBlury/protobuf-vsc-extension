@@ -14,6 +14,17 @@ import {
 import { BUILTIN_TYPES, SymbolKind, SymbolInfo } from '../core/ast';
 import { SemanticAnalyzer } from '../core/analyzer';
 import { FIELD_NUMBER } from '../utils/constants';
+import {
+  isTypeContext,
+  getTypePrefix,
+  isKeywordContext,
+  getContainerBounds,
+  getContainerInfo,
+  isFieldAssignmentContext,
+  isEnumValueContext,
+  isFieldNameContext,
+  TypePrefix
+} from './completion/index';
 
 export class CompletionProvider {
   private analyzer: SemanticAnalyzer;
@@ -36,7 +47,7 @@ export class CompletionProvider {
     const afterCursor = lineText.substring(position.character);
     const hasAssignmentAfterCursor = /\s*=/.test(afterCursor);
     const hasContentAfterCursor = afterCursor.trim().length > 0;
-    const typePrefix = this.getTypePrefix(beforeCursor);
+    const typePrefix = getTypePrefix(beforeCursor);
 
     // CEL expression completions - check this first as it's a specific context
     if (documentText) {
@@ -60,17 +71,17 @@ export class CompletionProvider {
     }
 
     // Type completion after field modifier or for field type
-    if (this.isTypeContext(beforeCursor)) {
+    if (isTypeContext(beforeCursor)) {
       completions.push(...this.getTypeCompletions(uri, position, typePrefix));
     }
 
     // Keyword completions
-    if (this.isKeywordContext(beforeCursor)) {
+    if (isKeywordContext(beforeCursor)) {
       completions.push(...this.getKeywordCompletions(position, beforeCursor));
     }
 
     // Enum value number suggestion right after the value name
-    if (this.isEnumValueContext(beforeCursor, position, documentText) && !hasAssignmentAfterCursor && !hasContentAfterCursor) {
+    if (isEnumValueContext(beforeCursor, position, documentText) && !hasAssignmentAfterCursor && !hasContentAfterCursor) {
       completions.push(...this.getEnumValueAssignmentCompletions(position, documentText));
     }
 
@@ -80,12 +91,12 @@ export class CompletionProvider {
     }
 
     // Auto-assign field number and semicolon right after field name
-    if (this.isFieldAssignmentContext(beforeCursor) && !hasAssignmentAfterCursor && !hasContentAfterCursor) {
+    if (isFieldAssignmentContext(beforeCursor) && !hasAssignmentAfterCursor && !hasContentAfterCursor) {
       completions.push(...this.getFieldAssignmentCompletions(uri, position, documentText));
     }
 
     // Field name suggestions based on type
-    if (this.isFieldNameContext(beforeCursor)) {
+    if (isFieldNameContext(beforeCursor)) {
       const typeMatch = beforeCursor.match(/(?:optional|required|repeated)?\s*([A-Za-z_][\w.<>,]+)\s+$/);
       if (typeMatch) {
         const typeName = typeMatch[1]!;
@@ -111,51 +122,10 @@ export class CompletionProvider {
     return completions;
   }
 
-  private isTypeContext(text: string): boolean {
-    const trimmed = text.trim();
-
-    if (trimmed === '') {
-      return true;
-    }
-
-    // Allow package-qualified type names like google.protobuf.Timestamp
-    const typeFragment = '[A-Za-z_][\\w.]*';
-
-    const withModifier = new RegExp(`^\\s*(?:optional|required|repeated)\\s+${typeFragment}$`);
-    const bareType = new RegExp(`^\\s*${typeFragment}$`);
-
-    return withModifier.test(text) || bareType.test(text);
-  }
-
-  private getTypePrefix(text: string): { qualifier?: string; partial?: string } | undefined {
-    const match = text.match(/([A-Za-z_][\w.]*)$/);
-    if (!match) {
-      return undefined;
-    }
-
-    const full = match[1]!;
-    const parts = full.split('.');
-
-    if (parts.length === 1) {
-      return { partial: parts[0]! };
-    }
-
-    const partial = parts.pop() || '';
-    const qualifier = parts.join('.');
-    return { qualifier, partial };
-  }
-
-  private isKeywordContext(text: string): boolean {
-    const trimmed = text.trim();
-    return trimmed === '' ||
-           /^\s*\w*$/.test(trimmed) ||
-           /^\s*(message|enum|service|oneof)\s+\w+\s*\{?\s*$/.test(text);
-  }
-
   private getTypeCompletions(
     uri: string,
     position: Position,
-    prefix?: { qualifier?: string; partial?: string }
+    prefix?: TypePrefix
   ): CompletionItem[] {
     const completions: CompletionItem[] = [];
 
@@ -245,22 +215,22 @@ export class CompletionProvider {
     // Get the package of the file where the symbol is defined
     const symbolFile = this.analyzer.getFile(symbol.location.uri);
     const symbolPackage = symbolFile?.package?.name || '';
-    
+
     // If both have no package (empty string), short name is fine
     if (!symbolPackage && !currentPackage) {
       return symbol.name;
     }
-    
+
     // If the symbol is in the same package
     if (symbolPackage === currentPackage) {
-      // For nested types (e.g., "test.Outer.Inner" with package "test"), 
+      // For nested types (e.g., "test.Outer.Inner" with package "test"),
       // return the relative path from the package: "Outer.Inner"
       if (currentPackage && symbol.fullName.startsWith(currentPackage + '.')) {
         return symbol.fullName.substring(currentPackage.length + 1);
       }
       return symbol.name;
     }
-    
+
     // Otherwise, use fully qualified name (symbol is in a different package)
     return symbol.fullName;
   }
@@ -340,7 +310,7 @@ export class CompletionProvider {
 
   private findNextFieldNumber(position: Position, documentText: string): number {
     const lines = documentText.split('\n');
-    const containerBounds = this.getContainerBounds(position, lines);
+    const containerBounds = getContainerBounds(position, lines);
 
     if (!containerBounds) {
       return 1;
@@ -423,119 +393,6 @@ export class CompletionProvider {
     return nextNumber;
   }
 
-  private getContainerBounds(position: Position, lines: string[]): { start: number; end: number } | undefined {
-    const currentLine = position.line;
-
-    let braceCount = 0;
-    let containerStartLine = -1;
-
-    // Walk backwards to find the matching opening brace for the current scope
-    for (let i = currentLine; i >= 0; i--) {
-      const line = lines[i]!;
-      for (let j = line.length - 1; j >= 0; j--) {
-        const char = line[j]!;
-        if (char === '}') {
-          braceCount++;
-        }
-        if (char === '{') {
-          braceCount--;
-          if (braceCount < 0) {
-            containerStartLine = i;
-            break;
-          }
-        }
-      }
-      if (containerStartLine >= 0) {
-        break;
-      }
-    }
-
-    if (containerStartLine < 0) {
-      return undefined;
-    }
-
-    // Walk forward to find the matching closing brace
-    braceCount = 1;
-    let containerEndLine = lines.length - 1;
-
-    for (let i = containerStartLine + 1; i < lines.length; i++) {
-      const line = lines[i]!;
-      for (const char of line) {
-        if (char === '{') {
-          braceCount++;
-        }
-        if (char === '}') {
-          braceCount--;
-          if (braceCount === 0) {
-            containerEndLine = i;
-            return { start: containerStartLine, end: containerEndLine };
-          }
-        }
-      }
-    }
-
-    return { start: containerStartLine, end: containerEndLine };
-  }
-
-  private getContainerInfo(position: Position, documentText: string): { start: number; end: number; kind?: 'enum' | 'message' | 'service' } | undefined {
-    const lines = documentText.split('\n');
-    const bounds = this.getContainerBounds(position, lines);
-
-    if (!bounds) {
-      return undefined;
-    }
-
-    let kind: 'enum' | 'message' | 'service' | undefined;
-    const lookbackStart = Math.max(0, bounds.start - 2);
-
-    for (let i = bounds.start; i >= lookbackStart; i--) {
-      const headerLine = lines[i]!;
-
-      if (/\benum\s+[A-Za-z_][\w.]*/.test(headerLine)) {
-        kind = 'enum';
-        break;
-      }
-
-      if (/\bmessage\s+[A-Za-z_][\w.]*/.test(headerLine)) {
-        kind = 'message';
-        break;
-      }
-
-      if (/\bservice\s+[A-Za-z_][\w.]*/.test(headerLine)) {
-        kind = 'service';
-        break;
-      }
-    }
-
-    return { ...bounds, kind };
-  }
-
-  private isFieldAssignmentContext(text: string): boolean {
-    // Match a type and identifier with trailing whitespace, but no '=' yet
-    const pattern = /^\s*(?:optional|required|repeated)?\s*(?!map\s*<)([A-Za-z_][\w.<>,]*)\s+([A-Za-z_][\w]*)\s*$/;
-    return pattern.test(text);
-  }
-
-  private isEnumValueContext(text: string, position: Position, documentText?: string): boolean {
-    if (!documentText) {
-      return false;
-    }
-
-    const containerInfo = this.getContainerInfo(position, documentText);
-    if (containerInfo?.kind !== 'enum') {
-      return false;
-    }
-
-    const trimmed = text.trim();
-    return /^[A-Z][A-Z0-9_]*$/.test(trimmed);
-  }
-
-  private isFieldNameContext(text: string): boolean {
-    // Match a type with optional modifier, but no field name yet
-    const pattern = /^\s*(?:optional|required|repeated)?\s*(?!map\s*<)([A-Za-z_][\w.<>,]+)\s+$/;
-    return pattern.test(text);
-  }
-
   private getFieldAssignmentCompletions(
     _uri: string,
     position: Position,
@@ -580,7 +437,7 @@ export class CompletionProvider {
   }
 
   private findNextEnumValueNumber(position: Position, documentText: string): number {
-    const containerInfo = this.getContainerInfo(position, documentText);
+    const containerInfo = getContainerInfo(position, documentText);
 
     if (!containerInfo || containerInfo.kind !== 'enum') {
       return 0;

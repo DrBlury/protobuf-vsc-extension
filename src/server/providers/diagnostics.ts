@@ -29,60 +29,27 @@ import { SemanticAnalyzer } from '../core/analyzer';
 import { ERROR_CODES, DIAGNOSTIC_SOURCE } from '../utils/constants';
 import { logger } from '../utils/logger';
 import { bufConfigProvider } from '../services/bufConfig';
+import {
+  DiagnosticsSettings,
+  DEFAULT_DIAGNOSTICS_SETTINGS,
+  isExternalDependencyFile
+} from './diagnostics/index';
+import {
+  isPascalCase,
+  isSnakeCase,
+  isScreamingSnakeCase
+} from './diagnostics/index';
 
-export interface DiagnosticsSettings {
-  namingConventions: boolean;
-  referenceChecks: boolean;
-  importChecks: boolean;
-  fieldTagChecks: boolean;
-  duplicateFieldChecks: boolean;
-  discouragedConstructs: boolean;
-  deprecatedUsage: boolean;
-  unusedSymbols: boolean;
-  circularDependencies: boolean;
-  documentationComments: boolean;
-}
-
-const DEFAULT_SETTINGS: DiagnosticsSettings = {
-  namingConventions: true,
-  referenceChecks: true,
-  importChecks: true,
-  fieldTagChecks: true,
-  duplicateFieldChecks: true,
-  discouragedConstructs: true,
-  deprecatedUsage: true,
-  unusedSymbols: false, // Off by default as it can be noisy
-  circularDependencies: true,
-  documentationComments: true
-};
+// Re-export for external consumers
+export { DiagnosticsSettings } from './diagnostics/index';
 
 export class DiagnosticsProvider {
   private analyzer: SemanticAnalyzer;
-  private settings: DiagnosticsSettings = DEFAULT_SETTINGS;
+  private settings: DiagnosticsSettings = DEFAULT_DIAGNOSTICS_SETTINGS;
   private currentDocumentText?: string;
-
-  // Common patterns for external dependency directories
-  private static readonly EXTERNAL_DEP_PATTERNS = [
-    '/.buf-deps/',      // Buf exported dependencies
-    '/vendor/',         // Go vendor directory
-    '/third_party/',    // Common third-party directory
-    '/external/',       // External dependencies
-    '/node_modules/',   // Node modules (unlikely for proto but possible)
-  ];
 
   constructor(analyzer: SemanticAnalyzer) {
     this.analyzer = analyzer;
-  }
-
-  /**
-   * Check if a file is in an external dependency directory
-   * These files should not be validated as they are managed by external tools
-   */
-  private isExternalDependencyFile(uri: string): boolean {
-    const normalizedUri = uri.replace(/\\/g, '/');
-    return DiagnosticsProvider.EXTERNAL_DEP_PATTERNS.some(pattern =>
-      normalizedUri.includes(pattern)
-    );
   }
 
   updateSettings(settings: Partial<DiagnosticsSettings>): void {
@@ -92,7 +59,7 @@ export class DiagnosticsProvider {
   validate(uri: string, file: ProtoFile, documentText?: string): Diagnostic[] {
     // Skip validation for external dependency files (e.g., .buf-deps, vendor directories)
     // These are generated/exported files that should be validated by their source tools
-    if (this.isExternalDependencyFile(uri)) {
+    if (isExternalDependencyFile(uri)) {
       return [];
     }
 
@@ -376,7 +343,7 @@ export class DiagnosticsProvider {
     logger.verbose(`Validating message '${fullName}' with ${message.fields.length} fields, ${message.oneofs.length} oneofs`);
 
     // Check naming convention (PascalCase)
-    if (this.settings.namingConventions && !this.isPascalCase(message.name)) {
+    if (this.settings.namingConventions && !isPascalCase(message.name)) {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
         range: this.toRange(message.nameRange),
@@ -389,21 +356,26 @@ export class DiagnosticsProvider {
     // Collect all field numbers and names for duplicate checking
     const fieldNumbers = new Map<number, FieldDefinition[]>();
     const fieldNames = new Map<string, FieldDefinition[]>();
-    const reservedNumbers = new Set<number>();
+    // Store reserved ranges as tuples [start, end] instead of expanding all numbers
+    // This avoids memory issues with large ranges like "reserved 1 to max;"
+    const reservedRanges: Array<[number, number]> = [];
     const reservedNames = new Set<string>();
 
     // Collect reserved numbers and names
     for (const reserved of message.reserved) {
       for (const range of reserved.ranges) {
         const end = range.end === 'max' ? MAX_FIELD_NUMBER : range.end;
-        for (let i = range.start; i <= end; i++) {
-          reservedNumbers.add(i);
-        }
+        reservedRanges.push([range.start, end]);
       }
       for (const name of reserved.names) {
         reservedNames.add(name);
       }
     }
+
+    // Helper to check if a number is in any reserved range
+    const isNumberReserved = (num: number): boolean => {
+      return reservedRanges.some(([start, end]) => num >= start && num <= end);
+    };
 
     // Validate fields
     const allFields = [
@@ -412,7 +384,7 @@ export class DiagnosticsProvider {
     ];
 
     for (const field of allFields) {
-      this.validateField(uri, field, fullName, diagnostics, reservedNumbers, reservedNames);
+      this.validateField(uri, field, fullName, diagnostics, isNumberReserved, reservedNames);
 
       // Collect for duplicate checking
       if (!fieldNumbers.has(field.number)) {
@@ -428,7 +400,7 @@ export class DiagnosticsProvider {
 
     // Validate map fields
     for (const mapField of message.maps) {
-      this.validateMapField(uri, mapField, fullName, diagnostics, reservedNumbers, reservedNames);
+      this.validateMapField(uri, mapField, fullName, diagnostics, isNumberReserved, reservedNames);
 
       // Add to duplicate detection
       if (!fieldNumbers.has(mapField.number)) {
@@ -444,7 +416,7 @@ export class DiagnosticsProvider {
 
     // Validate groups (proto2)
     for (const group of message.groups) {
-      this.validateGroup(uri, group, fullName, diagnostics, reservedNumbers, reservedNames);
+      this.validateGroup(uri, group, fullName, diagnostics, isNumberReserved, reservedNames);
 
       // Add to duplicate detection
       if (!fieldNumbers.has(group.number)) {
@@ -495,7 +467,7 @@ export class DiagnosticsProvider {
     }
 
     // Check numbering continuity (gaps/out-of-order) including oneof fields
-    this.checkFieldNumberContinuity(message, diagnostics, reservedNumbers);
+    this.checkFieldNumberContinuity(message, diagnostics, isNumberReserved);
 
     // Check for overlapping reserved ranges
     this.checkReservedOverlap(message, diagnostics);
@@ -512,7 +484,7 @@ export class DiagnosticsProvider {
 
     // Validate oneofs
     for (const oneof of message.oneofs) {
-      if (this.settings.namingConventions && !this.isSnakeCase(oneof.name)) {
+      if (this.settings.namingConventions && !isSnakeCase(oneof.name)) {
         diagnostics.push({
           severity: DiagnosticSeverity.Warning,
           range: this.toRange(oneof.nameRange),
@@ -529,11 +501,11 @@ export class DiagnosticsProvider {
     field: FieldDefinition,
     containerName: string,
     diagnostics: Diagnostic[],
-    reservedNumbers: Set<number>,
+    isNumberReserved: (num: number) => boolean,
     reservedNames: Set<string>
   ): void {
     // Check naming convention (snake_case)
-    if (this.settings.namingConventions && !this.isSnakeCase(field.name)) {
+    if (this.settings.namingConventions && !isSnakeCase(field.name)) {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
         range: this.toRange(field.nameRange),
@@ -564,7 +536,7 @@ export class DiagnosticsProvider {
       }
 
       // Check if using reserved number
-      if (reservedNumbers.has(field.number)) {
+      if (isNumberReserved(field.number)) {
         diagnostics.push({
           severity: DiagnosticSeverity.Error,
           range: this.toRange(field.range),
@@ -668,7 +640,7 @@ export class DiagnosticsProvider {
     },
     containerName: string,
     diagnostics: Diagnostic[],
-    reservedNumbers: Set<number>,
+    isNumberReserved: (num: number) => boolean,
     reservedNames: Set<string>
   ): void {
     // Check key type
@@ -717,7 +689,7 @@ export class DiagnosticsProvider {
     }
 
     // Check naming convention
-    if (this.settings.namingConventions && !this.isSnakeCase(mapField.name)) {
+    if (this.settings.namingConventions && !isSnakeCase(mapField.name)) {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
         range: this.toRange(mapField.nameRange),
@@ -737,7 +709,7 @@ export class DiagnosticsProvider {
         });
       }
 
-      if (reservedNumbers.has(mapField.number)) {
+      if (isNumberReserved(mapField.number)) {
         diagnostics.push({
           severity: DiagnosticSeverity.Error,
           range: this.toRange(mapField.range),
@@ -762,11 +734,11 @@ export class DiagnosticsProvider {
     group: GroupFieldDefinition,
     containerName: string,
     diagnostics: Diagnostic[],
-    reservedNumbers: Set<number>,
+    isNumberReserved: (num: number) => boolean,
     reservedNames: Set<string>
   ): void {
     // Check naming convention (PascalCase for group names)
-    if (this.settings.namingConventions && !this.isPascalCase(group.name)) {
+    if (this.settings.namingConventions && !isPascalCase(group.name)) {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
         range: this.toRange(group.nameRange),
@@ -786,7 +758,7 @@ export class DiagnosticsProvider {
         });
       }
 
-      if (reservedNumbers.has(group.number)) {
+      if (isNumberReserved(group.number)) {
         diagnostics.push({
           severity: DiagnosticSeverity.Error,
           range: this.toRange(group.range),
@@ -819,24 +791,27 @@ export class DiagnosticsProvider {
     // Groups are like messages, so we can validate them similarly
     const fullName = containerName ? `${containerName}.${group.name}` : group.name;
 
-    // Collect reserved numbers and names from group
-    const groupReservedNumbers = new Set<number>();
+    // Collect reserved numbers and names from group - use ranges instead of expanding
+    const groupReservedRanges: Array<[number, number]> = [];
     const groupReservedNames = new Set<string>();
     for (const reserved of group.reserved) {
       for (const range of reserved.ranges) {
         const end = range.end === 'max' ? MAX_FIELD_NUMBER : range.end;
-        for (let i = range.start; i <= end; i++) {
-          groupReservedNumbers.add(i);
-        }
+        groupReservedRanges.push([range.start, end]);
       }
       for (const name of reserved.names) {
         groupReservedNames.add(name);
       }
     }
 
+    // Helper to check if a number is in any group reserved range
+    const isGroupNumberReserved = (num: number): boolean => {
+      return groupReservedRanges.some(([start, end]) => num >= start && num <= end);
+    };
+
     // Validate fields in group
     for (const field of group.fields) {
-      this.validateField(uri, field, fullName, diagnostics, groupReservedNumbers, groupReservedNames);
+      this.validateField(uri, field, fullName, diagnostics, isGroupNumberReserved, groupReservedNames);
     }
 
     // Validate nested messages
@@ -857,7 +832,7 @@ export class DiagnosticsProvider {
     diagnostics: Diagnostic[]
   ): void {
     // Check naming convention (PascalCase)
-    if (this.settings.namingConventions && !this.isPascalCase(enumDef.name)) {
+    if (this.settings.namingConventions && !isPascalCase(enumDef.name)) {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
         range: this.toRange(enumDef.nameRange),
@@ -872,7 +847,7 @@ export class DiagnosticsProvider {
 
     for (const value of enumDef.values) {
       // Check naming convention (SCREAMING_SNAKE_CASE)
-      if (this.settings.namingConventions && !this.isScreamingSnakeCase(value.name)) {
+      if (this.settings.namingConventions && !isScreamingSnakeCase(value.name)) {
         diagnostics.push({
           severity: DiagnosticSeverity.Warning,
           range: this.toRange(value.nameRange),
@@ -963,7 +938,7 @@ export class DiagnosticsProvider {
     diagnostics: Diagnostic[]
   ): void {
     // Check naming convention (PascalCase)
-    if (this.settings.namingConventions && !this.isPascalCase(service.name)) {
+    if (this.settings.namingConventions && !isPascalCase(service.name)) {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
         range: this.toRange(service.nameRange),
@@ -975,7 +950,7 @@ export class DiagnosticsProvider {
     // Validate RPCs
     for (const rpc of service.rpcs) {
       // Check naming convention (PascalCase)
-      if (this.settings.namingConventions && !this.isPascalCase(rpc.name)) {
+      if (this.settings.namingConventions && !isPascalCase(rpc.name)) {
         diagnostics.push({
           severity: DiagnosticSeverity.Warning,
           range: this.toRange(rpc.nameRange),
@@ -1186,18 +1161,6 @@ export class DiagnosticsProvider {
     }
   }
 
-  private isPascalCase(name: string): boolean {
-    return /^[A-Z][a-zA-Z0-9]*$/.test(name);
-  }
-
-  private isSnakeCase(name: string): boolean {
-    return /^[a-z][a-z0-9_]*$/.test(name);
-  }
-
-  private isScreamingSnakeCase(name: string): boolean {
-    return /^[A-Z][A-Z0-9_]*$/.test(name);
-  }
-
   private ensureImported(
     currentUri: string,
     typeName: string,
@@ -1382,7 +1345,7 @@ export class DiagnosticsProvider {
     }
   }
 
-  private checkFieldNumberContinuity(message: MessageDefinition, diagnostics: Diagnostic[], reservedNumbers: Set<number>): void {
+  private checkFieldNumberContinuity(message: MessageDefinition, diagnostics: Diagnostic[], isNumberReserved: (num: number) => boolean): void {
     const fields = [
       ...message.fields,
       ...message.maps,
@@ -1412,7 +1375,7 @@ export class DiagnosticsProvider {
       if (gap > 0) {
         const missingNumbers = [] as number[];
         for (let n = prev + 1; n < current; n++) {
-          if ((n >= RESERVED_RANGE_START && n <= RESERVED_RANGE_END) || reservedNumbers.has(n)) {
+          if ((n >= RESERVED_RANGE_START && n <= RESERVED_RANGE_END) || isNumberReserved(n)) {
             continue;
           }
           missingNumbers.push(n);

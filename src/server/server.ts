@@ -8,7 +8,6 @@ import {
   TextDocuments,
   ProposedFeatures,
   InitializeParams,
-  TextDocumentSyncKind,
   InitializeResult,
   CompletionItem,
   TextDocumentPositionParams,
@@ -30,20 +29,15 @@ import {
   RenameParams,
   PrepareRenameParams,
   CodeActionParams,
-  CodeAction,
-  TextEdit
+  CodeAction
 } from 'vscode-languageserver/node';
 
 import * as fs from 'fs';
-import * as path from 'path';
-import { pathToFileURL } from 'url';
 import { URI } from 'vscode-uri';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
 // Core functionality
-import { ProtoParser } from './core/parser';
-import { SemanticAnalyzer } from './core/analyzer';
 import {
   MessageDefinition,
   EnumDefinition,
@@ -60,8 +54,6 @@ import {
 // Utilities
 import { logger, LogLevel } from './utils/logger';
 import {
-  PROTOC_INCLUDE_PATHS,
-  GOOGLE_WELL_KNOWN_TEST_FILE,
   REQUEST_METHODS,
   DIAGNOSTIC_SOURCE,
   ERROR_CODES,
@@ -70,15 +62,32 @@ import {
 } from './utils/constants';
 import { normalizePath, getErrorMessage } from './utils/utils';
 import { Settings, defaultSettings } from './utils/types';
-import { GOOGLE_WELL_KNOWN_FILES, GOOGLE_WELL_KNOWN_PROTOS } from './utils/googleWellKnown';
 import { scanWorkspaceForProtoFiles, scanImportPaths } from './utils/workspace';
 import { updateProvidersWithSettings } from './utils/configManager';
 import { debounce } from './utils/debounce';
 import { ContentHashCache, simpleHash } from './utils/cache';
 import { ProviderRegistry } from './utils/providerRegistry';
 import { refreshDocumentAndImports } from './utils/documentRefresh';
-import { handleCompletion, handleHover } from './handlers';
+import {
+  handleCompletion,
+  handleHover,
+  handleDefinition,
+  handleReferences,
+  handleDocumentFormatting,
+  handleRangeFormatting,
+  handleDocumentSymbols,
+  handleWorkspaceSymbols,
+  handleCodeLens,
+  handleDocumentLinks,
+  handlePrepareRename,
+  handleRename,
+  handleCodeActions
+} from './handlers';
 import { bufConfigProvider } from './services/bufConfig';
+
+// Initialization helpers
+import { discoverWellKnownIncludePath, preloadGoogleWellKnownProtos } from './initialization';
+import { getServerCapabilities } from './initialization';
 
 // Shared types
 import { SchemaGraphRequest } from '../shared/schemaGraph';
@@ -163,45 +172,9 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
 
   // Preload Google well-known protos after we know cache/include paths so
   // go-to-definition uses real file URIs where possible.
-  preloadGoogleWellKnownProtos(wellKnownIncludePath, providers.parser, providers.analyzer);
+  preloadGoogleWellKnownProtos(wellKnownIncludePath, providers.parser, providers.analyzer, wellKnownCacheDir);
 
-  return {
-    capabilities: {
-      textDocumentSync: TextDocumentSyncKind.Incremental,
-      completionProvider: {
-        resolveProvider: false,
-        triggerCharacters: ['.', '"', '<', ' ']
-      },
-      hoverProvider: true,
-      definitionProvider: true,
-      referencesProvider: true,
-      documentSymbolProvider: true,
-      workspaceSymbolProvider: true,
-      documentFormattingProvider: true,
-      documentRangeFormattingProvider: true,
-      foldingRangeProvider: true,
-      renameProvider: {
-        prepareProvider: true
-      },
-      codeActionProvider: {
-        codeActionKinds: [
-          'quickfix',
-          'refactor',
-          'refactor.extract',
-          'refactor.rewrite',
-          'source',
-          'source.fixAll',
-          'source.organizeImports'
-        ]
-      },
-      codeLensProvider: {
-        resolveProvider: false
-      },
-      documentLinkProvider: {
-        resolveProvider: false
-      }
-    }
-  };
+  return getServerCapabilities();
 });
 
 connection.onExit(() => {
@@ -253,93 +226,6 @@ connection.onInitialized(async () => {
   scanWorkspaceForProtoFiles(workspaceFolders, providers.parser, providers.analyzer, protoSrcsDir);
 });
 
-
-/**
- * Add minimal built-in definitions for Google well-known protos.
- * This avoids "Unknown type google.protobuf.*" when users import them
- * without having the source files in their workspace.
- */
-function preloadGoogleWellKnownProtos(
-  discoveredIncludePath: string | undefined,
-  _parser: ProtoParser,
-  _analyzer: SemanticAnalyzer
-): void {
-  const resourcesRoot = path.join(__dirname, '..', '..', 'resources');
-
-  for (const [importPath, fallbackContent] of Object.entries(GOOGLE_WELL_KNOWN_PROTOS)) {
-    const relativePath = GOOGLE_WELL_KNOWN_FILES[importPath];
-
-    // Order: discovered include path (user/system protoc), bundled resource, inline fallback
-    const fromDiscovered = discoveredIncludePath
-      ? path.join(discoveredIncludePath, importPath)
-      : undefined;
-    const fromResource = relativePath ? path.join(resourcesRoot, relativePath) : undefined;
-    const fromCache = wellKnownCacheDir ? path.join(wellKnownCacheDir, importPath) : undefined;
-
-    const firstExisting = [fromDiscovered, fromResource, fromCache].find(
-      p => p && fs.existsSync(p)
-    );
-
-    let filePath = firstExisting;
-    let content = filePath ? fs.readFileSync(filePath, 'utf-8') : fallbackContent;
-
-    // If nothing exists yet but we have a cache dir, materialize the fallback into cache
-    if (!filePath && fromCache) {
-      try {
-        fs.mkdirSync(path.dirname(fromCache), { recursive: true });
-        fs.writeFileSync(fromCache, fallbackContent, 'utf-8');
-        filePath = fromCache;
-        content = fallbackContent;
-      } catch (e) {
-        logger.errorWithContext('Failed to write well-known cache', {
-          uri: fromCache,
-          error: e
-        });
-      }
-    }
-
-    const uri = filePath
-      ? pathToFileURL(filePath).toString()
-      : `builtin:///${importPath}`;
-
-    try {
-        const file = providers.parser.parse(content, uri);
-        providers.analyzer.updateFile(uri, file);
-    } catch (e) {
-      logger.errorWithContext('Failed to preload well-known proto', {
-        uri: importPath,
-        error: e
-      });
-    }
-  }
-}
-
-/**
- * Locate a protoc include directory that contains google/protobuf/timestamp.proto.
- * Checks env hint then common install locations.
- */
-function discoverWellKnownIncludePath(): string | undefined {
-  const candidates: string[] = [];
-
-  if (process.env.PROTOC_INCLUDE) {
-    candidates.push(...process.env.PROTOC_INCLUDE.split(path.delimiter));
-  }
-
-  candidates.push(...PROTOC_INCLUDE_PATHS);
-
-  for (const base of candidates) {
-    if (!base) {
-      continue;
-    }
-    const testPath = path.join(base, GOOGLE_WELL_KNOWN_TEST_FILE);
-    if (fs.existsSync(testPath)) {
-      logger.debug(`Discovered protoc include path: ${base}`);
-      return base;
-    }
-  }
-
-  return undefined;
-}
 
 // Handle file changes from workspace file watcher
 connection.onDidChangeWatchedFiles((params: DidChangeWatchedFilesParams) => {
@@ -578,177 +464,48 @@ connection.onHover((params: HoverParams) => {
 
 // Definition
 connection.onDefinition((params: DefinitionParams) => {
-  try {
-    const document = documents.get(params.textDocument.uri);
-    if (!document) {
-      return null;
-    }
-
-    const lines = document.getText().split('\n');
-    const lineText = lines[params.position.line] || '';
-
-    const identifier = extractIdentifierAtPosition(lineText, params.position.character);
-
-    // Refresh analyzer state for this document and its open imports to avoid stale symbols
-    const touchedUris = refreshDocumentAndImports(
-      params.textDocument.uri,
-      documents,
-      providers.parser,
-      providers.analyzer,
-      parsedFileCache
-    );
-
-    // Log incoming definition request for diagnostics
-    logger.debug(
-      `Definition request: uri=${params.textDocument.uri} line=${params.position.line} char=${params.position.character} identifier=${identifier || '<none>'}`
-    );
-
-    const result = providers.definition.getDefinition(
-      params.textDocument.uri,
-      params.position,
-      lineText
-    );
-
-    if (result) {
-      const locations = Array.isArray(result) ? result : [result];
-      for (const loc of locations) {
-        logger.debug(`Definition resolved: ${loc.uri}:${loc.range.start.line}:${loc.range.start.character}`);
-      }
-    } else {
-        logger.debug(`Definition resolved: null (symbols=${providers.analyzer.getAllSymbols().length}, touched=${touchedUris.length})`);
-    }
-    return result;
-  } catch (error) {
-    logger.errorWithContext('Definition handler failed', {
-      uri: params.textDocument.uri,
-      position: params.position,
-      error
-    });
-    return null;
-  }
+  return handleDefinition(
+    params,
+    documents,
+    providers.definition,
+    providers.parser,
+    providers.analyzer,
+    parsedFileCache
+  );
 });
-
-/**
- * Extracts an identifier (word) at the given character position in a line.
- * Handles protobuf identifiers which may contain letters, numbers, underscores, and dots.
- *
- * @param line - The line of text to search in
- * @param character - The character position to extract the identifier from
- * @returns The extracted identifier, or null if no identifier is found at the position
- */
-function extractIdentifierAtPosition(line: string, character: number): string | null {
-  const isIdentifierChar = (ch: string): boolean => /[a-zA-Z0-9_.]/.test(ch) || ch === '_';
-
-  let startIndex = character;
-  let endIndex = character;
-
-  // If cursor is at a non-identifier character but immediately after one, move back
-  if (startIndex > 0 && !isIdentifierChar(line[startIndex]!) && isIdentifierChar(line[startIndex - 1]!)) {
-    startIndex -= 1;
-    endIndex = startIndex;
-  }
-
-  // Expand backwards to find the start of the identifier
-  while (startIndex > 0 && isIdentifierChar(line[startIndex - 1]!)) {
-    startIndex--;
-  }
-
-  // Expand forwards to find the end of the identifier
-  while (endIndex < line.length && isIdentifierChar(line[endIndex]!)) {
-    endIndex++;
-  }
-
-  if (startIndex === endIndex) {
-    return null;
-  }
-
-  // Remove trailing dots (handles cases like "package.Type.")
-  return line.substring(startIndex, endIndex).replace(/\.+$/g, '');
-}
 
 // References
 connection.onReferences((params: ReferenceParams) => {
-  const document = documents.get(params.textDocument.uri);
-  if (!document) {
-    return [];
-  }
-
-  const lines = document.getText().split('\n');
-  const lineText = lines[params.position.line] || '';
-
-  return providers.references.findReferences(
-    params.textDocument.uri,
-    params.position,
-    lineText,
-    params.context.includeDeclaration
-  );
+  return handleReferences(params, documents, providers.references);
 });
 
 // Document Symbols
 connection.onDocumentSymbol((params: DocumentSymbolParams) => {
-  return providers.symbols.getDocumentSymbols(params.textDocument.uri);
+  return handleDocumentSymbols(params, providers.symbols);
 });
 
 // Workspace Symbols
 connection.onWorkspaceSymbol((params: WorkspaceSymbolParams) => {
-  return providers.symbols.getWorkspaceSymbols(params.query);
+  return handleWorkspaceSymbols(params, providers.symbols);
 });
 
 // Code Lens
 connection.onCodeLens((params) => {
-  const document = documents.get(params.textDocument.uri);
-  if (!document) {
-    return [];
-  }
-
-  try {
-    const file = providers.parser.parse(document.getText(), params.textDocument.uri);
-    return providers.codeLens.getCodeLenses(params.textDocument.uri, file);
-  } catch {
-    return [];
-  }
+  return handleCodeLens(params, documents, providers.codeLens, providers.parser);
 });
 
 // Document Links
 connection.onDocumentLinks((params) => {
-  const document = documents.get(params.textDocument.uri);
-  if (!document) {
-    return [];
-  }
-
-  try {
-    const file = providers.parser.parse(document.getText(), params.textDocument.uri);
-    return providers.documentLinks.getDocumentLinks(params.textDocument.uri, file);
-  } catch {
-    return [];
-  }
+  return handleDocumentLinks(params, documents, providers.documentLinks, providers.parser);
 });
 
 // Formatting
 connection.onDocumentFormatting((params: DocumentFormattingParams) => {
-  if (!globalSettings.protobuf.formatter.enabled) {
-    return [];
-  }
-
-  const document = documents.get(params.textDocument.uri);
-  if (!document) {
-    return [];
-  }
-
-  return providers.formatter.formatDocument(document.getText(), params.textDocument.uri);
+  return handleDocumentFormatting(params, documents, providers.formatter, globalSettings);
 });
 
 connection.onDocumentRangeFormatting((params: DocumentRangeFormattingParams) => {
-  if (!globalSettings.protobuf.formatter.enabled) {
-    return [];
-  }
-
-  const document = documents.get(params.textDocument.uri);
-  if (!document) {
-    return [];
-  }
-
-  return providers.formatter.formatRange(document.getText(), params.range, params.textDocument.uri);
+  return handleRangeFormatting(params, documents, providers.formatter, globalSettings);
 });
 
 // Folding Ranges
@@ -986,77 +743,17 @@ connection.onRequest(REQUEST_METHODS.GET_NEXT_FIELD_NUMBER, (params: { uri: stri
 
 // Rename - Prepare
 connection.onPrepareRename((params: PrepareRenameParams) => {
-  const document = documents.get(params.textDocument.uri);
-  if (!document) {
-    return null;
-  }
-
-  const lines = document.getText().split('\n');
-  const lineText = lines[params.position.line] || '';
-
-  const result = providers.rename.prepareRename(
-    params.textDocument.uri,
-    params.position,
-    lineText
-  );
-
-  if (!result) {
-    return null;
-  }
-
-  // Adjust range to correct line
-  return {
-    range: {
-      start: { line: params.position.line, character: result.range.start.character },
-      end: { line: params.position.line, character: result.range.end.character }
-    },
-    placeholder: result.placeholder
-  };
+  return handlePrepareRename(params, documents, providers.rename);
 });
 
 // Rename - Execute
 connection.onRenameRequest((params: RenameParams) => {
-  const document = documents.get(params.textDocument.uri);
-  if (!document) {
-    return null;
-  }
-
-  const lines = document.getText().split('\n');
-  const lineText = lines[params.position.line] || '';
-
-  const result = providers.rename.rename(
-    params.textDocument.uri,
-    params.position,
-    lineText,
-    params.newName
-  );
-
-  if (result.changes.size === 0) {
-    return null;
-  }
-
-  // Convert to WorkspaceEdit format
-  const changes: { [uri: string]: TextEdit[] } = {};
-  for (const [uri, edits] of result.changes) {
-    changes[uri] = edits;
-  }
-
-  return { changes };
+  return handleRename(params, documents, providers.rename);
 });
 
 // Code Actions
 connection.onCodeAction((params: CodeActionParams): CodeAction[] => {
-  const document = documents.get(params.textDocument.uri);
-  if (!document) {
-    return [];
-  }
-
-  return providers.codeActions.getCodeActions(
-    params.textDocument.uri,
-    params.range,
-    params.context,
-    document.getText()
-  );
+  return handleCodeActions(params, documents, providers.codeActions);
 });
 
 // Custom request handlers for protoc compilation

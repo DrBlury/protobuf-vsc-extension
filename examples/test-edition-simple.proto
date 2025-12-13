@@ -1,9 +1,10 @@
 edition = "2023";
 
 package testB;
+import "test-diagnostics.proto";
 
 message SimpleEdition {
 	string name = 1;
 	int32 id = 2; // identifier for the message
-	TestDuplicates duplicates = 3; // reference to TestDuplicates message
+	testA.TestDuplicates duplicates = 3; // reference to TestDuplicates message
 }
