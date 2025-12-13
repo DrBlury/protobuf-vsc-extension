@@ -209,11 +209,85 @@ describe('ClangFormatProvider', () => {
   });
 
   describe('formatRange', () => {
-    it('should return empty array when disabled', async () => {
+    it('should return null when disabled', async () => {
       provider.updateSettings({ enabled: false });
       const range = Range.create(0, 0, 10, 20);
       const result = await provider.formatRange('message Test {}', range);
-      expect(result).toEqual([]);
+      expect(result).toBeNull();
+    });
+
+    it('should calculate correct byte offsets for CRLF line endings', async () => {
+      provider.updateSettings({ enabled: true });
+      // CRLF text: each line ends with \r\n
+      const text = 'line1\r\nline2\r\nline3';
+
+      const mockProcess: any = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        stdin: { write: jest.fn(), end: jest.fn() },
+        on: jest.fn((event: string, callback: (code?: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      };
+
+      let capturedArgs: string[] = [];
+      (spawn as any).mockImplementation((_cmd: any, args: string[]) => {
+        capturedArgs = args;
+        return mockProcess;
+      });
+
+      // Format range starting at line 1 (second line)
+      // In CRLF: "line1\r\n" = 7 bytes, so line 2 starts at offset 7
+      const range = Range.create(1, 0, 1, 5);
+      await provider.formatRange(text, range);
+
+      const offsetArg = capturedArgs.find(a => a.startsWith('--offset='));
+      const lengthArg = capturedArgs.find(a => a.startsWith('--length='));
+
+      // "line1\r\n" = 5 + 2 = 7 bytes offset for line 2
+      expect(offsetArg).toBe('--offset=7');
+      // "line2" = 5 bytes length
+      expect(lengthArg).toBe('--length=5');
+    });
+
+    it('should calculate correct byte offsets for LF line endings', async () => {
+      provider.updateSettings({ enabled: true });
+      // LF text: each line ends with \n only
+      const text = 'line1\nline2\nline3';
+
+      const mockProcess: any = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        stdin: { write: jest.fn(), end: jest.fn() },
+        on: jest.fn((event: string, callback: (code?: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      };
+
+      let capturedArgs: string[] = [];
+      (spawn as any).mockImplementation((_cmd: any, args: string[]) => {
+        capturedArgs = args;
+        return mockProcess;
+      });
+
+      // Format range starting at line 1 (second line)
+      // In LF: "line1\n" = 6 bytes, so line 2 starts at offset 6
+      const range = Range.create(1, 0, 1, 5);
+      await provider.formatRange(text, range);
+
+      const offsetArg = capturedArgs.find(a => a.startsWith('--offset='));
+      const lengthArg = capturedArgs.find(a => a.startsWith('--length='));
+
+      // "line1\n" = 5 + 1 = 6 bytes offset for line 2
+      expect(offsetArg).toBe('--offset=6');
+      // "line2" = 5 bytes length
+      expect(lengthArg).toBe('--length=5');
     });
 
     it('should format range when enabled', async () => {

@@ -114,18 +114,24 @@ export class ClangFormatProvider {
 
   /**
    * Format a range using clang-format
+   * Returns null if disabled or failed, empty array if no changes needed, or edits if changes needed
    */
-  async formatRange(text: string, range: Range, filePath?: string): Promise<TextEdit[]> {
+  async formatRange(text: string, range: Range, filePath?: string): Promise<TextEdit[] | null> {
     if (!this.settings.enabled) {
-      return [];
+      return null;
     }
+
+    // Detect if the text uses CRLF line endings
+    const usesCRLF = text.includes('\r\n');
+    const newlineLength = usesCRLF ? 2 : 1;
 
     const lines = splitLines(text);
 
     // Calculate byte offsets for the range
+    // clang-format expects byte offsets in the original text, so we need to account for CRLF
     let offset = 0;
     for (let i = 0; i < range.start.line; i++) {
-      offset += lines[i]!.length + 1; // +1 for newline
+      offset += lines[i]!.length + newlineLength;
     }
     offset += range.start.character;
 
@@ -134,18 +140,22 @@ export class ClangFormatProvider {
       if (i === range.start.line && i === range.end.line) {
         length = range.end.character - range.start.character;
       } else if (i === range.start.line) {
-        length += lines[i]!.length - range.start.character + 1;
+        length += lines[i]!.length - range.start.character + newlineLength;
       } else if (i === range.end.line) {
         length += range.end.character;
       } else {
-        length += lines[i]!.length + 1;
+        length += lines[i]!.length + newlineLength;
       }
     }
 
     const formatted = await this.runClangFormat(text, filePath, offset, length);
 
-    if (formatted === null || formatted === text) {
-      return [];
+    if (formatted === null) {
+      return null; // clang-format failed
+    }
+
+    if (formatted === text) {
+      return []; // No changes needed - this is success, not failure
     }
 
     return [{

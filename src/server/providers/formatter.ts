@@ -47,6 +47,7 @@ const DEFAULT_SETTINGS: FormatterSettings = {
 
 export class ProtoFormatter {
   private settings: FormatterSettings = DEFAULT_SETTINGS;
+  private clangFormatEnabled: boolean = false;
 
   constructor(
     private clangFormat?: ClangFormatProvider,
@@ -55,6 +56,19 @@ export class ProtoFormatter {
 
   updateSettings(settings: Partial<FormatterSettings>): void {
     this.settings = { ...this.settings, ...settings };
+    // Reset warning flags when settings change so users can see warnings again
+    this.clangFormatWarningShown = false;
+    this.bufFormatWarningShown = false;
+  }
+
+  /**
+   * Set whether clang-format is enabled (from protobuf.clangFormat.enabled setting)
+   * This allows using clang-format even without preset='google'
+   */
+  setClangFormatEnabled(enabled: boolean): void {
+    this.clangFormatEnabled = enabled;
+    // Reset warning flag when clang-format enabled state changes
+    this.clangFormatWarningShown = false;
   }
 
   setBufPath(path: string): void {
@@ -65,17 +79,24 @@ export class ProtoFormatter {
   private bufFormatWarningShown = false;
 
   async formatDocument(text: string, uri?: string): Promise<TextEdit[]> {
-    if (this.settings.preset === 'google' && this.clangFormat) {
+    // Use clang-format if preset is 'google' OR if clangFormat is explicitly enabled
+    const useClangFormat = (this.settings.preset === 'google' || this.clangFormatEnabled) && this.clangFormat;
+    if (useClangFormat) {
       const lines = splitLines(text);
       const range = Range.create(0, 0, lines.length - 1, lines[lines.length - 1]!.length);
       const filePath = this.getFsPathFromUri(uri);
-      const edits = await this.clangFormat.formatRange(text, range, filePath);
-      if (edits && edits.length > 0) {
-          return edits;
+      const edits = await this.clangFormat!.formatRange(text, range, filePath);
+
+      // null means clang-format is disabled or failed - fall back to minimal
+      // empty array means no changes needed - return as-is (don't fall back!)
+      // non-empty array means changes - return them
+      if (edits !== null) {
+        return edits; // Success - either changes or no changes needed
       }
-      // clang-format failed or returned no edits - log warning once
+
+      // clang-format failed - log warning once and fall back
       if (!this.clangFormatWarningShown) {
-        logger.warn('Formatter preset is "google" but clang-format failed or is not available. Falling back to minimal formatter. Check that clang-format is installed and the path is correct in settings.');
+        logger.warn('clang-format failed or is not available. Falling back to minimal formatter. Check that clang-format is installed and the path is correct in settings.');
         this.clangFormatWarningShown = true;
       }
     }
@@ -110,15 +131,21 @@ export class ProtoFormatter {
   }
 
   async formatRange(text: string, range: Range, uri?: string): Promise<TextEdit[]> {
-    if (this.settings.preset === 'google' && this.clangFormat) {
+    // Use clang-format if preset is 'google' OR if clangFormat is explicitly enabled
+    const useClangFormat = (this.settings.preset === 'google' || this.clangFormatEnabled) && this.clangFormat;
+    if (useClangFormat) {
       const filePath = this.getFsPathFromUri(uri);
-      const edits = await this.clangFormat.formatRange(text, range, filePath);
-      if (edits && edits.length > 0) {
-          return edits;
+      const edits = await this.clangFormat!.formatRange(text, range, filePath);
+
+      // null means clang-format is disabled or failed - fall back to minimal
+      // empty array or non-empty array means success
+      if (edits !== null) {
+        return edits;
       }
+
       // clang-format failed for range formatting - log warning once
       if (!this.clangFormatWarningShown) {
-        logger.warn('Formatter preset is "google" but clang-format failed or is not available. Falling back to minimal formatter.');
+        logger.warn('clang-format failed or is not available. Falling back to minimal formatter.');
         this.clangFormatWarningShown = true;
       }
     }

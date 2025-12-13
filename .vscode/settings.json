@@ -30,8 +30,8 @@
 
   // Formatter settings
   "protobuf.formatter.enabled": true,
-  "protobuf.formatter.preset": "google",
-  "protobuf.formatOnSave": false,
+  "protobuf.formatter.preset": "custom",
+  "protobuf.formatOnSave": true,
   "protobuf.clangFormat.enabled": true,
   "protobuf.clangFormat.configPath": "${workspaceFolder}/examples/regressions/clang-format-config/.clang-format",
 

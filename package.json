@@ -441,7 +441,7 @@
         "protobuf.clangFormat.enabled": {
           "type": "boolean",
           "default": false,
-          "description": "Use clang-format for formatting instead of built-in formatter"
+          "description": "Enable clang-format for formatting proto files. When enabled, clang-format will be used regardless of the formatter.preset setting. Requires clang-format to be installed."
         },
         "protobuf.clangFormat.path": {
           "type": "string",

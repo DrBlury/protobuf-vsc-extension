@@ -49,7 +49,8 @@ describe('ConfigManager', () => {
 
     formatter = {
       updateSettings: jest.fn(),
-      setBufPath: jest.fn()
+      setBufPath: jest.fn(),
+      setClangFormatEnabled: jest.fn()
     } as any;
 
     renumberProvider = {

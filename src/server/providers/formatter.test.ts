@@ -69,14 +69,37 @@ describe('ProtoFormatter', () => {
       expect(mockClangFormat.formatRange).toHaveBeenCalled();
     });
 
-    it('should fallback to minimal when clang-format returns empty', async () => {
+    it('should return empty array when clang-format returns empty (no changes needed)', async () => {
       formatter.updateSettings({ preset: 'google' });
       mockClangFormat.formatRange.mockResolvedValue([]);
 
       const text = 'message Test {}';
       const result = await formatter.formatDocument(text);
+      // Empty array means no changes needed - should NOT fall back to minimal formatter
+      expect(result).toHaveLength(0);
+    });
+
+    it('should fallback to minimal when clang-format returns null (failed)', async () => {
+      formatter.updateSettings({ preset: 'google' });
+      mockClangFormat.formatRange.mockResolvedValue(null);
+
+      const text = 'message Test {}';
+      const result = await formatter.formatDocument(text);
+      // null means failure - should fall back to minimal formatter
       expect(result).toHaveLength(1);
       expect(result[0].newText).toContain('message Test');
+    });
+
+    it('should use clang-format when clangFormatEnabled is true regardless of preset', async () => {
+      formatter.updateSettings({ preset: 'minimal' });
+      formatter.setClangFormatEnabled(true);
+      const text = 'message Test {}';
+      const edits = [{ range: Range.create(0, 0, 0, 10), newText: 'formatted' }];
+      mockClangFormat.formatRange.mockResolvedValue(edits);
+
+      const result = await formatter.formatDocument(text);
+      expect(result).toEqual(edits);
+      expect(mockClangFormat.formatRange).toHaveBeenCalled();
     });
 
     it('should use buf format when preset is buf', async () => {

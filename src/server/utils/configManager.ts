@@ -185,7 +185,9 @@ export function updateProvidersWithSettings(
     alignFields: settings.protobuf.formatter?.alignFields
   };
   formatter.updateSettings(formatterSettings);
-  logger.info(`Formatter settings updated: renumberOnFormat=${formatterSettings.renumberOnFormat}, preset=${formatterSettings.preset}, alignFields=${formatterSettings.alignFields}`);
+  // Pass clangFormat.enabled to formatter so it can use clang-format even without preset='google'
+  formatter.setClangFormatEnabled(settings.protobuf.clangFormat.enabled);
+  logger.info(`Formatter settings updated: renumberOnFormat=${formatterSettings.renumberOnFormat}, preset=${formatterSettings.preset}, alignFields=${formatterSettings.alignFields}, clangFormatEnabled=${settings.protobuf.clangFormat.enabled}`);
 
   // Update code actions settings
   if (codeActionsProvider) {
