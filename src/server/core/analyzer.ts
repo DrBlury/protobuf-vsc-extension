@@ -939,8 +939,15 @@ export class SemanticAnalyzer {
   }
 
   /**
-   * Compute a reasonable import path for targetUri from currentUri, preferring proto roots,
-   * then workspace roots, then relative path, and finally basename.
+   * Compute a reasonable import path for targetUri from currentUri.
+   *
+   * The algorithm prefers shorter, simpler paths that are still valid:
+   * 1. Same directory -> just filename
+   * 2. Forward-only relative path (e.g., "nested/file.proto") - simplest when target is a descendant
+   * 3. Short import path relative paths (when shorter than forward-only)
+   * 4. Workspace root relative paths
+   * 5. Relative path with parent traversal (e.g., "../other/file.proto")
+   * 6. Fallback to basename (only if target is at a root level)
    */
   getImportPathForFile(currentUri: string, targetUri: string): string {
     // Built-in virtual files (e.g., google well-known stubs)
@@ -970,41 +977,77 @@ export class SemanticAnalyzer {
       return targetBasename;
     }
 
-    const candidates: string[] = [];
+    // Collect all valid candidate paths
+    const candidates: Array<{ path: string; source: string }> = [];
 
-    for (const root of this.protoRoots) {
-      if (targetPath.startsWith(`${root}/`)) {
-        candidates.push(path.posix.relative(root, targetPath));
-      }
-    }
-
-    for (const root of this.workspaceRoots) {
-      if (targetPath.startsWith(`${root}/`)) {
-        candidates.push(path.posix.relative(root, targetPath));
-      }
-    }
-
+    // Forward-only relative path from current file (no parent traversal)
     const relativeToCurrent = path.posix.relative(currentDir, targetPath);
-    if (relativeToCurrent) {
-      candidates.push(relativeToCurrent);
+    if (relativeToCurrent && !relativeToCurrent.startsWith('..')) {
+      // This is the most intuitive path when target is a descendant of current dir
+      candidates.push({ path: relativeToCurrent, source: 'forward-relative' });
     }
 
-    // Only add basename as a candidate if the file is at a proto root level
-    // (i.e., importing "base.proto" only works if base.proto is directly in a proto root)
-    for (const root of [...this.protoRoots, ...this.workspaceRoots]) {
+    // Check explicitly configured import paths
+    for (const importPath of this.importPaths) {
+      const normalizedImportPath = importPath.replace(/\\/g, '/');
+      if (
+        currentPath.startsWith(`${normalizedImportPath}/`) &&
+        targetPath.startsWith(`${normalizedImportPath}/`)
+      ) {
+        const relPath = path.posix.relative(normalizedImportPath, targetPath);
+        candidates.push({ path: relPath, source: 'import-path' });
+      }
+    }
+
+    // Check workspace roots
+    for (const root of this.workspaceRoots) {
+      if (currentPath.startsWith(`${root}/`) && targetPath.startsWith(`${root}/`)) {
+        const relPath = path.posix.relative(root, targetPath);
+        candidates.push({ path: relPath, source: 'workspace-root' });
+      }
+    }
+
+    // Relative path with parent traversal (lower priority - only if no forward path)
+    if (relativeToCurrent && relativeToCurrent.startsWith('..')) {
+      candidates.push({ path: relativeToCurrent, source: 'parent-relative' });
+    }
+
+    // Only add basename as a candidate if the file is at an explicitly configured root level
+    for (const root of [...this.importPaths.map(p => p.replace(/\\/g, '/')), ...this.workspaceRoots]) {
       if (targetDir === root) {
-        candidates.push(targetBasename);
+        candidates.push({ path: targetBasename, source: 'basename' });
         break;
       }
     }
 
+    // Clean and deduplicate candidates
     const cleaned = candidates
-      .map(c => c.replace(/\\/g, '/'))
-      .filter(Boolean)
-      .sort((a, b) => a.length - b.length);
+      .map(c => ({ ...c, path: c.path.replace(/\\/g, '/') }))
+      .filter(c => c.path);
+
+    // Remove duplicates, keeping the first occurrence
+    const seen = new Set<string>();
+    const unique = cleaned.filter(c => {
+      if (seen.has(c.path)) return false;
+      seen.add(c.path);
+      return true;
+    });
+
+    // Sort primarily by path length (shorter is better), with tie-breaker for forward-relative
+    const sorted = unique.sort((a, b) => {
+      // If one is forward-relative and significantly shorter, prefer it
+      if (a.source === 'forward-relative' && a.path.length <= b.path.length) {
+        return -1;
+      }
+      if (b.source === 'forward-relative' && b.path.length < a.path.length) {
+        return 1;
+      }
+      // Otherwise sort by length
+      return a.path.length - b.path.length;
+    });
 
     // Fallback to relative path if no candidates found
-    return cleaned[0] ?? relativeToCurrent ?? targetBasename;
+    return sorted[0]?.path ?? relativeToCurrent ?? targetBasename;
   }
 
   private findMessageDefinition(

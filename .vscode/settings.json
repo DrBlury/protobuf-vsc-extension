@@ -32,7 +32,7 @@
   "protobuf.formatter.enabled": true,
   "protobuf.formatter.preset": "custom",
   "protobuf.formatOnSave": true,
-  "protobuf.clangFormat.enabled": false,
+  "protobuf.clangFormat.enabled": true,
   "protobuf.clangFormat.configPath": "${workspaceFolder}/examples/regressions/clang-format-config/.clang-format",
 
   // Debug and verbose logging
@@ -46,5 +46,6 @@
   "search.exclude": {
     "out": true
   },
-  "typescript.tsc.autoDetect": "off"
+  "typescript.tsc.autoDetect": "off",
+  "protobuf.clangFormat.path": "/opt/homebrew/bin/clang-format"
 }
