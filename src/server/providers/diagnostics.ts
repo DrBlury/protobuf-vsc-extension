@@ -356,21 +356,26 @@ export class DiagnosticsProvider {
     // Collect all field numbers and names for duplicate checking
     const fieldNumbers = new Map<number, FieldDefinition[]>();
     const fieldNames = new Map<string, FieldDefinition[]>();
-    const reservedNumbers = new Set<number>();
+    // Store reserved ranges as tuples [start, end] instead of expanding all numbers
+    // This avoids memory issues with large ranges like "reserved 1 to max;"
+    const reservedRanges: Array<[number, number]> = [];
     const reservedNames = new Set<string>();
 
     // Collect reserved numbers and names
     for (const reserved of message.reserved) {
       for (const range of reserved.ranges) {
         const end = range.end === 'max' ? MAX_FIELD_NUMBER : range.end;
-        for (let i = range.start; i <= end; i++) {
-          reservedNumbers.add(i);
-        }
+        reservedRanges.push([range.start, end]);
       }
       for (const name of reserved.names) {
         reservedNames.add(name);
       }
     }
+
+    // Helper to check if a number is in any reserved range
+    const isNumberReserved = (num: number): boolean => {
+      return reservedRanges.some(([start, end]) => num >= start && num <= end);
+    };
 
     // Validate fields
     const allFields = [
@@ -379,7 +384,7 @@ export class DiagnosticsProvider {
     ];
 
     for (const field of allFields) {
-      this.validateField(uri, field, fullName, diagnostics, reservedNumbers, reservedNames);
+      this.validateField(uri, field, fullName, diagnostics, isNumberReserved, reservedNames);
 
       // Collect for duplicate checking
       if (!fieldNumbers.has(field.number)) {
@@ -395,7 +400,7 @@ export class DiagnosticsProvider {
 
     // Validate map fields
     for (const mapField of message.maps) {
-      this.validateMapField(uri, mapField, fullName, diagnostics, reservedNumbers, reservedNames);
+      this.validateMapField(uri, mapField, fullName, diagnostics, isNumberReserved, reservedNames);
 
       // Add to duplicate detection
       if (!fieldNumbers.has(mapField.number)) {
@@ -411,7 +416,7 @@ export class DiagnosticsProvider {
 
     // Validate groups (proto2)
     for (const group of message.groups) {
-      this.validateGroup(uri, group, fullName, diagnostics, reservedNumbers, reservedNames);
+      this.validateGroup(uri, group, fullName, diagnostics, isNumberReserved, reservedNames);
 
       // Add to duplicate detection
       if (!fieldNumbers.has(group.number)) {
@@ -462,7 +467,7 @@ export class DiagnosticsProvider {
     }
 
     // Check numbering continuity (gaps/out-of-order) including oneof fields
-    this.checkFieldNumberContinuity(message, diagnostics, reservedNumbers);
+    this.checkFieldNumberContinuity(message, diagnostics, isNumberReserved);
 
     // Check for overlapping reserved ranges
     this.checkReservedOverlap(message, diagnostics);
@@ -496,7 +501,7 @@ export class DiagnosticsProvider {
     field: FieldDefinition,
     containerName: string,
     diagnostics: Diagnostic[],
-    reservedNumbers: Set<number>,
+    isNumberReserved: (num: number) => boolean,
     reservedNames: Set<string>
   ): void {
     // Check naming convention (snake_case)
@@ -531,7 +536,7 @@ export class DiagnosticsProvider {
       }
 
       // Check if using reserved number
-      if (reservedNumbers.has(field.number)) {
+      if (isNumberReserved(field.number)) {
         diagnostics.push({
           severity: DiagnosticSeverity.Error,
           range: this.toRange(field.range),
@@ -635,7 +640,7 @@ export class DiagnosticsProvider {
     },
     containerName: string,
     diagnostics: Diagnostic[],
-    reservedNumbers: Set<number>,
+    isNumberReserved: (num: number) => boolean,
     reservedNames: Set<string>
   ): void {
     // Check key type
@@ -704,7 +709,7 @@ export class DiagnosticsProvider {
         });
       }
 
-      if (reservedNumbers.has(mapField.number)) {
+      if (isNumberReserved(mapField.number)) {
         diagnostics.push({
           severity: DiagnosticSeverity.Error,
           range: this.toRange(mapField.range),
@@ -729,7 +734,7 @@ export class DiagnosticsProvider {
     group: GroupFieldDefinition,
     containerName: string,
     diagnostics: Diagnostic[],
-    reservedNumbers: Set<number>,
+    isNumberReserved: (num: number) => boolean,
     reservedNames: Set<string>
   ): void {
     // Check naming convention (PascalCase for group names)
@@ -753,7 +758,7 @@ export class DiagnosticsProvider {
         });
       }
 
-      if (reservedNumbers.has(group.number)) {
+      if (isNumberReserved(group.number)) {
         diagnostics.push({
           severity: DiagnosticSeverity.Error,
           range: this.toRange(group.range),
@@ -786,24 +791,27 @@ export class DiagnosticsProvider {
     // Groups are like messages, so we can validate them similarly
     const fullName = containerName ? `${containerName}.${group.name}` : group.name;
 
-    // Collect reserved numbers and names from group
-    const groupReservedNumbers = new Set<number>();
+    // Collect reserved numbers and names from group - use ranges instead of expanding
+    const groupReservedRanges: Array<[number, number]> = [];
     const groupReservedNames = new Set<string>();
     for (const reserved of group.reserved) {
       for (const range of reserved.ranges) {
         const end = range.end === 'max' ? MAX_FIELD_NUMBER : range.end;
-        for (let i = range.start; i <= end; i++) {
-          groupReservedNumbers.add(i);
-        }
+        groupReservedRanges.push([range.start, end]);
       }
       for (const name of reserved.names) {
         groupReservedNames.add(name);
       }
     }
 
+    // Helper to check if a number is in any group reserved range
+    const isGroupNumberReserved = (num: number): boolean => {
+      return groupReservedRanges.some(([start, end]) => num >= start && num <= end);
+    };
+
     // Validate fields in group
     for (const field of group.fields) {
-      this.validateField(uri, field, fullName, diagnostics, groupReservedNumbers, groupReservedNames);
+      this.validateField(uri, field, fullName, diagnostics, isGroupNumberReserved, groupReservedNames);
     }
 
     // Validate nested messages
@@ -1337,7 +1345,7 @@ export class DiagnosticsProvider {
     }
   }
 
-  private checkFieldNumberContinuity(message: MessageDefinition, diagnostics: Diagnostic[], reservedNumbers: Set<number>): void {
+  private checkFieldNumberContinuity(message: MessageDefinition, diagnostics: Diagnostic[], isNumberReserved: (num: number) => boolean): void {
     const fields = [
       ...message.fields,
       ...message.maps,
@@ -1367,7 +1375,7 @@ export class DiagnosticsProvider {
       if (gap > 0) {
         const missingNumbers = [] as number[];
         for (let n = prev + 1; n < current; n++) {
-          if ((n >= RESERVED_RANGE_START && n <= RESERVED_RANGE_END) || reservedNumbers.has(n)) {
+          if ((n >= RESERVED_RANGE_START && n <= RESERVED_RANGE_END) || isNumberReserved(n)) {
             continue;
           }
           missingNumbers.push(n);
