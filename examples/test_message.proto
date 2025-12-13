@@ -5,7 +5,7 @@ package testmessage;
  * This is a description in multiline
  */
 message TestMessage
-{
-  string content = 1;
-  int32 id = 2;  // identifier for the message
+{                      // just a comment
+  string content = 1;  // another comment
+  int32 id = 2;        // identifier for the message
 }
