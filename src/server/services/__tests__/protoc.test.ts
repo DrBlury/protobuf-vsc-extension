@@ -1382,9 +1382,9 @@ describe('ProtocCompiler', () => {
         }),
         kill: jest.fn().mockImplementation(() => {
           mockKill();
-          // Simulate process termination - trigger close callback
+          // Simulate process termination - trigger close callback synchronously
           if (closeCallback) {
-            process.nextTick(() => closeCallback!(null));
+            closeCallback(null);
           }
         })
       } as any;
@@ -1394,10 +1394,7 @@ describe('ProtocCompiler', () => {
       // Start a compile but don't let it finish
       const compilePromise = compiler.compileFile('/workspace/test.proto');
 
-      // Give it a moment to start
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Cancel all
+      // Cancel all - this will trigger the close callback synchronously
       compiler.cancelAll();
 
       // Should have called kill
