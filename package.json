@@ -241,6 +241,11 @@
           "default": true,
           "description": "Detect circular import dependencies"
         },
+        "protobuf.diagnostics.documentationComments": {
+          "type": "boolean",
+          "default": true,
+          "description": "Detect undocumented APIs"
+        },
         "protobuf.diagnostics.severity.namingConventions": {
           "type": "string",
           "enum": [

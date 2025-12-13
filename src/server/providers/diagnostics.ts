@@ -40,6 +40,7 @@ export interface DiagnosticsSettings {
   deprecatedUsage: boolean;
   unusedSymbols: boolean;
   circularDependencies: boolean;
+  documentationComments: boolean;
 }
 
 const DEFAULT_SETTINGS: DiagnosticsSettings = {
@@ -51,7 +52,8 @@ const DEFAULT_SETTINGS: DiagnosticsSettings = {
   discouragedConstructs: true,
   deprecatedUsage: true,
   unusedSymbols: false, // Off by default as it can be noisy
-  circularDependencies: true
+  circularDependencies: true,
+  documentationComments: true
 };
 
 export class DiagnosticsProvider {
@@ -159,7 +161,9 @@ export class DiagnosticsProvider {
     this.validateProto3FieldPresence(uri, file, diagnostics);
 
     // Validate documentation comments
-    this.validateDocumentationComments(uri, file, diagnostics);
+    if (this.settings.documentationComments) {
+      this.validateDocumentationComments(uri, file, diagnostics);
+    }
 
     return diagnostics;
   }

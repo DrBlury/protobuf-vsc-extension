@@ -95,6 +95,7 @@ The extension automatically detects `buf.yaml` files - no additional configurati
   "protobuf.diagnostics.deprecatedUsage": true,
   "protobuf.diagnostics.unusedSymbols": true,
   "protobuf.diagnostics.circularDependencies": true,
+  "protobuf.diagnostics.documentationComments": true,
   "protobuf.diagnostics.severity.namingConventions": "error",
   "protobuf.diagnostics.severity.referenceErrors": "error",
   "protobuf.diagnostics.severity.fieldTagIssues": "error"
@@ -193,6 +194,7 @@ The extension automatically detects `buf.yaml` files - no additional configurati
   "protobuf.diagnostics.discouragedConstructs": true,
   "protobuf.diagnostics.deprecatedUsage": true,
   "protobuf.diagnostics.circularDependencies": true,
+  "protobuf.diagnostics.documentationComments": true,
   "protobuf.diagnostics.severity.namingConventions": "warning",
   "protobuf.diagnostics.severity.referenceErrors": "error",
   "protobuf.diagnostics.severity.fieldTagIssues": "error",
