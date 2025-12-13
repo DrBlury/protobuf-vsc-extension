@@ -227,6 +227,36 @@ export class ProtocCompiler {
     });
   }
 
+  /**
+   * Analyze stderr to provide helpful suggestions for common errors
+   */
+  private analyzeErrorsForSuggestions(stderr: string): string | undefined {
+    // Check for missing import errors (Google well-known types)
+    if (stderr.includes('google/protobuf/') && stderr.includes('not found')) {
+      return 'Missing Google well-known types. Add --proto_path pointing to your protoc include directory (e.g., /usr/local/include or /opt/homebrew/include) in protobuf.protoc.options';
+    }
+
+    if (stderr.includes('google/type/') && stderr.includes('not found')) {
+      return 'Missing Google common types (google/type/*). These require googleapis. Either use buf with BSR dependencies, or download googleapis and add --proto_path to its location';
+    }
+
+    if (stderr.includes('google/api/') && stderr.includes('not found')) {
+      return 'Missing Google API types (google/api/*). These require googleapis. Either use buf with BSR dependencies (buf.build/googleapis/googleapis), or download from https://github.com/googleapis/googleapis';
+    }
+
+    // Check for generic import not found
+    if (stderr.includes('not found') || stderr.includes('File not found')) {
+      return 'Import file not found. Check that --proto_path in protobuf.protoc.options covers all your proto source directories';
+    }
+
+    // Check for type not defined errors
+    if (stderr.includes('is not defined') || stderr.includes('not defined in')) {
+      return 'Type not found. Ensure all required .proto files are imported and --proto_path settings are correct';
+    }
+
+    return undefined;
+  }
+
   private parseErrors(stderr: string): ProtocError[] {
     const errors: ProtocError[] = [];
     const lines = stderr.split('\n');
@@ -245,6 +275,20 @@ export class ProtocCompiler {
           column: colStr ? parseInt(colStr, 10) : 1,
           message: message!.trim(),
           severity: message!.toLowerCase().includes('warning') ? 'warning' : 'error'
+        });
+      }
+    }
+
+    // If we found errors, check if we can add a helpful suggestion
+    if (errors.length > 0) {
+      const suggestion = this.analyzeErrorsForSuggestions(stderr);
+      if (suggestion) {
+        errors.push({
+          file: '',
+          line: 0,
+          column: 0,
+          message: `💡 Tip: ${suggestion}`,
+          severity: 'warning'
         });
       }
     }

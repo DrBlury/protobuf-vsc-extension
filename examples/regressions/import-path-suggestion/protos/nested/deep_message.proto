@@ -6,7 +6,8 @@ syntax = "proto3";
 package protos.nested;
 
 // Deeply nested message
-message DeepMessage {
+message DeepMessage
+{
   string content = 1;
   int32 level = 2;
 }

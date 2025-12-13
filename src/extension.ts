@@ -669,9 +669,29 @@ breaking:
       } else if (tool === 'protoc' || legacyCompileOnSave) {
         // Use existing protoc compilation via language server
         try {
-          await client.sendRequest('protobuf/compileFile', { uri: document.uri.toString() });
+          const result = await client.sendRequest('protobuf/compileFile', { uri: document.uri.toString() }) as {
+            success: boolean;
+            stderr?: string;
+            errors?: Array<{ file: string; line: number; column: number; message: string }>;
+          };
+
+          if (!result.success) {
+            // Build detailed error message
+            let errorDetail = '';
+            if (result.errors && result.errors.length > 0) {
+              errorDetail = result.errors.map(e =>
+                e.file ? `${e.file}:${e.line}:${e.column}: ${e.message}` : e.message
+              ).join('\n');
+            } else if (result.stderr) {
+              errorDetail = result.stderr.trim();
+            }
+
+            outputChannel.appendLine(`Protoc compilation failed: ${errorDetail || 'Unknown error'}`);
+            outputChannel.show(true);
+          }
         } catch (err) {
           outputChannel.appendLine(`Protoc compilation failed: ${err}`);
+          outputChannel.show(true);
         }
       }
     })

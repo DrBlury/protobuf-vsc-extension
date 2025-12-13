@@ -1090,19 +1090,59 @@ connection.onRequest(REQUEST_METHODS.GET_PROTOC_VERSION, async () => {
 // Custom request handlers for external linter
 connection.onRequest(REQUEST_METHODS.RUN_EXTERNAL_LINTER, async (params: { uri: string }) => {
   const filePath = URI.parse(params.uri).fsPath;
-  return await providers.externalLinter.lint(filePath);
+  try {
+    const diagnostics = await providers.externalLinter.lint(filePath);
+    return {
+      success: true,
+      diagnostics,
+      issueCount: diagnostics.length
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      success: false,
+      diagnostics: [],
+      issueCount: 0,
+      error: errorMessage,
+      errorInfo: {
+        message: errorMessage,
+        suggestion: 'Check that your linter (buf or protolint) is installed and configured correctly.',
+        settingKey: 'protobuf.externalLinter.linter'
+      }
+    };
+  }
 });
 
 connection.onRequest(REQUEST_METHODS.RUN_EXTERNAL_LINTER_WORKSPACE, async () => {
-  return await providers.externalLinter.lintWorkspace();
+  try {
+    const diagnosticsMap = await providers.externalLinter.lintWorkspace();
+    return {
+      success: true,
+      diagnosticsMap: Object.fromEntries(diagnosticsMap),
+      fileCount: diagnosticsMap.size
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      success: false,
+      diagnosticsMap: {},
+      fileCount: 0,
+      error: errorMessage
+    };
+  }
 });
 
 connection.onRequest(REQUEST_METHODS.IS_EXTERNAL_LINTER_AVAILABLE, async () => {
-  return await providers.externalLinter.isAvailable();
+  const available = await providers.externalLinter.isAvailable();
+  return {
+    available,
+    linter: providers.externalLinter['settings']?.linter || 'none'
+  };
 });
 
 connection.onRequest(REQUEST_METHODS.GET_AVAILABLE_LINT_RULES, async () => {
-  return await providers.externalLinter.getAvailableRules();
+  const rules = await providers.externalLinter.getAvailableRules();
+  return { rules };
 });
 
 // Custom request handlers for breaking change detection

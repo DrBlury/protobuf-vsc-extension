@@ -21,13 +21,14 @@ package example;
 // Message that uses types from subdirectory protos
 // When you type "BaseMessage" or "DeepMessage" here, the extension
 // should suggest adding the correct import paths.
-message TestMessage {
+message TestMessage
+{
   string test_field = 1;
-  
+
   // To test: type "protos.BaseMessage" and check the import suggestion
   // The extension should suggest: import "protos/base.proto";
   // NOT: import "base.proto";
-  
+
   // To test: type "protos.nested.DeepMessage" and check the import suggestion
   // The extension should suggest: import "protos/nested/deep_message.proto";
   // NOT: import "deep_message.proto";
