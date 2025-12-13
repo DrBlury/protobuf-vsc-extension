@@ -5,7 +5,7 @@
 import * as vscode from 'vscode';
 import { LanguageClient } from 'vscode-languageclient/node';
 import { REQUEST_METHODS, VALIDATION_MESSAGES, SUCCESS_MESSAGES } from '../../server/utils/constants';
-import { createWorkspaceEditFromTextEdits, applyWorkspaceEditWithMessage } from '../textEditHelpers';
+import { createWorkspaceEditFromTextEdits, applyWorkspaceEditWithMessage } from '../utils/textEditHelpers';
 
 /**
  * Registers all renumber-related commands

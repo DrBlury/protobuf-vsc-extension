@@ -16,33 +16,25 @@ import { SemanticAnalyzer } from '../core/analyzer';
 import { RenumberProvider } from './renumber';
 import { FIELD_NUMBER } from '../utils/constants';
 import { logger } from '../utils/logger';
+import {
+  CodeActionContext,
+  CodeActionsSettings,
+  DEFAULT_CODE_ACTIONS_SETTINGS,
+  splitLines
+} from './codeActions/index';
+import {
+  findEnclosingMessageName,
+  findEnclosingEnumName,
+  getWordAtRange
+} from './codeActions/index';
 
-/**
- * Split text into lines, handling both CRLF (\r\n) and LF (\n) line endings.
- */
-function splitLines(text: string): string[] {
-  return text.split('\n').map(line => line.endsWith('\r') ? line.slice(0, -1) : line);
-}
-
-export interface CodeActionContext {
-  diagnostics: Diagnostic[];
-  only?: CodeActionKind[];
-}
-
-export interface CodeActionsSettings {
-  renumberOnFormat?: boolean;
-  formatterEnabled?: boolean;
-}
-
-const DEFAULT_SETTINGS: CodeActionsSettings = {
-  renumberOnFormat: false,
-  formatterEnabled: true
-};
+// Re-export types for external consumers
+export { CodeActionContext, CodeActionsSettings } from './codeActions/index';
 
 export class CodeActionsProvider {
   private analyzer: SemanticAnalyzer;
   private renumberProvider: RenumberProvider;
-  private settings: CodeActionsSettings = DEFAULT_SETTINGS;
+  private settings: CodeActionsSettings = DEFAULT_CODE_ACTIONS_SETTINGS;
 
   constructor(analyzer: SemanticAnalyzer, renumberProvider: RenumberProvider) {
     this.analyzer = analyzer;
@@ -107,7 +99,7 @@ export class CodeActionsProvider {
           actions.push(renumberAction);
         }
 
-        const messageName = this.findEnclosingMessageName(range, documentText);
+        const messageName = findEnclosingMessageName(range, documentText);
         if (messageName) {
           const addNumbers = this.createNumberFieldsInMessageAction(uri, documentText, range, messageName);
           if (addNumbers) {
@@ -131,7 +123,7 @@ export class CodeActionsProvider {
 
     // Quick-fix: renumber only the current enum if applicable
     // Check enum first - if inside an enum, don't show message renumber action
-    const enumName = this.findEnclosingEnumName(range, documentText);
+    const enumName = findEnclosingEnumName(range, documentText);
     if (enumName) {
       const enumRenumber = this.createRenumberEnumAction(uri, documentText, enumName);
       if (enumRenumber) {
@@ -140,7 +132,7 @@ export class CodeActionsProvider {
     } else {
       // Quick-fix: renumber only the current message if applicable
       // Only add this if there's no diagnostic-triggered renumber action already added
-      const messageName = this.findEnclosingMessageName(range, documentText);
+      const messageName = findEnclosingMessageName(range, documentText);
       const hasRenumberDiagnostic = context.diagnostics.some(d => {
         const msg = d.message.toLowerCase();
         return msg.includes('not strictly increasing') ||
@@ -219,7 +211,7 @@ export class CodeActionsProvider {
                 }
             });
 
-             actions.push({
+            actions.push({
                 title: 'Copy Go Switch Snippet',
                 kind: CodeActionKind.Refactor,
                 command: {
@@ -539,69 +531,13 @@ export class CodeActionsProvider {
     };
   }
 
-  private findEnclosingMessageName(range: Range, documentText: string): string | null {
-    const lines = splitLines(documentText);
-    let braceDepth = 0;
-
-    for (let i = range.start.line; i >= 0; i--) {
-      const line = lines[i];
-      if (!line) {
-        continue;
-      }
-
-      for (const ch of line) {
-        if (ch === '{') {
-          braceDepth--;
-        }
-        if (ch === '}') {
-          braceDepth++;
-        }
-      }
-
-      const match = line.match(/\bmessage\s+(\w+)/);
-      if (match && braceDepth <= 0) {
-        return match[1] ?? null;
-      }
-    }
-
-    return null;
-  }
-
-  private findEnclosingEnumName(range: Range, documentText: string): string | null {
-    const lines = splitLines(documentText);
-    let braceDepth = 0;
-
-    for (let i = range.start.line; i >= 0; i--) {
-      const line = lines[i];
-      if (!line) {
-        continue;
-      }
-
-      for (const ch of line) {
-        if (ch === '{') {
-          braceDepth--;
-        }
-        if (ch === '}') {
-          braceDepth++;
-        }
-      }
-
-      const match = line.match(/\benum\s+(\w+)/);
-      if (match && braceDepth <= 0) {
-        return match[1] ?? null;
-      }
-    }
-
-    return null;
-  }
-
   private getQuickFixes(uri: string, diagnostic: Diagnostic, documentText: string): CodeAction[] {
     const fixes: CodeAction[] = [];
     const message = diagnostic.message.toLowerCase();
 
     // Fix naming conventions
     if (message.includes('should be pascalcase')) {
-      const word = this.getWordAtRange(documentText, diagnostic.range);
+      const word = getWordAtRange(documentText, diagnostic.range);
       if (word) {
         const pascalCase = this.toPascalCase(word);
         fixes.push(this.createQuickFix(
@@ -678,7 +614,7 @@ export class CodeActionsProvider {
     }
 
     if (message.includes('duplicate field number') && message.includes('oneof')) {
-      const messageName = this.findEnclosingMessageName(diagnostic.range, documentText);
+      const messageName = findEnclosingMessageName(diagnostic.range, documentText);
       if (messageName) {
         const renumber = this.createRenumberMessageAction(uri, documentText, messageName);
         if (renumber) {
@@ -933,7 +869,7 @@ export class CodeActionsProvider {
     }
 
     if (/screaming_snake_case/i.test(message)) {
-      const word = this.getWordAtRange(documentText, diagnostic.range);
+      const word = getWordAtRange(documentText, diagnostic.range);
       if (word) {
         const screamingSnakeCase = this.toScreamingSnakeCase(word);
         fixes.push(this.createQuickFix(
@@ -947,7 +883,7 @@ export class CodeActionsProvider {
     }
 
     if (/snake_case/i.test(message)) {
-      const word = this.getWordAtRange(documentText, diagnostic.range);
+      const word = getWordAtRange(documentText, diagnostic.range);
       // Avoid offering lowercase snake_case for identifiers that are already screaming snake case (enum values)
       if (word && !/^[A-Z][A-Z0-9_]*$/.test(word)) {
         const snakeCase = this.toSnakeCase(word);
@@ -996,7 +932,7 @@ export class CodeActionsProvider {
     }
 
     if (message.includes('not strictly increasing') || message.includes('gap in field numbers')) {
-      const messageName = this.findEnclosingMessageName(diagnostic.range, documentText);
+      const messageName = findEnclosingMessageName(diagnostic.range, documentText);
       if (messageName) {
         const renumber = this.createRenumberMessageAction(uri, documentText, messageName);
         if (renumber) {
@@ -1877,16 +1813,6 @@ export class CodeActionsProvider {
     }
 
     return nextNumber;
-  }
-
-  private getWordAtRange(documentText: string, range: Range): string | null {
-    const lines = splitLines(documentText);
-    const line = lines[range.start.line];
-    if (!line) {
-      return null;
-    }
-
-    return line.substring(range.start.character, range.end.character);
   }
 
   private isInsideMessage(documentText: string, lineNumber: number): boolean {

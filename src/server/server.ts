@@ -35,8 +35,6 @@ import {
 } from 'vscode-languageserver/node';
 
 import * as fs from 'fs';
-import * as path from 'path';
-import { pathToFileURL } from 'url';
 import { URI } from 'vscode-uri';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
@@ -60,8 +58,6 @@ import {
 // Utilities
 import { logger, LogLevel } from './utils/logger';
 import {
-  PROTOC_INCLUDE_PATHS,
-  GOOGLE_WELL_KNOWN_TEST_FILE,
   REQUEST_METHODS,
   DIAGNOSTIC_SOURCE,
   ERROR_CODES,
@@ -70,7 +66,6 @@ import {
 } from './utils/constants';
 import { normalizePath, getErrorMessage } from './utils/utils';
 import { Settings, defaultSettings } from './utils/types';
-import { GOOGLE_WELL_KNOWN_FILES, GOOGLE_WELL_KNOWN_PROTOS } from './utils/googleWellKnown';
 import { scanWorkspaceForProtoFiles, scanImportPaths } from './utils/workspace';
 import { updateProvidersWithSettings } from './utils/configManager';
 import { debounce } from './utils/debounce';
@@ -79,6 +74,10 @@ import { ProviderRegistry } from './utils/providerRegistry';
 import { refreshDocumentAndImports } from './utils/documentRefresh';
 import { handleCompletion, handleHover } from './handlers';
 import { bufConfigProvider } from './services/bufConfig';
+
+// Initialization helpers
+import { discoverWellKnownIncludePath, preloadGoogleWellKnownProtos } from './initialization';
+import { getServerCapabilities } from './initialization';
 
 // Shared types
 import { SchemaGraphRequest } from '../shared/schemaGraph';
@@ -163,45 +162,9 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
 
   // Preload Google well-known protos after we know cache/include paths so
   // go-to-definition uses real file URIs where possible.
-  preloadGoogleWellKnownProtos(wellKnownIncludePath, providers.parser, providers.analyzer);
+  preloadGoogleWellKnownProtos(wellKnownIncludePath, providers.parser, providers.analyzer, wellKnownCacheDir);
 
-  return {
-    capabilities: {
-      textDocumentSync: TextDocumentSyncKind.Incremental,
-      completionProvider: {
-        resolveProvider: false,
-        triggerCharacters: ['.', '"', '<', ' ']
-      },
-      hoverProvider: true,
-      definitionProvider: true,
-      referencesProvider: true,
-      documentSymbolProvider: true,
-      workspaceSymbolProvider: true,
-      documentFormattingProvider: true,
-      documentRangeFormattingProvider: true,
-      foldingRangeProvider: true,
-      renameProvider: {
-        prepareProvider: true
-      },
-      codeActionProvider: {
-        codeActionKinds: [
-          'quickfix',
-          'refactor',
-          'refactor.extract',
-          'refactor.rewrite',
-          'source',
-          'source.fixAll',
-          'source.organizeImports'
-        ]
-      },
-      codeLensProvider: {
-        resolveProvider: false
-      },
-      documentLinkProvider: {
-        resolveProvider: false
-      }
-    }
-  };
+  return getServerCapabilities();
 });
 
 connection.onExit(() => {
@@ -253,93 +216,6 @@ connection.onInitialized(async () => {
   scanWorkspaceForProtoFiles(workspaceFolders, providers.parser, providers.analyzer, protoSrcsDir);
 });
 
-
-/**
- * Add minimal built-in definitions for Google well-known protos.
- * This avoids "Unknown type google.protobuf.*" when users import them
- * without having the source files in their workspace.
- */
-function preloadGoogleWellKnownProtos(
-  discoveredIncludePath: string | undefined,
-  _parser: ProtoParser,
-  _analyzer: SemanticAnalyzer
-): void {
-  const resourcesRoot = path.join(__dirname, '..', '..', 'resources');
-
-  for (const [importPath, fallbackContent] of Object.entries(GOOGLE_WELL_KNOWN_PROTOS)) {
-    const relativePath = GOOGLE_WELL_KNOWN_FILES[importPath];
-
-    // Order: discovered include path (user/system protoc), bundled resource, inline fallback
-    const fromDiscovered = discoveredIncludePath
-      ? path.join(discoveredIncludePath, importPath)
-      : undefined;
-    const fromResource = relativePath ? path.join(resourcesRoot, relativePath) : undefined;
-    const fromCache = wellKnownCacheDir ? path.join(wellKnownCacheDir, importPath) : undefined;
-
-    const firstExisting = [fromDiscovered, fromResource, fromCache].find(
-      p => p && fs.existsSync(p)
-    );
-
-    let filePath = firstExisting;
-    let content = filePath ? fs.readFileSync(filePath, 'utf-8') : fallbackContent;
-
-    // If nothing exists yet but we have a cache dir, materialize the fallback into cache
-    if (!filePath && fromCache) {
-      try {
-        fs.mkdirSync(path.dirname(fromCache), { recursive: true });
-        fs.writeFileSync(fromCache, fallbackContent, 'utf-8');
-        filePath = fromCache;
-        content = fallbackContent;
-      } catch (e) {
-        logger.errorWithContext('Failed to write well-known cache', {
-          uri: fromCache,
-          error: e
-        });
-      }
-    }
-
-    const uri = filePath
-      ? pathToFileURL(filePath).toString()
-      : `builtin:///${importPath}`;
-
-    try {
-        const file = providers.parser.parse(content, uri);
-        providers.analyzer.updateFile(uri, file);
-    } catch (e) {
-      logger.errorWithContext('Failed to preload well-known proto', {
-        uri: importPath,
-        error: e
-      });
-    }
-  }
-}
-
-/**
- * Locate a protoc include directory that contains google/protobuf/timestamp.proto.
- * Checks env hint then common install locations.
- */
-function discoverWellKnownIncludePath(): string | undefined {
-  const candidates: string[] = [];
-
-  if (process.env.PROTOC_INCLUDE) {
-    candidates.push(...process.env.PROTOC_INCLUDE.split(path.delimiter));
-  }
-
-  candidates.push(...PROTOC_INCLUDE_PATHS);
-
-  for (const base of candidates) {
-    if (!base) {
-      continue;
-    }
-    const testPath = path.join(base, GOOGLE_WELL_KNOWN_TEST_FILE);
-    if (fs.existsSync(testPath)) {
-      logger.debug(`Discovered protoc include path: ${base}`);
-      return base;
-    }
-  }
-
-  return undefined;
-}
 
 // Handle file changes from workspace file watcher
 connection.onDidChangeWatchedFiles((params: DidChangeWatchedFilesParams) => {

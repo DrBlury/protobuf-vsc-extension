@@ -29,60 +29,27 @@ import { SemanticAnalyzer } from '../core/analyzer';
 import { ERROR_CODES, DIAGNOSTIC_SOURCE } from '../utils/constants';
 import { logger } from '../utils/logger';
 import { bufConfigProvider } from '../services/bufConfig';
+import {
+  DiagnosticsSettings,
+  DEFAULT_DIAGNOSTICS_SETTINGS,
+  isExternalDependencyFile
+} from './diagnostics/index';
+import {
+  isPascalCase,
+  isSnakeCase,
+  isScreamingSnakeCase
+} from './diagnostics/index';
 
-export interface DiagnosticsSettings {
-  namingConventions: boolean;
-  referenceChecks: boolean;
-  importChecks: boolean;
-  fieldTagChecks: boolean;
-  duplicateFieldChecks: boolean;
-  discouragedConstructs: boolean;
-  deprecatedUsage: boolean;
-  unusedSymbols: boolean;
-  circularDependencies: boolean;
-  documentationComments: boolean;
-}
-
-const DEFAULT_SETTINGS: DiagnosticsSettings = {
-  namingConventions: true,
-  referenceChecks: true,
-  importChecks: true,
-  fieldTagChecks: true,
-  duplicateFieldChecks: true,
-  discouragedConstructs: true,
-  deprecatedUsage: true,
-  unusedSymbols: false, // Off by default as it can be noisy
-  circularDependencies: true,
-  documentationComments: true
-};
+// Re-export for external consumers
+export { DiagnosticsSettings } from './diagnostics/index';
 
 export class DiagnosticsProvider {
   private analyzer: SemanticAnalyzer;
-  private settings: DiagnosticsSettings = DEFAULT_SETTINGS;
+  private settings: DiagnosticsSettings = DEFAULT_DIAGNOSTICS_SETTINGS;
   private currentDocumentText?: string;
-
-  // Common patterns for external dependency directories
-  private static readonly EXTERNAL_DEP_PATTERNS = [
-    '/.buf-deps/',      // Buf exported dependencies
-    '/vendor/',         // Go vendor directory
-    '/third_party/',    // Common third-party directory
-    '/external/',       // External dependencies
-    '/node_modules/',   // Node modules (unlikely for proto but possible)
-  ];
 
   constructor(analyzer: SemanticAnalyzer) {
     this.analyzer = analyzer;
-  }
-
-  /**
-   * Check if a file is in an external dependency directory
-   * These files should not be validated as they are managed by external tools
-   */
-  private isExternalDependencyFile(uri: string): boolean {
-    const normalizedUri = uri.replace(/\\/g, '/');
-    return DiagnosticsProvider.EXTERNAL_DEP_PATTERNS.some(pattern =>
-      normalizedUri.includes(pattern)
-    );
   }
 
   updateSettings(settings: Partial<DiagnosticsSettings>): void {
@@ -92,7 +59,7 @@ export class DiagnosticsProvider {
   validate(uri: string, file: ProtoFile, documentText?: string): Diagnostic[] {
     // Skip validation for external dependency files (e.g., .buf-deps, vendor directories)
     // These are generated/exported files that should be validated by their source tools
-    if (this.isExternalDependencyFile(uri)) {
+    if (isExternalDependencyFile(uri)) {
       return [];
     }
 
@@ -376,7 +343,7 @@ export class DiagnosticsProvider {
     logger.verbose(`Validating message '${fullName}' with ${message.fields.length} fields, ${message.oneofs.length} oneofs`);
 
     // Check naming convention (PascalCase)
-    if (this.settings.namingConventions && !this.isPascalCase(message.name)) {
+    if (this.settings.namingConventions && !isPascalCase(message.name)) {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
         range: this.toRange(message.nameRange),
@@ -512,7 +479,7 @@ export class DiagnosticsProvider {
 
     // Validate oneofs
     for (const oneof of message.oneofs) {
-      if (this.settings.namingConventions && !this.isSnakeCase(oneof.name)) {
+      if (this.settings.namingConventions && !isSnakeCase(oneof.name)) {
         diagnostics.push({
           severity: DiagnosticSeverity.Warning,
           range: this.toRange(oneof.nameRange),
@@ -533,7 +500,7 @@ export class DiagnosticsProvider {
     reservedNames: Set<string>
   ): void {
     // Check naming convention (snake_case)
-    if (this.settings.namingConventions && !this.isSnakeCase(field.name)) {
+    if (this.settings.namingConventions && !isSnakeCase(field.name)) {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
         range: this.toRange(field.nameRange),
@@ -717,7 +684,7 @@ export class DiagnosticsProvider {
     }
 
     // Check naming convention
-    if (this.settings.namingConventions && !this.isSnakeCase(mapField.name)) {
+    if (this.settings.namingConventions && !isSnakeCase(mapField.name)) {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
         range: this.toRange(mapField.nameRange),
@@ -766,7 +733,7 @@ export class DiagnosticsProvider {
     reservedNames: Set<string>
   ): void {
     // Check naming convention (PascalCase for group names)
-    if (this.settings.namingConventions && !this.isPascalCase(group.name)) {
+    if (this.settings.namingConventions && !isPascalCase(group.name)) {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
         range: this.toRange(group.nameRange),
@@ -857,7 +824,7 @@ export class DiagnosticsProvider {
     diagnostics: Diagnostic[]
   ): void {
     // Check naming convention (PascalCase)
-    if (this.settings.namingConventions && !this.isPascalCase(enumDef.name)) {
+    if (this.settings.namingConventions && !isPascalCase(enumDef.name)) {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
         range: this.toRange(enumDef.nameRange),
@@ -872,7 +839,7 @@ export class DiagnosticsProvider {
 
     for (const value of enumDef.values) {
       // Check naming convention (SCREAMING_SNAKE_CASE)
-      if (this.settings.namingConventions && !this.isScreamingSnakeCase(value.name)) {
+      if (this.settings.namingConventions && !isScreamingSnakeCase(value.name)) {
         diagnostics.push({
           severity: DiagnosticSeverity.Warning,
           range: this.toRange(value.nameRange),
@@ -963,7 +930,7 @@ export class DiagnosticsProvider {
     diagnostics: Diagnostic[]
   ): void {
     // Check naming convention (PascalCase)
-    if (this.settings.namingConventions && !this.isPascalCase(service.name)) {
+    if (this.settings.namingConventions && !isPascalCase(service.name)) {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
         range: this.toRange(service.nameRange),
@@ -975,7 +942,7 @@ export class DiagnosticsProvider {
     // Validate RPCs
     for (const rpc of service.rpcs) {
       // Check naming convention (PascalCase)
-      if (this.settings.namingConventions && !this.isPascalCase(rpc.name)) {
+      if (this.settings.namingConventions && !isPascalCase(rpc.name)) {
         diagnostics.push({
           severity: DiagnosticSeverity.Warning,
           range: this.toRange(rpc.nameRange),
@@ -1184,18 +1151,6 @@ export class DiagnosticsProvider {
         }
       }
     }
-  }
-
-  private isPascalCase(name: string): boolean {
-    return /^[A-Z][a-zA-Z0-9]*$/.test(name);
-  }
-
-  private isSnakeCase(name: string): boolean {
-    return /^[a-z][a-z0-9_]*$/.test(name);
-  }
-
-  private isScreamingSnakeCase(name: string): boolean {
-    return /^[A-Z][A-Z0-9_]*$/.test(name);
   }
 
   private ensureImported(
