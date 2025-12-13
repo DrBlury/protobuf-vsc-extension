@@ -1,0 +1,19 @@
+// Example file demonstrating GitHub issue #35
+// This file is in a subdirectory (protos/) and should be imported as
+// "protos/base.proto" not just "base.proto"
+syntax = "proto3";
+
+package protos;
+
+// Base message that other protos can import
+message BaseMessage {
+  string id = 1;
+  string name = 2;
+}
+
+// Common status enum
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_ACTIVE = 1;
+  STATUS_INACTIVE = 2;
+}

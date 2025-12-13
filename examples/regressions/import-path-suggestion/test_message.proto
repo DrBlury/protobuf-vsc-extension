@@ -1,0 +1,34 @@
+// Example file demonstrating GitHub issue #35
+// This file is at the root level and wants to import from subdirectories.
+//
+// CORRECT imports:
+//   import "protos/base.proto";
+//   import "protos/nested/deep_message.proto";
+//
+// INCORRECT imports (these would NOT work):
+//   import "base.proto";              // Wrong! File is not at same level
+//   import "deep_message.proto";      // Wrong! File is not at same level
+//
+// The extension should suggest the correct paths, not just the filenames.
+syntax = "proto3";
+
+package example;
+
+// TODO: Uncomment these imports after the extension suggests them
+// import "protos/base.proto";
+// import "protos/nested/deep_message.proto";
+
+// Message that uses types from subdirectory protos
+// When you type "BaseMessage" or "DeepMessage" here, the extension
+// should suggest adding the correct import paths.
+message TestMessage {
+  string test_field = 1;
+  
+  // To test: type "protos.BaseMessage" and check the import suggestion
+  // The extension should suggest: import "protos/base.proto";
+  // NOT: import "base.proto";
+  
+  // To test: type "protos.nested.DeepMessage" and check the import suggestion
+  // The extension should suggest: import "protos/nested/deep_message.proto";
+  // NOT: import "deep_message.proto";
+}

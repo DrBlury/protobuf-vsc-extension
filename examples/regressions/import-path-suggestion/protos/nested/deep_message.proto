@@ -1,0 +1,12 @@
+// Example file demonstrating GitHub issue #35
+// This file is deeply nested and should be imported as
+// "protos/nested/deep_message.proto" not just "deep_message.proto"
+syntax = "proto3";
+
+package protos.nested;
+
+// Deeply nested message
+message DeepMessage {
+  string content = 1;
+  int32 level = 2;
+}

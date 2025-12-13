@@ -945,6 +945,15 @@ export class SemanticAnalyzer {
       return path.basename(targetPath);
     }
 
+    const currentDir = path.posix.dirname(currentPath);
+    const targetDir = path.posix.dirname(targetPath);
+    const targetBasename = path.basename(targetPath);
+
+    // If both files are in the same directory, use just the filename
+    if (currentDir === targetDir) {
+      return targetBasename;
+    }
+
     const candidates: string[] = [];
 
     for (const root of this.protoRoots) {
@@ -959,19 +968,27 @@ export class SemanticAnalyzer {
       }
     }
 
-    const relativeToCurrent = path.posix.relative(path.posix.dirname(currentPath), targetPath);
+    const relativeToCurrent = path.posix.relative(currentDir, targetPath);
     if (relativeToCurrent) {
       candidates.push(relativeToCurrent);
     }
 
-    candidates.push(path.basename(targetPath));
+    // Only add basename as a candidate if the file is at a proto root level
+    // (i.e., importing "base.proto" only works if base.proto is directly in a proto root)
+    for (const root of [...this.protoRoots, ...this.workspaceRoots]) {
+      if (targetDir === root) {
+        candidates.push(targetBasename);
+        break;
+      }
+    }
 
     const cleaned = candidates
       .map(c => c.replace(/\\/g, '/'))
       .filter(Boolean)
       .sort((a, b) => a.length - b.length);
 
-    return cleaned[0]!;
+    // Fallback to relative path if no candidates found
+    return cleaned[0] ?? relativeToCurrent ?? targetBasename;
   }
 
   private findMessageDefinition(
