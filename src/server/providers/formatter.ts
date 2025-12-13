@@ -9,6 +9,14 @@ import { ClangFormatProvider } from '../services/clangFormat';
 import { BufFormatProvider } from '../services/bufFormat';
 import { logger } from '../utils/logger';
 
+/**
+ * Split text into lines, handling both CRLF (\r\n) and LF (\n) line endings.
+ * Strips trailing \r from lines to ensure consistent line lengths for range calculations.
+ */
+function splitLines(text: string): string[] {
+  return text.split('\n').map(line => line.endsWith('\r') ? line.slice(0, -1) : line);
+}
+
 export interface FormatterSettings {
   indentSize: number;
   useTabIndent: boolean;
@@ -58,8 +66,8 @@ export class ProtoFormatter {
 
   async formatDocument(text: string, uri?: string): Promise<TextEdit[]> {
     if (this.settings.preset === 'google' && this.clangFormat) {
-      const lines = text.split('\n');
-      const range = Range.create(0, 0, lines.length, lines[lines.length - 1]!.length);
+      const lines = splitLines(text);
+      const range = Range.create(0, 0, lines.length - 1, lines[lines.length - 1]!.length);
       const filePath = this.getFsPathFromUri(uri);
       const edits = await this.clangFormat.formatRange(text, range, filePath);
       if (edits && edits.length > 0) {
@@ -76,9 +84,9 @@ export class ProtoFormatter {
       const filePath = this.getFsPathFromUri(uri);
       const formatted = await this.bufFormat.format(text, filePath);
       if (formatted) {
-        const lines = text.split('\n');
+        const lines = splitLines(text);
         return [{
-          range: Range.create(0, 0, lines.length, lines[lines.length - 1]!.length),
+          range: Range.create(0, 0, lines.length - 1, lines[lines.length - 1]!.length),
           newText: formatted
         }];
       }
@@ -90,7 +98,7 @@ export class ProtoFormatter {
     }
 
     const formatted = this.format(text);
-    const lines = text.split('\n');
+    const lines = splitLines(text);
 
     return [{
       range: {
@@ -117,7 +125,7 @@ export class ProtoFormatter {
 
     // Buf doesn't support range formatting easily, fall back to minimal
 
-    const lines = text.split('\n');
+    const lines = splitLines(text);
     const startLine = range.start.line;
     const endLine = range.end.line;
 
@@ -150,7 +158,7 @@ export class ProtoFormatter {
   }
 
   private format(text: string): string {
-    const lines = text.split('\n');
+    const lines = splitLines(text);
 
     // If alignment is enabled, first pass to collect alignment info
     let alignmentInfo: Map<number, AlignmentData> | undefined;
@@ -609,7 +617,7 @@ export class ProtoFormatter {
   }
 
   private formatRangeWithIndent(text: string, startIndentLevel: number): string {
-    const lines = text.split('\n');
+    const lines = splitLines(text);
     const formattedLines: string[] = [];
     let indentLevel = startIndentLevel;
 
@@ -640,7 +648,7 @@ export class ProtoFormatter {
    * Removes gaps like 1,2,3,5,6 -> 1,2,3,4,5
    */
   private renumberFields(text: string): string {
-    const lines = text.split('\n');
+    const lines = splitLines(text);
     const result: string[] = [];
 
     // Stack to track context: each entry is { type: 'message'|'enum'|'oneof', fieldCounter: number }

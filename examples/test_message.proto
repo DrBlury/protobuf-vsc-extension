@@ -1,0 +1,8 @@
+syntax="proto3";
+
+package testmessage;
+
+message TestMessage {
+	string content = 1;
+	int32 id = 2; // identifier for the message
+}

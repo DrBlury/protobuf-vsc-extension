@@ -271,4 +271,80 @@ message User {
       expect(actions.length).toBeGreaterThan(0);
     });
   });
+
+  describe('CRLF line ending handling', () => {
+    it('should handle CRLF line endings in code actions', () => {
+      // CRLF line endings (Windows style)
+      const text = 'syntax = "proto3";\r\nmessage Test {\r\n  string name = 1;\r\n  int32 id = 5;\r\n}\r\n';
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const range = Range.create(2, 0, 2, 20);
+      const actions = provider.getCodeActions(uri, range, { diagnostics: [] }, text);
+
+      // Should still produce valid actions
+      expect(actions.length).toBeGreaterThan(0);
+
+      // If there are edits, they should not corrupt types
+      for (const action of actions) {
+        if (action.edit?.changes?.[uri]) {
+          for (const edit of action.edit.changes[uri]) {
+            expect(edit.newText).not.toContain('iint32');
+            expect(edit.newText).not.toContain('sstring');
+          }
+        }
+      }
+    });
+
+    it('should calculate correct ranges for CRLF files', () => {
+      // Proto with CRLF containing multiple types
+      const text = 'syntax = "proto3";\r\nmessage Test {\r\n  uint32 count = 1;\r\n  sint64 value = 2;\r\n}\r\n';
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const range = Range.create(2, 0, 3, 20);
+      const actions = provider.getCodeActions(uri, range, { diagnostics: [] }, text);
+
+      // Verify no type corruption in any action's edit
+      for (const action of actions) {
+        if (action.edit?.changes?.[uri]) {
+          for (const edit of action.edit.changes[uri]) {
+            // Types should not have first char duplicated
+            expect(edit.newText).not.toContain('uuint32');
+            expect(edit.newText).not.toContain('ssint64');
+          }
+        }
+      }
+    });
+
+    it('should handle enum with CRLF line endings', () => {
+      const text = 'syntax = "proto3";\r\nenum Status {\r\n  UNKNOWN = 0\r\n  ACTIVE = 1\r\n}\r\n';
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const range = Range.create(2, 0, 3, 14);
+      const actions = provider.getCodeActions(uri, range, { diagnostics: [] }, text);
+
+      // Should produce fix semicolon action for enum values missing semicolons
+      const semicolonAction = actions.find(a => a.title && a.title.includes('semicolon'));
+      expect(semicolonAction).toBeDefined();
+    });
+
+    it('should handle mixed LF/CRLF in code actions', () => {
+      // Mixed line endings - edge case
+      const text = 'syntax = "proto3";\r\nmessage Test {\n  string name = 1;\r\n  int32 id = 2;\n}\r\n';
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const range = Range.create(1, 0, 4, 1);
+      const actions = provider.getCodeActions(uri, range, { diagnostics: [] }, text);
+
+      // Should still produce actions without crashing
+      expect(actions).toBeDefined();
+    });
+  });
 });

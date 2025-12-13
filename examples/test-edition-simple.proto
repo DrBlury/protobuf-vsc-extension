@@ -4,5 +4,5 @@ package test;
 
 message SimpleEdition {
 	string name = 1;
-	int32 id = 2; // DUPLICATE
+	int32 id = 2; // identifier for the message
 }

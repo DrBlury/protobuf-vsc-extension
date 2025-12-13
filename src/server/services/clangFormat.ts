@@ -8,6 +8,13 @@ import { TextEdit, Range } from 'vscode-languageserver/node';
 import * as path from 'path';
 import { logger } from '../utils/logger';
 
+/**
+ * Split text into lines, handling both CRLF (\r\n) and LF (\n) line endings.
+ */
+function splitLines(text: string): string[] {
+  return text.split('\n').map(line => line.endsWith('\r') ? line.slice(0, -1) : line);
+}
+
 export interface ClangFormatSettings {
   enabled: boolean;
   path: string;
@@ -93,7 +100,7 @@ export class ClangFormatProvider {
       return [];
     }
 
-    const lines = text.split('\n');
+    const lines = splitLines(text);
     return [{
       range: {
         start: { line: 0, character: 0 },
@@ -111,7 +118,7 @@ export class ClangFormatProvider {
       return [];
     }
 
-    const lines = text.split('\n');
+    const lines = splitLines(text);
 
     // Calculate byte offsets for the range
     let offset = 0;

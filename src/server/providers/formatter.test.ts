@@ -594,4 +594,137 @@ message Test {
       expect(formatted).toContain('string');
     });
   });
+
+  describe('CRLF line ending handling', () => {
+    it('should handle CRLF line endings in proto3 files', async () => {
+      formatter.updateSettings({ preset: 'minimal', alignFields: true });
+      // CRLF line endings (Windows style)
+      const text = 'syntax="proto3";\r\n\r\npackage test;\r\n\r\nmessage Test {\r\n  string name = 1;\r\n  int32 id = 2;\r\n}\r\n';
+
+      const result = await formatter.formatDocument(text);
+      expect(result).toHaveLength(1);
+
+      // The range should be correct and not cause text corruption
+      const range = result[0].range;
+      expect(range.start.line).toBe(0);
+      expect(range.start.character).toBe(0);
+
+      // The formatted text should not have corrupted types
+      const formatted = result[0].newText;
+      expect(formatted).toContain('int32');
+      expect(formatted).not.toContain('iint32');
+      expect(formatted).toContain('string');
+      expect(formatted).not.toContain('sstring');
+    });
+
+    it('should handle CRLF line endings in edition files', async () => {
+      formatter.updateSettings({ preset: 'minimal', alignFields: true });
+      // CRLF line endings (Windows style)
+      const text = 'edition = "2023";\r\n\r\npackage test;\r\n\r\nmessage Test {\r\n  string name = 1;\r\n  uint32 count = 2;\r\n}\r\n';
+
+      const result = await formatter.formatDocument(text);
+      expect(result).toHaveLength(1);
+
+      const formatted = result[0].newText;
+      expect(formatted).toContain('uint32');
+      expect(formatted).not.toContain('uuint32');
+      expect(formatted).toContain('string');
+      expect(formatted).not.toContain('sstring');
+    });
+
+    it('should produce correct range for CRLF files with trailing newline', async () => {
+      formatter.updateSettings({ preset: 'minimal' });
+      const text = 'message Test {\r\n  string a = 1;\r\n}\r\n';
+
+      const result = await formatter.formatDocument(text);
+      const range = result[0].range;
+
+      // 4 lines total (0, 1, 2, 3), last line is empty string after final \r\n
+      expect(range.end.line).toBe(3);
+      expect(range.end.character).toBe(0); // Empty last line
+    });
+
+    it('should produce correct range for CRLF files without trailing newline', async () => {
+      formatter.updateSettings({ preset: 'minimal' });
+      const text = 'message Test {\r\n  string a = 1;\r\n}';
+
+      const result = await formatter.formatDocument(text);
+      const range = result[0].range;
+
+      // 3 lines total (0, 1, 2)
+      expect(range.end.line).toBe(2);
+      expect(range.end.character).toBe(1); // "}" is 1 character
+    });
+
+    it('should handle mixed LF and CRLF (edge case)', async () => {
+      formatter.updateSettings({ preset: 'minimal' });
+      // Mix of CRLF and LF - should still work
+      const text = 'message Test {\r\n  string a = 1;\n  int32 b = 2;\r\n}\n';
+
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      expect(formatted).toContain('string');
+      expect(formatted).toContain('int32');
+      expect(formatted).not.toContain('iint32');
+    });
+
+    it('should correctly format all builtin types with CRLF', async () => {
+      formatter.updateSettings({ preset: 'minimal', alignFields: true });
+      const types = [
+        'double', 'float', 'int32', 'int64', 'uint32', 'uint64',
+        'sint32', 'sint64', 'fixed32', 'fixed64', 'sfixed32', 'sfixed64',
+        'bool', 'string', 'bytes'
+      ];
+
+      const fields = types.map((t, i) => `  ${t} field_${t} = ${i + 1};`).join('\r\n');
+      const text = `syntax="proto3";\r\n\r\nmessage Test {\r\n${fields}\r\n}\r\n`;
+
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      // Verify no type is corrupted (first char duplicated)
+      for (const type of types) {
+        expect(formatted).toContain(type);
+        // Check that the first character isn't duplicated
+        const doubledType = type[0] + type;
+        expect(formatted).not.toContain(doubledType);
+      }
+    });
+
+    it('should handle CRLF in range formatting', async () => {
+      formatter.updateSettings({ preset: 'minimal' });
+      const text = 'message Test {\r\n  string name=1;\r\n  int32 id=2;\r\n}\r\n';
+      const range = Range.create(1, 0, 2, 13); // Format lines 1-2
+
+      const result = await formatter.formatRange(text, range);
+      expect(result).toHaveLength(1);
+
+      const formatted = result[0].newText;
+      expect(formatted).toContain('int32');
+      expect(formatted).not.toContain('iint32');
+    });
+
+    it('should preserve content correctly when formatting CRLF proto3 file', async () => {
+      formatter.updateSettings({ preset: 'minimal', renumberOnFormat: false });
+      const text = 'syntax="proto3";\r\n\r\npackage testpkg;\r\n\r\nmessage TestMessage {\r\n\tstring content = 1;\r\n\tint32 id = 2; // comment\r\n}\r\n';
+
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      // All content should be preserved
+      expect(formatted).toContain('syntax');
+      expect(formatted).toContain('proto3');
+      expect(formatted).toContain('package testpkg');
+      expect(formatted).toContain('TestMessage');
+      expect(formatted).toContain('string content = 1');
+      expect(formatted).toContain('int32');
+      expect(formatted).toContain('id');
+      expect(formatted).toContain('// comment');
+
+      // Types should not be corrupted
+      expect(formatted).not.toContain('sstring');
+      expect(formatted).not.toContain('iint32');
+    });
+  });
 });

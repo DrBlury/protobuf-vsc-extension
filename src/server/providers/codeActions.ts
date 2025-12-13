@@ -17,6 +17,13 @@ import { RenumberProvider } from './renumber';
 import { FIELD_NUMBER } from '../utils/constants';
 import { logger } from '../utils/logger';
 
+/**
+ * Split text into lines, handling both CRLF (\r\n) and LF (\n) line endings.
+ */
+function splitLines(text: string): string[] {
+  return text.split('\n').map(line => line.endsWith('\r') ? line.slice(0, -1) : line);
+}
+
 export interface CodeActionContext {
   diagnostics: Diagnostic[];
   only?: CodeActionKind[];
@@ -157,7 +164,7 @@ export class CodeActionsProvider {
 
   private getScaffoldingActions(_uri: string, range: Range, documentText: string): CodeAction[] {
     const actions: CodeAction[] = [];
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
     const line = lines[range.start.line];
 
     if (!line) {
@@ -287,7 +294,7 @@ export class CodeActionsProvider {
   }
 
   private createAddMissingSemicolonsAction(uri: string, documentText: string): CodeAction | null {
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
     const edits: TextEdit[] = [];
 
     const fieldLike = /^(?:optional|required|repeated)?\s*([A-Za-z_][\w<>.,]*)\s+([A-Za-z_][\w]*)(?:\s*=\s*\d+)?/;
@@ -459,7 +466,7 @@ export class CodeActionsProvider {
    * - Convert 'required' to features.field_presence = LEGACY_REQUIRED
    */
   private createFixEditionsModifiersAction(uri: string, documentText: string): CodeAction | null {
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
     const edits: TextEdit[] = [];
 
     // Check if this is an editions file
@@ -533,7 +540,7 @@ export class CodeActionsProvider {
   }
 
   private findEnclosingMessageName(range: Range, documentText: string): string | null {
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
     let braceDepth = 0;
 
     for (let i = range.start.line; i >= 0; i--) {
@@ -561,7 +568,7 @@ export class CodeActionsProvider {
   }
 
   private findEnclosingEnumName(range: Range, documentText: string): string | null {
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
     let braceDepth = 0;
 
     for (let i = range.start.line; i >= 0; i--) {
@@ -608,7 +615,7 @@ export class CodeActionsProvider {
     }
 
     if (message.includes('missing semicolon')) {
-      const lines = documentText.split('\n');
+      const lines = splitLines(documentText);
       const line = lines[diagnostic.range.start.line] || '';
 
       fixes.push({
@@ -647,7 +654,7 @@ export class CodeActionsProvider {
     }
 
     if (message.includes('package') && message.includes('does not appear to match directory')) {
-      const lines = documentText.split('\n');
+      const lines = splitLines(documentText);
       const pkgLine = diagnostic.range.start.line;
       const pkgLineText = lines[pkgLine] || '';
       const suggested = this.inferPackageFromUri(uri) || 'package.name';
@@ -681,7 +688,7 @@ export class CodeActionsProvider {
     }
 
     if (message.includes('should not use modifier') && message.includes('oneof')) {
-      const lines = documentText.split('\n');
+      const lines = splitLines(documentText);
       const lineIndex = diagnostic.range.start.line;
       const line = lines[lineIndex] || '';
       const newLine = line.replace(/\b(optional|required|repeated)\s+/, '');
@@ -733,7 +740,7 @@ export class CodeActionsProvider {
 
     // Handle unresolved imports - use original message for regex extraction
     if (message.includes('cannot be resolved') && message.includes('import')) {
-      const lines = documentText.split('\n');
+      const lines = splitLines(documentText);
       const lineIndex = diagnostic.range.start.line;
       const line = lines[lineIndex] || '';
 
@@ -792,7 +799,7 @@ export class CodeActionsProvider {
     }
 
     if (message.includes('unused import')) {
-      const lines = documentText.split('\n');
+      const lines = splitLines(documentText);
       const lineIndex = diagnostic.range.start.line;
       const line = lines[lineIndex] || '';
 
@@ -922,7 +929,7 @@ export class CodeActionsProvider {
         const insertPosition = this.findImportInsertPosition(documentText);
 
         // Remove the wrong import line if present; simple replace strategy
-        const lines = documentText.split('\n');
+        const lines = splitLines(documentText);
         const edits: TextEdit[] = [];
         lines.forEach((line, idx) => {
           if (line.includes(`"${found}"`)) {
@@ -962,7 +969,7 @@ export class CodeActionsProvider {
 
     // Fix required is deprecated
     if (message.includes("'required' is deprecated")) {
-      const lines = documentText.split('\n');
+      const lines = splitLines(documentText);
       const line = lines[diagnostic.range.start.line];
       if (!line) {
         return fixes;
@@ -1005,7 +1012,7 @@ export class CodeActionsProvider {
           const nextNumber = this.findNextAvailableFieldNumber(file, documentText, diagnostic.range);
 
           // Find the field number in the line and suggest changing it
-          const lines = documentText.split('\n');
+          const lines = splitLines(documentText);
           const line = lines[diagnostic.range.start.line];
           if (line) {
             const numberMatch = line.match(/=\s*(\d+)/);
@@ -1034,7 +1041,7 @@ export class CodeActionsProvider {
       if (file) {
         const nextNumber = this.findNextAvailableFieldNumber(file, documentText, diagnostic.range);
 
-        const lines = documentText.split('\n');
+        const lines = splitLines(documentText);
         const line = lines[diagnostic.range.start.line];
 
         if (line) {
@@ -1055,7 +1062,7 @@ export class CodeActionsProvider {
 
     // Fix 'optional' not allowed in editions - convert to field_presence feature
     if (message.includes("'optional' label is not allowed in editions")) {
-      const lines = documentText.split('\n');
+      const lines = splitLines(documentText);
       const lineIndex = diagnostic.range.start.line;
       const line = lines[lineIndex];
 
@@ -1116,7 +1123,7 @@ export class CodeActionsProvider {
 
     // Fix 'required' not allowed in editions - convert to field_presence feature
     if (message.includes("'required' label is not allowed in editions")) {
-      const lines = documentText.split('\n');
+      const lines = splitLines(documentText);
       const lineIndex = diagnostic.range.start.line;
       const line = lines[lineIndex];
 
@@ -1178,7 +1185,7 @@ export class CodeActionsProvider {
 
   private getRefactoringActions(uri: string, range: Range, documentText: string): CodeAction[] {
     const actions: CodeAction[] = [];
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
     const line = lines[range.start.line];
 
     if (!line) {
@@ -1361,7 +1368,7 @@ export class CodeActionsProvider {
   }
 
   private findImportInsertPosition(documentText: string): Position {
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
     let lastImportLine = -1;
     let syntaxLine = -1;
     let packageLine = -1;
@@ -1411,7 +1418,7 @@ export class CodeActionsProvider {
   }
 
   private replaceOptionValue(uri: string, diagnostic: Diagnostic, documentText: string, valueText: string): CodeAction {
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
     const lineIndex = diagnostic.range.start.line;
     const line = lines[lineIndex] || '';
 
@@ -1436,7 +1443,7 @@ export class CodeActionsProvider {
   }
 
   private fillRpcType(uri: string, range: Range, documentText: string, which: 'request' | 'response'): CodeAction | null {
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
     const lineIndex = range.start.line;
     const line = lines[lineIndex] || '';
     let newLine = line;
@@ -1489,7 +1496,7 @@ export class CodeActionsProvider {
   }
 
   private createFixImportsAction(uri: string, diagnostics: Diagnostic[], documentText: string): CodeAction | null {
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
 
     const missingImports = this.extractMissingImportPaths(diagnostics, documentText);
 
@@ -1555,7 +1562,7 @@ export class CodeActionsProvider {
     range: Range,
     messageName: string
   ): CodeAction | null {
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
 
     // Find message bounds
     let startLine = -1;
@@ -1679,7 +1686,7 @@ export class CodeActionsProvider {
 
   private getAddEnumZeroValueEdit(documentText: string, range: Range): TextEdit[] {
     // Find the opening brace of the enum
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
     let braceLineIndex = -1;
 
     for (let i = range.start.line; i >= 0; i--) {
@@ -1717,7 +1724,7 @@ export class CodeActionsProvider {
   }
 
   private findNextAvailableFieldNumber(_file: ProtoFile, documentText: string, range: Range): number {
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
     const usedNumbers = new Set<number>();
 
     // Find the containing message
@@ -1787,7 +1794,7 @@ export class CodeActionsProvider {
   }
 
   private getWordAtRange(documentText: string, range: Range): string | null {
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
     const line = lines[range.start.line];
     if (!line) {
       return null;
@@ -1797,7 +1804,7 @@ export class CodeActionsProvider {
   }
 
   private isInsideMessage(documentText: string, lineNumber: number): boolean {
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
     let braceCount = 0;
 
     for (let i = 0; i < lineNumber; i++) {
@@ -1839,7 +1846,7 @@ export class CodeActionsProvider {
   }
 
   private createProto3ConversionEdit(uri: string, documentText: string, messageName: string): { changes: { [uri: string]: TextEdit[] } } | undefined {
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
     const edits: TextEdit[] = [];
     let inMessage = false;
     let braceDepth = 0;
@@ -1912,7 +1919,7 @@ export class CodeActionsProvider {
    * Organize imports: sort them and remove duplicates
    */
   private createOrganizeImportsAction(uri: string, documentText: string): CodeAction | null {
-    const lines = documentText.split('\n');
+    const lines = splitLines(documentText);
     const importLines: { line: number; text: string; modifier?: string }[] = [];
     const otherLines: { line: number; text: string }[] = [];
     let inImportsSection = false;
