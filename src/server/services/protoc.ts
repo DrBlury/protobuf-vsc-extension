@@ -339,16 +339,31 @@ export class ProtocCompiler {
       args.push(`--proto_path=${protoPath}`);
     }
 
-    // Add proto_path for the directory containing the file(s)
-    // This is required by protoc - files must reside within a --proto_path
+    // Check if files are covered by user proto paths
+    // A proto_path covers a file if the file is under that path
     const fileProtoPaths = new Set<string>();
     for (const file of files) {
-      const fileDir = this.normalizePath(path.dirname(path.resolve(file)));
-      // Only add if not already covered by user proto paths
-      if (fileDir && !userProtoPaths.has(fileDir)) {
-        fileProtoPaths.add(fileDir);
+      const resolvedFile = this.normalizePath(path.resolve(file));
+      const fileDir = path.dirname(resolvedFile);
+
+      // Check if any user proto path covers this file
+      let coveredByUserPath = false;
+      for (const protoPath of userProtoPaths) {
+        if (this.isPathUnder(resolvedFile, protoPath)) {
+          coveredByUserPath = true;
+          break;
+        }
+      }
+
+      // If not covered by user paths, add the file's directory as a proto_path
+      if (!coveredByUserPath) {
+        const normalizedDir = this.normalizePath(fileDir);
+        if (normalizedDir) {
+          fileProtoPaths.add(normalizedDir);
+        }
       }
     }
+
     for (const protoPath of fileProtoPaths) {
       args.push(`--proto_path=${protoPath}`);
     }
@@ -359,17 +374,24 @@ export class ProtocCompiler {
     }
 
     // Combine all proto paths for file path resolution
-    const allProtoPaths = new Set([...userProtoPaths, ...fileProtoPaths]);
+    const allProtoPaths = [...userProtoPaths, ...fileProtoPaths];
 
-    // Add the files - use basename if the file's directory is in proto paths
+    // Add the files - use path relative to covering proto_path
     for (const file of files) {
-      const resolvedFile = path.resolve(file);
-      const fileDir = this.normalizePath(path.dirname(resolvedFile));
-      const fileName = path.basename(resolvedFile);
+      const resolvedFile = this.normalizePath(path.resolve(file));
 
-      // If file's directory is covered by a proto_path, use relative name
-      if (fileDir && allProtoPaths.has(fileDir)) {
-        args.push(fileName);
+      // Find which proto_path covers this file and compute relative path
+      let relativePath: string | null = null;
+      for (const protoPath of allProtoPaths) {
+        if (this.isPathUnder(resolvedFile, protoPath)) {
+          relativePath = path.relative(protoPath, resolvedFile);
+          break;
+        }
+      }
+
+      if (relativePath !== null) {
+        // Use forward slashes for protoc compatibility
+        args.push(relativePath.split(path.sep).join('/'));
       } else if (this.settings.useAbsolutePath) {
         args.push(resolvedFile);
       } else {
@@ -378,6 +400,26 @@ export class ProtocCompiler {
     }
 
     return args;
+  }
+
+  /**
+   * Check if a file path is under a directory path.
+   * Returns true if filePath is inside dirPath.
+   */
+  private isPathUnder(filePath: string, dirPath: string): boolean {
+    const normalizedFile = this.normalizePath(filePath);
+    const normalizedDir = this.normalizePath(dirPath);
+
+    if (!normalizedFile || !normalizedDir) {
+      return false;
+    }
+
+    // File must start with dir path followed by a separator
+    // Or be exactly equal (for the case where file is in the proto_path root)
+    const relative = path.relative(normalizedDir, normalizedFile);
+
+    // If relative path starts with '..', the file is not under the directory
+    return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
   }
 
   /**

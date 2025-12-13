@@ -224,6 +224,42 @@ describe('ProtocCompiler', () => {
       expect(protoPathArg).toContain('/workspace/src/protos');
     });
 
+    it('should use relative path when user proto_path covers file directory', async () => {
+      // Key test: when user specifies a parent directory as proto_path,
+      // the file should use a relative path from that proto_path
+      compiler.updateSettings({
+        options: ['--proto_path=/workspace']
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/src/protos/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Should only have one proto path (the user specified one)
+      const protoPathArgs = args.filter(arg => arg.startsWith('--proto_path='));
+      expect(protoPathArgs.length).toBe(1);
+      expect(protoPathArgs[0]).toContain('/workspace');
+
+      // File should be relative to proto_path: src/protos/test.proto
+      const fileArg = args.find(arg => arg.includes('test.proto'));
+      expect(fileArg).toBe('src/protos/test.proto');
+    });
+
     it('should include user-configured proto paths before file directory', async () => {
       // User proto paths should come first for import resolution
       compiler.updateSettings({
@@ -618,6 +654,37 @@ describe('ProtocCompiler', () => {
       expect(result).toContain('protos');
       // Should be an absolute path
       expect(result.startsWith('/') || /^[A-Z]:/i.test(result)).toBe(true);
+    });
+  });
+
+  describe('isPathUnder (internal)', () => {
+    it('should return true when file is under directory', () => {
+      const isPathUnder = (compiler as any).isPathUnder.bind(compiler);
+
+      expect(isPathUnder('/workspace/src/test.proto', '/workspace')).toBe(true);
+      expect(isPathUnder('/workspace/src/protos/test.proto', '/workspace')).toBe(true);
+      expect(isPathUnder('/workspace/src/protos/test.proto', '/workspace/src')).toBe(true);
+    });
+
+    it('should return false when file is not under directory', () => {
+      const isPathUnder = (compiler as any).isPathUnder.bind(compiler);
+
+      expect(isPathUnder('/other/src/test.proto', '/workspace')).toBe(false);
+      expect(isPathUnder('/workspace-extra/test.proto', '/workspace')).toBe(false);
+    });
+
+    it('should return false for same path (file equals dir)', () => {
+      const isPathUnder = (compiler as any).isPathUnder.bind(compiler);
+
+      // A file cannot be "under" itself as a directory
+      expect(isPathUnder('/workspace', '/workspace')).toBe(false);
+    });
+
+    it('should handle empty paths', () => {
+      const isPathUnder = (compiler as any).isPathUnder.bind(compiler);
+
+      expect(isPathUnder('', '/workspace')).toBe(false);
+      expect(isPathUnder('/workspace/test.proto', '')).toBe(false);
     });
   });
 
