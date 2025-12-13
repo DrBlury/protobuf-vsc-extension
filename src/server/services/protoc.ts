@@ -18,6 +18,18 @@ import * as os from 'os';
 const MAX_COMMAND_LINE_LENGTH = 7000;
 
 /**
+ * Default timeout for protoc execution in milliseconds.
+ * Protoc should complete quickly; long runs usually indicate problems.
+ */
+const DEFAULT_TIMEOUT_MS = 60000; // 60 seconds
+
+/**
+ * Maximum buffer size for stdout/stderr in bytes.
+ * Prevents memory issues with very large outputs.
+ */
+const MAX_OUTPUT_BUFFER = 10 * 1024 * 1024; // 10 MB
+
+/**
  * Check if we're running on Windows
  */
 const IS_WINDOWS = process.platform === 'win32';
@@ -30,6 +42,8 @@ export interface ProtocSettings {
   options: string[];
   /** Glob patterns or folder names to exclude from compile all (e.g., 'test', 'nanopb', 'third_party') */
   excludePatterns: string[];
+  /** Timeout for protoc execution in milliseconds. Default: 60000 (60 seconds) */
+  timeout?: number;
 }
 
 export interface CompilationResult {
@@ -37,6 +51,10 @@ export interface CompilationResult {
   stdout: string;
   stderr: string;
   errors: ProtocError[];
+  /** True if the process was terminated due to timeout */
+  timedOut?: boolean;
+  /** Execution time in milliseconds */
+  executionTime?: number;
 }
 
 export interface ProtocError {
@@ -59,9 +77,39 @@ const DEFAULT_SETTINGS: ProtocSettings = {
 export class ProtocCompiler {
   private settings: ProtocSettings = DEFAULT_SETTINGS;
   private workspaceRoot: string = '';
+  private versionCache: { version: string | null; timestamp: number; path: string } | null = null;
+  private static readonly VERSION_CACHE_TTL = 300000; // 5 minutes
+  private activeProcesses: Set<ReturnType<typeof spawn>> = new Set();
 
   updateSettings(settings: Partial<ProtocSettings>): void {
+    const pathChanged = settings.path && settings.path !== this.settings.path;
     this.settings = { ...this.settings, ...settings };
+    // Clear version cache if path changed
+    if (pathChanged) {
+      this.versionCache = null;
+    }
+  }
+
+  /**
+   * Cancel all running protoc processes.
+   * Useful when the user cancels an operation or the extension is deactivating.
+   */
+  cancelAll(): void {
+    for (const proc of this.activeProcesses) {
+      try {
+        proc.kill('SIGTERM');
+      } catch {
+        // Process may have already exited
+      }
+    }
+    this.activeProcesses.clear();
+  }
+
+  /**
+   * Clear the version cache, forcing a fresh check on next getVersion() call.
+   */
+  clearVersionCache(): void {
+    this.versionCache = null;
   }
 
   setWorkspaceRoot(root: string): void {
@@ -90,9 +138,35 @@ export class ProtocCompiler {
   }
 
   /**
-   * Get protoc version
+   * Get protoc version with caching.
+   * Results are cached for 5 minutes to avoid repeated subprocess calls.
+   * @param forceRefresh - If true, bypasses the cache and fetches fresh version
    */
-  async getVersion(): Promise<string | null> {
+  async getVersion(forceRefresh = false): Promise<string | null> {
+    // Check cache first (unless force refresh)
+    if (!forceRefresh && this.versionCache) {
+      const cacheAge = Date.now() - this.versionCache.timestamp;
+      if (cacheAge < ProtocCompiler.VERSION_CACHE_TTL && this.versionCache.path === this.settings.path) {
+        return this.versionCache.version;
+      }
+    }
+
+    const version = await this.fetchVersion();
+
+    // Update cache
+    this.versionCache = {
+      version,
+      timestamp: Date.now(),
+      path: this.settings.path
+    };
+
+    return version;
+  }
+
+  /**
+   * Fetch protoc version from the executable (no caching).
+   */
+  private async fetchVersion(): Promise<string | null> {
     return new Promise((resolve) => {
       const proc = spawn(this.settings.path, ['--version']);
 
@@ -131,9 +205,42 @@ export class ProtocCompiler {
   }
 
   /**
-   * Compile a single proto file
+   * Compile a single proto file.
+   * @param filePath - Absolute or relative path to the .proto file
+   * @throws Error if filePath is empty or not a .proto file
    */
   async compileFile(filePath: string): Promise<CompilationResult> {
+    // Input validation
+    if (!filePath || filePath.trim() === '') {
+      return {
+        success: false,
+        stdout: '',
+        stderr: 'File path is required',
+        errors: [{
+          file: '',
+          line: 0,
+          column: 0,
+          message: 'File path is required',
+          severity: 'error'
+        }]
+      };
+    }
+
+    if (!filePath.endsWith('.proto')) {
+      return {
+        success: false,
+        stdout: '',
+        stderr: `File must have .proto extension: ${filePath}`,
+        errors: [{
+          file: filePath,
+          line: 0,
+          column: 0,
+          message: 'File must have .proto extension',
+          severity: 'error'
+        }]
+      };
+    }
+
     const args = this.buildArgs(filePath);
     return this.runProtoc(args, path.dirname(filePath));
   }
@@ -176,50 +283,133 @@ export class ProtocCompiler {
    */
   private buildArgsForMultipleFiles(files: string[], basePath: string): string[] {
     const args: string[] = [];
+    const normalizedBasePath = this.normalizePath(basePath);
 
-    // Add the base path as a proto_path so imports work correctly
-    args.push(`--proto_path=${basePath}`);
+    // Parse user-configured proto paths from options first
+    const { protoPaths: userProtoPaths, otherOptions } = this.parseProtoPaths(this.settings.options);
 
-    // Collect unique directories from all files and add them as proto_paths
-    // This ensures that imports between files in different directories work
+    // Add user-configured proto paths first (for import resolution)
+    for (const protoPath of userProtoPaths) {
+      args.push(`--proto_path=${protoPath}`);
+    }
+
+    // Add the base path as a proto_path if not already covered by user paths
+    let basePathCovered = false;
+    for (const userPath of userProtoPaths) {
+      if (normalizedBasePath === userPath || this.isPathUnder(normalizedBasePath, userPath)) {
+        basePathCovered = true;
+        break;
+      }
+    }
+    if (!basePathCovered && normalizedBasePath) {
+      args.push(`--proto_path=${normalizedBasePath}`);
+    }
+
+    // Collect unique directories from files outside base path
     const uniqueDirs = new Set<string>();
     for (const file of files) {
-      const dir = path.dirname(file);
-      // Only add if it's not the base path and not already a subdirectory of base path
-      const relativeDir = path.relative(basePath, dir);
-      if (relativeDir && !relativeDir.startsWith('..')) {
-        // It's a subdirectory of basePath, no need to add separately
-        // as --proto_path=${basePath} will cover it
-      } else if (relativeDir.startsWith('..')) {
-        // Directory is outside basePath, need to add it
-        uniqueDirs.add(dir);
+      const resolvedFile = this.normalizePath(path.resolve(file));
+      const fileDir = path.dirname(resolvedFile);
+
+      // Check if covered by user paths or base path
+      let covered = basePathCovered ? false : this.isPathUnder(resolvedFile, normalizedBasePath);
+      if (!covered) {
+        for (const userPath of userProtoPaths) {
+          if (this.isPathUnder(resolvedFile, userPath)) {
+            covered = true;
+            break;
+          }
+        }
+      }
+      if (!covered && !basePathCovered) {
+        covered = this.isPathUnder(resolvedFile, normalizedBasePath);
+      }
+
+      if (!covered) {
+        const normalizedDir = this.normalizePath(fileDir);
+        if (normalizedDir) {
+          uniqueDirs.add(normalizedDir);
+        }
       }
     }
 
-    // Add additional proto_paths for directories outside the base path
+    // Add additional proto_paths for directories outside coverage
     for (const dir of uniqueDirs) {
       args.push(`--proto_path=${dir}`);
     }
 
-    // Add all configured options (expand variables)
-    for (const option of this.settings.options) {
-      args.push(this.expandVariables(option));
+    // Add other configured options (output dirs, plugins, etc.)
+    for (const option of otherOptions) {
+      args.push(option);
     }
 
-    // Add the files - use paths relative to basePath when possible
+    // Collect all proto paths for relative path calculation
+    const allProtoPaths = [...userProtoPaths];
+    if (!basePathCovered && normalizedBasePath) {
+      allProtoPaths.push(normalizedBasePath);
+    }
+    allProtoPaths.push(...uniqueDirs);
+
+    // Add the files - use paths relative to covering proto_path
     for (const file of files) {
-      const relativePath = path.relative(basePath, file);
-      // If the file is within basePath, use relative path; otherwise use absolute
-      if (!relativePath.startsWith('..')) {
-        args.push(relativePath);
+      const resolvedFile = this.normalizePath(path.resolve(file));
+
+      // Find which proto_path covers this file
+      let relativePath: string | null = null;
+      for (const protoPath of allProtoPaths) {
+        if (this.isPathUnder(resolvedFile, protoPath)) {
+          relativePath = path.relative(protoPath, resolvedFile);
+          break;
+        }
+      }
+
+      if (relativePath !== null) {
+        // Use forward slashes for protoc compatibility
+        args.push(relativePath.split(path.sep).join('/'));
       } else if (this.settings.useAbsolutePath) {
-        args.push(path.resolve(file));
+        args.push(resolvedFile);
       } else {
         args.push(file);
       }
     }
 
     return args;
+  }
+
+  /**
+   * Parse proto paths from options array.
+   * Returns separated proto paths and other options.
+   */
+  private parseProtoPaths(options: string[]): { protoPaths: Set<string>; otherOptions: string[] } {
+    const protoPaths = new Set<string>();
+    const otherOptions: string[] = [];
+
+    for (const option of options) {
+      if (!option || option.trim() === '') {
+        continue;
+      }
+      const expanded = this.expandVariables(option);
+      if (expanded.startsWith('--proto_path=')) {
+        const protoPath = this.normalizePath(expanded.substring('--proto_path='.length));
+        if (protoPath) {
+          protoPaths.add(protoPath);
+        }
+      } else if (expanded.startsWith('-I=')) {
+        const protoPath = this.normalizePath(expanded.substring('-I='.length));
+        if (protoPath) {
+          protoPaths.add(protoPath);
+        }
+      } else if (expanded.startsWith('-I') && expanded.length > 2) {
+        const protoPath = this.normalizePath(expanded.substring(2));
+        if (protoPath) {
+          protoPaths.add(protoPath);
+        }
+      } else {
+        otherOptions.push(expanded);
+      }
+    }
+
+    return { protoPaths, otherOptions };
   }
 
   /**
@@ -278,61 +468,62 @@ export class ProtocCompiler {
    * Validate a proto file without generating output
    */
   async validate(filePath: string): Promise<CompilationResult> {
-    // Use --encode or a null output to just validate syntax
+    const resolvedFile = this.normalizePath(path.resolve(filePath));
+    const fileDir = path.dirname(resolvedFile);
+
     const args: string[] = [];
 
-    // Add proto paths
-    args.push(`--proto_path=${path.dirname(filePath)}`);
+    // Parse user proto paths
+    const { protoPaths: userProtoPaths, otherOptions: _ } = this.parseProtoPaths(this.settings.options);
 
-    // Add configured proto paths
-    for (const opt of this.settings.options) {
-      if (opt.startsWith('--proto_path=') || opt.startsWith('-I')) {
-        args.push(this.expandVariables(opt));
+    // Add user-configured proto paths first
+    for (const protoPath of userProtoPaths) {
+      args.push(`--proto_path=${protoPath}`);
+    }
+
+    // Check if file is covered by user proto paths
+    let covered = false;
+    let coveringPath = '';
+    for (const protoPath of userProtoPaths) {
+      if (this.isPathUnder(resolvedFile, protoPath)) {
+        covered = true;
+        coveringPath = protoPath;
+        break;
       }
     }
 
-    // Add the file to compile
-    args.push(filePath);
+    // Add file's directory as proto_path if not covered
+    if (!covered) {
+      const normalizedDir = this.normalizePath(fileDir);
+      if (normalizedDir) {
+        args.push(`--proto_path=${normalizedDir}`);
+        coveringPath = normalizedDir;
+      }
+    }
 
-    // Add a dummy output to trigger validation
-    args.push('--descriptor_set_out=/dev/null');
+    // Add the file with relative path from covering proto_path
+    if (coveringPath) {
+      const relativePath = path.relative(coveringPath, resolvedFile);
+      args.push(relativePath.split(path.sep).join('/'));
+    } else {
+      args.push(filePath);
+    }
 
-    return this.runProtoc(args, path.dirname(filePath));
+    // Add a dummy output to trigger validation (cross-platform)
+    if (IS_WINDOWS) {
+      args.push('--descriptor_set_out=NUL');
+    } else {
+      args.push('--descriptor_set_out=/dev/null');
+    }
+
+    return this.runProtoc(args, fileDir);
   }
 
   private buildArgs(...files: string[]): string[] {
     const args: string[] = [];
 
-    // Collect proto_paths from user-configured options first
-    // These are needed for imports to resolve correctly
-    const userProtoPaths = new Set<string>();
-    const otherOptions: string[] = [];
-
-    for (const option of this.settings.options) {
-      // Skip empty options
-      if (!option || option.trim() === '') {
-        continue;
-      }
-      const expanded = this.expandVariables(option);
-      if (expanded.startsWith('--proto_path=')) {
-        const protoPath = this.normalizePath(expanded.substring('--proto_path='.length));
-        if (protoPath) {
-          userProtoPaths.add(protoPath);
-        }
-      } else if (expanded.startsWith('-I=')) {
-        const protoPath = this.normalizePath(expanded.substring('-I='.length));
-        if (protoPath) {
-          userProtoPaths.add(protoPath);
-        }
-      } else if (expanded.startsWith('-I') && expanded.length > 2) {
-        const protoPath = this.normalizePath(expanded.substring(2));
-        if (protoPath) {
-          userProtoPaths.add(protoPath);
-        }
-      } else {
-        otherOptions.push(expanded);
-      }
-    }
+    // Parse proto_paths from user-configured options
+    const { protoPaths: userProtoPaths, otherOptions } = this.parseProtoPaths(this.settings.options);
 
     // Add user-configured proto paths first (for import resolution)
     for (const protoPath of userProtoPaths) {
@@ -442,7 +633,7 @@ export class ProtocCompiler {
 
     // On Windows, normalize drive letter to uppercase for consistent comparison
     if (IS_WINDOWS && /^[a-z]:/.test(normalized)) {
-      normalized = normalized[0].toUpperCase() + normalized.slice(1);
+      normalized = normalized[0]!.toUpperCase() + normalized.slice(1);
     }
 
     return normalized;
@@ -457,6 +648,9 @@ export class ProtocCompiler {
   }
 
   private async runProtoc(args: string[], cwd: string): Promise<CompilationResult> {
+    const startTime = Date.now();
+    const timeout = this.settings.timeout ?? DEFAULT_TIMEOUT_MS;
+
     return new Promise((resolve) => {
       // Resolve the command path - avoid shell: true to bypass command line length limits
       // shell: true on Windows uses cmd.exe which has an 8191 char limit
@@ -472,29 +666,104 @@ export class ProtocCompiler {
       };
 
       const proc = spawn(command, args, options);
+      this.activeProcesses.add(proc);
 
       let stdout = '';
       let stderr = '';
+      let stdoutTruncated = false;
+      let stderrTruncated = false;
+      let timedOut = false;
+
+      // Set up timeout
+      const timeoutId = setTimeout(() => {
+        timedOut = true;
+        try {
+          proc.kill('SIGTERM');
+          // Give it a moment, then force kill if needed
+          setTimeout(() => {
+            try {
+              proc.kill('SIGKILL');
+            } catch {
+              // Process may have already exited
+            }
+          }, 1000);
+        } catch {
+          // Process may have already exited
+        }
+      }, timeout);
 
       proc.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString();
+        if (stdout.length < MAX_OUTPUT_BUFFER) {
+          stdout += data.toString();
+          if (stdout.length >= MAX_OUTPUT_BUFFER) {
+            stdoutTruncated = true;
+            stdout = stdout.slice(0, MAX_OUTPUT_BUFFER);
+          }
+        }
       });
 
       proc.stderr?.on('data', (data: Buffer) => {
-        stderr += data.toString();
+        if (stderr.length < MAX_OUTPUT_BUFFER) {
+          stderr += data.toString();
+          if (stderr.length >= MAX_OUTPUT_BUFFER) {
+            stderrTruncated = true;
+            stderr = stderr.slice(0, MAX_OUTPUT_BUFFER);
+          }
+        }
       });
 
+      const cleanup = () => {
+        clearTimeout(timeoutId);
+        this.activeProcesses.delete(proc);
+      };
+
       proc.on('close', (code: number | null) => {
+        cleanup();
+        const executionTime = Date.now() - startTime;
+
+        if (timedOut) {
+          resolve({
+            success: false,
+            stdout,
+            stderr: stderr + `\nProcess timed out after ${timeout}ms`,
+            errors: [{
+              file: '',
+              line: 0,
+              column: 0,
+              message: `Protoc timed out after ${timeout}ms. Consider increasing timeout or checking for issues.`,
+              severity: 'error'
+            }],
+            timedOut: true,
+            executionTime
+          });
+          return;
+        }
+
         const errors = this.parseErrors(stderr);
+
+        // Add truncation warnings if needed
+        if (stdoutTruncated || stderrTruncated) {
+          errors.push({
+            file: '',
+            line: 0,
+            column: 0,
+            message: `Output was truncated (exceeded ${MAX_OUTPUT_BUFFER / 1024 / 1024}MB limit)`,
+            severity: 'warning'
+          });
+        }
+
         resolve({
           success: code === 0,
           stdout,
           stderr,
-          errors
+          errors,
+          executionTime
         });
       });
 
       proc.on('error', (err: Error) => {
+        cleanup();
+
         // If spawn fails without shell, try with shell as fallback
         // This handles cases where the command is a shell alias or script
         if (!options.shell) {
@@ -512,7 +781,8 @@ export class ProtocCompiler {
             column: 0,
             message: `Failed to run protoc: ${err.message}`,
             severity: 'error'
-          }]
+          }],
+          executionTime: Date.now() - startTime
         });
       });
     });

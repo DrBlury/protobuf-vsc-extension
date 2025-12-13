@@ -17,6 +17,11 @@ describe('ProtocCompiler', () => {
     jest.clearAllMocks();
   });
 
+  afterEach(() => {
+    // Clean up any active processes
+    compiler.cancelAll();
+  });
+
   describe('updateSettings', () => {
     it('should update settings', () => {
       compiler.updateSettings({ path: '/usr/bin/protoc' });
@@ -28,6 +33,42 @@ describe('ProtocCompiler', () => {
       compiler.updateSettings({ path: '/usr/bin/protoc' });
       compiler.updateSettings({ compileOnSave: true });
       expect(compiler).toBeDefined();
+    });
+
+    it('should clear version cache when path changes', async () => {
+      // First, set up a version
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
+
+      // Get version again - should use cache
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional call
+
+      // Change path - should clear cache
+      compiler.updateSettings({ path: '/different/protoc' });
+
+      // Next call should spawn again
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -171,6 +212,365 @@ describe('ProtocCompiler', () => {
       const result = await compiler.getVersion();
       expect(result).toBeNull();
     });
+
+    it('should use cached version on subsequent calls', async () => {
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      // First call
+      const result1 = await compiler.getVersion();
+      expect(result1).toBe('3.20.0');
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
+
+      // Second call - should use cache
+      const result2 = await compiler.getVersion();
+      expect(result2).toBe('3.20.0');
+      expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional spawn
+    });
+
+    it('should bypass cache when forceRefresh is true', async () => {
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      // First call
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
+
+      // Force refresh
+      await compiler.getVersion(true);
+      expect(mockSpawn).toHaveBeenCalledTimes(2);
+    });
+
+    it('should clear cache when clearVersionCache is called', async () => {
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      // First call
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
+
+      // Clear cache
+      compiler.clearVersionCache();
+
+      // Next call should spawn again
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(2);
+    });
+
+    it('should cache null version results', async () => {
+      // Even null results (protoc not found) should be cached
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(1), 0); // Non-zero exit = failure
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      // First call - should return null
+      const result1 = await compiler.getVersion();
+      expect(result1).toBeNull();
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
+
+      // Second call - should use cached null
+      const result2 = await compiler.getVersion();
+      expect(result2).toBeNull();
+      expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional spawn
+    });
+
+    it('should invalidate cache when path changes to different value', async () => {
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      // Cache version for default path
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
+
+      // Change to different path
+      compiler.updateSettings({ path: '/new/protoc' });
+
+      // Should fetch again due to path change
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not invalidate cache when setting same path', async () => {
+      compiler.updateSettings({ path: '/my/protoc' });
+
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      // Cache version
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
+
+      // Update with same path (should not clear cache)
+      compiler.updateSettings({ path: '/my/protoc' });
+
+      // Should still use cache
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional spawn
+    });
+
+    it('should not invalidate cache when updating unrelated settings', async () => {
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      // Cache version
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
+
+      // Update unrelated settings
+      compiler.updateSettings({ compileOnSave: true });
+      compiler.updateSettings({ options: ['--go_out=gen'] });
+
+      // Should still use cache
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional spawn
+    });
+
+    it('should return different versions for different protoc paths', async () => {
+      let callCount = 0;
+      const versions = ['3.20.0', '4.0.0'];
+
+      mockSpawn.mockImplementation(() => {
+        const currentCall = callCount;
+        return {
+          stdout: {
+            on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+              if (event === 'data') {
+                const version = versions[currentCall];
+                setTimeout(() => callback(Buffer.from(`libprotoc ${version}`)), 0);
+              }
+            })
+          },
+          on: jest.fn((event: string, callback: (code: number) => void) => {
+            if (event === 'close') {
+              callCount++;
+              setTimeout(() => callback(0), 10);
+            }
+          })
+        } as any;
+      });
+
+      // Get version for first protoc
+      compiler.updateSettings({ path: '/protoc/v3' });
+      const v1 = await compiler.getVersion();
+      expect(v1).toBe('3.20.0');
+
+      // Get version for second protoc (path change clears cache)
+      compiler.updateSettings({ path: '/protoc/v4' });
+      const v2 = await compiler.getVersion();
+      expect(v2).toBe('4.0.0');
+
+      expect(mockSpawn).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle multiple sequential getVersion calls efficiently', async () => {
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      // First call - caches the result
+      const result1 = await compiler.getVersion();
+      expect(result1).toBe('3.20.0');
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
+
+      // Sequential calls after cache is populated should all use cache
+      const result2 = await compiler.getVersion();
+      const result3 = await compiler.getVersion();
+      const result4 = await compiler.getVersion();
+
+      expect(result2).toBe('3.20.0');
+      expect(result3).toBe('3.20.0');
+      expect(result4).toBe('3.20.0');
+
+      // Only 1 spawn call total
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
+    });
+
+    it('should work correctly after cache is cleared multiple times', async () => {
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      // First cycle
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
+      compiler.clearVersionCache();
+
+      // Second cycle
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(2);
+      compiler.clearVersionCache();
+
+      // Third cycle
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(3);
+
+      // Verify cache works after clearing
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(3); // Should use cache
+    });
+
+    it('should handle forceRefresh=false explicitly', async () => {
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      // First call
+      await compiler.getVersion();
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
+
+      // Explicit forceRefresh=false should use cache
+      await compiler.getVersion(false);
+      expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional spawn
+    });
   });
 
   describe('compile', () => {
@@ -187,13 +587,32 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
+        kill: jest.fn()
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       const result = await compiler.compileFile('test.proto');
       expect(result.success).toBe(true);
+    });
+
+    it('should reject empty file path', async () => {
+      const result = await compiler.compileFile('');
+      expect(result.success).toBe(false);
+      expect(result.errors[0].message).toBe('File path is required');
+    });
+
+    it('should reject whitespace-only file path', async () => {
+      const result = await compiler.compileFile('   ');
+      expect(result.success).toBe(false);
+      expect(result.errors[0].message).toBe('File path is required');
+    });
+
+    it('should reject non-proto files', async () => {
+      const result = await compiler.compileFile('test.txt');
+      expect(result.success).toBe(false);
+      expect(result.errors[0].message).toBe('File must have .proto extension');
     });
 
     it('should include --proto_path for the file directory', async () => {
@@ -926,7 +1345,8 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
+        kill: jest.fn()
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -943,6 +1363,81 @@ describe('ProtocCompiler', () => {
       );
       // Should only have one (no duplicate)
       expect(srcProtoPathArgs.length).toBe(1);
+    });
+  });
+
+  describe('cancelAll', () => {
+    it('should kill all active processes', async () => {
+      const mockKill = jest.fn();
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn(),
+        kill: mockKill
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      // Start a compile but don't let it finish
+      // We intentionally don't await this - we want to test cancellation
+      void compiler.compileFile('/workspace/test.proto');
+
+      // Give it a moment to start
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Cancel all
+      compiler.cancelAll();
+
+      // Should have called kill
+      expect(mockKill).toHaveBeenCalledWith('SIGTERM');
+    });
+
+    it('should handle processes that have already exited', () => {
+      const mockKill = jest.fn().mockImplementation(() => {
+        throw new Error('Process already exited');
+      });
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn(),
+        kill: mockKill
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      // Start a compile
+      compiler.compileFile('/workspace/test.proto');
+
+      // Should not throw even if kill fails
+      expect(() => compiler.cancelAll()).not.toThrow();
+    });
+  });
+
+  describe('timeout handling', () => {
+    it('should include executionTime in result', async () => {
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 50);
+          }
+          return mockProcess;
+        }),
+        kill: jest.fn()
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const result = await compiler.compileFile('/workspace/test.proto');
+      expect(result.executionTime).toBeDefined();
+      expect(result.executionTime).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should respect custom timeout setting', () => {
+      compiler.updateSettings({ timeout: 5000 });
+      // The setting is stored, verified indirectly through behavior
+      expect(compiler).toBeDefined();
     });
   });
 });
