@@ -1,5 +1,5 @@
 ---
 Language: Proto
 BasedOnStyle: Google
-IndentWidth: 4
+IndentWidth: 2
 ColumnLimit: 100

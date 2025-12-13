@@ -298,12 +298,14 @@ export function updateProvidersWithSettings(
   // Update clang-format settings
   const clangSettings = settings.protobuf.clangFormat;
   const expandedClangPath = expandPathSetting(clangSettings.path, workspaceFolders);
+  const expandedClangConfigPath = expandPathSetting(clangSettings.configPath, workspaceFolders);
   const resolvedClangPath = expandedClangPath || clangSettings.path || 'clang-format';
   clangFormat.updateSettings({
     enabled: clangSettings.enabled,
     path: resolvedClangPath,
     style: clangSettings.style,
-    fallbackStyle: clangSettings.fallbackStyle
+    fallbackStyle: clangSettings.fallbackStyle,
+    configPath: expandedClangConfigPath || clangSettings.configPath
   });
 
   if (clangSettings.enabled) {
@@ -320,8 +322,12 @@ export function updateProvidersWithSettings(
       ? ` (expanded from "${clangSettings.path}")`
       : '';
 
+    const configPathInfo = expandedClangConfigPath
+      ? `, configPath="${expandedClangConfigPath}"`
+      : '';
+
     logger.info(
-      `clang-format enabled. configured="${configuredPath}" resolved="${usedPath}"${expansionInfo} (${pathDetails}). style=${clangSettings.style || 'file'}, fallback=${clangSettings.fallbackStyle || 'Google'}`
+      `clang-format enabled. configured="${configuredPath}" resolved="${usedPath}"${expansionInfo} (${pathDetails}). style=${clangSettings.style || 'file'}, fallback=${clangSettings.fallbackStyle || 'Google'}${configPathInfo}`
     );
 
     logger.verboseWithContext('clang-format configuration expanded', {
@@ -329,6 +335,7 @@ export function updateProvidersWithSettings(
       configuredPath,
       expandedPath: expandedClangPath,
       resolvedPath: resolvedClangPath,
+      configPath: expandedClangConfigPath || clangSettings.configPath || '(auto-detect)',
       workspaceFolders: workspaceFolders.join(', ') || '(none)',
       style: clangSettings.style,
       fallbackStyle: clangSettings.fallbackStyle
@@ -339,7 +346,8 @@ export function updateProvidersWithSettings(
       operation: 'config',
       configuredPath: clangSettings.path,
       style: clangSettings.style,
-      fallbackStyle: clangSettings.fallbackStyle
+      fallbackStyle: clangSettings.fallbackStyle,
+      configPath: clangSettings.configPath
     });
   }
 

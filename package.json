@@ -458,6 +458,11 @@
           "default": "Google",
           "description": "Fallback style when 'file' style is used but no .clang-format file is found"
         },
+        "protobuf.clangFormat.configPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to a custom .clang-format config file. Supports ${workspaceFolder} variable. When set, clang-format will use this config instead of searching for .clang-format in the file's directory."
+        },
         "protobuf.debug.verboseLogging": {
           "type": "boolean",
           "default": false,

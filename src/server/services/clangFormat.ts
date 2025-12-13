@@ -20,13 +20,15 @@ export interface ClangFormatSettings {
   path: string;
   style: string;
   fallbackStyle: string;
+  configPath?: string;
 }
 
 const DEFAULT_SETTINGS: ClangFormatSettings = {
   enabled: false,
   path: 'clang-format',
   style: 'file',
-  fallbackStyle: 'Google'
+  fallbackStyle: 'Google',
+  configPath: ''
 };
 
 export class ClangFormatProvider {
@@ -167,7 +169,12 @@ export class ClangFormatProvider {
       // Add style option
       if (this.settings.style) {
         if (this.settings.style === 'file') {
-          args.push(`--style=file`);
+          // If a custom config path is provided, use file:<path> syntax
+          if (this.settings.configPath) {
+            args.push(`--style=file:${this.settings.configPath}`);
+          } else {
+            args.push(`--style=file`);
+          }
           args.push(`--fallback-style=${this.settings.fallbackStyle}`);
         } else {
           args.push(`--style=${this.settings.style}`);
