@@ -154,11 +154,21 @@ export function findEnclosingBlockType(range: Range, documentText: string): Bloc
     }
 
     if (braceDepth <= 0) {
-      if (/\bmessage\s+\w+/.test(line)) return 'message';
-      if (/\benum\s+\w+/.test(line)) return 'enum';
-      if (/\bservice\s+\w+/.test(line)) return 'service';
-      if (/\boneof\s+\w+/.test(line)) return 'oneof';
-      if (/\bextend\s+\w+/.test(line)) return 'extend';
+      if (/\bmessage\s+\w+/.test(line)) {
+        return 'message';
+      }
+      if (/\benum\s+\w+/.test(line)) {
+        return 'enum';
+      }
+      if (/\bservice\s+\w+/.test(line)) {
+        return 'service';
+      }
+      if (/\boneof\s+\w+/.test(line)) {
+        return 'oneof';
+      }
+      if (/\bextend\s+\w+/.test(line)) {
+        return 'extend';
+      }
     }
   }
 

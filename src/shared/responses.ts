@@ -111,7 +111,9 @@ export function createErrorResponse<T extends { success: boolean; errorInfo?: Er
  * Format LocationError array to human-readable string
  */
 export function formatErrors(errors: LocationError[]): string {
-  if (errors.length === 0) return '';
+  if (errors.length === 0) {
+    return '';
+  }
 
   return errors
     .map(e => {
