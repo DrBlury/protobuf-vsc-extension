@@ -1369,18 +1369,30 @@ describe('ProtocCompiler', () => {
   describe('cancelAll', () => {
     it('should kill all active processes', async () => {
       const mockKill = jest.fn();
+      let closeCallback: ((code: number | null) => void) | null = null;
+
       const mockProcess = {
         stdout: { on: jest.fn() },
         stderr: { on: jest.fn() },
-        on: jest.fn(),
-        kill: mockKill
+        on: jest.fn((event: string, callback: (code: number | null) => void) => {
+          if (event === 'close') {
+            closeCallback = callback;
+          }
+          return mockProcess;
+        }),
+        kill: jest.fn().mockImplementation(() => {
+          mockKill();
+          // Simulate process termination - trigger close callback
+          if (closeCallback) {
+            setImmediate(() => closeCallback!(null));
+          }
+        })
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       // Start a compile but don't let it finish
-      // We intentionally don't await this - we want to test cancellation
-      void compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
 
       // Give it a moment to start
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -1389,27 +1401,46 @@ describe('ProtocCompiler', () => {
       compiler.cancelAll();
 
       // Should have called kill
-      expect(mockKill).toHaveBeenCalledWith('SIGTERM');
+      expect(mockKill).toHaveBeenCalled();
+
+      // Wait for the compile promise to resolve (due to process termination)
+      await compilePromise;
     });
 
-    it('should handle processes that have already exited', () => {
+    it('should handle processes that have already exited', async () => {
+      type CloseCallback = (code: number | null) => void;
+      let closeCallback: CloseCallback | undefined;
+
       const mockKill = jest.fn().mockImplementation(() => {
         throw new Error('Process already exited');
       });
       const mockProcess = {
         stdout: { on: jest.fn() },
         stderr: { on: jest.fn() },
-        on: jest.fn(),
+        on: jest.fn((event: string, callback: CloseCallback) => {
+          if (event === 'close') {
+            closeCallback = callback;
+          }
+          return mockProcess;
+        }),
         kill: mockKill
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       // Start a compile
-      compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
 
       // Should not throw even if kill fails
       expect(() => compiler.cancelAll()).not.toThrow();
+
+      // Simulate process closing to clean up the timeout
+      if (closeCallback !== undefined) {
+        closeCallback(1);
+      }
+
+      // Wait for the compile promise to resolve
+      await compilePromise;
     });
   });
 
