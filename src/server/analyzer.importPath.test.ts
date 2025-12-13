@@ -135,4 +135,54 @@ describe('SemanticAnalyzer getImportPathForFile', () => {
       expect(result).toBe('common.proto');
     });
   });
+
+  describe('with import paths configured (--proto_path scenario)', () => {
+    let testAnalyzer: SemanticAnalyzer;
+
+    beforeEach(() => {
+      testAnalyzer = new SemanticAnalyzer();
+      testAnalyzer.setWorkspaceRoots(['/workspace']);
+    });
+
+    it('returns path relative to proto_path when configured', () => {
+      // Simulates: --proto_path=/workspace/protos
+      // File at /workspace/protos/base.proto should be importable as "base.proto"
+      testAnalyzer.setImportPaths(['/workspace/protos']);
+
+      const current = 'file:///workspace/protos/messages/test.proto';
+      const target = 'file:///workspace/protos/base.proto';
+
+      const result = testAnalyzer.getImportPathForFile(current, target);
+
+      // With --proto_path=/workspace/protos, the import should be just "base.proto"
+      expect(result).toBe('base.proto');
+    });
+
+    it('returns path relative to proto_path for nested files', () => {
+      // Simulates: --proto_path=/workspace/protos
+      testAnalyzer.setImportPaths(['/workspace/protos']);
+
+      const current = 'file:///workspace/protos/api/service.proto';
+      const target = 'file:///workspace/protos/common/types.proto';
+
+      const result = testAnalyzer.getImportPathForFile(current, target);
+
+      // With --proto_path=/workspace/protos, the import should be "common/types.proto"
+      expect(result).toBe('common/types.proto');
+    });
+
+    it('prefers shorter path when multiple proto roots match', () => {
+      // Simulates: --proto_path=/workspace/protos --proto_path=/workspace
+      testAnalyzer.setImportPaths(['/workspace/protos', '/workspace']);
+
+      const current = 'file:///workspace/protos/api/service.proto';
+      const target = 'file:///workspace/protos/base.proto';
+
+      const result = testAnalyzer.getImportPathForFile(current, target);
+
+      // Should prefer the shorter path from /workspace/protos: "base.proto"
+      // over the longer path from /workspace: "protos/base.proto"
+      expect(result).toBe('base.proto');
+    });
+  });
 });

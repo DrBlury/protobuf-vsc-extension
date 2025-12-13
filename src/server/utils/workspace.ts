@@ -53,7 +53,9 @@ export function findProtoFiles(dir: string, files: string[] = [], includeHidden:
  * @param workspaceFolders - Array of workspace folder paths
  * @param parser - Proto parser instance
  * @param analyzer - Semantic analyzer instance
- * @param protoSrcsDir - Optional subdirectory to limit proto file search (e.g., 'protos')
+ * @param protoSrcsDir - Optional subdirectory to prioritize for proto file search (e.g., 'protos')
+ *                       Note: The full workspace is always scanned to discover all proto files,
+ *                       but protoSrcsDir is registered as a proto root for import path resolution.
  */
 export function scanWorkspaceForProtoFiles(
   workspaceFolders: string[],
@@ -67,49 +69,18 @@ export function scanWorkspaceForProtoFiles(
   let parsedFiles = 0;
 
   for (const folder of workspaceFolders) {
-    let searchPath: string;
-    
-    // If protoSrcsDir is specified (non-empty string), limit search to that subdirectory
-    // Note: empty strings are falsy in JavaScript, so they're treated as "not specified"
-    if (protoSrcsDir) {
-      // Construct and validate the search path
-      const candidatePath = path.join(folder, protoSrcsDir);
-      const resolvedCandidatePath = path.resolve(candidatePath);
-      const resolvedFolder = path.resolve(folder);
-      
-      // Use path.relative to detect path traversal attempts (result starting with '..' means outside)
-      const relativePath = path.relative(resolvedFolder, resolvedCandidatePath);
-      // Normalize path separators to forward slashes for consistent comparison across platforms
-      // This handles both path.sep differences and any backslashes in the path string
-      const normalizedRelative = relativePath.split(path.sep).join('/').split('\\').join('/');
-      // Check if path goes outside workspace: starts with '..' as a path component
-      // This handles: '..', '../foo', '../../foo', etc.
-      if (normalizedRelative === '..' || normalizedRelative.startsWith('../')) {
-        logger.verbose(`Proto sources directory is outside workspace: ${candidatePath}`);
-        continue;
-      }
-      
-      // Check if the search path exists
-      if (!fs.existsSync(resolvedCandidatePath)) {
-        logger.verbose(`Proto sources directory does not exist: ${candidatePath}`);
-        continue;
-      }
-      
-      searchPath = resolvedCandidatePath;
-    } else {
-      searchPath = folder;
-    }
-    
-    const protoFiles = findProtoFiles(searchPath);
+    // Always scan the full workspace to discover all proto files
+    // This ensures types in any directory can be found and suggested for import
+    const protoFiles = findProtoFiles(folder);
     totalFiles += protoFiles.length;
 
-    logger.verbose(`Found ${protoFiles.length} proto file(s) in workspace folder: ${searchPath}`);
+    logger.verbose(`Found ${protoFiles.length} proto file(s) in workspace folder: ${folder}`);
     const relativePaths = protoFiles
       .map(filePath => toWorkspaceRelative(filePath, folder))
       .sort((a, b) => a.localeCompare(b));
 
     if (relativePaths.length === 0) {
-      logger.info(`No proto files found in workspace folder "${folder}"${protoSrcsDir ? ` (limited to ${protoSrcsDir})` : ''}.`);
+      logger.info(`No proto files found in workspace folder "${folder}".`);
     } else {
       logger.info(`Proto files found in workspace folder "${folder}":`);
       for (const relPath of relativePaths) {
@@ -128,6 +99,29 @@ export function scanWorkspaceForProtoFiles(
       } catch (error) {
         // Ignore parse errors during initial scan, but log in verbose mode
         logger.verbose(`Failed to parse file during initial scan: ${filePath}`, getErrorMessage(error));
+      }
+    }
+
+    // If protoSrcsDir is specified, register it as a proto root for import path resolution
+    if (protoSrcsDir) {
+      const candidatePath = path.join(folder, protoSrcsDir);
+      const resolvedCandidatePath = path.resolve(candidatePath);
+      const resolvedFolder = path.resolve(folder);
+
+      // Use path.relative to detect path traversal attempts
+      const relativePath = path.relative(resolvedFolder, resolvedCandidatePath);
+      const normalizedRelative = relativePath.split(path.sep).join('/').split('\\').join('/');
+
+      // Only register if path is valid (not outside workspace) and exists
+      if (!(normalizedRelative === '..' || normalizedRelative.startsWith('../'))) {
+        if (fs.existsSync(resolvedCandidatePath)) {
+          analyzer.addProtoRoot(resolvedCandidatePath);
+          logger.info(`Registered proto root from protoSrcsDir: ${resolvedCandidatePath}`);
+        } else {
+          logger.verbose(`Proto sources directory does not exist: ${candidatePath}`);
+        }
+      } else {
+        logger.verbose(`Proto sources directory is outside workspace: ${candidatePath}`);
       }
     }
   }

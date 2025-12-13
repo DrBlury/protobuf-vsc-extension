@@ -1,0 +1,20 @@
+// Example file demonstrating GitHub issue #35 follow-up
+// This file is in a SEPARATE folder (shared/) from the main protos/ folder.
+// The extension should still discover this file and suggest the correct import path.
+syntax = "proto3";
+
+package shared;
+
+// Shared base message that can be imported from protos/
+message SharedBase
+{
+  string id = 1;
+  string name = 2;
+}
+
+// Common timestamp wrapper
+message TimestampWrapper
+{
+  int64 seconds = 1;
+  int32 nanos = 2;
+}

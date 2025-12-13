@@ -4,12 +4,15 @@
 // CORRECT imports:
 //   import "protos/base.proto";
 //   import "protos/nested/deep_message.proto";
+//   import "shared/base.proto";  // From separate folder (follow-up to #35)
 //
 // INCORRECT imports (these would NOT work):
 //   import "base.proto";              // Wrong! File is not at same level
 //   import "deep_message.proto";      // Wrong! File is not at same level
 //
 // The extension should suggest the correct paths, not just the filenames.
+// Additionally, it should discover files in OTHER folders (like shared/)
+// even if protoSrcsDir is set to a different folder (like protos/).
 syntax = "proto3";
 
 package example;
@@ -17,6 +20,7 @@ package example;
 // TODO: Uncomment these imports after the extension suggests them
 // import "protos/base.proto";
 // import "protos/nested/deep_message.proto";
+// import "shared/base.proto";
 
 // Message that uses types from subdirectory protos
 // When you type "BaseMessage" or "DeepMessage" here, the extension
@@ -32,4 +36,8 @@ message TestMessage
   // To test: type "protos.nested.DeepMessage" and check the import suggestion
   // The extension should suggest: import "protos/nested/deep_message.proto";
   // NOT: import "deep_message.proto";
+
+  // To test: type "shared.SharedBase" and check the import suggestion
+  // The extension should suggest: import "shared/base.proto";
+  // This tests that files in separate folders (outside protoSrcsDir) are discovered.
 }

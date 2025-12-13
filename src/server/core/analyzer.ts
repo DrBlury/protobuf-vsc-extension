@@ -48,6 +48,12 @@ export class SemanticAnalyzer {
 
   setImportPaths(paths: string[]): void {
     this.importPaths = paths;
+    // Import paths (from --proto_path, buf includes, etc.) should also be proto roots
+    // for import path calculation purposes
+    for (const importPath of paths) {
+      const normalized = importPath.replace(/\\/g, '/');
+      this.protoRoots.add(normalized);
+    }
   }
 
   /**
@@ -68,6 +74,16 @@ export class SemanticAnalyzer {
 
   setWorkspaceRoots(roots: string[]): void {
     this.workspaceRoots = roots.map(r => r.replace(/\\/g, '/'));
+  }
+
+  /**
+   * Add a directory as a proto root for import path resolution.
+   * Proto roots are directories that serve as base paths for proto imports.
+   */
+  addProtoRoot(root: string): void {
+    const normalizedRoot = root.replace(/\\/g, '/');
+    this.protoRoots.add(normalizedRoot);
+    logger.verbose(`Added proto root: ${normalizedRoot}`);
   }
 
   updateFile(uri: string, file: ProtoFile): void {
