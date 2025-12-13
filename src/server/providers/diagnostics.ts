@@ -594,6 +594,9 @@ export class DiagnosticsProvider {
         });
       } else {
         this.ensureImported(uri, field.fieldType, symbol.location.uri, this.toRange(field.fieldTypeRange), diagnostics);
+        
+        // Check if an unqualified type name is used when it should be fully qualified
+        this.checkTypeQualification(uri, field.fieldType, symbol, field.fieldTypeRange, containerName, diagnostics);
       }
     }
 
@@ -669,6 +672,9 @@ export class DiagnosticsProvider {
         });
       } else {
         this.ensureImported(uri, mapField.valueType, symbol.location.uri, this.toRange(mapField.valueTypeRange), diagnostics);
+        
+        // Check if an unqualified type name is used when it should be fully qualified
+        this.checkTypeQualification(uri, mapField.valueType, symbol, mapField.valueTypeRange, containerName, diagnostics);
       }
     }
 
@@ -970,6 +976,9 @@ export class DiagnosticsProvider {
           });
         } else {
           this.ensureImported(uri, rpc.inputType, inputSymbol.location.uri, this.toRange(rpc.inputTypeRange), diagnostics);
+          
+          // Check if an unqualified type name is used when it should be fully qualified
+          this.checkTypeQualification(uri, rpc.inputType, inputSymbol, rpc.inputTypeRange, prefix, diagnostics);
         }
 
         // Check output type reference
@@ -983,6 +992,9 @@ export class DiagnosticsProvider {
           });
         } else {
           this.ensureImported(uri, rpc.outputType, outputSymbol.location.uri, this.toRange(rpc.outputTypeRange), diagnostics);
+          
+          // Check if an unqualified type name is used when it should be fully qualified
+          this.checkTypeQualification(uri, rpc.outputType, outputSymbol, rpc.outputTypeRange, prefix, diagnostics);
         }
       }
     }
@@ -1161,6 +1173,46 @@ export class DiagnosticsProvider {
       range,
       message: `Type '${typeName}' is not imported.${suggestionText}`.trim(),
       source: 'protobuf'
+    });
+  }
+
+  /**
+   * Check if a type reference uses proper qualification based on package context.
+   * Types from different packages must be fully qualified.
+   */
+  private checkTypeQualification(
+    currentUri: string,
+    typeName: string,
+    symbol: { fullName: string; location: { uri: string } },
+    range: Range,
+    currentContext: string,
+    diagnostics: Diagnostic[]
+  ): void {
+    // If the type name is already fully qualified (contains a dot), it's fine
+    if (typeName.includes('.')) {
+      return;
+    }
+
+    // Get the current file and its package
+    const currentFile = this.analyzer.getFile(currentUri);
+    const currentPackage = currentFile?.package?.name || '';
+
+    // Get the package of the file where the symbol is defined
+    const symbolFile = this.analyzer.getFile(symbol.location.uri);
+    const symbolPackage = symbolFile?.package?.name || '';
+
+    // If both are in the same package, short name is acceptable
+    if (symbolPackage === currentPackage) {
+      return;
+    }
+
+    // If they're in different packages, the type must be fully qualified
+    diagnostics.push({
+      severity: DiagnosticSeverity.Error,
+      range: this.toRange(range),
+      message: `Type '${typeName}' must be fully qualified as '${symbol.fullName}' because it is from package '${symbolPackage}'`,
+      source: DIAGNOSTIC_SOURCE,
+      code: ERROR_CODES.UNQUALIFIED_TYPE
     });
   }
 
