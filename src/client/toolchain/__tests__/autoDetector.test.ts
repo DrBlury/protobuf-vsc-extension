@@ -8,6 +8,16 @@
  * - Configuration file detection
  */
 
+import * as path from 'path';
+
+// Test paths - use path.join for cross-platform compatibility
+// These are defined before mocks but are accessible in mock factories
+// because Jest evaluates them after the imports
+const getTestWorkspace = () => path.join(path.sep, 'test', 'workspace');
+const getTestGlobalStorage = () => path.join(path.sep, 'test', 'global-storage');
+const getHomebrewBin = () => path.join(path.sep, 'opt', 'homebrew', 'bin');
+const _getTestUserHome = () => path.join(path.sep, 'Users', 'testuser');
+
 // Mock vscode
 const mockOutputChannel = {
   appendLine: jest.fn(),
@@ -20,26 +30,31 @@ const mockOutputChannel = {
 
 const mockConfiguration = new Map<string, unknown>();
 
-jest.mock('vscode', () => ({
-  window: {
-    showInformationMessage: jest.fn(),
-    showQuickPick: jest.fn(),
-  },
-  workspace: {
-    getConfiguration: jest.fn((section: string) => ({
-      get: jest.fn((key: string, defaultValue?: unknown) => {
-        const fullKey = section ? `${section}.${key}` : key;
-        return mockConfiguration.get(fullKey) ?? defaultValue;
-      }),
-      update: jest.fn(),
-    })),
-    workspaceFolders: [{ uri: { fsPath: '/test/workspace' } }],
-  },
-  ConfigurationTarget: {
-    Global: 1,
-    Workspace: 2,
-  },
-}), { virtual: true });
+jest.mock('vscode', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const pathModule = require('path');
+  const testWorkspace = pathModule.join(pathModule.sep, 'test', 'workspace');
+  return {
+    window: {
+      showInformationMessage: jest.fn(),
+      showQuickPick: jest.fn(),
+    },
+    workspace: {
+      getConfiguration: jest.fn((section: string) => ({
+        get: jest.fn((key: string, defaultValue?: unknown) => {
+          const fullKey = section ? `${section}.${key}` : key;
+          return mockConfiguration.get(fullKey) ?? defaultValue;
+        }),
+        update: jest.fn(),
+      })),
+      workspaceFolders: [{ uri: { fsPath: testWorkspace } }],
+    },
+    ConfigurationTarget: {
+      Global: 1,
+      Workspace: 2,
+    },
+  };
+}, { virtual: true });
 
 // Mock fs
 const mockFsExistsSync = jest.fn();
@@ -48,10 +63,15 @@ jest.mock('fs', () => ({
 }));
 
 // Mock os to return consistent platform for tests
-jest.mock('os', () => ({
-  platform: () => 'darwin',
-  homedir: () => '/Users/testuser',
-}));
+jest.mock('os', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const pathModule = require('path');
+  const testUserHome = pathModule.join(pathModule.sep, 'Users', 'testuser');
+  return {
+    platform: () => 'darwin',
+    homedir: () => testUserHome,
+  };
+});
 
 // Mock child_process
 const mockSpawn = jest.fn();
@@ -73,18 +93,21 @@ describe('AutoDetector', () => {
     mockSpawn.mockReturnValue(createMockProcess('', '', 1, new Error('ENOENT')));
 
     mockContext = {
-      globalStorageUri: { fsPath: '/test/global-storage' },
+      globalStorageUri: { fsPath: getTestGlobalStorage() },
       subscriptions: { push: jest.fn() },
     };
   });
 
   describe('detectTools', () => {
     it('should detect tools when file exists at common path', async () => {
+      const expectedProtocPath = path.join(getHomebrewBin(), 'protoc');
+      const expectedBufPath = path.join(getHomebrewBin(), 'buf');
+
       mockFsExistsSync.mockImplementation((p: string) => {
-        if (p === '/opt/homebrew/bin/protoc') {
+        if (p === expectedProtocPath) {
           return true;
         }
-        if (p === '/opt/homebrew/bin/buf') {
+        if (p === expectedBufPath) {
           return true;
         }
         return false;
@@ -99,12 +122,14 @@ describe('AutoDetector', () => {
       const result = await detector.detectTools();
 
       expect(result.protoc).toBeDefined();
-      expect(result.protoc?.path).toBe('/opt/homebrew/bin/protoc');
+      expect(result.protoc?.path).toBe(expectedProtocPath);
     });
 
     it('should detect buf.yaml configuration file', async () => {
+      const bufYamlPath = path.join(getTestWorkspace(), 'buf.yaml');
+
       mockFsExistsSync.mockImplementation((p: string) => {
-        if (p === '/test/workspace/buf.yaml') {
+        if (p === bufYamlPath) {
           return true;
         }
         return false;
@@ -122,8 +147,10 @@ describe('AutoDetector', () => {
     });
 
     it('should detect buf.work.yaml workspace configuration', async () => {
+      const bufWorkYamlPath = path.join(getTestWorkspace(), 'buf.work.yaml');
+
       mockFsExistsSync.mockImplementation((p: string) => {
-        if (p === '/test/workspace/buf.work.yaml') {
+        if (p === bufWorkYamlPath) {
           return true;
         }
         return false;
@@ -140,8 +167,10 @@ describe('AutoDetector', () => {
     });
 
     it('should detect .protolint.yaml configuration', async () => {
+      const protolintConfigPath = path.join(getTestWorkspace(), '.protolint.yaml');
+
       mockFsExistsSync.mockImplementation((p: string) => {
-        if (p === '/test/workspace/.protolint.yaml') {
+        if (p === protolintConfigPath) {
           return true;
         }
         return false;
@@ -158,8 +187,10 @@ describe('AutoDetector', () => {
     });
 
     it('should detect .clang-format configuration', async () => {
+      const clangFormatConfigPath = path.join(getTestWorkspace(), '.clang-format');
+
       mockFsExistsSync.mockImplementation((p: string) => {
-        if (p === '/test/workspace/.clang-format') {
+        if (p === clangFormatConfigPath) {
           return true;
         }
         return false;
@@ -192,7 +223,8 @@ describe('AutoDetector', () => {
     });
 
     it('should parse version from protoc output', async () => {
-      mockFsExistsSync.mockImplementation((p: string) => p === '/opt/homebrew/bin/protoc');
+      const expectedProtocPath = path.join(getHomebrewBin(), 'protoc');
+      mockFsExistsSync.mockImplementation((p: string) => p === expectedProtocPath);
 
       // Protoc outputs "libprotoc X.Y.Z"
       mockSpawn.mockReturnValue(createMockProcess('libprotoc 33.0\n', '', 0));
@@ -206,7 +238,8 @@ describe('AutoDetector', () => {
     });
 
     it('should parse version from buf output', async () => {
-      mockFsExistsSync.mockImplementation((p: string) => p === '/opt/homebrew/bin/buf');
+      const expectedBufPath = path.join(getHomebrewBin(), 'buf');
+      mockFsExistsSync.mockImplementation((p: string) => p === expectedBufPath);
 
       // Buf outputs just the version
       mockSpawn.mockReturnValue(createMockProcess('1.28.1\n', '', 0));

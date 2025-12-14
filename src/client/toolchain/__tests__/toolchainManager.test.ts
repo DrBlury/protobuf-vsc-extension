@@ -12,6 +12,11 @@ import { ToolStatus as _ToolStatus, ToolInfo as _ToolInfo } from '../toolchainMa
 import * as path from 'path';
 import * as _os from 'os';
 
+// Cross-platform path helpers
+const _getTestWorkspace = () => path.join(path.sep, 'test', 'workspace');
+const getTestGlobalStorage = () => path.join(path.sep, 'test', 'global-storage');
+const getHomebrewBin = () => path.join(path.sep, 'opt', 'homebrew', 'bin');
+
 // Mock vscode
 const mockStatusBarItem = {
   text: '',
@@ -34,44 +39,49 @@ const mockOutputChannel = {
 
 const mockConfiguration = new Map<string, unknown>();
 
-jest.mock('vscode', () => ({
-  window: {
-    createStatusBarItem: jest.fn(() => mockStatusBarItem),
-    showQuickPick: jest.fn(),
-    showInformationMessage: jest.fn(),
-    showWarningMessage: jest.fn(),
-    showErrorMessage: jest.fn(),
-    withProgress: jest.fn((options, task) => task({ report: jest.fn() }, { isCancellationRequested: false })),
-  },
-  workspace: {
-    getConfiguration: jest.fn((section: string) => ({
-      get: jest.fn((key: string, defaultValue?: unknown) => {
-        const fullKey = `${section}.${key}`;
-        return mockConfiguration.get(fullKey) ?? defaultValue;
-      }),
-      update: jest.fn(),
-    })),
-    workspaceFolders: [{ uri: { fsPath: '/test/workspace' } }],
-  },
-  StatusBarAlignment: {
-    Right: 2,
-    Left: 1,
-  },
-  ThemeColor: class {
-    constructor(public id: string) {}
-  },
-  ConfigurationTarget: {
-    Global: 1,
-    Workspace: 2,
-    WorkspaceFolder: 3,
-  },
-  ProgressLocation: {
-    Notification: 15,
-  },
-  QuickPickItemKind: {
-    Separator: -1,
-  },
-}), { virtual: true });
+jest.mock('vscode', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const pathModule = require('path');
+  const testWorkspace = pathModule.join(pathModule.sep, 'test', 'workspace');
+  return {
+    window: {
+      createStatusBarItem: jest.fn(() => mockStatusBarItem),
+      showQuickPick: jest.fn(),
+      showInformationMessage: jest.fn(),
+      showWarningMessage: jest.fn(),
+      showErrorMessage: jest.fn(),
+      withProgress: jest.fn((options: unknown, task: (progress: { report: jest.Mock }, token: { isCancellationRequested: boolean }) => Promise<unknown>) => task({ report: jest.fn() }, { isCancellationRequested: false })),
+    },
+    workspace: {
+      getConfiguration: jest.fn((section: string) => ({
+        get: jest.fn((key: string, defaultValue?: unknown) => {
+          const fullKey = `${section}.${key}`;
+          return mockConfiguration.get(fullKey) ?? defaultValue;
+        }),
+        update: jest.fn(),
+      })),
+      workspaceFolders: [{ uri: { fsPath: testWorkspace } }],
+    },
+    StatusBarAlignment: {
+      Right: 2,
+      Left: 1,
+    },
+    ThemeColor: class {
+      constructor(public id: string) {}
+    },
+    ConfigurationTarget: {
+      Global: 1,
+      Workspace: 2,
+      WorkspaceFolder: 3,
+    },
+    ProgressLocation: {
+      Notification: 15,
+    },
+    QuickPickItemKind: {
+      Separator: -1,
+    },
+  };
+}, { virtual: true });
 
 // Mock fs
 const mockFsExistsSync = jest.fn();
@@ -113,7 +123,7 @@ describe('ToolchainManager', () => {
     mockStatusBarItem.backgroundColor = undefined;
 
     mockContext = {
-      globalStorageUri: { fsPath: '/test/global-storage' },
+      globalStorageUri: { fsPath: getTestGlobalStorage() },
       subscriptions: { push: jest.fn() },
     };
 
@@ -124,8 +134,9 @@ describe('ToolchainManager', () => {
   describe('Tool Detection', () => {
     it('should detect protoc in common macOS paths', async () => {
       // Simulate protoc exists at /opt/homebrew/bin/protoc
+      const homebrewProtocPath = path.join(getHomebrewBin(), 'protoc');
       mockFsExistsSync.mockImplementation((p: string) => {
-        if (p === '/opt/homebrew/bin/protoc') {
+        if (p === homebrewProtocPath) {
           return true;
         }
         if (p.includes('global-storage')) {
@@ -171,13 +182,14 @@ describe('ToolchainManager', () => {
     });
 
     it('should detect tools in extension managed directory', async () => {
-      const managedProtocPath = path.join('/test/global-storage', 'bin', 'protoc');
+      const managedBinPath = path.join(getTestGlobalStorage(), 'bin');
+      const managedProtocPath = path.join(managedBinPath, 'protoc');
 
       mockFsExistsSync.mockImplementation((p: string) => {
         if (p === managedProtocPath) {
           return true;
         }
-        if (p === '/test/global-storage/bin') {
+        if (p === managedBinPath) {
           return true;
         }
         return false;
@@ -213,11 +225,14 @@ describe('ToolchainManager', () => {
 
   describe('Status Bar Updates', () => {
     it('should show detected tool versions in status bar', async () => {
+      const homebrewProtocPath = path.join(getHomebrewBin(), 'protoc');
+      const homebrewBufPath = path.join(getHomebrewBin(), 'buf');
+
       mockFsExistsSync.mockImplementation((p: string) => {
-        if (p === '/opt/homebrew/bin/protoc') {
+        if (p === homebrewProtocPath) {
           return true;
         }
-        if (p === '/opt/homebrew/bin/buf') {
+        if (p === homebrewBufPath) {
           return true;
         }
         return false;
@@ -304,12 +319,14 @@ describe('ToolchainManager', () => {
 
     it('should NOT show "Install" option for tools that are detected', async () => {
       const vscode = await import('vscode');
+      const homebrewProtocPath = path.join(getHomebrewBin(), 'protoc');
+      const homebrewBufPath = path.join(getHomebrewBin(), 'buf');
 
       mockFsExistsSync.mockImplementation((p: string) => {
-        if (p === '/opt/homebrew/bin/protoc') {
+        if (p === homebrewProtocPath) {
           return true;
         }
-        if (p === '/opt/homebrew/bin/buf') {
+        if (p === homebrewBufPath) {
           return true;
         }
         return false;
@@ -342,7 +359,9 @@ describe('ToolchainManager', () => {
 
     it('should show "Use managed" option when system tool detected and managed version exists', async () => {
       const vscode = await import('vscode');
-      const managedPath = '/test/global-storage/bin';
+      const managedPath = path.join(getTestGlobalStorage(), 'bin');
+      const homebrewProtocPath = path.join(getHomebrewBin(), 'protoc');
+      const homebrewBufPath = path.join(getHomebrewBin(), 'buf');
 
       // System tools exist AND managed tools exist
       mockFsExistsSync.mockImplementation((p: string) => {
@@ -354,10 +373,10 @@ describe('ToolchainManager', () => {
           return true;
         }
         // System tools exist
-        if (p === '/opt/homebrew/bin/protoc') {
+        if (p === homebrewProtocPath) {
           return true;
         }
-        if (p === '/opt/homebrew/bin/buf') {
+        if (p === homebrewBufPath) {
           return true;
         }
         return false;
@@ -389,7 +408,7 @@ describe('ToolchainManager', () => {
 
     it('should show "Use system" option when using managed tools', async () => {
       const vscode = await import('vscode');
-      const managedPath = '/test/global-storage/bin';
+      const managedPath = path.join(getTestGlobalStorage(), 'bin');
 
       mockFsExistsSync.mockImplementation((p: string) => {
         // Only managed tools exist
