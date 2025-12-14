@@ -10,12 +10,14 @@
 
 import { ToolStatus as _ToolStatus, ToolInfo as _ToolInfo } from '../toolchainManager';
 import * as path from 'path';
-import * as _os from 'os';
+import * as os from 'os';
 
 // Cross-platform path helpers
 const _getTestWorkspace = () => path.join(path.sep, 'test', 'workspace');
 const getTestGlobalStorage = () => path.join(path.sep, 'test', 'global-storage');
 const getHomebrewBin = () => path.join(path.sep, 'opt', 'homebrew', 'bin');
+// Get platform-specific executable name (adds .exe on Windows)
+const getExeName = (name: string) => name + (os.platform() === 'win32' ? '.exe' : '');
 
 // Mock vscode
 const mockStatusBarItem = {
@@ -183,7 +185,7 @@ describe('ToolchainManager', () => {
 
     it('should detect tools in extension managed directory', async () => {
       const managedBinPath = path.join(getTestGlobalStorage(), 'bin');
-      const managedProtocPath = path.join(managedBinPath, 'protoc');
+      const managedProtocPath = path.join(managedBinPath, getExeName('protoc'));
 
       mockFsExistsSync.mockImplementation((p: string) => {
         if (p === managedProtocPath) {
@@ -412,10 +414,10 @@ describe('ToolchainManager', () => {
 
       mockFsExistsSync.mockImplementation((p: string) => {
         // Only managed tools exist
-        if (p === path.join(managedPath, 'protoc')) {
+        if (p === path.join(managedPath, getExeName('protoc'))) {
           return true;
         }
-        if (p === path.join(managedPath, 'buf')) {
+        if (p === path.join(managedPath, getExeName('buf'))) {
           return true;
         }
         if (p === managedPath) {
