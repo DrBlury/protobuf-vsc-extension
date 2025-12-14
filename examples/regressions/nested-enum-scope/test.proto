@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+// Regression test for issue where hovering over a field type
+// in message B would incorrectly show A.Flags instead of B.Flags
+
+message A
+{
+  enum Flags
+  {
+    A = 0;
+  }
+}
+
+message B
+{
+  enum Flags
+  {
+    A = 0;
+    B = 1;
+    C = 2;
+  }
+
+  // When hovering over "Flags" here, should show B.Flags not A.Flags
+  repeated Flags flags = 1;
+}

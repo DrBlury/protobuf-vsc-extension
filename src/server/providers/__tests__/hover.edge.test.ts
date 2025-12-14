@@ -57,6 +57,78 @@ message Test {
 
       expect(hover).toBeDefined();
     });
+
+    it('should resolve correct nested enum when multiple messages have same-named enums', () => {
+      // This is a regression test for the bug where hovering over a field type
+      // in message B would incorrectly show A.Flags instead of B.Flags
+      const text = `syntax = "proto3";
+
+message A {
+  enum Flags {
+    A = 0;
+  }
+}
+
+message B {
+  enum Flags {
+    A = 0;
+    B = 1;
+    C = 2;
+  }
+
+  repeated Flags flags = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      // Hover on "Flags" in "repeated Flags flags = 1;" inside message B
+      // Line 15 is "  repeated Flags flags = 1;"
+      const position: Position = { line: 15, character: 12 };
+      const lineText = '  repeated Flags flags = 1;';
+      const hover = provider.getHover(uri, position, lineText);
+
+      expect(hover).toBeDefined();
+      // The hover should show B.Flags, not A.Flags
+      const content = (hover as any).contents.value as string;
+      expect(content).toContain('B.Flags');
+      expect(content).not.toContain('A.Flags');
+    });
+
+    it('should resolve correct nested message when multiple messages have same-named nested messages', () => {
+      // Similar regression test but for nested messages instead of enums
+      const text = `syntax = "proto3";
+
+message A {
+  message Inner {
+    string a_field = 1;
+  }
+}
+
+message B {
+  message Inner {
+    string b_field = 1;
+    int32 extra = 2;
+  }
+
+  Inner inner = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      // Hover on "Inner" in "Inner inner = 1;" inside message B
+      // Line 14 is "  Inner inner = 1;"
+      const position: Position = { line: 14, character: 4 };
+      const lineText = '  Inner inner = 1;';
+      const hover = provider.getHover(uri, position, lineText);
+
+      expect(hover).toBeDefined();
+      // The hover should show B.Inner, not A.Inner
+      const content = (hover as any).contents.value as string;
+      expect(content).toContain('B.Inner');
+      expect(content).not.toContain('A.Inner');
+    });
   });
 
   describe('service and RPC', () => {

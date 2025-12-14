@@ -63,18 +63,19 @@ export class DefinitionProvider {
     packageName: string,
     currentContext?: string
   ): { location: Location } | undefined {
-    // 1. Try exact match using the analyzer's resolveType
-    let symbol = this.analyzer.resolveType(typeName, uri, packageName);
-    if (symbol) {
-      return symbol;
-    }
-
-    // 2. If we're inside a message, try resolving relative to that message
+    // 1. If we're inside a message, try resolving relative to that message first
+    // This is crucial for resolving nested types correctly (e.g., B.Flags vs A.Flags)
     if (currentContext) {
-      symbol = this.analyzer.resolveType(typeName, uri, currentContext);
+      const symbol = this.analyzer.resolveType(typeName, uri, currentContext);
       if (symbol) {
         return symbol;
       }
+    }
+
+    // 2. Try exact match using the analyzer's resolveType with package prefix
+    let symbol = this.analyzer.resolveType(typeName, uri, packageName);
+    if (symbol) {
+      return symbol;
     }
 
     // 3. For fully qualified names starting with a dot, strip the dot and try again

@@ -40,10 +40,11 @@ export class RenameProvider {
       return null;
     }
 
-    // Find the symbol
+    // Find the symbol - use containing message scope for correct resolution
     const file = this.analyzer.getFile(uri);
     const packageName = file?.package?.name || '';
-    const symbol = this.analyzer.resolveType(word.text, uri, packageName);
+    const containingScope = file ? this.findContainingMessageScope(file, position, packageName) : packageName;
+    const symbol = this.analyzer.resolveType(word.text, uri, containingScope);
 
     if (!symbol) {
       // Check if it's a field name or other local symbol
@@ -91,9 +92,11 @@ export class RenameProvider {
       return result;
     }
 
+    // Find the symbol - use containing message scope for correct resolution
     const file = this.analyzer.getFile(uri);
     const packageName = file?.package?.name || '';
-    const symbol = this.analyzer.resolveType(word.text, uri, packageName);
+    const containingScope = file ? this.findContainingMessageScope(file, position, packageName) : packageName;
+    const symbol = this.analyzer.resolveType(word.text, uri, containingScope);
 
     if (!symbol) {
       // Try to rename local symbol (field name)
@@ -374,5 +377,53 @@ export class RenameProvider {
         end:   { line: lineNumber, character: end }
       }
     };
+  }
+
+  /**
+   * Find the fully qualified scope for the containing message at a position.
+   * This is used to resolve nested types correctly.
+   */
+  private findContainingMessageScope(
+    file: ProtoFile,
+    position: { line: number, character: number },
+    packageName: string
+  ): string {
+    const messageChain = this.findContainingMessageChain(file.messages, position);
+
+    if (messageChain.length > 0) {
+      const messageNames = messageChain.map(m => m.name).join('.');
+      return packageName ? `${packageName}.${messageNames}` : messageNames;
+    }
+
+    return packageName;
+  }
+
+  /**
+   * Find the chain of containing messages at a position (from outermost to innermost).
+   */
+  private findContainingMessageChain(
+    messages: MessageDefinition[],
+    position: { line: number, character: number }
+  ): MessageDefinition[] {
+    for (const msg of messages) {
+      if (this.containsPosition(msg.range, position)) {
+        const nestedChain = this.findContainingMessageChain(msg.nestedMessages, position);
+        return [msg, ...nestedChain];
+      }
+    }
+    return [];
+  }
+
+  private containsPosition(range: Range, pos: { line: number, character: number }): boolean {
+    if (pos.line < range.start.line || pos.line > range.end.line) {
+      return false;
+    }
+    if (pos.line === range.start.line && pos.character < range.start.character) {
+      return false;
+    }
+    if (pos.line === range.end.line && pos.character > range.end.character) {
+      return false;
+    }
+    return true;
   }
 }

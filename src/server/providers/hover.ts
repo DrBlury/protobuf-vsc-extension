@@ -65,7 +65,11 @@ export class HoverProvider {
     // Check for symbols
     const file = this.analyzer.getFile(uri);
     const packageName = file?.package?.name || '';
-    const symbol = this.analyzer.resolveType(word, uri, packageName);
+
+    // Find the containing message scope at the cursor position
+    // This is crucial for resolving nested types correctly (e.g., B.Flags vs A.Flags)
+    const containingScope = file ? this.findContainingMessageScope(file, position, packageName) : packageName;
+    const symbol = this.analyzer.resolveType(word, uri, containingScope);
 
     if (symbol) {
       return this.getSymbolHover(symbol);
@@ -249,6 +253,51 @@ export class HoverProvider {
           }
       }
       return svc;
+  }
+
+  /**
+   * Find the fully qualified scope for the containing message at a position.
+   * This is used to resolve nested types correctly.
+   * For example, if the cursor is inside message B, and B has a nested enum Flags,
+   * when resolving the type "Flags" we should first look in B.Flags before A.Flags.
+   *
+   * @param file The proto file
+   * @param position The cursor position
+   * @param packageName The package name
+   * @returns The fully qualified scope (e.g., "package.A.B" or just "package")
+   */
+  private findContainingMessageScope(
+    file: ProtoFile,
+    position: { line: number, character: number },
+    packageName: string
+  ): string {
+    // Try to find the containing message chain
+    const messageChain = this.findContainingMessageChain(file.messages, position);
+
+    if (messageChain.length > 0) {
+      const messageNames = messageChain.map(m => m.name).join('.');
+      return packageName ? `${packageName}.${messageNames}` : messageNames;
+    }
+
+    return packageName;
+  }
+
+  /**
+   * Find the chain of containing messages at a position (from outermost to innermost).
+   * For example, if the cursor is inside message A.B.C, returns [A, B, C].
+   */
+  private findContainingMessageChain(
+    messages: MessageDefinition[],
+    position: { line: number, character: number }
+  ): MessageDefinition[] {
+    for (const msg of messages) {
+      if (this.contains(msg.range, position)) {
+        // Found a containing message, now check for nested messages
+        const nestedChain = this.findContainingMessageChain(msg.nestedMessages, position);
+        return [msg, ...nestedChain];
+      }
+    }
+    return [];
   }
 
   private contains(range: Range, pos: { line: number, character: number }): boolean {

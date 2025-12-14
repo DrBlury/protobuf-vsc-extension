@@ -3,8 +3,8 @@
  * Finds all references to a symbol
  */
 
-import { Location, Position } from 'vscode-languageserver/node';
-import { BUILTIN_TYPES } from '../core/ast';
+import { Location, Position, Range } from 'vscode-languageserver/node';
+import { BUILTIN_TYPES, MessageDefinition, ProtoFile } from '../core/ast';
 import { SemanticAnalyzer } from '../core/analyzer';
 
 export class ReferencesProvider {
@@ -31,10 +31,11 @@ export class ReferencesProvider {
       return [];
     }
 
-    // Find the symbol
+    // Find the symbol - use containing message scope for correct resolution
     const file = this.analyzer.getFile(uri);
     const packageName = file?.package?.name || '';
-    const symbol = this.analyzer.resolveType(word, uri, packageName);
+    const containingScope = file ? this.findContainingMessageScope(file, position, packageName) : packageName;
+    const symbol = this.analyzer.resolveType(word, uri, containingScope);
 
         if (!symbol) {
       return [];
@@ -67,5 +68,53 @@ export class ReferencesProvider {
       return null;
     }
     return line.substring(start, end);
+  }
+
+  /**
+   * Find the fully qualified scope for the containing message at a position.
+   * This is used to resolve nested types correctly.
+   */
+  private findContainingMessageScope(
+    file: ProtoFile,
+    position: { line: number, character: number },
+    packageName: string
+  ): string {
+    const messageChain = this.findContainingMessageChain(file.messages, position);
+
+    if (messageChain.length > 0) {
+      const messageNames = messageChain.map(m => m.name).join('.');
+      return packageName ? `${packageName}.${messageNames}` : messageNames;
+    }
+
+    return packageName;
+  }
+
+  /**
+   * Find the chain of containing messages at a position (from outermost to innermost).
+   */
+  private findContainingMessageChain(
+    messages: MessageDefinition[],
+    position: { line: number, character: number }
+  ): MessageDefinition[] {
+    for (const msg of messages) {
+      if (this.contains(msg.range, position)) {
+        const nestedChain = this.findContainingMessageChain(msg.nestedMessages, position);
+        return [msg, ...nestedChain];
+      }
+    }
+    return [];
+  }
+
+  private contains(range: Range, pos: { line: number, character: number }): boolean {
+    if (pos.line < range.start.line || pos.line > range.end.line) {
+      return false;
+    }
+    if (pos.line === range.start.line && pos.character < range.start.character) {
+      return false;
+    }
+    if (pos.line === range.end.line && pos.character > range.end.character) {
+      return false;
+    }
+    return true;
   }
 }

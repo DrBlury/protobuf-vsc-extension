@@ -5,7 +5,7 @@
     }
   ],
   "settings": {
-    "protobuf.protoc.path": "protoc",
+    "protobuf.protoc.path": "/Users/drblury/Library/Application Support/Code/User/globalStorage/drblury.protobuf-vsc/bin/protoc",
     "protobuf.protoc.excludePatterns": ["nanopb/tests", "nanopb/examples"],
     "protobuf.protoc.options": [
       "--proto_path=${workspaceFolder}/protos",
