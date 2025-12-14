@@ -47,6 +47,12 @@ jest.mock('fs', () => ({
   existsSync: (...args: unknown[]) => mockFsExistsSync(...args),
 }));
 
+// Mock os to return consistent platform for tests
+jest.mock('os', () => ({
+  platform: () => 'darwin',
+  homedir: () => '/Users/testuser',
+}));
+
 // Mock child_process
 const mockSpawn = jest.fn();
 jest.mock('child_process', () => ({
