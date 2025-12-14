@@ -66,7 +66,6 @@ export class ToolchainManager {
   private outputChannel: vscode.OutputChannel;
   private globalStoragePath: string;
   private binPath: string;
-  private requiredTools: string[] = [];
 
   constructor(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
@@ -99,18 +98,8 @@ export class ToolchainManager {
   public async checkTools(): Promise<void> {
     this.outputChannel.appendLine('Checking protobuf toolchain...');
 
-    this.requiredTools = this.getRequiredTools();
-    this.outputChannel.appendLine(`  Required tools: ${this.requiredTools.length > 0 ? this.requiredTools.join(', ') : 'none'}`);
-
+    // Always check all tools for detection
     for (const name of this.tools.keys()) {
-      if (!this.requiredTools.includes(name)) {
-        const toolInfo = this.tools.get(name)!;
-        toolInfo.status = ToolStatus.Unknown;
-        toolInfo.path = undefined;
-        toolInfo.version = undefined;
-        continue;
-      }
-
       await this.checkTool(name, '--version');
     }
 
@@ -118,7 +107,8 @@ export class ToolchainManager {
   }
 
   /**
-   * Find the tool binary by checking configured path, managed path, and common installation paths.
+   * Find the tool binary by checking configured path, common paths, then managed path.
+   * Priority: explicit config > system PATH > managed (fallback)
    * This handles GUI apps not inheriting shell PATH on all platforms.
    */
   private findToolPath(name: string): string {
@@ -130,16 +120,13 @@ export class ToolchainManager {
 
     this.outputChannel.appendLine(`Looking for ${name}...`);
     this.outputChannel.appendLine(`  Managed bin path: ${this.binPath}`);
+    this.outputChannel.appendLine(`  Configured path: ${configuredPath || '(not set)'}`);
 
-    if (name === 'buf' && config.get<boolean>('useManaged', false)) {
-      const managedBufPath = this.getManagedToolPath(name);
-      if (fs.existsSync(managedBufPath)) {
-        this.outputChannel.appendLine('  ✓ Using managed buf (protobuf.buf.useManaged = true)');
-        return managedBufPath;
-      }
-    }
+    // Check if user explicitly configured a managed path
+    const managedPath = this.getManagedToolPath(name);
+    const wantsManagedTool = configuredPath === managedPath;
 
-    // 1. Check if user has configured a specific path (not the default)
+    // 1. Check if user has configured a specific full path
     if (configuredPath && configuredPath !== name) {
       if (fs.existsSync(configuredPath)) {
         this.outputChannel.appendLine(`  ✓ Using configured path: ${configuredPath}`);
@@ -148,7 +135,7 @@ export class ToolchainManager {
       this.outputChannel.appendLine(`  ✗ Configured path not found: ${configuredPath}`);
       // Show user-visible warning for configured but missing tool path
       vscode.window.showWarningMessage(
-        `Protobuf: Configured ${name} path not found: ${configuredPath}. Falling back to system PATH.`,
+        `Protobuf: Configured ${name} path not found: ${configuredPath}. Falling back to auto-detection.`,
         'Open Settings'
       ).then(selection => {
         if (selection === 'Open Settings') {
@@ -157,24 +144,26 @@ export class ToolchainManager {
       });
     }
 
-    // 2. Check managed version (installed by extension)
-    const managedPath = this.getManagedToolPath(name);
+    // 2. Check common installation paths first (system tools have priority)
+    //    Skip this if user explicitly wants managed tools
+    if (!wantsManagedTool) {
+      const commonPaths = getCommonPaths();
+      for (const dir of commonPaths) {
+        const fullPath = path.join(dir, binaryName);
+        if (fs.existsSync(fullPath)) {
+          this.outputChannel.appendLine(`  ✓ Found in common path: ${fullPath}`);
+          return fullPath;
+        }
+      }
+    }
+
+    // 3. Check managed version (installed by extension) as fallback
     this.outputChannel.appendLine(`  Checking managed path: ${managedPath}`);
     if (fs.existsSync(managedPath)) {
       this.outputChannel.appendLine(`  ✓ Found managed ${name}: ${managedPath}`);
       return managedPath;
     }
     this.outputChannel.appendLine(`  ✗ Managed path does not exist`);
-
-    // 3. Check common installation paths (handles GUI apps not inheriting shell PATH)
-    const commonPaths = getCommonPaths();
-    for (const dir of commonPaths) {
-      const fullPath = path.join(dir, binaryName);
-      if (fs.existsSync(fullPath)) {
-        this.outputChannel.appendLine(`  ✓ Found in common path: ${fullPath}`);
-        return fullPath;
-      }
-    }
 
     // 4. Try the command directly (relies on shell PATH)
     this.outputChannel.appendLine(`  Falling back to PATH lookup: ${binaryName}`);
@@ -207,7 +196,7 @@ export class ToolchainManager {
 
   private async getToolVersion(cmd: string, flag: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      // Don't use shell: true to properly handle paths with spaces
+      // Don't use shell: true initially to properly handle paths with spaces
       const proc = spawn(cmd, [flag]);
       let output = '';
       let errorOutput = '';
@@ -223,33 +212,63 @@ export class ToolchainManager {
         }
       });
 
-      proc.on('error', (err) => reject(err));
+      proc.on('error', () => {
+        // Fallback: try with shell to pick up PATH from shell configuration
+        // GUI apps on macOS/Linux don't inherit shell PATH
+        const procWithShell = spawn(cmd, [flag], { shell: true });
+        let shellOutput = '';
+        let shellErrorOutput = '';
+
+        procWithShell.stdout.on('data', (data) => shellOutput += data.toString());
+        procWithShell.stderr.on('data', (data) => shellErrorOutput += data.toString());
+
+        procWithShell.on('close', (code) => {
+          if (code === 0) {
+            resolve((shellOutput || shellErrorOutput).trim());
+          } else {
+            reject(new Error(`Process exited with code ${code}: ${shellErrorOutput || shellOutput}`));
+          }
+        });
+
+        procWithShell.on('error', (err) => reject(err));
+      });
     });
   }
 
   private updateStatusBar(): void {
-    if (this.requiredTools.length === 0) {
-      this.statusBarItem.text = `$(check) Protobuf`;
-      this.statusBarItem.tooltip = 'No additional tools are required for the current configuration';
-      this.statusBarItem.backgroundColor = undefined;
-      this.statusBarItem.show();
-      return;
+    const allTools = Array.from(this.tools.entries());
+    const installed = allTools.filter(([_, info]) => info.status === ToolStatus.Installed);
+
+    // Build detailed tooltip with all tools
+    const detailLines: string[] = [];
+    for (const [name, info] of this.tools.entries()) {
+      const status = info.status === ToolStatus.Installed ? '✓' : '✗';
+      if (info.status === ToolStatus.Installed) {
+        detailLines.push(`${status} ${name}: ${info.version}`);
+        detailLines.push(`    Path: ${info.path}`);
+      } else {
+        detailLines.push(`${status} ${name}: not detected`);
+      }
     }
 
-    const missing = this.requiredTools
-      .map(name => this.tools.get(name)!)
-      .filter(t => t.status === ToolStatus.NotInstalled);
+    if (installed.length > 0) {
+      // Tools detected - show versions
+      const toolVersions = installed
+        .map(([name, info]) => {
+          const ver = info.version?.split('\n')[0] || 'unknown';
+          // Extract short version (e.g., "libprotoc 33.0" -> "33.0")
+          const shortVer = ver.match(/[\d.]+/)?.[0] || ver;
+          return `${name}:${shortVer}`;
+        })
+        .join(' ');
 
-    if (missing.length > 0) {
-      this.statusBarItem.text = `$(warning) Protobuf: Missing Tools`;
-      this.statusBarItem.tooltip = `Missing: ${missing.map(t => t.name).join(', ')}. Click to manage.`;
-      this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+      this.statusBarItem.text = `$(check) Protobuf: ${toolVersions}`;
+      this.statusBarItem.tooltip = `Protobuf Toolchain\n\n${detailLines.join('\n')}\n\nClick to manage.`;
+      this.statusBarItem.backgroundColor = undefined;
     } else {
-      this.statusBarItem.text = `$(check) Protobuf`;
-      const details = this.requiredTools
-        .map(name => `${name}: ${this.tools.get(name)?.version || 'unknown'}`)
-        .join('\n');
-      this.statusBarItem.tooltip = `Protobuf toolchain is healthy${details ? `\n${details}` : ''}`;
+      // No tools detected at all
+      this.statusBarItem.text = `$(info) Protobuf`;
+      this.statusBarItem.tooltip = `Protobuf Toolchain\n\n${detailLines.join('\n')}\n\nClick to install tools.`;
       this.statusBarItem.backgroundColor = undefined;
     }
 
@@ -259,54 +278,137 @@ export class ToolchainManager {
   public async manageToolchain(): Promise<void> {
     const items: vscode.QuickPickItem[] = [];
 
+    // Show each tool with its current status and available actions
     for (const [name, info] of this.tools.entries()) {
-      const statusIcon = info.status === ToolStatus.Installed ? '$(check)' : '$(x)';
+      const isInstalled = info.status === ToolStatus.Installed;
+      const isManaged = info.path?.startsWith(this.binPath);
+      const hasManagedVersion = fs.existsSync(this.getManagedToolPath(name));
+
       items.push({
-        label: `${statusIcon} ${name}`,
-        description: info.status === ToolStatus.Installed ? info.version : 'Not installed',
-        detail: info.path || 'Click to install/update'
-      });
+        label: name,
+        kind: vscode.QuickPickItemKind.Separator
+      } as vscode.QuickPickItem);
+
+      if (isInstalled) {
+        const sourceLabel = isManaged ? 'managed' : 'system';
+        items.push({
+          label: `$(check) ${name}`,
+          description: `${info.version} (${sourceLabel})`,
+          detail: info.path
+        });
+
+        // Show switch option based on current state
+        if (isManaged) {
+          items.push({
+            label: `$(terminal) Use system ${name}`,
+            description: 'Switch to system PATH version',
+            detail: `Configure ${name} to use the version from your shell PATH`
+          });
+        } else if (hasManagedVersion) {
+          items.push({
+            label: `$(package) Use managed ${name}`,
+            description: 'Switch to extension-managed version',
+            detail: `Configure ${name} to use the version installed by this extension`
+          });
+        }
+      } else {
+        items.push({
+          label: `$(x) ${name}`,
+          description: 'Not detected',
+          detail: 'Not found on system or in managed tools'
+        });
+
+        items.push({
+          label: `$(cloud-download) Install ${name}`,
+          description: 'Download and install',
+          detail: `Install ${name} managed by this extension`
+        });
+      }
     }
 
-    const selection = await vscode.window.showQuickPick(items, {
-      placeHolder: 'Select a tool to manage'
+    // Global actions section
+    items.push({
+      label: 'Actions',
+      kind: vscode.QuickPickItemKind.Separator
+    } as vscode.QuickPickItem);
+
+    // Always show re-detect option
+    items.push({
+      label: '$(refresh) Re-detect Tools',
+      description: 'Scan for installed tools',
+      detail: 'Check common paths and shell PATH for protobuf tools'
     });
 
-    if (selection) {
-      const toolName = selection.label.split(' ')[1]!; // extract name
-      await this.promptInstall(toolName);
+    const selection = await vscode.window.showQuickPick(items, {
+      placeHolder: 'Manage Protobuf Toolchain'
+    });
+
+    if (!selection) {
+      return;
+    }
+
+    // Handle selection
+    if (selection.label.includes('Re-detect')) {
+      await this.redetectAndUpdateSettings();
+    } else if (selection.label.includes('Install protoc')) {
+      await this.installTool('protoc');
+    } else if (selection.label.includes('Install buf')) {
+      await this.installTool('buf');
+    } else if (selection.label.includes('Use system protoc')) {
+      await this.useSystemTool('protoc');
+    } else if (selection.label.includes('Use system buf')) {
+      await this.useSystemTool('buf');
+    } else if (selection.label.includes('Use managed protoc')) {
+      await this.useManagedTool('protoc');
+    } else if (selection.label.includes('Use managed buf')) {
+      await this.useManagedTool('buf');
     }
   }
 
   /**
-   * Configure settings to use the managed (extension-installed) toolchain.
-   * This updates protobuf.buf.path, protobuf.protoc.path, and protobuf.externalLinter.bufPath
-   * to point to the extension's managed binaries.
+   * Re-detect tools and update settings to match what was found.
+   * Prefers system tools over managed tools.
    */
-  public async useManagedToolchain(): Promise<void> {
-    const managedBufPath = this.getManagedToolPath('buf');
-    const managedProtocPath = this.getManagedToolPath('protoc');
+  private async redetectAndUpdateSettings(): Promise<void> {
+    this.outputChannel.appendLine('Re-detecting tools and updating settings...');
 
-    // Check if managed tools exist
-    const bufExists = fs.existsSync(managedBufPath);
-    const protocExists = fs.existsSync(managedProtocPath);
+    const ext = os.platform() === 'win32' ? '.exe' : '';
+    const commonPaths = getCommonPaths();
+    const updates: { tool: string; path: string; source: string }[] = [];
 
-    if (!bufExists && !protocExists) {
-      const install = await vscode.window.showWarningMessage(
-        'No managed tools found. Would you like to install them first?',
-        'Install buf', 'Install protoc', 'Install both', 'Cancel'
-      );
+    for (const toolName of ['protoc', 'buf']) {
+      const binaryName = toolName + ext;
+      let foundPath: string | undefined;
+      let source = '';
 
-      if (install === 'Install buf') {
-        await this.installTool('buf');
-      } else if (install === 'Install protoc') {
-        await this.installTool('protoc');
-      } else if (install === 'Install both') {
-        await this.installTool('buf');
-        await this.installTool('protoc');
-      } else {
-        return;
+      // Check common paths first (system tools)
+      for (const dir of commonPaths) {
+        const fullPath = path.join(dir, binaryName);
+        if (fs.existsSync(fullPath)) {
+          foundPath = fullPath;
+          source = 'system';
+          break;
+        }
       }
+
+      // Fallback to managed
+      if (!foundPath) {
+        const managedPath = this.getManagedToolPath(toolName);
+        if (fs.existsSync(managedPath)) {
+          foundPath = managedPath;
+          source = 'managed';
+        }
+      }
+
+      if (foundPath) {
+        updates.push({ tool: toolName, path: foundPath, source });
+      }
+    }
+
+    if (updates.length === 0) {
+      await this.checkTools();
+      vscode.window.showInformationMessage('No tools found. You can install them via the toolchain menu.');
+      return;
     }
 
     // Ask user for scope
@@ -315,83 +417,56 @@ export class ToolchainManager {
         { label: 'Workspace', description: 'Apply to current workspace only', target: vscode.ConfigurationTarget.Workspace },
         { label: 'Global', description: 'Apply to all workspaces', target: vscode.ConfigurationTarget.Global }
       ],
-      { placeHolder: 'Where should the managed toolchain settings be applied?' }
+      { placeHolder: 'Where should the detected tool settings be applied?' }
     );
 
     if (!scope) {
       return;
     }
 
-    const configTarget = scope.target;
-    const updatedSettings: string[] = [];
-
-    try {
-      // Update buf.path
-      if (fs.existsSync(managedBufPath)) {
-        await vscode.workspace.getConfiguration('protobuf.buf').update('path', managedBufPath, configTarget);
-        await vscode.workspace.getConfiguration('protobuf.externalLinter').update('bufPath', managedBufPath, configTarget);
-        updatedSettings.push('buf');
-        this.outputChannel.appendLine(`Set protobuf.buf.path to ${managedBufPath}`);
-        this.outputChannel.appendLine(`Set protobuf.externalLinter.bufPath to ${managedBufPath}`);
+    // Update settings
+    for (const { tool, path: toolPath, source } of updates) {
+      try {
+        await vscode.workspace.getConfiguration(`protobuf.${tool}`).update('path', toolPath, scope.target);
+        if (tool === 'buf') {
+          await vscode.workspace.getConfiguration('protobuf.externalLinter').update('bufPath', toolPath, scope.target);
+        }
+        this.outputChannel.appendLine(`Set protobuf.${tool}.path to ${toolPath} (${source})`);
+      } catch (e) {
+        this.outputChannel.appendLine(`Failed to update ${tool} setting: ${e instanceof Error ? e.message : String(e)}`);
       }
-
-      // Update protoc.path
-      if (fs.existsSync(managedProtocPath)) {
-        await vscode.workspace.getConfiguration('protobuf.protoc').update('path', managedProtocPath, configTarget);
-        updatedSettings.push('protoc');
-        this.outputChannel.appendLine(`Set protobuf.protoc.path to ${managedProtocPath}`);
-      }
-
-      if (updatedSettings.length > 0) {
-        vscode.window.showInformationMessage(
-          `Configured to use managed toolchain: ${updatedSettings.join(', ')} (${scope.label})`
-        );
-      } else {
-        vscode.window.showWarningMessage('No managed tools were found to configure.');
-      }
-    } catch (e) {
-      const msg = `Failed to update settings: ${e instanceof Error ? e.message : String(e)}`;
-      this.outputChannel.appendLine(msg);
-      vscode.window.showErrorMessage(msg);
     }
+
+    // Re-check tools to update status bar
+    await this.checkTools();
+
+    const summary = updates.map(u => `${u.tool} (${u.source})`).join(', ');
+    vscode.window.showInformationMessage(`Configured: ${summary} (${scope.label})`);
   }
 
   /**
-   * Configure settings to use the system-installed (PATH) toolchain.
-   * This resets protobuf.buf.path, protobuf.protoc.path, and protobuf.externalLinter.bufPath
-   * to their default values (just the command names), relying on the system PATH.
+   * Switch a single tool to use the system PATH version
    */
-  public async useSystemToolchain(): Promise<void> {
-    // Ask user for scope
+  private async useSystemTool(toolName: string): Promise<void> {
     const scope = await vscode.window.showQuickPick(
       [
         { label: 'Workspace', description: 'Apply to current workspace only', target: vscode.ConfigurationTarget.Workspace },
         { label: 'Global', description: 'Apply to all workspaces', target: vscode.ConfigurationTarget.Global }
       ],
-      { placeHolder: 'Where should the system toolchain settings be applied?' }
+      { placeHolder: `Where should the ${toolName} setting be applied?` }
     );
 
     if (!scope) {
       return;
     }
 
-    const configTarget = scope.target;
-
     try {
-      // Reset to default values (command names only, uses PATH)
-      await vscode.workspace.getConfiguration('protobuf.buf').update('path', 'buf', configTarget);
-      await vscode.workspace.getConfiguration('protobuf.protoc').update('path', 'protoc', configTarget);
-      await vscode.workspace.getConfiguration('protobuf.externalLinter').update('bufPath', 'buf', configTarget);
-
-      this.outputChannel.appendLine('Set protobuf.buf.path to buf (system PATH)');
-      this.outputChannel.appendLine('Set protobuf.protoc.path to protoc (system PATH)');
-      this.outputChannel.appendLine('Set protobuf.externalLinter.bufPath to buf (system PATH)');
-
-      vscode.window.showInformationMessage(
-        `Configured to use system toolchain from PATH (${scope.label})`
-      );
-
-      // Re-check tools to update status bar
+      await vscode.workspace.getConfiguration(`protobuf.${toolName}`).update('path', toolName, scope.target);
+      if (toolName === 'buf') {
+        await vscode.workspace.getConfiguration('protobuf.externalLinter').update('bufPath', 'buf', scope.target);
+      }
+      this.outputChannel.appendLine(`Set protobuf.${toolName}.path to ${toolName} (system PATH)`);
+      vscode.window.showInformationMessage(`${toolName} configured to use system PATH (${scope.label})`);
       await this.checkTools();
     } catch (e) {
       const msg = `Failed to update settings: ${e instanceof Error ? e.message : String(e)}`;
@@ -400,15 +475,48 @@ export class ToolchainManager {
     }
   }
 
-  private async promptInstall(toolName: string): Promise<void> {
-      const action = await vscode.window.showInformationMessage(
-          `Do you want to install/update ${toolName}?`,
-          'Yes', 'No'
-      );
+  /**
+   * Switch a single tool to use the managed (extension-installed) version
+   */
+  private async useManagedTool(toolName: string): Promise<void> {
+    const managedPath = this.getManagedToolPath(toolName);
 
-      if (action === 'Yes') {
-          await this.installTool(toolName);
+    if (!fs.existsSync(managedPath)) {
+      const install = await vscode.window.showWarningMessage(
+        `Managed ${toolName} not found. Would you like to install it?`,
+        'Install', 'Cancel'
+      );
+      if (install === 'Install') {
+        await this.installTool(toolName);
       }
+      return;
+    }
+
+    const scope = await vscode.window.showQuickPick(
+      [
+        { label: 'Workspace', description: 'Apply to current workspace only', target: vscode.ConfigurationTarget.Workspace },
+        { label: 'Global', description: 'Apply to all workspaces', target: vscode.ConfigurationTarget.Global }
+      ],
+      { placeHolder: `Where should the ${toolName} setting be applied?` }
+    );
+
+    if (!scope) {
+      return;
+    }
+
+    try {
+      await vscode.workspace.getConfiguration(`protobuf.${toolName}`).update('path', managedPath, scope.target);
+      if (toolName === 'buf') {
+        await vscode.workspace.getConfiguration('protobuf.externalLinter').update('bufPath', managedPath, scope.target);
+      }
+      this.outputChannel.appendLine(`Set protobuf.${toolName}.path to ${managedPath}`);
+      vscode.window.showInformationMessage(`${toolName} configured to use managed version (${scope.label})`);
+      await this.checkTools();
+    } catch (e) {
+      const msg = `Failed to update settings: ${e instanceof Error ? e.message : String(e)}`;
+      this.outputChannel.appendLine(msg);
+      vscode.window.showErrorMessage(msg);
+    }
   }
 
   private async installTool(toolName: string): Promise<void> {
@@ -605,62 +713,5 @@ export class ToolchainManager {
       .replace(/\$\{env(?::|\.)([^}]+)\}/g, (_match, name: string) => process.env[name] || '');
 
     return resolved;
-  }
-
-  private getRequiredTools(): string[] {
-    const required = new Set<string>();
-
-    if (this.isProtocRequired()) {
-      required.add('protoc');
-    }
-
-    if (this.isBufRequired()) {
-      required.add('buf');
-    }
-
-    return Array.from(required);
-  }
-
-  private isProtocRequired(): boolean {
-    // protoc is required if:
-    // 1. protoc diagnostics is enabled
-    const protocConfig = vscode.workspace.getConfiguration('protobuf.protoc');
-    const protocEnabled = protocConfig.get<boolean>('enabled', false);
-    if (protocEnabled) {
-      return true;
-    }
-
-    // 2. codegen is enabled and uses protoc
-    const codegenConfig = vscode.workspace.getConfiguration('protobuf.codegen');
-    const generateOnSave = codegenConfig.get<boolean>('generateOnSave', false);
-    const codegenTool = codegenConfig.get<string>('tool', 'buf');
-    if (generateOnSave && codegenTool === 'protoc') {
-      return true;
-    }
-
-    return false;
-  }
-
-  private isBufRequired(): boolean {
-    const formatterPreset = vscode.workspace.getConfiguration('protobuf.formatter').get<string>('preset', 'minimal');
-    if (formatterPreset === 'buf') {
-      return true;
-    }
-
-    const linterConfig = vscode.workspace.getConfiguration('protobuf.externalLinter');
-    const linterEnabled = linterConfig.get<boolean>('enabled', false);
-    const linterType = linterConfig.get<string>('linter', 'none');
-    if (linterEnabled && linterType === 'buf') {
-      return true;
-    }
-
-    const codegenConfig = vscode.workspace.getConfiguration('protobuf.codegen');
-    const generateOnSave = codegenConfig.get<boolean>('generateOnSave', false);
-    const codegenTool = codegenConfig.get<string>('tool', 'buf');
-    if (generateOnSave && codegenTool === 'buf') {
-      return true;
-    }
-
-    return false;
   }
 }

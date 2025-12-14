@@ -1,0 +1,17 @@
+// This file is in nanopb/tests/ and should be EXCLUDED from "Compile All Protos"
+
+syntax = "proto3";
+
+package nanopb.tests;
+
+// Test message - this should NOT be compiled when using exclude patterns
+message TestMessage
+{
+  string test_field = 1;
+  int32 test_number = 2;
+}
+
+message AnotherTestMessage
+{
+  repeated string items = 1;
+}

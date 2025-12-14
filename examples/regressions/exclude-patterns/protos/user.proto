@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package myapp;
+
+// Another proto file in the main protos directory
+message UserProfile
+{
+  string user_id = 1;
+  string name = 2;
+  string email = 3;
+}
+
+message UserSettings
+{
+  string user_id = 1;
+  bool notifications_enabled = 2;
+  string theme = 3;
+}

@@ -1,0 +1,14 @@
+// Simulated nanopb.proto - core library file
+// This file SHOULD be compiled (it's in nanopb/ but not in tests/ or examples/)
+
+syntax = "proto3";
+
+package nanopb;
+
+// Simulated nanopb options (simplified for testing)
+message NanoPBOptions
+{
+  optional int32 max_size = 1;
+  optional int32 max_count = 2;
+  optional bool fixed_length = 3;
+}

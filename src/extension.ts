@@ -138,12 +138,6 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand('protobuf.toolchain.manage', () => {
     toolchainManager.manageToolchain();
   }));
-  context.subscriptions.push(vscode.commands.registerCommand('protobuf.toolchain.useManaged', () => {
-    toolchainManager.useManagedToolchain();
-  }));
-  context.subscriptions.push(vscode.commands.registerCommand('protobuf.toolchain.useSystem', () => {
-    toolchainManager.useSystemToolchain();
-  }));
 
   // Respect protobuf.formatOnSave and provide manual formatting when editor.formatOnSave is disabled
   context.subscriptions.push(

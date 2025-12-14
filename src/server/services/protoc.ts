@@ -920,7 +920,7 @@ export class ProtocCompiler {
    * Supports:
    * - Simple folder names: 'nanopb', 'test'
    * - Glob-like patterns with wildcards
-   * - Path segments: 'nanopb/tests'
+   * - Path segments: 'nanopb/tests' (matches paths starting with or containing this segment)
    */
   private isExcluded(fullPath: string, name: string, rootPath: string): boolean {
     if (this.settings.excludePatterns.length === 0) {
@@ -939,6 +939,20 @@ export class ProtocCompiler {
       const segments = relativePath.split('/');
       if (segments.includes(pattern)) {
         return true;
+      }
+
+      // Check if pattern is a multi-segment path (e.g., 'nanopb/tests')
+      // This should match if the relativePath starts with or contains this path prefix
+      if (pattern.includes('/') && !pattern.includes('*')) {
+        // Normalize pattern separators
+        const normalizedPattern = pattern.split(/[/\\]/).join('/');
+        // Check if path starts with or contains the pattern as a path prefix
+        if (relativePath.startsWith(normalizedPattern + '/') ||
+            relativePath === normalizedPattern ||
+            relativePath.includes('/' + normalizedPattern + '/') ||
+            relativePath.includes('/' + normalizedPattern)) {
+          return true;
+        }
       }
 
       // Glob-like pattern matching

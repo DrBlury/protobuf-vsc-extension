@@ -1,0 +1,17 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "protobuf.protoc.path": "protoc",
+    "protobuf.protoc.excludePatterns": ["nanopb/tests", "nanopb/examples"],
+    "protobuf.protoc.options": [
+      "--proto_path=${workspaceFolder}/protos",
+      "--proto_path=${workspaceFolder}/nanopb",
+      "--python_out=${workspaceFolder}/generated/python",
+      "--nanopb_out=${workspaceFolder}/generated/nanopb"
+    ]
+  }
+}

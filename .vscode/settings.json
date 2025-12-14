@@ -6,7 +6,7 @@
   // Use buf linter instead of protoc
   "protobuf.externalLinter.enabled": true,
   "protobuf.externalLinter.linter": "buf",
-  "protobuf.externalLinter.bufPath": "buf",
+  "protobuf.externalLinter.bufPath": "/opt/homebrew/bin/buf",
   "protobuf.externalLinter.runOnSave": true,
 
   // Code generation on save

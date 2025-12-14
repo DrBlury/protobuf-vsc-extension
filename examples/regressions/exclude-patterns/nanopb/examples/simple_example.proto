@@ -1,0 +1,18 @@
+// This file is in nanopb/examples/ and should be EXCLUDED from "Compile All Protos"
+
+syntax = "proto3";
+
+package nanopb.examples;
+
+// Example message - this should NOT be compiled when using exclude patterns
+message ExampleConfig
+{
+  string example_name = 1;
+  bool example_enabled = 2;
+}
+
+message ExampleData
+{
+  int64 value = 1;
+  string label = 2;
+}

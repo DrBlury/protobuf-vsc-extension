@@ -1004,6 +1004,42 @@ describe('ProtocCompiler', () => {
       // File in different folder that starts with nanopb
       expect(isExcluded('/workspace/nanopb_extra/file.proto', 'file.proto', '/workspace')).toBe(false);
     });
+
+    it('should match multi-segment path patterns like nanopb/tests', () => {
+      compiler.updateSettings({ excludePatterns: ['nanopb/tests'] });
+      const isExcluded = (compiler as any).isExcluded.bind(compiler);
+
+      // Files inside nanopb/tests should be excluded
+      expect(isExcluded('/workspace/nanopb/tests/file.proto', 'file.proto', '/workspace')).toBe(true);
+      expect(isExcluded('/workspace/nanopb/tests/nested/deep.proto', 'deep.proto', '/workspace')).toBe(true);
+      // Exact match of the directory itself
+      expect(isExcluded('/workspace/nanopb/tests', 'tests', '/workspace')).toBe(true);
+      // Files in nanopb but not in tests should NOT be excluded
+      expect(isExcluded('/workspace/nanopb/core/main.proto', 'main.proto', '/workspace')).toBe(false);
+      // Files in other places should NOT be excluded
+      expect(isExcluded('/workspace/src/tests/unit.proto', 'unit.proto', '/workspace')).toBe(false);
+    });
+
+    it('should match multi-segment patterns with multiple excludes', () => {
+      compiler.updateSettings({ excludePatterns: ['nanopb/tests', 'nanopb/examples'] });
+      const isExcluded = (compiler as any).isExcluded.bind(compiler);
+
+      // Both patterns should work
+      expect(isExcluded('/workspace/nanopb/tests/test.proto', 'test.proto', '/workspace')).toBe(true);
+      expect(isExcluded('/workspace/nanopb/examples/example.proto', 'example.proto', '/workspace')).toBe(true);
+      // Files in nanopb but not in tests or examples should NOT be excluded
+      expect(isExcluded('/workspace/nanopb/core/lib.proto', 'lib.proto', '/workspace')).toBe(false);
+    });
+
+    it('should match multi-segment patterns in nested directories', () => {
+      compiler.updateSettings({ excludePatterns: ['vendor/tests'] });
+      const isExcluded = (compiler as any).isExcluded.bind(compiler);
+
+      // Pattern should match when vendor/tests appears anywhere in path
+      expect(isExcluded('/workspace/libs/vendor/tests/mock.proto', 'mock.proto', '/workspace')).toBe(true);
+      // Should not match partial patterns
+      expect(isExcluded('/workspace/vendor/main.proto', 'main.proto', '/workspace')).toBe(false);
+    });
   });
 
   describe('matchGlobPattern (internal)', () => {

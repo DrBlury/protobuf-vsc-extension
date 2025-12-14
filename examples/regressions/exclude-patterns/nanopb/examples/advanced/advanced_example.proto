@@ -1,0 +1,13 @@
+// This file is in nanopb/examples/advanced/ and should be EXCLUDED from "Compile All Protos"
+
+syntax = "proto3";
+
+package nanopb.examples.advanced;
+
+// Advanced example - this should NOT be compiled when using exclude patterns
+message AdvancedExample
+{
+  string name = 1;
+  repeated int32 values = 2;
+  map<string, string> metadata = 3;
+}

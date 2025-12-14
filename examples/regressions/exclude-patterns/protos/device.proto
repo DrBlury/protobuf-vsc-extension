@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package myapp;
+
+import "../nanopb/nanopb.proto";
+
+// Main application message
+message SensorData
+{
+  string sensor_id = 1;
+  float temperature = 2;
+  float humidity = 3;
+  int64 timestamp = 4;
+  nanopb.NanoPBOptions options = 5;
+}
+
+message DeviceConfig
+{
+  string device_name = 1;
+  repeated SensorData sensors = 2;
+}

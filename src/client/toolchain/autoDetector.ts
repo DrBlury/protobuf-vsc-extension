@@ -23,6 +23,7 @@ export interface DetectionResult {
   bufYamlFound: boolean;
   bufWorkYamlFound: boolean;
   protolintConfigFound: boolean;
+  clangFormatConfigFound: boolean;
 }
 
 // Common installation paths to check when PATH isn't available (GUI apps)
@@ -108,6 +109,7 @@ export class AutoDetector {
     let bufYamlFound = false;
     let bufWorkYamlFound = false;
     let protolintConfigFound = false;
+    let clangFormatConfigFound = false;
 
     if (workspaceFolders) {
       for (const folder of workspaceFolders) {
@@ -133,6 +135,13 @@ export class AutoDetector {
         )) {
           protolintConfigFound = true;
         }
+
+        if (!clangFormatConfigFound && (
+          fs.existsSync(path.join(rootPath, '.clang-format')) ||
+          fs.existsSync(path.join(rootPath, '_clang-format'))
+        )) {
+          clangFormatConfigFound = true;
+        }
       }
     }
 
@@ -144,6 +153,7 @@ export class AutoDetector {
       bufYamlFound,
       bufWorkYamlFound,
       protolintConfigFound,
+      clangFormatConfigFound,
     };
 
     this.outputChannel.appendLine(`Detection results:`);
@@ -154,6 +164,7 @@ export class AutoDetector {
     this.outputChannel.appendLine(`  buf.yaml: ${bufYamlFound}`);
     this.outputChannel.appendLine(`  buf.work.yaml: ${bufWorkYamlFound}`);
     this.outputChannel.appendLine(`  .protolint.yaml: ${protolintConfigFound}`);
+    this.outputChannel.appendLine(`  .clang-format: ${clangFormatConfigFound}`);
 
     return result;
   }
@@ -214,7 +225,26 @@ export class AutoDetector {
         }
       });
 
-      proc.on('error', () => resolve(undefined));
+      proc.on('error', () => {
+        // Fallback: try with shell to pick up PATH from shell configuration
+        // GUI apps on macOS/Linux don't inherit shell PATH
+        const procWithShell = spawn(cmd, [flag], { timeout: 5000, shell: true });
+        let shellOutput = '';
+        let shellErrorOutput = '';
+
+        procWithShell.stdout?.on('data', (data) => shellOutput += data.toString());
+        procWithShell.stderr?.on('data', (data) => shellErrorOutput += data.toString());
+
+        procWithShell.on('close', (code) => {
+          if (code === 0) {
+            resolve((shellOutput || shellErrorOutput).trim().split('\n')[0]);
+          } else {
+            resolve(undefined);
+          }
+        });
+
+        procWithShell.on('error', () => resolve(undefined));
+      });
     });
   }
 
@@ -243,8 +273,9 @@ export class AutoDetector {
     }
 
     // Check if clang-format is available but not configured
+    // Only suggest if a .clang-format config file is found in the workspace
     const clangFormatEnabled = config.get<boolean>('clangFormat.enabled', false);
-    if (result.clangFormat && !clangFormatEnabled) {
+    if (result.clangFormat && !clangFormatEnabled && result.clangFormatConfigFound) {
       suggestions.push('clang-format');
     }
 
