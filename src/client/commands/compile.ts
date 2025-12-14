@@ -26,6 +26,7 @@ interface CompileAllResult {
   stdout?: string;
   stderr?: string;
   errors?: CompileError[];
+  fileCount?: number;
 }
 
 /**
@@ -280,7 +281,7 @@ function registerCompileAllCommand(
 
       if (result.success) {
         vscode.window.showInformationMessage(
-          SUCCESS_MESSAGES.COMPILED_ALL(result.errors?.length === 0 ? 0 : 1)
+          SUCCESS_MESSAGES.COMPILED_ALL(result.fileCount ?? 0)
         );
       } else {
         const errorDetail = formatErrorsForDisplay(result);

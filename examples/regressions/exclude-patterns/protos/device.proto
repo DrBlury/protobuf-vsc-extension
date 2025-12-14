@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package myapp;
 
-import "../nanopb/nanopb.proto";
+import "nanopb/nanopb.proto";
 
 // Main application message
 message SensorData

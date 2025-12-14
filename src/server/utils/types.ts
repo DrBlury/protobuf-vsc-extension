@@ -65,6 +65,7 @@ export interface Settings {
       compileAllPath: string;
       useAbsolutePath: boolean;
       options: string[];
+      excludePatterns: string[];
     };
     breaking: {
       enabled: boolean;
@@ -154,7 +155,8 @@ export const defaultSettings: Settings = {
       compileOnSave: false,
       compileAllPath: '',
       useAbsolutePath: false,
-      options: []
+      options: [],
+      excludePatterns: []
     },
     breaking: {
       enabled: false,

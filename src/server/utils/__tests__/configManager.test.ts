@@ -299,7 +299,8 @@ describe('ConfigManager', () => {
       compileOnSave: settings.protobuf.protoc.compileOnSave,
       compileAllPath: settings.protobuf.protoc.compileAllPath,
       useAbsolutePath: settings.protobuf.protoc.useAbsolutePath,
-      options: settings.protobuf.protoc.options
+      options: settings.protobuf.protoc.options,
+      excludePatterns: settings.protobuf.protoc.excludePatterns || []
     });
   });
 

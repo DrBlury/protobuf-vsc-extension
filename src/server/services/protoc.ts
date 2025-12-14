@@ -55,6 +55,8 @@ export interface CompilationResult {
   timedOut?: boolean;
   /** Execution time in milliseconds */
   executionTime?: number;
+  /** Number of files compiled (only for compileAll) */
+  fileCount?: number;
 }
 
 export interface ProtocError {
@@ -259,7 +261,8 @@ export class ProtocCompiler {
         success: true,
         stdout: 'No .proto files found',
         stderr: '',
-        errors: []
+        errors: [],
+        fileCount: 0
       };
     }
 
@@ -269,12 +272,17 @@ export class ProtocCompiler {
     // Check if command line would be too long
     const commandLength = this.estimateCommandLength(args);
 
+    let result: CompilationResult;
     if (commandLength > MAX_COMMAND_LINE_LENGTH) {
       // Use a response file to avoid command line length limits
-      return this.runProtocWithResponseFile(args, searchPath);
+      result = await this.runProtocWithResponseFile(args, searchPath);
+    } else {
+      result = await this.runProtoc(args, searchPath);
     }
 
-    return this.runProtoc(args, searchPath);
+    // Add file count to the result
+    result.fileCount = protoFiles.length;
+    return result;
   }
 
   /**

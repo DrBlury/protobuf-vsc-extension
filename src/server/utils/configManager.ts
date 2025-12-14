@@ -262,7 +262,8 @@ export function updateProvidersWithSettings(
     compileOnSave: protocSettings.compileOnSave,
     compileAllPath: expandedCompileAllPath || protocSettings.compileAllPath,
     useAbsolutePath: protocSettings.useAbsolutePath,
-    options: protocSettings.options
+    options: protocSettings.options,
+    excludePatterns: protocSettings.excludePatterns || []
   });
 
   // Update breaking change detector settings

@@ -9,7 +9,7 @@
     "protobuf.protoc.excludePatterns": ["nanopb/tests", "nanopb/examples"],
     "protobuf.protoc.options": [
       "--proto_path=${workspaceFolder}/protos",
-      "--proto_path=${workspaceFolder}/nanopb",
+      "--proto_path=${workspaceFolder}",
       "--python_out=${workspaceFolder}/generated/python",
       "--nanopb_out=${workspaceFolder}/generated/nanopb"
     ]
