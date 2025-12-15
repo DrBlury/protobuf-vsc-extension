@@ -37,7 +37,15 @@ export const EDITION_FEATURES = {
 /**
  * Available edition versions
  */
-export const EDITION_VERSIONS = ['2023', '2024', '1_test_only', '2_test_only', '99997_test_only', '99998_test_only', '99999_test_only'];
+export const EDITION_VERSIONS = [
+  '2023',
+  '2024',
+  '1_test_only',
+  '2_test_only',
+  '99997_test_only',
+  '99998_test_only',
+  '99999_test_only'
+];
 
 /**
  * Get feature name completions for "features." context

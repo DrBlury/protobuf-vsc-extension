@@ -121,7 +121,20 @@ export function getEditionFeaturesHover(word: string, lineText: string): Hover |
 export function getEditionHover(word: string, lineText: string): Hover | null {
   // Check if this is an edition keyword
   if (word === 'edition' && lineText.trim().startsWith('edition')) {
-    const content = `**edition**\n\nDeclares the Protobuf edition for this file. Editions provide a unified syntax with configurable features that replace the proto2/proto3 distinction.\n\n**Usage:** \`edition = "2023";\`\n\n**Available Editions:**\n${Object.entries(EDITION_VERSIONS).map(([ver, desc]) => `- \`${ver}\`: ${desc}`).join('\n')}\n\n[Protocol Buffers Editions Documentation](https://protobuf.dev/editions/overview/)`;
+    const editions = Object.entries(EDITION_VERSIONS)
+      .map(([ver, desc]) => `- \`${ver}\`: ${desc}`)
+      .join('\n');
+    
+    const content = `**edition**
+
+Declares the Protobuf edition for this file. Editions provide a unified syntax with configurable features that replace the proto2/proto3 distinction.
+
+**Usage:** \`edition = "2023";\`
+
+**Available Editions:**
+${editions}
+
+[Protocol Buffers Editions Documentation](https://protobuf.dev/editions/overview/)`;
 
     return {
       contents: {

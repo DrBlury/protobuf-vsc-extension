@@ -81,7 +81,9 @@ export class CompletionProvider {
     }
 
     // Edition feature value completion - check for "features.{feature_name} ="
-    const featureMatch = beforeCursor.match(/features\.(field_presence|enum_type|repeated_field_encoding|utf8_validation|message_encoding|json_format)\s*=\s*$/);
+    const featureNames = ['field_presence', 'enum_type', 'repeated_field_encoding', 'utf8_validation', 'message_encoding', 'json_format'];
+    const featurePattern = new RegExp(`features\\.(${featureNames.join('|')})\\s*=\\s*$`);
+    const featureMatch = beforeCursor.match(featurePattern);
     if (featureMatch) {
       const featureName = featureMatch[1]!;
       return getEditionFeatureValueCompletions(featureName);
@@ -153,11 +155,20 @@ export class CompletionProvider {
     }
 
     // Option completions
-    if (beforeCursor.includes('option') || beforeCursor.includes('buf.validate') || beforeCursor.includes('features')) {
+    if (this.shouldShowOptionCompletions(beforeCursor)) {
       completions.push(...this.getOptionCompletions(beforeCursor));
     }
 
     return completions;
+  }
+
+  /**
+   * Helper to determine if option completions should be shown
+   */
+  private shouldShowOptionCompletions(beforeCursor: string): boolean {
+    return beforeCursor.includes('option') || 
+           beforeCursor.includes('buf.validate') || 
+           beforeCursor.includes('features');
   }
 
   private getTypeCompletions(

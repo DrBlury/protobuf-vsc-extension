@@ -155,7 +155,7 @@ export class DiagnosticsProvider {
       diagnostics.push({
         severity: DiagnosticSeverity.Error,
         range: this.toRange(file.range),
-        message: 'Edition features require an edition declaration. Add "edition = \\"2023\\";" at the top of the file.',
+        message: 'Edition features require an edition declaration. Add "edition = "2023";" at the top of the file.',
         code: ERROR_CODES.FEATURES_WITHOUT_EDITION,
         source: DIAGNOSTIC_SOURCE
       });
