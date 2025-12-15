@@ -150,15 +150,17 @@ export class DiagnosticsProvider {
     }
 
     // If file uses features but doesn't have edition declaration
-    const hasFeatures = this.checkForFeatures(file);
-    if (hasFeatures && !hasEdition) {
-      diagnostics.push({
-        severity: DiagnosticSeverity.Error,
-        range: this.toRange(file.range),
-        message: 'Edition features require an edition declaration. Add "edition = "2023";" at the top of the file.',
-        code: ERROR_CODES.FEATURES_WITHOUT_EDITION,
-        source: DIAGNOSTIC_SOURCE
-      });
+    if (this.settings.editionFeatures) {
+      const hasFeatures = this.checkForFeatures(file);
+      if (hasFeatures && !hasEdition) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Error,
+          range: this.toRange(file.range),
+          message: 'Edition features require an edition declaration. Add "edition = "2023";" at the top of the file.',
+          code: ERROR_CODES.FEATURES_WITHOUT_EDITION,
+          source: DIAGNOSTIC_SOURCE
+        });
+      }
     }
   }
 
