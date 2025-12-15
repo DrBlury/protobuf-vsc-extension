@@ -17,6 +17,7 @@ import { BreakingChangeDetector } from '../services/breaking';
 import { ExternalLinterProvider } from '../services/externalLinter';
 import { ClangFormatProvider } from '../services/clangFormat';
 import { bufConfigProvider } from '../services/bufConfig';
+import { GOOGLE_WELL_KNOWN_TEST_FILE } from './constants';
 
 /**
  * Map string log level to LogLevel enum
@@ -28,6 +29,20 @@ const LOG_LEVEL_MAP: Record<string, LogLevel> = {
   debug: LogLevel.DEBUG,
   verbose: LogLevel.VERBOSE
 };
+
+/**
+ * Check if a directory contains google well-known protos.
+ * This is used to detect when user provides their own google/protobuf protos
+ * (e.g., from nanopb) so we can skip adding system/bundled protos.
+ */
+function containsGoogleProtos(includePath: string): boolean {
+  try {
+    const testFile = path.join(includePath, GOOGLE_WELL_KNOWN_TEST_FILE);
+    return fs.existsSync(testFile);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Expands VS Code variables like ${workspaceFolder} in a path
@@ -219,6 +234,7 @@ export function updateProvidersWithSettings(
 
   const includePaths: string[] = [];
   const seenPaths = new Set<string>();
+  let userHasGoogleProtos = false;
 
   for (const rawPath of rawIncludePaths) {
     if (!rawPath) {
@@ -232,22 +248,34 @@ export function updateProvidersWithSettings(
     if (!seenPaths.has(normalized)) {
       seenPaths.add(normalized);
       includePaths.push(expanded);
+
+      // Check if user provides their own google protos (e.g., from nanopb)
+      if (containsGoogleProtos(expanded)) {
+        userHasGoogleProtos = true;
+        logger.info(`User-supplied google protos detected in: ${expanded}`);
+      }
     }
   }
 
-  if (wellKnownIncludePath) {
-    const normalized = path.normalize(wellKnownIncludePath);
-    if (!seenPaths.has(normalized)) {
-      includePaths.push(wellKnownIncludePath);
-      seenPaths.add(normalized);
+  // Only add well-known paths if user hasn't provided their own google protos
+  // This prevents duplicate google/protobuf imports when user has e.g. nanopb's protos
+  if (userHasGoogleProtos) {
+    logger.info('Skipping system/bundled well-known protos since user provides their own google/protobuf files');
+  } else {
+    if (wellKnownIncludePath) {
+      const normalized = path.normalize(wellKnownIncludePath);
+      if (!seenPaths.has(normalized)) {
+        includePaths.push(wellKnownIncludePath);
+        seenPaths.add(normalized);
+      }
     }
-  }
 
-  if (wellKnownCacheDir) {
-    const normalized = path.normalize(wellKnownCacheDir);
-    if (!seenPaths.has(normalized)) {
-      includePaths.push(wellKnownCacheDir);
-      seenPaths.add(normalized);
+    if (wellKnownCacheDir) {
+      const normalized = path.normalize(wellKnownCacheDir);
+      if (!seenPaths.has(normalized)) {
+        includePaths.push(wellKnownCacheDir);
+        seenPaths.add(normalized);
+      }
     }
   }
 

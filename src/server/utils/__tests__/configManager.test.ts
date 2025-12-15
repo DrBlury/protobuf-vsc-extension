@@ -2,6 +2,8 @@
  * Tests for configuration manager
  */
 
+import * as path from 'path';
+import * as fs from 'fs';
 import { updateProvidersWithSettings } from '../configManager';
 import { Settings } from '../types';
 import { DiagnosticsProvider } from '../../providers/diagnostics';
@@ -14,6 +16,11 @@ import { ExternalLinterProvider } from '../../services/externalLinter';
 import { ClangFormatProvider } from '../../services/clangFormat';
 import { logger } from '../logger';
 import { defaultSettings } from '../types';
+
+jest.mock('fs', () => ({
+  existsSync: jest.fn(),
+  readFileSync: jest.fn()
+}));
 
 jest.mock('../logger', () => {
   const actualLogger = jest.requireActual('../logger');
@@ -620,5 +627,141 @@ describe('ConfigManager', () => {
     );
 
     expect(result.protoSrcsDir).toBe('/workspace/src/protos');
+  });
+
+  describe('google protos deduplication - nanopb scenario', () => {
+    /**
+     * These tests cover GitHub issue #38 where users with nanopb had duplicate
+     * google/protobuf protos - one from their nanopb directory and one from
+     * the system protoc installation.
+     */
+
+    it('should skip system well-known paths when user provides google protos', () => {
+      // Simulate nanopb providing google/protobuf/timestamp.proto
+      const nanopbPath = '/workspace/nanopb/generator/proto';
+      const userGoogleProtoPath = path.join(nanopbPath, 'google/protobuf/timestamp.proto');
+      const systemWellKnownPath = '/usr/local/include';
+
+      (fs.existsSync as jest.Mock).mockImplementation((p: string) => {
+        // User's nanopb directory contains google protos
+        if (p === userGoogleProtoPath) {
+          return true;
+        }
+        return false;
+      });
+
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          includes: [nanopbPath]
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        systemWellKnownPath, // This should be skipped
+        '/cache/well-known', // This should also be skipped
+        ['/workspace']
+      );
+
+      // User path should be included
+      expect(analyzer.setImportPaths).toHaveBeenCalled();
+      const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+      expect(importPaths).toContain(nanopbPath);
+
+      // System paths should NOT be included when user has google protos
+      expect(importPaths).not.toContain(systemWellKnownPath);
+      expect(importPaths).not.toContain('/cache/well-known');
+
+      // Should log that user-supplied google protos were detected
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('User-supplied google protos detected')
+      );
+    });
+
+    it('should include system well-known paths when user does NOT provide google protos', () => {
+      const userPath = '/workspace/protos';
+      const systemWellKnownPath = '/usr/local/include';
+
+      (fs.existsSync as jest.Mock).mockImplementation(() => {
+        // User's directory does NOT contain google protos
+        return false;
+      });
+
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          includes: [userPath]
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        systemWellKnownPath,
+        '/cache/well-known',
+        ['/workspace']
+      );
+
+      // Both user and system paths should be included
+      const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+      expect(importPaths).toContain(userPath);
+      expect(importPaths).toContain(systemWellKnownPath);
+      expect(importPaths).toContain('/cache/well-known');
+    });
+
+    it('should prefer user paths over system paths by adding them first', () => {
+      const userPath = '/workspace/protos';
+      const systemWellKnownPath = '/usr/local/include';
+
+      (fs.existsSync as jest.Mock).mockReturnValue(false);
+
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          includes: [userPath]
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        systemWellKnownPath,
+        undefined,
+        ['/workspace']
+      );
+
+      const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+
+      // User paths should come before system paths
+      const userIndex = importPaths.indexOf(userPath);
+      const systemIndex = importPaths.indexOf(systemWellKnownPath);
+      expect(userIndex).toBeLessThan(systemIndex);
+    });
   });
 });

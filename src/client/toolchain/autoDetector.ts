@@ -15,6 +15,72 @@ export interface DetectedTool {
   version: string;
 }
 
+/**
+ * Known script file extensions that require shell execution
+ */
+const SCRIPT_EXTENSIONS = new Set(['.sh', '.bash', '.zsh', '.bat', '.cmd', '.ps1', '.py']);
+
+/**
+ * Check if a command path looks like a script file based on extension.
+ * Scripts need shell: true to execute properly.
+ */
+function isScriptByExtension(commandPath: string): boolean {
+  const ext = path.extname(commandPath).toLowerCase();
+  return SCRIPT_EXTENSIONS.has(ext);
+}
+
+/**
+ * Check if a file is a script by reading its shebang line.
+ * Returns true if the file starts with #! (indicating a script interpreter).
+ * This handles extensionless scripts like nanopb's protoc wrapper.
+ */
+function hasShebang(filePath: string): boolean {
+  try {
+    // Only check files that exist and are accessible
+    if (!fs.existsSync(filePath)) {
+      return false;
+    }
+
+    const fd = fs.openSync(filePath, 'r');
+    const buffer = Buffer.alloc(256);
+    const bytesRead = fs.readSync(fd, buffer, 0, 256, 0);
+    fs.closeSync(fd);
+
+    if (bytesRead < 2) {
+      return false;
+    }
+
+    // Check for shebang (#!)
+    const header = buffer.toString('utf-8', 0, bytesRead);
+    return header.startsWith('#!');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Determine if a command should be run with shell: true.
+ * This handles script files (by extension or shebang) that need shell execution.
+ */
+export function needsShellExecution(commandPath: string): boolean {
+  // Quick check by extension first (avoids file I/O)
+  if (isScriptByExtension(commandPath)) {
+    return true;
+  }
+
+  // For extensionless files or unknown extensions, check for shebang
+  const ext = path.extname(commandPath).toLowerCase();
+  if (ext === '' || !SCRIPT_EXTENSIONS.has(ext)) {
+    // Only check shebang for absolute paths or paths with separators
+    // (not bare command names that rely on PATH lookup)
+    if (path.isAbsolute(commandPath) || commandPath.includes(path.sep) || commandPath.includes('/')) {
+      return hasShebang(commandPath);
+    }
+  }
+
+  return false;
+}
+
 export interface DetectionResult {
   buf?: DetectedTool;
   protolint?: DetectedTool;
@@ -206,11 +272,15 @@ export class AutoDetector {
   }
 
   /**
-   * Get version string from a tool
+   * Get version string from a tool.
+   * Auto-detects script files (by extension or shebang) and uses shell execution for them.
    */
   private async getVersion(cmd: string, flag: string): Promise<string | undefined> {
     return new Promise((resolve) => {
-      const proc = spawn(cmd, [flag], { timeout: 5000 });
+      // Check if this command is a script that needs shell execution
+      const useShell = needsShellExecution(cmd);
+
+      const proc = spawn(cmd, [flag], { timeout: 5000, shell: useShell });
       let output = '';
       let errorOutput = '';
 
@@ -226,24 +296,28 @@ export class AutoDetector {
       });
 
       proc.on('error', () => {
-        // Fallback: try with shell to pick up PATH from shell configuration
+        // If we didn't use shell, fallback to shell to pick up PATH from shell configuration
         // GUI apps on macOS/Linux don't inherit shell PATH
-        const procWithShell = spawn(cmd, [flag], { timeout: 5000, shell: true });
-        let shellOutput = '';
-        let shellErrorOutput = '';
+        if (!useShell) {
+          const procWithShell = spawn(cmd, [flag], { timeout: 5000, shell: true });
+          let shellOutput = '';
+          let shellErrorOutput = '';
 
-        procWithShell.stdout?.on('data', (data) => shellOutput += data.toString());
-        procWithShell.stderr?.on('data', (data) => shellErrorOutput += data.toString());
+          procWithShell.stdout?.on('data', (data) => shellOutput += data.toString());
+          procWithShell.stderr?.on('data', (data) => shellErrorOutput += data.toString());
 
-        procWithShell.on('close', (code) => {
-          if (code === 0) {
-            resolve((shellOutput || shellErrorOutput).trim().split('\n')[0]);
-          } else {
-            resolve(undefined);
-          }
-        });
+          procWithShell.on('close', (code) => {
+            if (code === 0) {
+              resolve((shellOutput || shellErrorOutput).trim().split('\n')[0]);
+            } else {
+              resolve(undefined);
+            }
+          });
 
-        procWithShell.on('error', () => resolve(undefined));
+          procWithShell.on('error', () => resolve(undefined));
+        } else {
+          resolve(undefined);
+        }
       });
     });
   }

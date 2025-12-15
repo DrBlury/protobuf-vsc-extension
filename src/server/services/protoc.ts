@@ -34,6 +34,69 @@ const MAX_OUTPUT_BUFFER = 10 * 1024 * 1024; // 10 MB
  */
 const IS_WINDOWS = process.platform === 'win32';
 
+/**
+ * Known script file extensions that require shell execution
+ */
+const SCRIPT_EXTENSIONS = new Set(['.sh', '.bash', '.zsh', '.bat', '.cmd', '.ps1', '.py']);
+
+/**
+ * Check if a command path looks like a script file based on extension.
+ * Scripts need shell: true to execute properly.
+ */
+function isScriptByExtension(commandPath: string): boolean {
+  const ext = path.extname(commandPath).toLowerCase();
+  return SCRIPT_EXTENSIONS.has(ext);
+}
+
+/**
+ * Check if a file is a script by reading its shebang line.
+ * Returns true if the file starts with #! (indicating a script interpreter).
+ * This handles extensionless scripts like nanopb's protoc wrapper.
+ */
+function hasShebang(filePath: string): boolean {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return false;
+    }
+
+    const fd = fs.openSync(filePath, 'r');
+    const buffer = Buffer.alloc(256);
+    const bytesRead = fs.readSync(fd, buffer, 0, 256, 0);
+    fs.closeSync(fd);
+
+    if (bytesRead < 2) {
+      return false;
+    }
+
+    const header = buffer.toString('utf-8', 0, bytesRead);
+    return header.startsWith('#!');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Determine if a command should be run with shell: true.
+ * This handles script files (by extension or shebang) that need shell execution.
+ */
+function needsShellExecution(commandPath: string): boolean {
+  // Quick check by extension first (avoids file I/O)
+  if (isScriptByExtension(commandPath)) {
+    return true;
+  }
+
+  // For extensionless files or unknown extensions, check for shebang
+  const ext = path.extname(commandPath).toLowerCase();
+  if (ext === '' || !SCRIPT_EXTENSIONS.has(ext)) {
+    // Only check shebang for absolute paths or paths with separators
+    if (path.isAbsolute(commandPath) || commandPath.includes(path.sep) || commandPath.includes('/')) {
+      return hasShebang(commandPath);
+    }
+  }
+
+  return false;
+}
+
 export interface ProtocSettings {
   path: string;
   compileOnSave: boolean;
@@ -119,22 +182,29 @@ export class ProtocCompiler {
   }
 
   /**
-   * Check if protoc is available
+   * Check if protoc is available.
+   * Auto-detects script-based protoc (by extension or shebang) and uses shell execution for them.
    */
   async isAvailable(): Promise<boolean> {
     return new Promise((resolve) => {
-      // Try without shell first (faster and avoids shell issues)
-      const proc = spawn(this.settings.path, ['--version']);
+      // Check if this protoc is a script that needs shell execution
+      const useShell = needsShellExecution(this.settings.path);
+
+      const proc = spawn(this.settings.path, ['--version'], { shell: useShell });
 
       proc.on('close', (code: number | null) => {
         resolve(code === 0);
       });
 
       proc.on('error', () => {
-        // Fallback: try with shell (needed for some PATH configurations)
-        const procWithShell = spawn(this.settings.path, ['--version'], { shell: true });
-        procWithShell.on('close', (code: number | null) => resolve(code === 0));
-        procWithShell.on('error', () => resolve(false));
+        // If we didn't use shell, fallback to shell (needed for some PATH configurations)
+        if (!useShell) {
+          const procWithShell = spawn(this.settings.path, ['--version'], { shell: true });
+          procWithShell.on('close', (code: number | null) => resolve(code === 0));
+          procWithShell.on('error', () => resolve(false));
+        } else {
+          resolve(false);
+        }
       });
     });
   }
@@ -167,10 +237,14 @@ export class ProtocCompiler {
 
   /**
    * Fetch protoc version from the executable (no caching).
+   * Auto-detects script-based protoc and uses shell execution for them.
    */
   private async fetchVersion(): Promise<string | null> {
     return new Promise((resolve) => {
-      const proc = spawn(this.settings.path, ['--version']);
+      // Check if this protoc is a script that needs shell execution
+      const useShell = needsShellExecution(this.settings.path);
+
+      const proc = spawn(this.settings.path, ['--version'], { shell: useShell });
 
       let output = '';
       proc.stdout?.on('data', (data: Buffer) => {
@@ -187,21 +261,25 @@ export class ProtocCompiler {
       });
 
       proc.on('error', () => {
-        // Fallback with shell
-        const procWithShell = spawn(this.settings.path, ['--version'], { shell: true });
-        let shellOutput = '';
-        procWithShell.stdout?.on('data', (data: Buffer) => {
-          shellOutput += data.toString();
-        });
-        procWithShell.on('close', (code: number | null) => {
-          if (code === 0) {
-            const match = shellOutput.match(/libprotoc\s+([\d.]+)/);
-            resolve(match ? match[1]! : shellOutput.trim());
-          } else {
-            resolve(null);
-          }
-        });
-        procWithShell.on('error', () => resolve(null));
+        // If we didn't use shell, fallback with shell
+        if (!useShell) {
+          const procWithShell = spawn(this.settings.path, ['--version'], { shell: true });
+          let shellOutput = '';
+          procWithShell.stdout?.on('data', (data: Buffer) => {
+            shellOutput += data.toString();
+          });
+          procWithShell.on('close', (code: number | null) => {
+            if (code === 0) {
+              const match = shellOutput.match(/libprotoc\s+([\d.]+)/);
+              resolve(match ? match[1]! : shellOutput.trim());
+            } else {
+              resolve(null);
+            }
+          });
+          procWithShell.on('error', () => resolve(null));
+        } else {
+          resolve(null);
+        }
       });
     });
   }
@@ -658,6 +736,14 @@ export class ProtocCompiler {
   private async runProtoc(args: string[], cwd: string): Promise<CompilationResult> {
     const startTime = Date.now();
     const timeout = this.settings.timeout ?? DEFAULT_TIMEOUT_MS;
+
+    // Check if this protoc is a script that needs shell execution
+    const useShell = needsShellExecution(this.settings.path);
+
+    // If we need shell for scripts, use response file approach to avoid command line limits
+    if (useShell) {
+      return this.runProtocWithResponseFile(args, cwd);
+    }
 
     return new Promise((resolve) => {
       // Resolve the command path - avoid shell: true to bypass command line length limits
