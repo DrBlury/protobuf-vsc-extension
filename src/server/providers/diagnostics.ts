@@ -148,6 +148,18 @@ export class DiagnosticsProvider {
         code: ERROR_CODES.MISSING_SYNTAX
       });
     }
+
+    // If file uses features but doesn't have edition declaration
+    const hasFeatures = this.checkForFeatures(file);
+    if (hasFeatures && !hasEdition) {
+      diagnostics.push({
+        severity: DiagnosticSeverity.Error,
+        range: this.toRange(file.range),
+        message: 'Edition features require an edition declaration. Add "edition = \\"2023\\";" at the top of the file.',
+        code: ERROR_CODES.FEATURES_WITHOUT_EDITION,
+        source: DIAGNOSTIC_SOURCE
+      });
+    }
   }
 
   private validatePackagePathConsistency(uri: string, file: ProtoFile, diagnostics: Diagnostic[]): void {
@@ -1448,6 +1460,40 @@ export class DiagnosticsProvider {
       start: { line: range.start.line, character: range.start.character },
       end: { line: range.end.line, character: range.end.character }
     };
+  }
+
+  /**
+   * Check if file uses edition features
+   */
+  private checkForFeatures(file: ProtoFile): boolean {
+    // Check if any field uses features option
+    for (const message of file.messages) {
+      if (this.messageHasFeatures(message)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Recursively check if message or nested messages use features
+   */
+  private messageHasFeatures(message: MessageDefinition): boolean {
+    // Check field options for features
+    for (const field of message.fields) {
+      if (field.options?.some(opt => opt.name.startsWith('features.'))) {
+        return true;
+      }
+    }
+
+    // Check nested messages
+    for (const nested of message.nestedMessages) {
+      if (this.messageHasFeatures(nested)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**

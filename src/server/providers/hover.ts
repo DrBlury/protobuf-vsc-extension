@@ -22,6 +22,7 @@ import { getBuiltinTypeHover, getKeywordHover } from './hover/builtinHover';
 import { getCelHover } from './hover/celHover';
 import { getGoogleApiHover } from './hover/googleApiHover';
 import { getProtovalidateHover } from './hover/protovalidateHover';
+import { getEditionFeaturesHover, getEditionHover } from './hover/editionFeaturesHover';
 
 const GOOGLE_WKT_BASE_URL = 'https://protobuf.dev/reference/protobuf/google.protobuf/';
 
@@ -42,6 +43,18 @@ export class HoverProvider {
     // Check for built-in types
     if (BUILTIN_TYPES.includes(word)) {
       return getBuiltinTypeHover(word);
+    }
+
+    // Check for edition features
+    const editionFeaturesHover = getEditionFeaturesHover(word, lineText);
+    if (editionFeaturesHover) {
+      return editionFeaturesHover;
+    }
+
+    // Check for edition keyword and versions
+    const editionHover = getEditionHover(word, lineText);
+    if (editionHover) {
+      return editionHover;
     }
 
     // Check for CEL functions and keywords
