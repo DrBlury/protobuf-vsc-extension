@@ -587,6 +587,36 @@ export class CodeActionsProvider {
           }
         }
       });
+      fixes.push({
+        title: 'Insert edition = "2023";',
+        kind: CodeActionKind.QuickFix,
+        diagnostics: [diagnostic],
+        edit: {
+          changes: {
+            [uri]: [{
+              range: { start: insertPos, end: insertPos },
+              newText: 'edition = "2023";\n'
+            }]
+          }
+        }
+      });
+    }
+
+    if (message.includes('edition features require an edition declaration')) {
+      const insertPos = { line: 0, character: 0 };
+      fixes.push({
+        title: 'Insert edition = "2023";',
+        kind: CodeActionKind.QuickFix,
+        diagnostics: [diagnostic],
+        edit: {
+          changes: {
+            [uri]: [{
+              range: { start: insertPos, end: insertPos },
+              newText: 'edition = "2023";\n'
+            }]
+          }
+        }
+      });
     }
 
     if (message.includes('package') && message.includes('does not appear to match directory')) {
