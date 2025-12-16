@@ -70,11 +70,8 @@ const EDITION_VERSIONS: Record<string, string> = {
  * Get hover information for edition features
  */
 export function getEditionFeaturesHover(word: string, lineText: string): Hover | null {
-  console.log(`[EditionFeatures] getEditionFeaturesHover called: word="${word}", lineText="${lineText}"`);
-
   // Check if we're in a features context
   if (!lineText.includes('features.')) {
-    console.log(`[EditionFeatures] lineText does not include 'features.' - returning null`);
     return null;
   }
 
