@@ -33,15 +33,16 @@ export function formatLine(line: string, indentLevel: number, settings: Formatte
     return indent + line;
   }
 
-  // Handle multi-line field declaration start (e.g., "float value =")
+  // Handle multi-line field declaration start (e.g., "float value =" or "float value = // comment")
   // When preserveMultiLineFields is enabled, these should be preserved
-  const multiLineFieldStart = line.match(/^(optional|required|repeated)?\s*(\S+)\s+(\w+)\s*=\s*$/);
+  const multiLineFieldStart = line.match(/^(optional|required|repeated)?\s*(\S+)\s+(\w+)\s*=\s*(\/\/.*)?$/);
   if (multiLineFieldStart) {
-    const [, modifier, type, name] = multiLineFieldStart;
+    const [, modifier, type, name, comment] = multiLineFieldStart;
+    const commentPart = comment ? ` ${comment}` : '';
     if (modifier) {
-      return `${indent}${modifier} ${type} ${name} =`;
+      return `${indent}${modifier} ${type} ${name} =${commentPart}`;
     }
-    return `${indent}${type} ${name} =`;
+    return `${indent}${type} ${name} =${commentPart}`;
   }
 
   // Handle multi-line field continuation (e.g., "    1;  // comment")
@@ -128,14 +129,15 @@ export function formatLineWithAlignment(
     return indent + line;
   }
 
-  // Handle multi-line field declaration start (e.g., "float value =")
-  const multiLineFieldStart = line.match(/^(optional|required|repeated)?\s*(\S+)\s+(\w+)\s*=\s*$/);
+  // Handle multi-line field declaration start (e.g., "float value =" or "float value = // comment")
+  const multiLineFieldStart = line.match(/^(optional|required|repeated)?\s*(\S+)\s+(\w+)\s*=\s*(\/\/.*)?$/);
   if (multiLineFieldStart) {
-    const [, modifier, type, name] = multiLineFieldStart;
+    const [, modifier, type, name, comment] = multiLineFieldStart;
+    const commentPart = comment ? ` ${comment}` : '';
     if (modifier) {
-      return `${indent}${modifier} ${type} ${name} =`;
+      return `${indent}${modifier} ${type} ${name} =${commentPart}`;
     }
-    return `${indent}${type} ${name} =`;
+    return `${indent}${type} ${name} =${commentPart}`;
   }
 
   // Handle multi-line field continuation (e.g., "    1;  // comment")

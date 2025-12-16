@@ -676,8 +676,8 @@
           "patterns": [{ "include": "#celOptionBody" }]
         },
         {
-          "comment": "Multi-line field with modifier: type name = (newline) number",
-          "begin": "\\b(optional|required|repeated)\\s+([\\w.]+)\\s+(\\w+)\\s*=\\s*$",
+          "comment": "Multi-line field with modifier: type name = (optional comment, newline) number",
+          "begin": "\\b(optional|required|repeated)\\s+([\\w.]+)\\s+(\\w+)\\s*=\\s*(//.*)?$",
           "end": "(\\d+)\\s*(?:\\[.*?\\])?\\s*;",
           "beginCaptures": {
             "1": { "name": "keyword.other.modifier.proto" },
@@ -687,7 +687,8 @@
                 { "match": "[\\w.]+", "name": "entity.name.type.proto" }
               ]
             },
-            "3": { "name": "variable.other.field.proto" }
+            "3": { "name": "variable.other.field.proto" },
+            "4": { "name": "comment.line.double-slash.proto" }
           },
           "endCaptures": {
             "1": { "name": "constant.numeric.proto" }
@@ -695,8 +696,8 @@
           "patterns": [{ "include": "#comments" }]
         },
         {
-          "comment": "Multi-line field without modifier: type name = (newline) number",
-          "begin": "\\b([\\w.]+)\\s+(\\w+)\\s*=\\s*$",
+          "comment": "Multi-line field without modifier: type name = (optional comment, newline) number",
+          "begin": "\\b([\\w.]+)\\s+(\\w+)\\s*=\\s*(//.*)?$",
           "end": "(\\d+)\\s*(?:\\[.*?\\])?\\s*;",
           "beginCaptures": {
             "1": {
@@ -705,7 +706,8 @@
                 { "match": "[\\w.]+", "name": "entity.name.type.proto" }
               ]
             },
-            "2": { "name": "variable.other.field.proto" }
+            "2": { "name": "variable.other.field.proto" },
+            "3": { "name": "comment.line.double-slash.proto" }
           },
           "endCaptures": {
             "1": { "name": "constant.numeric.proto" }

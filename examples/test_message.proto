@@ -14,7 +14,7 @@ message Optionalf
 {
 	float value =
 			1;  //!< optional value, defined if 'valid' is true and undefined if 'valid' is false
-	bool valid =
+	bool valid = // test
 			2;  //!< flag indicating whether the value is defined or not (following value to keep struct
 	        	//!< aligned with value alignment requirements)
-}
+}				// test 2

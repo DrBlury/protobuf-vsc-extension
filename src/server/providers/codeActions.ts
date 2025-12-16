@@ -342,9 +342,10 @@ export class CodeActionsProvider {
         continue;
       }
 
-      // Skip lines that end with '=' - these are multi-line field declarations
-      // e.g., "float value =" where the field number is on the next line
-      if (trimmed.endsWith('=')) {
+      // Skip lines that end with '=' (with or without comment) - these are multi-line field declarations
+      // e.g., "float value =" or "bool valid = // comment" where the field number is on the next line
+      const trimmedWithoutComment = trimmed.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\/$/, '').trim();
+      if (trimmedWithoutComment.endsWith('=')) {
         continue;
       }
 

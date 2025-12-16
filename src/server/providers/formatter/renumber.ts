@@ -131,8 +131,8 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
       }
     }
 
-    // Check if this line starts a multi-line field declaration (ends with '=')
-    const multiLineFieldStart = /^(?:optional|required|repeated)?\s*[A-Za-z_][\w<>.,\s]*\s+[A-Za-z_]\w*\s*=$/.test(trimmedLine);
+    // Check if this line starts a multi-line field declaration (ends with '=' or '= // comment')
+    const multiLineFieldStart = /^(?:optional|required|repeated)?\s*[A-Za-z_][\w<>.,\s]*\s+[A-Za-z_]\w*\s*=\s*(\/\/.*)?$/.test(trimmedLine);
     if (multiLineFieldStart && contextStack.length > 0) {
       pendingMultiLineField = true;
       result.push(line);

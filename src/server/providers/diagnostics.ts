@@ -304,7 +304,10 @@ export class DiagnosticsProvider {
       // This handles cases like:
       //   float value =
       //       1;  // comment
-      const lineContentWithoutComment = withoutBlockComment;
+      // Or with inline comments:
+      //   bool valid = // test
+      //       2;
+      const lineContentWithoutComment = withoutBlockComment.replace(/\/\/.*$/, '').trim();
       if (lineContentWithoutComment.endsWith('=')) {
         // This is a multi-line field declaration - skip it, the semicolon is on a subsequent line
         continue;
