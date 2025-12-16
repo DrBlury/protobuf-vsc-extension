@@ -18,6 +18,7 @@ export interface DiagnosticsSettings {
   unusedSymbols: boolean;
   circularDependencies: boolean;
   documentationComments: boolean;
+  editionFeatures: boolean;
 }
 
 /**
@@ -33,7 +34,8 @@ export const DEFAULT_DIAGNOSTICS_SETTINGS: DiagnosticsSettings = {
   deprecatedUsage: true,
   unusedSymbols: false,
   circularDependencies: true,
-  documentationComments: true
+  documentationComments: true,
+  editionFeatures: true
 };
 
 /**

@@ -1,0 +1,13 @@
+// Test file that uses features without edition declaration
+// This should trigger a diagnostic error
+
+syntax = "proto3";
+
+package test.no_edition;
+
+message TestFeaturesWithoutEdition {
+  // This should trigger an error: using features without edition declaration
+  string name = 1 [features.field_presence = EXPLICIT];
+  
+  int32 age = 2;
+}

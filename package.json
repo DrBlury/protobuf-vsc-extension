@@ -246,6 +246,11 @@
           "default": true,
           "description": "Detect undocumented APIs"
         },
+        "protobuf.diagnostics.editionFeatures": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check for edition features usage and missing edition declarations"
+        },
         "protobuf.diagnostics.severity.namingConventions": {
           "type": "string",
           "enum": [

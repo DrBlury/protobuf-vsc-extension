@@ -25,6 +25,12 @@ import {
   isFieldNameContext,
   TypePrefix
 } from './completion/index';
+import {
+  getEditionFeatureNameCompletions,
+  getEditionFeatureValueCompletions,
+  getEditionVersionCompletions,
+  getFieldFeaturesOptionCompletion
+} from './completion/editionFeatures';
 
 export class CompletionProvider {
   private analyzer: SemanticAnalyzer;
@@ -48,6 +54,40 @@ export class CompletionProvider {
     const hasAssignmentAfterCursor = /\s*=/.test(afterCursor);
     const hasContentAfterCursor = afterCursor.trim().length > 0;
     const typePrefix = getTypePrefix(beforeCursor);
+
+    // Edition statement completion (at beginning of line)
+    if (beforeCursor.trim() === 'edition' || (beforeCursor.trim() === '' && lineText.trim().startsWith('edition'))) {
+      return [
+        {
+          label: 'edition',
+          kind: CompletionItemKind.Keyword,
+          detail: 'Protobuf edition declaration',
+          documentation: 'Declares the protobuf edition for this file',
+          insertText: 'edition = ${1|"2023","2024"|};',
+          insertTextFormat: InsertTextFormat.Snippet,
+          sortText: '0edition'
+        }
+      ];
+    }
+
+    // Edition version completion (after "edition =")
+    if (beforeCursor.match(/edition\s*=\s*"?$/)) {
+      return getEditionVersionCompletions();
+    }
+
+    // Edition features completion - check for "features." context
+    if (beforeCursor.match(/features\.$/)) {
+      return getEditionFeatureNameCompletions();
+    }
+
+    // Edition feature value completion - check for "features.{feature_name} ="
+    const featureNames = ['field_presence', 'enum_type', 'repeated_field_encoding', 'utf8_validation', 'message_encoding', 'json_format'];
+    const featurePattern = new RegExp(`features\\.(${featureNames.join('|')})\\s*=\\s*$`);
+    const featureMatch = beforeCursor.match(featurePattern);
+    if (featureMatch) {
+      const featureName = featureMatch[1]!;
+      return getEditionFeatureValueCompletions(featureName);
+    }
 
     // CEL expression completions - check this first as it's a specific context
     if (documentText) {
@@ -115,11 +155,20 @@ export class CompletionProvider {
     }
 
     // Option completions
-    if (beforeCursor.includes('option') || beforeCursor.includes('buf.validate')) {
+    if (this.shouldShowOptionCompletions(beforeCursor)) {
       completions.push(...this.getOptionCompletions(beforeCursor));
     }
 
     return completions;
+  }
+
+  /**
+   * Helper to determine if option completions should be shown
+   */
+  private shouldShowOptionCompletions(beforeCursor: string): boolean {
+    return beforeCursor.includes('option') || 
+           beforeCursor.includes('buf.validate') || 
+           beforeCursor.includes('features');
   }
 
   private getTypeCompletions(
@@ -504,6 +553,9 @@ export class CompletionProvider {
       insertText: `${opt.name} = ${opt.value}`,
       insertTextFormat: InsertTextFormat.PlainText
     })));
+
+    // Add edition features option for field options
+    completions.push(getFieldFeaturesOptionCompletion());
 
     // Add buf.validate custom options as top-level suggestions
     completions.push(...this.getBufValidateTopLevelOptions());
