@@ -51,6 +51,11 @@ jobs:
       - name: Package extension
         run: vsce package
 
+      - name: Publish to Open VSX
+        run: npx ovsx publish *.vsix
+        env:
+          OVSX_PAT: ${{ secrets.OPEN_VSX_TOKEN }}
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
