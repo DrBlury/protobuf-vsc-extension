@@ -211,10 +211,10 @@ export class CompletionProvider {
 
     for (let i = 0; i < beforeCursor.length; i++) {
       const char = beforeCursor[i];
-      if (char === '[') bracketDepth++;
-      if (char === ']') bracketDepth--;
-      if (char === '{') braceDepth++;
-      if (char === '}') braceDepth--;
+      if (char === '[') { bracketDepth++; }
+      if (char === ']') { bracketDepth--; }
+      if (char === '{') { braceDepth++; }
+      if (char === '}') { braceDepth--; }
     }
 
     // We're inside field options if we have unclosed brackets and no unclosed braces
