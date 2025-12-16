@@ -8,7 +8,7 @@
 
 Full Protocol Buffers language support for VS Code: navigation, IntelliSense, diagnostics, formatting, compilation, linting, breaking-change checks, and schema graphs.
 
-> **Note:** This is the successor to the original [vscode-proto3](https://marketplace.visualstudio.com/items?itemName=zxh404.vscode-proto3) extension.
+> **Note:** This is the successor to the [vscode-proto3](https://marketplace.visualstudio.com/items?itemName=zxh404.vscode-proto3) extension. This new extension has a different codebase, feature set, and author. The original extension is no longer maintained and the repo will be archived. If you encounter any issues migrating, please open an issue so I can resolve them quickly.
 
 **Author:** Julian Bensch ([@DrBlury](https://github.com/DrBlury))
 
