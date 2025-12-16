@@ -204,41 +204,51 @@ export class SymbolProvider {
 
     // Fields
     for (const field of message.fields) {
+      const fieldRange = this.toRange(field.range);
+      const fieldSelectionRange = this.toRange(field.nameRange);
       children.push({
         name: field.name,
         detail: `${field.fieldType} = ${field.number}`,
         kind: VSCodeSymbolKind.Field,
-        range: this.toRange(field.range),
-        selectionRange: this.toRange(field.nameRange)
+        range: fieldRange,
+        selectionRange: this.safeSelectionRange(fieldRange, fieldSelectionRange)
       });
     }
 
     // Map fields
     for (const mapField of message.maps) {
+      const mapRange = this.toRange(mapField.range);
+      const mapSelectionRange = this.toRange(mapField.nameRange);
       children.push({
         name: mapField.name,
         detail: `map<${mapField.keyType}, ${mapField.valueType}> = ${mapField.number}`,
         kind: VSCodeSymbolKind.Field,
-        range: this.toRange(mapField.range),
-        selectionRange: this.toRange(mapField.nameRange)
+        range: mapRange,
+        selectionRange: this.safeSelectionRange(mapRange, mapSelectionRange)
       });
     }
 
     // Oneofs
     for (const oneof of message.oneofs) {
-      const oneofChildren = oneof.fields.map(f => ({
-        name: f.name,
-        detail: `${f.fieldType} = ${f.number}`,
-        kind: VSCodeSymbolKind.Field,
-        range: this.toRange(f.range),
-        selectionRange: this.toRange(f.nameRange)
-      }));
+      const oneofChildren = oneof.fields.map(f => {
+        const fRange = this.toRange(f.range);
+        const fSelectionRange = this.toRange(f.nameRange);
+        return {
+          name: f.name,
+          detail: `${f.fieldType} = ${f.number}`,
+          kind: VSCodeSymbolKind.Field,
+          range: fRange,
+          selectionRange: this.safeSelectionRange(fRange, fSelectionRange)
+        };
+      });
 
+      const oneofRange = this.toRange(oneof.range);
+      const oneofSelectionRange = this.toRange(oneof.nameRange);
       children.push({
         name: oneof.name,
         kind: VSCodeSymbolKind.Struct,
-        range: this.toRange(oneof.range),
-        selectionRange: this.toRange(oneof.nameRange),
+        range: oneofRange,
+        selectionRange: this.safeSelectionRange(oneofRange, oneofSelectionRange),
         children: oneofChildren
       });
     }
@@ -253,29 +263,37 @@ export class SymbolProvider {
       children.push(this.enumToSymbol(nested));
     }
 
+    const messageRange = this.toRange(message.range);
+    const messageSelectionRange = this.toRange(message.nameRange);
     return {
       name: message.name,
       kind: VSCodeSymbolKind.Class,
-      range: this.toRange(message.range),
-      selectionRange: this.toRange(message.nameRange),
+      range: messageRange,
+      selectionRange: this.safeSelectionRange(messageRange, messageSelectionRange),
       children
     };
   }
 
   private enumToSymbol(enumDef: EnumDefinition): DocumentSymbol {
-    const children = enumDef.values.map(value => ({
-      name: value.name,
-      detail: `= ${value.number}`,
-      kind: VSCodeSymbolKind.EnumMember,
-      range: this.toRange(value.range),
-      selectionRange: this.toRange(value.nameRange)
-    }));
+    const children = enumDef.values.map(value => {
+      const valueRange = this.toRange(value.range);
+      const valueSelectionRange = this.toRange(value.nameRange);
+      return {
+        name: value.name,
+        detail: `= ${value.number}`,
+        kind: VSCodeSymbolKind.EnumMember,
+        range: valueRange,
+        selectionRange: this.safeSelectionRange(valueRange, valueSelectionRange)
+      };
+    });
 
+    const enumRange = this.toRange(enumDef.range);
+    const enumSelectionRange = this.toRange(enumDef.nameRange);
     return {
       name: enumDef.name,
       kind: VSCodeSymbolKind.Enum,
-      range: this.toRange(enumDef.range),
-      selectionRange: this.toRange(enumDef.nameRange),
+      range: enumRange,
+      selectionRange: this.safeSelectionRange(enumRange, enumSelectionRange),
       children
     };
   }
@@ -284,21 +302,25 @@ export class SymbolProvider {
     const children = service.rpcs.map(rpc => {
       const inputDesc = rpc.inputStream ? `stream ${rpc.inputType}` : rpc.inputType;
       const outputDesc = rpc.outputStream ? `stream ${rpc.outputType}` : rpc.outputType;
+      const rpcRange = this.toRange(rpc.range);
+      const rpcSelectionRange = this.toRange(rpc.nameRange);
 
       return {
         name: rpc.name,
         detail: `(${inputDesc}) returns (${outputDesc})`,
         kind: VSCodeSymbolKind.Method,
-        range: this.toRange(rpc.range),
-        selectionRange: this.toRange(rpc.nameRange)
+        range: rpcRange,
+        selectionRange: this.safeSelectionRange(rpcRange, rpcSelectionRange)
       };
     });
 
+    const serviceRange = this.toRange(service.range);
+    const serviceSelectionRange = this.toRange(service.nameRange);
     return {
       name: service.name,
       kind: VSCodeSymbolKind.Interface,
-      range: this.toRange(service.range),
-      selectionRange: this.toRange(service.nameRange),
+      range: serviceRange,
+      selectionRange: this.safeSelectionRange(serviceRange, serviceSelectionRange),
       children
     };
   }
@@ -327,9 +349,30 @@ export class SymbolProvider {
   }
 
   private toRange(range: AstRange): Range {
+    // Ensure all values are valid numbers (not NaN or undefined)
+    const startLine = Number.isFinite(range.start.line) ? range.start.line : 0;
+    const startChar = Number.isFinite(range.start.character) ? range.start.character : 0;
+    const endLine = Number.isFinite(range.end.line) ? range.end.line : startLine;
+    const endChar = Number.isFinite(range.end.character) ? range.end.character : startChar;
+
     return {
-      start: { line: range.start.line, character: range.start.character },
-      end: { line: range.end.line, character: range.end.character }
+      start: { line: startLine, character: startChar },
+      end: { line: endLine, character: endChar }
     };
+  }
+
+  /**
+   * Ensures selectionRange is contained within range.
+   * If not, returns the range as selectionRange to prevent VS Code errors.
+   */
+  private safeSelectionRange(range: Range, selectionRange: Range): Range {
+    // Check if selectionRange is within range
+    const selectionIsValid =
+      (selectionRange.start.line > range.start.line ||
+       (selectionRange.start.line === range.start.line && selectionRange.start.character >= range.start.character)) &&
+      (selectionRange.end.line < range.end.line ||
+       (selectionRange.end.line === range.end.line && selectionRange.end.character <= range.end.character));
+
+    return selectionIsValid ? selectionRange : range;
   }
 }

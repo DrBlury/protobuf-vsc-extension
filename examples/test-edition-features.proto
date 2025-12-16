@@ -1,47 +1,48 @@
+edition = "2024";
+
 // Test file for edition features support
 // This file demonstrates:
 // 1. Edition declaration with completion
 // 2. Features option on fields with hover
 // 3. Diagnostic when features are used without edition
 
-edition = "2023";
 
 package test.editions;
 
 message TestEditionFeatures {
-  // Field with explicit presence feature
-  string name = 1 [features.field_presence = EXPLICIT];
-  
-  // Field with implicit presence (proto3 style)
-  int32 age = 2 [features.field_presence = IMPLICIT];
-  
-  // Required field (proto2 style)
-  string email = 3 [features.field_presence = LEGACY_REQUIRED];
-  
-  // Regular field without features
-  bool active = 4;
+	// Field with explicit presence feature
+	string name = 1 [features.field_presence = EXPLICIT];
+
+	// Field with implicit presence (proto3 style)
+	int32 age = 2 [features.field_presence = IMPLICIT];
+
+	// Required field (proto2 style)
+	string email = 3 [features.field_presence = LEGACY_REQUIRED];
+
+	// Regular field without features
+	bool active = 4;
 }
 
 enum TestEnum {
-  option features.enum_type = OPEN;
-  
-  TEST_ENUM_UNSPECIFIED = 0;
-  TEST_ENUM_VALUE_1 = 1;
-  TEST_ENUM_VALUE_2 = 2;
+	option features.enum_type = OPEN;
+
+	TEST_ENUM_UNSPECIFIED = 0;
+	TEST_ENUM_VALUE_1 = 1;
+	TEST_ENUM_VALUE_2 = 2;
 }
 
 message TestRepeated {
-  // Packed encoding (proto3 style)
-  repeated int32 numbers = 1 [features.repeated_field_encoding = PACKED];
-  
-  // Expanded encoding (proto2 style)
-  repeated string names = 2 [features.repeated_field_encoding = EXPANDED];
+	// Packed encoding (proto3 style)
+	repeated int32 numbers = 1 [features.repeated_field_encoding = PACKED];
+
+	// Expanded encoding (proto2 style)
+	repeated string names = 2 [features.repeated_field_encoding = EXPANDED];
 }
 
 message TestStringValidation {
-  // String with UTF-8 validation
-  string verified_text = 1 [features.utf8_validation = VERIFY];
-  
-  // String without UTF-8 validation
-  bytes raw_data = 2;
+	// String with UTF-8 validation
+	string verified_text = 1 [features.utf8_validation = VERIFY];
+
+	// String without UTF-8 validation
+	bytes raw_data = 2;
 }

@@ -26,6 +26,11 @@
     "body": ["edition = \"2023\";", "", "package ${1:package_name};", "", "$0"],
     "description": "Edition 2023 declaration with package"
   },
+  "edition 2024": {
+    "prefix": ["edition2024", "ed24"],
+    "body": ["edition = \"2024\";", "", "package ${1:package_name};", "", "$0"],
+    "description": "Edition 2024 declaration with package"
+  },
   "message": {
     "prefix": ["message", "msg", "m"],
     "body": ["message ${1:MessageName} {", "  $0", "}"],

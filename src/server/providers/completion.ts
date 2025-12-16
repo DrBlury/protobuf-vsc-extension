@@ -55,6 +55,9 @@ export class CompletionProvider {
     const hasContentAfterCursor = afterCursor.trim().length > 0;
     const typePrefix = getTypePrefix(beforeCursor);
 
+    // Check if we're inside field options brackets [...]
+    const isInsideFieldOptions = this.isInsideFieldOptions(beforeCursor);
+
     // Edition statement completion (at beginning of line)
     if (beforeCursor.trim() === 'edition' || (beforeCursor.trim() === '' && lineText.trim().startsWith('edition'))) {
       return [
@@ -75,7 +78,7 @@ export class CompletionProvider {
       return getEditionVersionCompletions();
     }
 
-    // Edition features completion - check for "features." context
+    // Edition features completion - check for "features." context (both in options and field options)
     if (beforeCursor.match(/features\.$/)) {
       return getEditionFeatureNameCompletions();
     }
@@ -87,6 +90,34 @@ export class CompletionProvider {
     if (featureMatch) {
       const featureName = featureMatch[1]!;
       return getEditionFeatureValueCompletions(featureName);
+    }
+
+    // "option features." completion at statement level
+    if (beforeCursor.match(/^\s*option\s+$/)) {
+      completions.push({
+        label: 'features',
+        kind: CompletionItemKind.Module,
+        detail: 'Edition features option',
+        documentation: 'Configure edition-specific behavior for this scope (enum_type, json_format, etc.)',
+        insertText: 'features.',
+        sortText: '0features'
+      });
+    }
+
+    // Inside field options brackets - offer features and other options
+    if (isInsideFieldOptions) {
+      // Check if typing 'f' or 'fe' etc. for features
+      const lastWord = beforeCursor.match(/[\w.]*$/)?.[0] || '';
+      if (lastWord === '' || 'features'.startsWith(lastWord.toLowerCase())) {
+        completions.push({
+          label: 'features',
+          kind: CompletionItemKind.Module,
+          detail: 'Edition features',
+          documentation: 'Configure edition-specific field behavior (field_presence, enum_type, etc.)',
+          insertText: 'features.',
+          sortText: '0features'
+        });
+      }
     }
 
     // CEL expression completions - check this first as it's a specific context
@@ -166,9 +197,28 @@ export class CompletionProvider {
    * Helper to determine if option completions should be shown
    */
   private shouldShowOptionCompletions(beforeCursor: string): boolean {
-    return beforeCursor.includes('option') || 
-           beforeCursor.includes('buf.validate') || 
+    return beforeCursor.includes('option') ||
+           beforeCursor.includes('buf.validate') ||
            beforeCursor.includes('features');
+  }
+
+  /**
+   * Check if cursor is inside field options brackets [...]
+   */
+  private isInsideFieldOptions(beforeCursor: string): boolean {
+    let bracketDepth = 0;
+    let braceDepth = 0;
+
+    for (let i = 0; i < beforeCursor.length; i++) {
+      const char = beforeCursor[i];
+      if (char === '[') bracketDepth++;
+      if (char === ']') bracketDepth--;
+      if (char === '{') braceDepth++;
+      if (char === '}') braceDepth--;
+    }
+
+    // We're inside field options if we have unclosed brackets and no unclosed braces
+    return bracketDepth > 0 && braceDepth === 0;
   }
 
   private getTypeCompletions(

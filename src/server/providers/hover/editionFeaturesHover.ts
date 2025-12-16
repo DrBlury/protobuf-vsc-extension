@@ -70,15 +70,24 @@ const EDITION_VERSIONS: Record<string, string> = {
  * Get hover information for edition features
  */
 export function getEditionFeaturesHover(word: string, lineText: string): Hover | null {
+  console.log(`[EditionFeatures] getEditionFeaturesHover called: word="${word}", lineText="${lineText}"`);
+
   // Check if we're in a features context
   if (!lineText.includes('features.')) {
+    console.log(`[EditionFeatures] lineText does not include 'features.' - returning null`);
     return null;
   }
 
+  // Handle both "field_presence" and "features.field_presence" formats
+  let featureName = word;
+  if (word.startsWith('features.')) {
+    featureName = word.substring('features.'.length);
+  }
+
   // Check for feature names
-  if (word in EDITION_FEATURES_DOCS) {
-    const feature = EDITION_FEATURES_DOCS[word]!;
-    let content = `**features.${word}**\n\n${feature.description}`;
+  if (featureName in EDITION_FEATURES_DOCS) {
+    const feature = EDITION_FEATURES_DOCS[featureName]!;
+    let content = `**features.${featureName}**\n\n${feature.description}`;
 
     if (feature.values) {
       content += '\n\n**Values:**\n';
@@ -97,11 +106,29 @@ export function getEditionFeaturesHover(word: string, lineText: string): Hover |
     };
   }
 
+  // Also handle hovering over just "features" keyword
+  if (word === 'features' || featureName === '') {
+    let content = `**features**\n\nEdition features allow you to customize the behavior of protobuf fields, enums, and messages.\n\n**Available features:**\n`;
+
+    for (const [name, feature] of Object.entries(EDITION_FEATURES_DOCS)) {
+      content += `\n- \`features.${name}\`: ${feature.description}`;
+    }
+
+    content += '\n\n[Protocol Buffers Editions Documentation](https://protobuf.dev/editions/features/)';
+
+    return {
+      contents: {
+        kind: MarkupKind.Markdown,
+        value: content
+      }
+    };
+  }
+
   // Check for feature values
-  for (const [featureName, feature] of Object.entries(EDITION_FEATURES_DOCS)) {
+  for (const [featureKey, feature] of Object.entries(EDITION_FEATURES_DOCS)) {
     if (feature.values && word in feature.values) {
       const valueDesc = feature.values[word]!;
-      const content = `**${word}** (features.${featureName})\n\n${valueDesc}\n\n[Protocol Buffers Editions Documentation](https://protobuf.dev/editions/features/)`;
+      const content = `**${word}** (features.${featureKey})\n\n${valueDesc}\n\n[Protocol Buffers Editions Documentation](https://protobuf.dev/editions/features/)`;
 
       return {
         contents: {
@@ -124,7 +151,7 @@ export function getEditionHover(word: string, lineText: string): Hover | null {
     const editions = Object.entries(EDITION_VERSIONS)
       .map(([ver, desc]) => `- \`${ver}\`: ${desc}`)
       .join('\n');
-    
+
     const content = `**edition**
 
 Declares the Protobuf edition for this file. Editions provide a unified syntax with configurable features that replace the proto2/proto3 distinction.

@@ -45,16 +45,19 @@ export class HoverProvider {
       return getBuiltinTypeHover(word);
     }
 
-    // Check for edition features
-    const editionFeaturesHover = getEditionFeaturesHover(word, lineText);
-    if (editionFeaturesHover) {
-      return editionFeaturesHover;
-    }
+    // Check for edition features - do this early before symbol resolution
+    // This handles features.field_presence, EXPLICIT, etc.
+    if (lineText.includes('features') || lineText.includes('edition')) {
+      const editionFeaturesHover = getEditionFeaturesHover(word, lineText);
+      if (editionFeaturesHover) {
+        return editionFeaturesHover;
+      }
 
-    // Check for edition keyword and versions
-    const editionHover = getEditionHover(word, lineText);
-    if (editionHover) {
-      return editionHover;
+      // Check for edition keyword and versions
+      const editionHover = getEditionHover(word, lineText);
+      if (editionHover) {
+        return editionHover;
+      }
     }
 
     // Check for CEL functions and keywords

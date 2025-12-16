@@ -14,6 +14,22 @@ describe('Edition Features Hover', () => {
       expect((hover?.contents as any).value).toContain('presence semantics');
     });
 
+    it('should return hover for features.field_presence (full qualified name)', () => {
+      const hover = getEditionFeaturesHover('features.field_presence', 'string name = 1 [features.field_presence = EXPLICIT];');
+      expect(hover).not.toBeNull();
+      expect(hover?.contents).toHaveProperty('value');
+      expect((hover?.contents as any).value).toContain('field_presence');
+      expect((hover?.contents as any).value).toContain('presence semantics');
+    });
+
+    it('should return hover for "features" keyword alone', () => {
+      const hover = getEditionFeaturesHover('features', 'string name = 1 [features.field_presence = EXPLICIT];');
+      expect(hover).not.toBeNull();
+      expect(hover?.contents).toHaveProperty('value');
+      expect((hover?.contents as any).value).toContain('features');
+      expect((hover?.contents as any).value).toContain('Available features');
+    });
+
     it('should return hover for EXPLICIT value', () => {
       const hover = getEditionFeaturesHover('EXPLICIT', 'string name = 1 [features.field_presence = EXPLICIT];');
       expect(hover).not.toBeNull();

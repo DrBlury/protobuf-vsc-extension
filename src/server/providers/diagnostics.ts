@@ -1458,9 +1458,15 @@ export class DiagnosticsProvider {
   }
 
   private toRange(range: { start: { line: number; character: number }; end: { line: number; character: number } }): Range {
+    // Ensure all values are valid numbers (not NaN or undefined)
+    const startLine = Number.isFinite(range.start.line) ? range.start.line : 0;
+    const startChar = Number.isFinite(range.start.character) ? range.start.character : 0;
+    const endLine = Number.isFinite(range.end.line) ? range.end.line : startLine;
+    const endChar = Number.isFinite(range.end.character) ? range.end.character : startChar;
+
     return {
-      start: { line: range.start.line, character: range.start.character },
-      end: { line: range.end.line, character: range.end.character }
+      start: { line: startLine, character: startChar },
+      end: { line: endLine, character: endChar }
     };
   }
 
