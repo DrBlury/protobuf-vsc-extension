@@ -18,6 +18,7 @@ export interface Settings {
       enabled: boolean;
       preset: string;
       alignFields?: boolean;
+      preserveMultiLineFields?: boolean;
     };
     includes: string[];
     protoSrcsDir: string;
@@ -108,7 +109,8 @@ export const defaultSettings: Settings = {
     formatter: {
       enabled: true,
       preset: 'minimal',
-      alignFields: true
+      alignFields: true,
+      preserveMultiLineFields: false
     },
     includes: [],
     protoSrcsDir: '',

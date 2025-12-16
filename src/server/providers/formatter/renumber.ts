@@ -30,6 +30,8 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
   let optionBraceDepth = 0;
   // Track depth inside inline field options [...] containing braces
   let inlineOptionBraceDepth = 0;
+  // Track multi-line field declarations (field_type field_name =\n   NUMBER;)
+  let pendingMultiLineField = false;
 
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i]!;
@@ -101,6 +103,40 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
         result.push(line);
         continue;
       }
+    }
+
+    // Handle multi-line field declarations
+    // Check if this is a continuation line (just a number with semicolon) after a field start
+    if (pendingMultiLineField && contextStack.length > 0) {
+      const continuationMatch = trimmedLine.match(/^(\d+)\s*(.*)$/);
+      if (continuationMatch) {
+        const currentContext = contextStack[contextStack.length - 1]!;
+        if (currentContext.type === 'message' || currentContext.type === 'oneof') {
+          let finalNumber = currentContext.fieldCounter;
+
+          // Skip the internal reserved range
+          if (finalNumber >= FIELD_NUMBER.RESERVED_RANGE_START && finalNumber <= FIELD_NUMBER.RESERVED_RANGE_END) {
+            finalNumber = 20000;
+          }
+
+          const [, , rest] = continuationMatch;
+          // Preserve the original indentation
+          const leadingWhitespace = line.match(/^(\s*)/)?.[1] || '';
+          line = `${leadingWhitespace}${finalNumber}${rest}`;
+          currentContext.fieldCounter = finalNumber + increment;
+        }
+        pendingMultiLineField = false;
+        result.push(line);
+        continue;
+      }
+    }
+
+    // Check if this line starts a multi-line field declaration (ends with '=')
+    const multiLineFieldStart = /^(?:optional|required|repeated)?\s*[A-Za-z_][\w<>.,\s]*\s+[A-Za-z_]\w*\s*=$/.test(trimmedLine);
+    if (multiLineFieldStart && contextStack.length > 0) {
+      pendingMultiLineField = true;
+      result.push(line);
+      continue;
     }
 
     // Check for message/enum/oneof/service start

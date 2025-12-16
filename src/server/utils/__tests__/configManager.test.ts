@@ -141,7 +141,8 @@ describe('ConfigManager', () => {
       renumberStartNumber: settings.protobuf.renumber.startNumber,
       renumberIncrement: settings.protobuf.renumber.increment,
       preset: settings.protobuf.formatter.preset,
-      alignFields: settings.protobuf.formatter.alignFields
+      alignFields: settings.protobuf.formatter.alignFields,
+      preserveMultiLineFields: settings.protobuf.formatter.preserveMultiLineFields
     });
   });
 

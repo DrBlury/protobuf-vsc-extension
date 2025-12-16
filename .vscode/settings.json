@@ -31,8 +31,9 @@
   // Formatter settings
   "protobuf.formatter.enabled": true,
   "protobuf.formatter.preset": "custom",
+  "protobuf.formatter.preserveMultiLineFields": true,
   "protobuf.formatOnSave": true,
-  "protobuf.clangFormat.enabled": true,
+  "protobuf.clangFormat.enabled": false,
   "protobuf.clangFormat.configPath": "${workspaceFolder}/examples/regressions/clang-format-config/.clang-format",
 
   // Debug and verbose logging

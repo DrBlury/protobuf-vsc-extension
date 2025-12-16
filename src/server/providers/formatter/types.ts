@@ -14,6 +14,8 @@ export interface FormatterSettings {
   renumberIncrement?: number;
   preset?: 'minimal' | 'google' | 'buf' | 'custom';
   alignFields?: boolean;
+  /** When true, preserves multi-line field declarations instead of joining them to single lines */
+  preserveMultiLineFields?: boolean;
 }
 
 /**
@@ -36,7 +38,8 @@ export const DEFAULT_SETTINGS: FormatterSettings = {
   renumberStartNumber: 1,
   renumberIncrement: 1,
   preset: 'minimal',
-  alignFields: true
+  alignFields: true,
+  preserveMultiLineFields: false
 };
 
 /**

@@ -196,6 +196,8 @@ export class DiagnosticsProvider {
     const fieldLike = /^(?:optional|required|repeated)?\s*([A-Za-z_][\w<>.,]*)\s+([A-Za-z_][\w]*)(?:\s*=\s*\d+)?/;
     const mapLike = /^\s*map\s*<[^>]+>\s+[A-Za-z_][\w]*(?:\s*=\s*\d+)?/;
     const enumValueLike = /^(?:[A-Za-z_][\w]*)\s*=\s*-?\d+(?:\s*\[.*\])?/;
+    // Pattern for continuation lines of multi-line field declarations (just a number followed by optional stuff and semicolon)
+    const fieldContinuation = /^\d+\s*(?:\[.*\])?\s*;/;
 
     // Track multi-line inline options (braces/brackets inside field options [...])
     // This is separate from message/enum structural braces
@@ -251,6 +253,12 @@ export class DiagnosticsProvider {
         continue;
       }
 
+      // Skip continuation lines of multi-line field declarations (e.g., "    1;  // comment")
+      // These are lines that are just a field number with semicolon, continuing from a previous line
+      if (fieldContinuation.test(withoutLineComment)) {
+        continue;
+      }
+
       // Check if this line starts a multi-line inline option
       // Pattern: field definition with `[` followed by `{` but not closed on same line
       if (trimmed.includes('[') && trimmed.includes('{')) {
@@ -292,23 +300,33 @@ export class DiagnosticsProvider {
         continue;
       }
 
-      // Look ahead: check if the next non-empty, non-comment line starts with '['
+      // Check if this line ends with '=' (possibly followed by comment), indicating a multi-line field declaration
+      // This handles cases like:
+      //   float value =
+      //       1;  // comment
+      const lineContentWithoutComment = withoutBlockComment;
+      if (lineContentWithoutComment.endsWith('=')) {
+        // This is a multi-line field declaration - skip it, the semicolon is on a subsequent line
+        continue;
+      }
+
+      // Look ahead: check if the next non-empty, non-comment line starts with '[' or contains the field number
       // This handles cases like:
       //   string name = 2 // comment
       //       [(option) = {...}];
-      let nextLineStartsOption = false;
+      let nextLineContinuesField = false;
       for (let j = i + 1; j < lines.length; j++) {
         const nextLine = lines[j]!.trim();
         if (nextLine === '' || nextLine.startsWith('//')) {
           continue; // Skip empty lines and comments
         }
         if (nextLine.startsWith('[')) {
-          nextLineStartsOption = true;
+          nextLineContinuesField = true;
           // Don't pre-count here - let the main loop handle it when it processes that line
         }
         break; // Only check the first non-empty, non-comment line
       }
-      if (nextLineStartsOption) {
+      if (nextLineContinuesField) {
         continue;
       }
 

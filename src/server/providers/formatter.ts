@@ -165,7 +165,16 @@ export class ProtoFormatter {
   }
 
   private format(text: string): string {
-    const lines = splitLines(text);
+    // Preprocess: join multi-line field declarations (unless preserveMultiLineFields is enabled)
+    // This handles cases like:
+    //   float value =
+    //       1;  // comment
+    // Which should become:
+    //   float value = 1;  // comment
+    const preprocessedText = this.settings.preserveMultiLineFields
+      ? text
+      : this.joinMultiLineFieldDeclarations(text);
+    const lines = splitLines(preprocessedText);
 
     // If alignment is enabled, first pass to collect alignment info
     let alignmentInfo: Map<number, AlignmentData> | undefined;
@@ -297,8 +306,8 @@ export class ProtoFormatter {
 
       // Format the line with alignment if enabled
       const formattedLine = this.settings.alignFields && alignmentInfo
-        ? formatLineWithAlignment(trimmedLine, indentLevel, alignmentInfo.get(currentBlockStartLine), this.settings)
-        : formatLine(trimmedLine, indentLevel, this.settings);
+        ? formatLineWithAlignment(trimmedLine, indentLevel, alignmentInfo.get(currentBlockStartLine), this.settings, line)
+        : formatLine(trimmedLine, indentLevel, this.settings, line);
       formattedLines.push(formattedLine);
 
       // Check for opening brace
@@ -329,7 +338,11 @@ export class ProtoFormatter {
   }
 
   private formatRangeWithIndent(text: string, startIndentLevel: number): string {
-    const lines = splitLines(text);
+    // Preprocess: join multi-line field declarations (unless preserveMultiLineFields is enabled)
+    const preprocessedText = this.settings.preserveMultiLineFields
+      ? text
+      : this.joinMultiLineFieldDeclarations(text);
+    const lines = splitLines(preprocessedText);
     const formattedLines: string[] = [];
     let indentLevel = startIndentLevel;
 
@@ -345,7 +358,7 @@ export class ProtoFormatter {
         indentLevel--;
       }
 
-      formattedLines.push(formatLine(trimmedLine, indentLevel, this.settings));
+      formattedLines.push(formatLine(trimmedLine, indentLevel, this.settings, line));
 
       if (trimmedLine.includes('{') && !trimmedLine.includes('}')) {
         indentLevel++;
@@ -366,6 +379,72 @@ export class ProtoFormatter {
       return undefined;
     }
   }
-}
 
-export const formatter = new ProtoFormatter();
+  /**
+   * Join multi-line field declarations into single lines.
+   * This handles cases where a field declaration is split across multiple lines:
+   *   float value =
+   *       1;  // comment
+   * becomes:
+   *   float value = 1;  // comment
+   */
+  private joinMultiLineFieldDeclarations(text: string): string {
+    const lines = splitLines(text);
+    const result: string[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+      const line = lines[i]!;
+      const trimmed = line.trim();
+
+      // Check if this line looks like the start of a multi-line field declaration
+      // Pattern: ends with '=' (possibly followed by comment), no semicolon
+      const lineWithoutComment = trimmed.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\/$/, '').trim();
+
+      // Check for field-like pattern ending with '='
+      // e.g., "float value =", "optional string name =", "repeated int32 ids ="
+      const isMultiLineFieldStart = /^(?:optional|required|repeated)?\s*[A-Za-z_][\w<>.,\s]*\s+[A-Za-z_]\w*\s*=$/.test(lineWithoutComment);
+
+      if (isMultiLineFieldStart) {
+        // Collect continuation lines until we find the semicolon
+        let joinedLine = line;
+        let j = i + 1;
+
+        while (j < lines.length) {
+          const nextLine = lines[j]!;
+          const nextTrimmed = nextLine.trim();
+
+          // Skip empty lines
+          if (nextTrimmed === '') {
+            j++;
+            continue;
+          }
+
+          // Check if this continuation line has the field number and possibly semicolon
+          // Pattern: starts with a number, may have options [...], ends with semicolon
+          const continuationMatch = nextTrimmed.match(/^(\d+)\s*(.*?)(;.*)$/);
+          if (continuationMatch) {
+            // Join the lines: take the first line's content and append the number + rest
+            const firstLineTrimmed = line.trimEnd();
+            const [, number, options, semicolonAndAfter] = continuationMatch;
+            // Preserve any comment from the continuation line
+            joinedLine = `${firstLineTrimmed} ${number}${options ? ' ' + options.trim() : ''}${semicolonAndAfter}`;
+            i = j; // Skip to after the continuation line
+            break;
+          }
+
+          // If it's not a valid continuation, stop trying to join
+          break;
+        }
+
+        result.push(joinedLine);
+      } else {
+        result.push(line);
+      }
+
+      i++;
+    }
+
+    return result.join('\n');
+  }
+}

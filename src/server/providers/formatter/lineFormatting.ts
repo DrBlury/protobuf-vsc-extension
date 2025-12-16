@@ -18,12 +18,40 @@ export function getIndent(level: number, settings: FormatterSettings): string {
 /**
  * Format a basic line with indent
  */
-export function formatLine(line: string, indentLevel: number, settings: FormatterSettings): string {
+export function formatLine(line: string, indentLevel: number, settings: FormatterSettings, originalLine?: string): string {
   const indent = getIndent(indentLevel, settings);
 
-  // Handle comments
+  // Handle comment-only lines - preserve original indentation for continuation comments
+  // This handles cases like multi-line Doxygen comments where the continuation
+  // is indented to align with the comment above
   if (line.startsWith('//') || line.startsWith('/*')) {
+    // If we have the original line, preserve its leading whitespace
+    if (originalLine !== undefined) {
+      const originalIndent = originalLine.match(/^(\s*)/)?.[1] || '';
+      return originalIndent + line;
+    }
     return indent + line;
+  }
+
+  // Handle multi-line field declaration start (e.g., "float value =")
+  // When preserveMultiLineFields is enabled, these should be preserved
+  const multiLineFieldStart = line.match(/^(optional|required|repeated)?\s*(\S+)\s+(\w+)\s*=\s*$/);
+  if (multiLineFieldStart) {
+    const [, modifier, type, name] = multiLineFieldStart;
+    if (modifier) {
+      return `${indent}${modifier} ${type} ${name} =`;
+    }
+    return `${indent}${type} ${name} =`;
+  }
+
+  // Handle multi-line field continuation (e.g., "    1;  // comment")
+  // This is a line that starts with a number followed by semicolon
+  const multiLineContinuation = line.match(/^(\d+)\s*(.*)$/);
+  if (multiLineContinuation) {
+    const [, number, rest] = multiLineContinuation;
+    // Use a deeper indent for continuation lines
+    const continuationIndent = getIndent(indentLevel + 2, settings);
+    return `${continuationIndent}${number}${rest}`;
   }
 
   // Format field definitions with alignment
@@ -81,18 +109,41 @@ export function formatLineWithAlignment(
   line: string,
   indentLevel: number,
   alignmentData: AlignmentData | undefined,
-  settings: FormatterSettings
+  settings: FormatterSettings,
+  originalLine?: string
 ): string {
   if (!alignmentData || alignmentData.isOptionBlock) {
-    return formatLine(line, indentLevel, settings);
+    return formatLine(line, indentLevel, settings, originalLine);
   }
 
   const indent = getIndent(indentLevel, settings);
   const { maxFieldNameLength, maxTypeLength } = alignmentData;
 
-  // Handle comments
+  // Handle comment-only lines - preserve original indentation for continuation comments
   if (line.startsWith('//') || line.startsWith('/*')) {
+    if (originalLine !== undefined) {
+      const originalIndent = originalLine.match(/^(\s*)/)?.[1] || '';
+      return originalIndent + line;
+    }
     return indent + line;
+  }
+
+  // Handle multi-line field declaration start (e.g., "float value =")
+  const multiLineFieldStart = line.match(/^(optional|required|repeated)?\s*(\S+)\s+(\w+)\s*=\s*$/);
+  if (multiLineFieldStart) {
+    const [, modifier, type, name] = multiLineFieldStart;
+    if (modifier) {
+      return `${indent}${modifier} ${type} ${name} =`;
+    }
+    return `${indent}${type} ${name} =`;
+  }
+
+  // Handle multi-line field continuation (e.g., "    1;  // comment")
+  const multiLineContinuation = line.match(/^(\d+)\s*(.*)$/);
+  if (multiLineContinuation) {
+    const [, number, rest] = multiLineContinuation;
+    const continuationIndent = getIndent(indentLevel + 2, settings);
+    return `${continuationIndent}${number}${rest}`;
   }
 
   // Format field definitions with alignment

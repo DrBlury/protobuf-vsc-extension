@@ -342,6 +342,19 @@ export class CodeActionsProvider {
         continue;
       }
 
+      // Skip lines that end with '=' - these are multi-line field declarations
+      // e.g., "float value =" where the field number is on the next line
+      if (trimmed.endsWith('=')) {
+        continue;
+      }
+
+      // Skip field continuation lines (e.g., "    1;" which is the second part of a multi-line field)
+      // Pattern: starts with a number, optionally has options [...], ends with semicolon
+      const fieldContinuation = /^\d+\s*(?:\[.*\])?\s*;?\s*$/;
+      if (fieldContinuation.test(trimmed)) {
+        continue;
+      }
+
       // Check if this line starts a multi-line inline option
       if (trimmed.includes('[') && trimmed.includes('{')) {
         const lineWithoutStrings = trimmed.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');

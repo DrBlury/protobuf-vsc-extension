@@ -496,6 +496,65 @@ message Test {
       const result = await formatter.formatDocument(text);
       expect(result[0].newText).toContain('string name = 1');
     });
+
+    it('should join multi-line field declarations', async () => {
+      formatter.updateSettings({ renumberOnFormat: false, alignFields: false });
+      const text = `syntax = "proto3";
+
+message Optionalf {
+  float value =
+      1;  //!< optional value comment
+  bool valid =
+      2;  //!< flag comment
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      // The multi-line field declarations should be joined
+      expect(formatted).toContain('float value = 1;');
+      expect(formatted).toContain('bool valid = 2;');
+      // Comments should be preserved
+      expect(formatted).toContain('//!< optional value comment');
+      expect(formatted).toContain('//!< flag comment');
+    });
+
+    it('should handle multi-line field declarations with optional/repeated modifiers', async () => {
+      formatter.updateSettings({ renumberOnFormat: false, alignFields: false });
+      const text = `syntax = "proto3";
+
+message Test {
+  optional string name =
+      1;
+  repeated int32 ids =
+      2;
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      expect(formatted).toContain('optional string name = 1;');
+      expect(formatted).toContain('repeated int32 ids = 2;');
+    });
+
+    it('should preserve multi-line field declarations when preserveMultiLineFields is enabled', async () => {
+      formatter.updateSettings({ renumberOnFormat: false, alignFields: false, preserveMultiLineFields: true });
+      const text = `syntax = "proto3";
+
+message Optionalf {
+  float value =
+      1;  // optional value comment
+  bool valid =
+      2;  // flag comment
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      // The multi-line field declarations should be preserved
+      expect(formatted).toContain('float value =');
+      expect(formatted).toContain('bool valid =');
+      // The continuation lines should be on separate lines
+      expect(formatted).toMatch(/float value =\n/);
+      expect(formatted).toMatch(/bool valid =\n/);
+    });
   });
 
   describe('field alignment', () => {

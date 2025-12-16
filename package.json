@@ -145,6 +145,11 @@
           "default": true,
           "description": "Align field names and field numbers for prettier formatting. When enabled, field numbers and option keys are vertically aligned."
         },
+        "protobuf.formatter.preserveMultiLineFields": {
+          "type": "boolean",
+          "default": false,
+          "description": "Preserve multi-line field declarations. When enabled, field declarations split across multiple lines (e.g., 'type name =\\n    1;') are kept as-is instead of being joined to a single line."
+        },
         "protobuf.includes": {
           "type": "array",
           "items": {

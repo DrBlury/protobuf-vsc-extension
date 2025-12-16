@@ -210,6 +210,47 @@ message User {
       const missingSemi = diags.find(d => d.message.includes('Missing semicolon'));
       expect(missingSemi).toBeUndefined();
     });
+
+    it('should NOT warn for multi-line field declarations where = and number are on next line', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+/// @brief Optional values
+message Optionalf {
+  float value =
+      1;  //!< optional value comment
+  bool valid =
+      2;  //!< flag comment
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const diags = diagnosticsProvider.validate(uri, file, content);
+
+      const missingSemi = diags.find(d => d.message.includes('Missing semicolon'));
+      expect(missingSemi).toBeUndefined();
+    });
+
+    it('should NOT warn for multi-line field declarations with type name and = on separate lines', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+message LongFieldNames {
+  SomeVeryLongTypeName field_name =
+      1;
+  AnotherLongTypeName another_field =
+      2;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const diags = diagnosticsProvider.validate(uri, file, content);
+
+      const missingSemi = diags.find(d => d.message.includes('Missing semicolon'));
+      expect(missingSemi).toBeUndefined();
+    });
   });
 
   describe('Extension Range Validation', () => {

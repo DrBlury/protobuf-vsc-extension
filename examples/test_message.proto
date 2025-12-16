@@ -9,3 +9,12 @@ message TestMessage
 	string content = 1; // another comment
 	int32 id = 2; // identifier for the message
 }
+// @brief Optional values that are only defined if the 'valid' flag is true, and undefined otherwise
+message Optionalf
+{
+	float value =
+			1;  //!< optional value, defined if 'valid' is true and undefined if 'valid' is false
+	bool valid =
+			2;  //!< flag indicating whether the value is defined or not (following value to keep struct
+	        	//!< aligned with value alignment requirements)
+}

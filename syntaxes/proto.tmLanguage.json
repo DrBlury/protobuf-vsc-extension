@@ -676,6 +676,43 @@
           "patterns": [{ "include": "#celOptionBody" }]
         },
         {
+          "comment": "Multi-line field with modifier: type name = (newline) number",
+          "begin": "\\b(optional|required|repeated)\\s+([\\w.]+)\\s+(\\w+)\\s*=\\s*$",
+          "end": "(\\d+)\\s*(?:\\[.*?\\])?\\s*;",
+          "beginCaptures": {
+            "1": { "name": "keyword.other.modifier.proto" },
+            "2": {
+              "patterns": [
+                { "include": "#types" },
+                { "match": "[\\w.]+", "name": "entity.name.type.proto" }
+              ]
+            },
+            "3": { "name": "variable.other.field.proto" }
+          },
+          "endCaptures": {
+            "1": { "name": "constant.numeric.proto" }
+          },
+          "patterns": [{ "include": "#comments" }]
+        },
+        {
+          "comment": "Multi-line field without modifier: type name = (newline) number",
+          "begin": "\\b([\\w.]+)\\s+(\\w+)\\s*=\\s*$",
+          "end": "(\\d+)\\s*(?:\\[.*?\\])?\\s*;",
+          "beginCaptures": {
+            "1": {
+              "patterns": [
+                { "include": "#types" },
+                { "match": "[\\w.]+", "name": "entity.name.type.proto" }
+              ]
+            },
+            "2": { "name": "variable.other.field.proto" }
+          },
+          "endCaptures": {
+            "1": { "name": "constant.numeric.proto" }
+          },
+          "patterns": [{ "include": "#comments" }]
+        },
+        {
           "match": "\\b(optional|required|repeated)\\s+([\\w.]+)\\s+(\\w+)\\s*=\\s*(\\d+)",
           "captures": {
             "1": { "name": "keyword.other.modifier.proto" },
