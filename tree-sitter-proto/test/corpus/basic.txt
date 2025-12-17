@@ -1,0 +1,248 @@
+================================================================================
+Basic syntax declaration
+================================================================================
+
+syntax = "proto3";
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (syntax
+    version: "\"proto3\""))
+
+================================================================================
+Package and imports
+================================================================================
+
+syntax = "proto3";
+package example.foo;
+
+import "other.proto";
+import public "public.proto";
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (syntax
+    version: "\"proto3\"")
+  (package
+    name: (full_ident
+      (identifier)))
+  (import
+    path: (string))
+  (import
+    modifier: (identifier)
+    path: (string)))
+
+================================================================================
+Simple message
+================================================================================
+
+message Person {
+  string name = 1;
+  int32 age = 2;
+  bool active = 3;
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (message
+    name: (identifier)
+    body: (message_body
+      (field
+        type: (type
+          (scalar_type))
+        name: (identifier)
+        number: (int_lit))
+      (field
+        type: (type
+          (scalar_type))
+        name: (identifier)
+        number: (int_lit))
+      (field
+        type: (type
+          (scalar_type))
+        name: (identifier)
+        number: (int_lit)))))
+
+================================================================================
+Message with modifiers (proto2)
+================================================================================
+
+message Test {
+  optional string name = 1;
+  required int32 id = 2;
+  repeated string tags = 3;
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (message
+    name: (identifier)
+    body: (message_body
+      (field
+        modifier: (identifier)
+        type: (type
+          (scalar_type))
+        name: (identifier)
+        number: (int_lit))
+      (field
+        modifier: (identifier)
+        type: (type
+          (scalar_type))
+        name: (identifier)
+        number: (int_lit))
+      (field
+        modifier: (identifier)
+        type: (type
+          (scalar_type))
+        name: (identifier)
+        number: (int_lit)))))
+
+================================================================================
+Enum definition
+================================================================================
+
+enum Status {
+  UNKNOWN = 0;
+  ACTIVE = 1;
+  INACTIVE = 2;
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (enum
+    name: (identifier)
+    body: (enum_body
+      (enum_field
+        name: (identifier)
+        number: (int_lit))
+      (enum_field
+        name: (identifier)
+        number: (int_lit))
+      (enum_field
+        name: (identifier)
+        number: (int_lit)))))
+
+================================================================================
+Service with RPC
+================================================================================
+
+service Greeter {
+  rpc SayHello (HelloRequest) returns (HelloResponse);
+  rpc StreamHello (stream HelloRequest) returns (stream HelloResponse) {}
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (service
+    name: (identifier)
+    (rpc
+      name: (identifier)
+      request_type: (message_type
+        (full_ident
+          (identifier)))
+      response_type: (message_type
+        (full_ident
+          (identifier))))
+    (rpc
+      name: (identifier)
+      request_type: (message_type
+        (full_ident
+          (identifier)))
+      response_type: (message_type
+        (full_ident
+          (identifier))))))
+
+================================================================================
+Map field
+================================================================================
+
+message MapTest {
+  map<string, int32> tags = 1;
+  map<int32, Message> values = 2;
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (message
+    name: (identifier)
+    body: (message_body
+      (map_field
+        key_type: (key_type)
+        value_type: (type
+          (scalar_type))
+        name: (identifier)
+        number: (int_lit))
+      (map_field
+        key_type: (key_type)
+        value_type: (type
+          (message_type
+            (full_ident
+              (identifier))))
+        name: (identifier)
+        number: (int_lit)))))
+
+================================================================================
+Oneof
+================================================================================
+
+message OneofTest {
+  oneof test_oneof {
+    string name = 1;
+    int32 id = 2;
+  }
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (message
+    name: (identifier)
+    body: (message_body
+      (oneof
+        name: (identifier)
+        (oneof_field
+          type: (type
+            (scalar_type))
+          name: (identifier)
+          number: (int_lit))
+        (oneof_field
+          type: (type
+            (scalar_type))
+          name: (identifier)
+          number: (int_lit))))))
+
+================================================================================
+Reserved fields
+================================================================================
+
+message ReservedTest {
+  reserved 2, 15, 9 to 11;
+  reserved "foo", "bar";
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (message
+    name: (identifier)
+    body: (message_body
+      (reserved
+        (ranges
+          (range
+            (int_lit))
+          (range
+            (int_lit))
+          (range
+            (int_lit)
+            (int_lit))))
+      (reserved
+        (field_names
+          (string)
+          (string))))))

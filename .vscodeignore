@@ -9,4 +9,5 @@ tsconfig.json
 jest.config.js
 examples/**
 **/*.test.js
-examples/**
+tree-sitter-proto/**
+!out/tree-sitter/**
