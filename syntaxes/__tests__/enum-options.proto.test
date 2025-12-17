@@ -1,0 +1,32 @@
+// SYNTAX TEST "source.proto" "Enum options"
+
+syntax = "proto3";
+
+enum WithOptions {
+  option allow_alias = true;
+//^^^^^^ keyword.other.option.proto
+//                     ^^^^ constant.language.proto
+
+  option deprecated = true;
+//^^^^^^ keyword.other.option.proto
+//       ^^^^^^^^^^ support.other.option.proto
+//                    ^^^^ constant.language.proto
+
+  UNKNOWN = 0;
+//^^^^^^^ variable.other.enummember.proto
+
+  VALUE_ONE = 1;
+//^^^^^^^^^ variable.other.enummember.proto
+//          ^ keyword.operator.assignment.proto
+//            ^ constant.numeric.proto
+//             ^ punctuation.terminator.proto
+
+  ALIAS_ONE = 1 [deprecated = true];
+//^^^^^^^^^ variable.other.enummember.proto
+//            ^ constant.numeric.proto
+//              ^ punctuation.definition.brackets.begin.proto
+//               ^^^^^^^^^^ support.other.option.proto
+//                          ^ keyword.operator.assignment.proto
+//                            ^^^^ constant.language.proto
+//                                ^ punctuation.definition.brackets.end.proto
+}

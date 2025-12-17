@@ -1,0 +1,27 @@
+// SYNTAX TEST "source.proto" "Custom message types as field types"
+
+syntax = "proto3";
+
+message Address {
+  string street = 1;
+//^^^^^^ storage.type.proto
+//       ^^^^^^ variable.other.field.proto
+  string city = 2;
+}
+
+message Person {
+  string name = 1;
+//^^^^^^ storage.type.proto
+
+  Address address = 2;
+//^^^^^^^ entity.name.type.proto
+//        ^^^^^^^ variable.other.field.proto
+//                ^ keyword.operator.assignment.proto
+//                  ^ constant.numeric.proto
+//                   ^ punctuation.terminator.proto
+
+  repeated Address other_addresses = 3;
+//^^^^^^^^ keyword.other.modifier.proto
+//         ^^^^^^^ entity.name.type.proto
+//                 ^^^^^^^^^^^^^^^ variable.other.field.proto
+}

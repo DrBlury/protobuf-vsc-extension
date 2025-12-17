@@ -1,0 +1,29 @@
+// SYNTAX TEST "source.proto" "Service and RPC definitions"
+
+service Greeter {
+// <--- keyword.declaration.service.proto
+//      ^^^^^^^ entity.name.type.service.proto
+//              ^ punctuation.definition.block.proto
+
+  rpc SayHello (HelloRequest) returns (HelloResponse);
+//^^^ keyword.declaration.rpc.proto
+//    ^^^^^^^^ entity.name.function.rpc.proto
+//                            ^^^^^^^ keyword.control.returns.proto
+//                                                   ^ punctuation.terminator.proto
+
+  rpc ServerStream (Request) returns (stream Response);
+//^^^ keyword.declaration.rpc.proto
+//                           ^^^^^^^ keyword.control.returns.proto
+//                                    ^^^^^^ keyword.other.stream.proto
+
+  rpc ClientStream (stream Request) returns (Response);
+//                  ^^^^^^ keyword.other.stream.proto
+
+  rpc BidirectionalStream (stream Request) returns (stream Response);
+//                         ^^^^^^ keyword.other.stream.proto
+//                                                  ^^^^^^ keyword.other.stream.proto
+
+  rpc WithOptions (Request) returns (Response) {
+//                                             ^ punctuation.definition.block.proto
+  }
+}

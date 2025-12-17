@@ -1,0 +1,21 @@
+// SYNTAX TEST "source.proto" "Escape sequences in option strings"
+
+syntax = "proto3";
+
+option java_package = "a\nb";
+//                    ^^^^^^ string.quoted.double.proto
+//                      ^^ constant.character.escape.proto
+
+option go_package = "a\\b";
+//                  ^^^^^^ string.quoted.double.proto
+//                    ^^ constant.character.escape.proto
+
+option swift_prefix = "a\"b";
+//                    ^^^^^^ string.quoted.double.proto
+//                      ^^ constant.character.escape.proto
+
+option php_namespace = "a\tb";
+//                       ^^ constant.character.escape.proto
+
+option csharp_namespace = "a\rb";
+//                          ^^ constant.character.escape.proto

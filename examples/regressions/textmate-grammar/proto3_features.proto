@@ -1,0 +1,452 @@
+// Regression test for TextMate grammar - Proto3 features
+// This file demonstrates syntax highlighting for proto3 syntax
+
+syntax = "proto3";
+
+package textmate.regression.proto3;
+
+import "google/protobuf/descriptor.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import public "google/protobuf/empty.proto";
+import weak "google/protobuf/struct.proto";
+
+// ============================================================================
+// FILE-LEVEL OPTIONS
+// All available file-level options
+// ============================================================================
+
+option java_package = "com.example.proto3";
+option java_outer_classname = "Proto3FeaturesProto";
+option java_multiple_files = true;
+option java_string_check_utf8 = true;
+option optimize_for = SPEED;
+option cc_generic_services = false;
+option java_generic_services = false;
+option py_generic_services = false;
+option php_generic_services = false;
+option cc_enable_arenas = true;
+option objc_class_prefix = "P3F";
+option csharp_namespace = "Example.Proto3";
+option swift_prefix = "P3";
+option php_class_prefix = "P3";
+option php_namespace = "Example\\Proto3";
+option php_metadata_namespace = "Example\\Proto3\\Metadata";
+option ruby_package = "Example::Proto3";
+option go_package = "example.com/proto3;proto3pb";
+option deprecated = false;
+
+// ============================================================================
+// STRING ESCAPE SEQUENCES
+// ============================================================================
+
+message StringEscapeTests {
+  // Character escapes: \a \b \f \n \r \t \v \\ \' \"
+	string char_escapes = 1;
+	string quote_escapes = 2;
+
+  // Hex escapes: \xNN
+	string hex_escapes = 3;
+
+  // Octal escapes: \NNN
+	string octal_escapes = 4;
+
+  // Unicode escapes: \uNNNN and \UNNNNNNNN
+	string unicode_short = 5;
+	string unicode_long = 6;
+
+  // Single-quoted strings
+	string single_quoted = 7;
+
+  // String concatenation in options
+	string concat = 8 [
+	(string_option) = "first "
+	"second "
+	'third'
+	];
+}
+
+// Custom string option for testing
+extend google.protobuf.FieldOptions {
+	string string_option = 50001;
+	double numeric_option = 50002;
+	int32 int_option = 50003;
+	bool bool_option = 50004;
+}
+
+// ============================================================================
+// NUMBER FORMATS
+// ============================================================================
+
+message NumberFormatTests {
+  // Standard decimal field numbers
+	int32 decimal_num = 1;
+	int32 large_decimal = 100;
+
+  // Hex field numbers
+	int32 hex_num = 0x10;
+	int32 hex_upper = 0XFF;
+
+
+  // Various numeric types
+	double double_val = 20;
+	float float_val = 21;
+	int32 int32_val = 22;
+	int64 int64_val = 23;
+	uint32 uint32_val = 24;
+	uint64 uint64_val = 25;
+	sint32 sint32_val = 26;
+	sint64 sint64_val = 27;
+	fixed32 fixed32_val = 28;
+	fixed64 fixed64_val = 29;
+	sfixed32 sfixed32_val = 30;
+	sfixed64 sfixed64_val = 31;
+}
+
+// Enum with numeric values
+enum NumericEnum {
+	NUMERIC_UNSPECIFIED = 0;
+	NEGATIVE_VAL = -1;
+	POSITIVE_VAL = 1;
+	HEX_VAL = 0x10;
+	MAX_VAL = 0x7FFFFFFF;
+}
+
+// ============================================================================
+// FIELD OPTIONS WITH NUMBERS
+// ============================================================================
+
+message FieldOptionNumbers {
+  // Positive and negative numeric options
+	double pos_scale = 1 [(numeric_option) = +1.5];
+	double neg_scale = 2 [(numeric_option) = -2.5];
+	int32 pos_int = 3 [(int_option) = +100];
+	int32 neg_int = 4 [(int_option) = -100];
+
+  // Float formats
+	double simple_float = 5 [(numeric_option) = 3.14159];
+	double exp_float = 6 [(numeric_option) = 1.5e10];
+	double neg_exp = 7 [(numeric_option) = -1.5e-10];
+	double pos_exp = 8 [(numeric_option) = +1.5e+10];
+	double dot_float = 9 [(numeric_option) = .5];
+	double inf_val = 10 [(numeric_option) = inf];
+	double neg_inf_val = 11 [(numeric_option) = -inf];
+	double nan_val = 12 [(numeric_option) = nan];
+}
+
+// ============================================================================
+// PROTO3 OPTIONAL (explicit presence)
+// ============================================================================
+
+message OptionalTests {
+  // Regular fields (implicit presence in proto3)
+	string regular_string = 1;
+	int32 regular_int = 2;
+
+  // Optional fields (explicit presence)
+	optional string optional_string = 3;
+	optional int32 optional_int = 4;
+	optional bool optional_bool = 5;
+	optional NestedMessage optional_message = 6;
+
+	message NestedMessage {
+		string value = 1;
+	}
+}
+
+// ============================================================================
+// ONEOF
+// ============================================================================
+
+message OneofTests {
+	string name = 1;
+
+	oneof value {
+		int32 int_value = 2;
+		string string_value = 3;
+		bool bool_value = 4;
+		bytes bytes_value = 5;
+		NestedMessage message_value = 6;
+		NumericEnum enum_value = 7;
+	}
+
+	message NestedMessage {
+		string data = 1;
+	}
+}
+
+// ============================================================================
+// MAP FIELDS
+// ============================================================================
+
+message MapTests {
+  // Various key types
+	map<string, int32> string_key = 1;
+	map<int32, string> int32_key = 2;
+	map<int64, string> int64_key = 3;
+	map<uint32, string> uint32_key = 4;
+	map<uint64, string> uint64_key = 5;
+	map<sint32, string> sint32_key = 6;
+	map<sint64, string> sint64_key = 7;
+	map<fixed32, string> fixed32_key = 8;
+	map<fixed64, string> fixed64_key = 9;
+	map<sfixed32, string> sfixed32_key = 10;
+	map<sfixed64, string> sfixed64_key = 11;
+	map<bool, string> bool_key = 12;
+
+  // Various value types
+	map<string, double> double_value = 20;
+	map<string, float> float_value = 21;
+	map<string, bytes> bytes_value = 22;
+	map<string, NumericEnum> enum_value = 23;
+	map<string, OptionalTests> message_value = 24;
+
+  // Map with options
+	map<string, string> deprecated_map = 30 [deprecated = true];
+
+  // Hex field number
+	map<string, int32> hex_field_map = 0x20;
+}
+
+// ============================================================================
+// ENUM DEFINITIONS
+// ============================================================================
+
+// Standard enum
+enum SimpleEnum {
+	SIMPLE_UNSPECIFIED = 0;
+	SIMPLE_ONE = 1;
+	SIMPLE_TWO = 2;
+}
+
+// Enum with allow_alias
+enum AliasedEnum {
+	option allow_alias = true;
+
+	ALIASED_UNSPECIFIED = 0;
+	ALIASED_PRIMARY = 1;
+	ALIASED_ALIAS = 1; // Alias for PRIMARY
+	ALIASED_OTHER = 2;
+}
+
+// Enum with reserved
+enum ReservedEnum {
+	reserved 2, 15, 9 to 11;
+	reserved "OLD_VALUE", "DELETED_VALUE";
+
+	RESERVED_UNSPECIFIED = 0;
+	RESERVED_ONE = 1;
+	RESERVED_THREE = 3;
+}
+
+// ============================================================================
+// SERVICE DEFINITIONS
+// ============================================================================
+
+service Proto3Service {
+  // Unary RPC
+	rpc UnaryMethod (Request) returns (Response);
+
+  // Server streaming
+	rpc ServerStream (Request) returns (stream Response);
+
+  // Client streaming
+	rpc ClientStream (stream Request) returns (Response);
+
+  // Bidirectional streaming
+	rpc BidiStream (stream Request) returns (stream Response);
+
+  // RPC with option body
+	rpc DeprecatedMethod (Request) returns (Response) {
+		option deprecated = true;
+	}
+
+  // RPC with idempotency
+	rpc IdempotentMethod (Request) returns (Response) {
+		option idempotency_level = IDEMPOTENT;
+	}
+
+  // RPC with no side effects
+	rpc SafeMethod (Request) returns (Response) {
+		option idempotency_level = NO_SIDE_EFFECTS;
+	}
+}
+
+message Request {
+	string query = 1;
+	int32 page_size = 2;
+	string page_token = 3;
+}
+
+message Response {
+	repeated string results = 1;
+	string next_page_token = 2;
+	int32 total_count = 3;
+}
+
+// ============================================================================
+// NESTED MESSAGES AND ENUMS
+// ============================================================================
+
+message OuterMessage {
+	string outer_field = 1;
+
+  // Nested message
+	message InnerMessage {
+		string inner_field = 1;
+
+    // Double nested
+		message DeepMessage {
+			int32 deep_field = 1;
+
+			enum DeepEnum {
+				DEEP_UNSPECIFIED = 0;
+				DEEP_VALUE = 1;
+			}
+		}
+
+		DeepMessage deep = 2;
+	}
+
+  // Nested enum
+	enum InnerEnum {
+		INNER_UNSPECIFIED = 0;
+		INNER_VALUE = 1;
+	}
+
+	InnerMessage inner = 2;
+	InnerEnum inner_enum = 3;
+}
+
+// ============================================================================
+// QUALIFIED TYPE NAMES
+// ============================================================================
+
+message QualifiedTypeTests {
+  // Relative qualified names
+	OuterMessage.InnerMessage inner_ref = 1;
+	OuterMessage.InnerMessage.DeepMessage deep_ref = 2;
+	OuterMessage.InnerMessage.DeepMessage.DeepEnum deep_enum = 3;
+
+  // Absolute qualified names (with leading dot)
+	.textmate.regression.proto3.OuterMessage absolute_msg = 4;
+	.textmate.regression.proto3.SimpleEnum absolute_enum = 5;
+	.textmate.regression.proto3.OuterMessage.InnerMessage.DeepMessage absolute_deep = 6;
+
+  // Well-known types
+	google.protobuf.Any any_field = 10;
+	google.protobuf.Duration duration_field = 11;
+	google.protobuf.Timestamp timestamp_field = 12;
+	google.protobuf.StringValue string_wrapper = 13;
+	google.protobuf.Int32Value int_wrapper = 14;
+	google.protobuf.BoolValue bool_wrapper = 15;
+}
+
+// ============================================================================
+// RESERVED
+// ============================================================================
+
+message ReservedTests {
+  // Reserved field numbers
+	reserved 2, 15, 9 to 11;
+	reserved 100 to 199;
+
+  // Reserved field names
+	reserved "old_field", "removed_field";
+	reserved "another_old";
+
+  // Active fields
+	string active = 1;
+	int32 still_valid = 20;
+}
+
+// ============================================================================
+// MESSAGE OPTIONS
+// ============================================================================
+
+extend google.protobuf.MessageOptions {
+	string message_doc = 60001;
+	bool deprecated_message = 60002;
+}
+
+message MessageWithOptions {
+	option deprecated = true;
+	option (message_doc) = "This message has custom options";
+	option (deprecated_message) = true;
+
+	string field = 1;
+}
+
+// ============================================================================
+// FIELD OPTIONS (ALL TYPES)
+// ============================================================================
+
+message AllFieldOptions {
+  // Standard options
+	string deprecated_field = 1 [deprecated = true];
+	string json_name_field = 2 [json_name = "customName"];
+
+  // Custom options with various types
+	string with_string = 3 [(string_option) = "value"];
+	string with_number = 4 [(numeric_option) = 42.5];
+	string with_int = 5 [(int_option) = -10];
+	string with_bool = 6 [(bool_option) = true];
+
+  // Multiple options
+	string multi_option = 7 [
+	deprecated = true,
+	json_name = "multiOpt",
+	(string_option) = "test",
+	(numeric_option) = 1.5
+	];
+
+  // Packed option (explicit, though default in proto3)
+	repeated int32 packed_explicit = 10 [packed = true];
+	repeated int32 unpacked = 11 [packed = false];
+}
+
+// ============================================================================
+// ENUM VALUE OPTIONS
+// ============================================================================
+
+extend google.protobuf.EnumValueOptions {
+	string enum_value_doc = 70001;
+}
+
+enum EnumValueOptions {
+	ENUM_VALUE_UNSPECIFIED = 0;
+	ENUM_VALUE_ONE = 1 [(enum_value_doc) = "First value"];
+	ENUM_VALUE_TWO = 2 [deprecated = true, (enum_value_doc) = "Deprecated"];
+}
+
+// ============================================================================
+// COMMENTS
+// ============================================================================
+
+// Single line comment
+
+/* Multi-line comment
+ spanning multiple lines
+ with various content */
+
+/**
+ * Documentation style comment
+ * @param field Description of field
+ * @return Description of return
+ */
+message CommentTest {
+  // Field comment
+	string field = 1; // Trailing comment
+
+  /* Block comment for field */
+	int32 another = 2;
+
+	/**
+	 * Doc comment for nested
+	 */
+	message Nested {
+		string value = 1;
+	}
+}

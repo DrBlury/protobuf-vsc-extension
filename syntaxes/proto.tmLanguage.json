@@ -17,6 +17,7 @@
     { "include": "#extensions" },
     { "include": "#oneof" },
     { "include": "#map" },
+    { "include": "#group" },
     { "include": "#field" },
     { "include": "#rpc" },
     { "include": "#strings" },
@@ -107,15 +108,22 @@
         },
         {
           "begin": "\\b(option)\\s+",
-          "end": ";",
+          "end": "(;)",
           "beginCaptures": {
             "1": { "name": "keyword.other.option.proto" }
+          },
+          "endCaptures": {
+            "1": { "name": "punctuation.terminator.proto" }
           },
           "patterns": [
             { "include": "#optionName" },
             { "include": "#strings" },
             { "include": "#numbers" },
-            { "include": "#constants" }
+            { "include": "#constants" },
+            {
+              "match": "(=)",
+              "name": "keyword.operator.assignment.proto"
+            }
           ]
         }
       ]
@@ -480,6 +488,7 @@
             { "include": "#reserved" },
             { "include": "#extensions" },
             { "include": "#extend" },
+            { "include": "#group" },
             { "include": "#field" }
           ]
         },
@@ -501,6 +510,7 @@
             { "include": "#reserved" },
             { "include": "#extensions" },
             { "include": "#extend" },
+            { "include": "#group" },
             { "include": "#field" }
           ]
         }
@@ -588,25 +598,36 @@
       ]
     },
     "rpc": {
-      "begin": "\\b(rpc)\\s+(\\w+)\\s*\\(",
-      "end": ";|\\{",
-      "beginCaptures": {
-        "1": { "name": "keyword.declaration.rpc.proto" },
-        "2": { "name": "entity.name.function.rpc.proto" }
-      },
       "patterns": [
-        { "include": "#comments" },
         {
-          "match": "\\b(stream)\\b",
-          "name": "keyword.other.stream.proto"
+          "comment": "RPC with option body",
+          "begin": "\\b(rpc)\\s+(\\w+)\\s*\\(\\s*(stream)?\\s*([\\w.]+)\\s*\\)\\s*(returns)\\s*\\(\\s*(stream)?\\s*([\\w.]+)\\s*\\)\\s*(\\{)",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "keyword.declaration.rpc.proto" },
+            "2": { "name": "entity.name.function.rpc.proto" },
+            "3": { "name": "keyword.other.stream.proto" },
+            "4": { "name": "entity.name.type.proto" },
+            "5": { "name": "keyword.control.returns.proto" },
+            "6": { "name": "keyword.other.stream.proto" },
+            "7": { "name": "entity.name.type.proto" },
+            "8": { "name": "punctuation.definition.block.proto" }
+          },
+          "patterns": [{ "include": "#comments" }, { "include": "#option" }]
         },
         {
-          "match": "\\b(returns)\\b",
-          "name": "keyword.control.returns.proto"
-        },
-        {
-          "match": "\\b([A-Z]\\w*)\\b",
-          "name": "entity.name.type.proto"
+          "comment": "RPC without body (ending with semicolon)",
+          "match": "\\b(rpc)\\s+(\\w+)\\s*\\(\\s*(stream)?\\s*([\\w.]+)\\s*\\)\\s*(returns)\\s*\\(\\s*(stream)?\\s*([\\w.]+)\\s*\\)\\s*(;)",
+          "captures": {
+            "1": { "name": "keyword.declaration.rpc.proto" },
+            "2": { "name": "entity.name.function.rpc.proto" },
+            "3": { "name": "keyword.other.stream.proto" },
+            "4": { "name": "entity.name.type.proto" },
+            "5": { "name": "keyword.control.returns.proto" },
+            "6": { "name": "keyword.other.stream.proto" },
+            "7": { "name": "entity.name.type.proto" },
+            "8": { "name": "punctuation.terminator.proto" }
+          }
         }
       ]
     },
@@ -714,7 +735,12 @@
         "2": { "name": "punctuation.definition.typeparameters.begin.proto" },
         "3": { "name": "storage.type.proto" },
         "4": { "name": "punctuation.separator.proto" },
-        "5": { "name": "entity.name.type.proto" },
+        "5": {
+          "patterns": [
+            { "include": "#types" },
+            { "match": "[\\w.]+", "name": "entity.name.type.proto" }
+          ]
+        },
         "6": { "name": "punctuation.definition.typeparameters.end.proto" },
         "7": { "name": "variable.other.field.proto" },
         "8": { "name": "keyword.operator.assignment.proto" },
@@ -725,6 +751,48 @@
         "1": { "name": "punctuation.terminator.proto" }
       },
       "patterns": [{ "include": "#fieldOptions" }]
+    },
+    "group": {
+      "comment": "Proto2 group field (deprecated but valid syntax)",
+      "patterns": [
+        {
+          "comment": "Group with label (optional/required/repeated)",
+          "begin": "\\b(optional|required|repeated)\\s+(group)\\s+([A-Z]\\w*)\\s*(=)\\s*(\\d+)\\s*(\\{)",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "keyword.other.modifier.proto" },
+            "2": { "name": "keyword.declaration.group.proto" },
+            "3": { "name": "entity.name.type.group.proto" },
+            "4": { "name": "keyword.operator.assignment.proto" },
+            "5": { "name": "constant.numeric.proto" },
+            "6": { "name": "punctuation.definition.block.proto" }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#option" },
+            { "include": "#field" },
+            { "include": "#group" }
+          ]
+        },
+        {
+          "comment": "Group without label (nested inside another group)",
+          "begin": "\\b(group)\\s+([A-Z]\\w*)\\s*(=)\\s*(\\d+)\\s*(\\{)",
+          "end": "\\}",
+          "beginCaptures": {
+            "1": { "name": "keyword.declaration.group.proto" },
+            "2": { "name": "entity.name.type.group.proto" },
+            "3": { "name": "keyword.operator.assignment.proto" },
+            "4": { "name": "constant.numeric.proto" },
+            "5": { "name": "punctuation.definition.block.proto" }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#option" },
+            { "include": "#field" },
+            { "include": "#group" }
+          ]
+        }
+      ]
     },
     "field": {
       "patterns": [
@@ -787,18 +855,33 @@
         },
         {
           "comment": "Field with modifier (single line with optional field options)",
-          "begin": "\\b(optional|required|repeated)\\s+([\\w.]+)\\s+(\\w+)\\s*(=)\\s*(0[xX][0-9a-fA-F]+|\\d+)",
+          "begin": "\\b(optional|required|repeated)\\s+(\\.?[\\w.]+)\\s+(\\w+)\\s*(=)\\s*(0[xX][0-9a-fA-F]+|\\d+)",
           "beginCaptures": {
             "1": { "name": "keyword.other.modifier.proto" },
             "2": {
               "patterns": [
                 { "include": "#types" },
-                { "match": "[\\w.]+", "name": "entity.name.type.proto" }
+                { "match": "\\.?[\\w.]+", "name": "entity.name.type.proto" }
               ]
             },
             "3": { "name": "variable.other.field.proto" },
             "4": { "name": "keyword.operator.assignment.proto" },
             "5": { "name": "constant.numeric.proto" }
+          },
+          "end": "(;)",
+          "endCaptures": {
+            "1": { "name": "punctuation.terminator.proto" }
+          },
+          "patterns": [{ "include": "#fieldOptions" }]
+        },
+        {
+          "comment": "Field without modifier - absolute qualified type (.pkg.Type)",
+          "begin": "(\\.\\w[\\w.]*)\\s+(\\w+)\\s*(=)\\s*(0[xX][0-9a-fA-F]+|\\d+)",
+          "beginCaptures": {
+            "1": { "name": "entity.name.type.proto" },
+            "2": { "name": "variable.other.field.proto" },
+            "3": { "name": "keyword.operator.assignment.proto" },
+            "4": { "name": "constant.numeric.proto" }
           },
           "end": "(;)",
           "endCaptures": {
@@ -840,7 +923,33 @@
           "end": "\"",
           "patterns": [
             {
+              "comment": "Unicode long escape (8 hex digits)",
+              "name": "constant.character.escape.unicode.proto",
+              "match": "\\\\U[0-9a-fA-F]{8}"
+            },
+            {
+              "comment": "Unicode escape (4 hex digits)",
+              "name": "constant.character.escape.unicode.proto",
+              "match": "\\\\u[0-9a-fA-F]{4}"
+            },
+            {
+              "comment": "Hex escape (1-2 hex digits)",
+              "name": "constant.character.escape.hex.proto",
+              "match": "\\\\[xX][0-9a-fA-F]{1,2}"
+            },
+            {
+              "comment": "Octal escape (1-3 octal digits)",
+              "name": "constant.character.escape.octal.proto",
+              "match": "\\\\[0-7]{1,3}"
+            },
+            {
+              "comment": "Character escapes",
               "name": "constant.character.escape.proto",
+              "match": "\\\\[abfnrtv\\\\'\"]"
+            },
+            {
+              "comment": "Invalid escape sequence",
+              "name": "invalid.illegal.escape.proto",
               "match": "\\\\."
             }
           ]
@@ -851,7 +960,33 @@
           "end": "'",
           "patterns": [
             {
+              "comment": "Unicode long escape (8 hex digits)",
+              "name": "constant.character.escape.unicode.proto",
+              "match": "\\\\U[0-9a-fA-F]{8}"
+            },
+            {
+              "comment": "Unicode escape (4 hex digits)",
+              "name": "constant.character.escape.unicode.proto",
+              "match": "\\\\u[0-9a-fA-F]{4}"
+            },
+            {
+              "comment": "Hex escape (1-2 hex digits)",
+              "name": "constant.character.escape.hex.proto",
+              "match": "\\\\[xX][0-9a-fA-F]{1,2}"
+            },
+            {
+              "comment": "Octal escape (1-3 octal digits)",
+              "name": "constant.character.escape.octal.proto",
+              "match": "\\\\[0-7]{1,3}"
+            },
+            {
+              "comment": "Character escapes",
               "name": "constant.character.escape.proto",
+              "match": "\\\\[abfnrtv\\\\'\"]"
+            },
+            {
+              "comment": "Invalid escape sequence",
+              "name": "invalid.illegal.escape.proto",
               "match": "\\\\."
             }
           ]
@@ -862,7 +997,7 @@
       "patterns": [
         {
           "name": "constant.numeric.hex.proto",
-          "match": "\\b0[xX][0-9a-fA-F]+\\b"
+          "match": "\\b[+-]?0[xX][0-9a-fA-F]+\\b"
         },
         {
           "name": "constant.numeric.octal.proto",
@@ -871,21 +1006,21 @@
         {
           "comment": "Float with decimal point and optional exponent",
           "name": "constant.numeric.float.proto",
-          "match": "\\b\\d+\\.\\d+([eE][+-]?\\d+)?\\b"
+          "match": "[+-]?\\d+\\.\\d+([eE][+-]?\\d+)?\\b"
         },
         {
           "comment": "Float with just decimal point (.5)",
           "name": "constant.numeric.float.proto",
-          "match": "\\.\\d+([eE][+-]?\\d+)?\\b"
+          "match": "[+-]?\\.\\d+([eE][+-]?\\d+)?\\b"
         },
         {
           "comment": "Integer with exponent (1e10)",
           "name": "constant.numeric.float.proto",
-          "match": "\\b\\d+[eE][+-]?\\d+\\b"
+          "match": "\\b[+-]?\\d+[eE][+-]?\\d+\\b"
         },
         {
           "name": "constant.numeric.integer.proto",
-          "match": "\\b-?\\d+\\b"
+          "match": "[+-]?\\d+\\b"
         }
       ]
     },

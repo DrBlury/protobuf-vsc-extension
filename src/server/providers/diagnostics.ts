@@ -47,6 +47,7 @@ export class DiagnosticsProvider {
   private analyzer: SemanticAnalyzer;
   private settings: DiagnosticsSettings = DEFAULT_DIAGNOSTICS_SETTINGS;
   private currentDocumentText?: string;
+  private currentFile?: ProtoFile;
 
   constructor(analyzer: SemanticAnalyzer) {
     this.analyzer = analyzer;
@@ -63,8 +64,9 @@ export class DiagnosticsProvider {
       return [];
     }
 
-    // Store document text for documentation comment checking
+    // Store document text and file for context-aware validation
     this.currentDocumentText = documentText;
+    this.currentFile = file;
     const diagnostics: Diagnostic[] = [];
     const packageName = file.package?.name || '';
 
@@ -630,11 +632,12 @@ export class DiagnosticsProvider {
 
     // Check for discouraged constructs
     if (this.settings.discouragedConstructs) {
-      if (field.modifier === 'required') {
+      // 'required' is only invalid/discouraged in proto3, it's valid in proto2
+      if (field.modifier === 'required' && this.currentFile?.syntax?.version === 'proto3') {
         diagnostics.push({
           severity: DiagnosticSeverity.Warning,
           range: this.toRange(field.range),
-          message: `'required' is deprecated in proto3. Consider using 'optional' or no modifier`,
+          message: `'required' is not supported in proto3. Consider using 'optional' or no modifier`,
           source: DIAGNOSTIC_SOURCE,
           code: ERROR_CODES.DISCOURAGED_CONSTRUCT
         });
@@ -812,14 +815,37 @@ export class DiagnosticsProvider {
       }
     }
 
-    // Warn that groups are deprecated
+    // Warn that groups are deprecated in proto2 or invalid in proto3/editions
     if (this.settings.discouragedConstructs) {
-      diagnostics.push({
-        severity: DiagnosticSeverity.Information,
-        range: this.toRange(group.range),
-        message: 'Groups are deprecated in proto2. Consider using nested messages instead.',
-        source: DIAGNOSTIC_SOURCE
-      });
+      const isProto3 = this.currentFile?.syntax?.version === 'proto3';
+      const isEdition = !!this.currentFile?.edition;
+
+      if (isProto3) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Error,
+          range: this.toRange(group.range),
+          message: 'Groups are not supported in proto3. Use nested messages instead.',
+          source: DIAGNOSTIC_SOURCE,
+          code: ERROR_CODES.DISCOURAGED_CONSTRUCT
+        });
+      } else if (isEdition) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Error,
+          range: this.toRange(group.range),
+          message: 'Groups are not supported in editions. Use nested messages with DELIMITED encoding instead.',
+          source: DIAGNOSTIC_SOURCE,
+          code: ERROR_CODES.DISCOURAGED_CONSTRUCT
+        });
+      } else {
+        // Proto2: valid but deprecated
+        diagnostics.push({
+          severity: DiagnosticSeverity.Information,
+          range: this.toRange(group.range),
+          message: 'Groups are deprecated. Consider using nested messages instead.',
+          source: DIAGNOSTIC_SOURCE,
+          code: ERROR_CODES.DISCOURAGED_CONSTRUCT
+        });
+      }
     }
 
     // Validate fields within the group recursively
@@ -1407,7 +1433,9 @@ export class DiagnosticsProvider {
       }
 
       const gap = current - prev - 1;
-      if (gap > 0) {
+      // Limit gap checking to avoid performance issues with very large field numbers
+      // (e.g., 0x7FFFFFFF used for demonstration purposes)
+      if (gap > 0 && gap <= 1000) {
         const missingNumbers = [] as number[];
         for (let n = prev + 1; n < current; n++) {
           if ((n >= RESERVED_RANGE_START && n <= RESERVED_RANGE_END) || isNumberReserved(n)) {

@@ -1,0 +1,7 @@
+// SYNTAX TEST "source.proto" "Strings"
+
+syntax = "proto3";
+//       ^^^^^^^^ string.quoted.double.proto
+
+import "test.proto";
+//     ^^^^^^^^^^^^ string.quoted.double.proto

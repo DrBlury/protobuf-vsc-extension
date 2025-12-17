@@ -1,0 +1,22 @@
+// SYNTAX TEST "source.proto" "Field options"
+
+message WithOptions {
+  string name = 1 [deprecated = true];
+//                ^ punctuation.definition.brackets.begin.proto
+//                 ^^^^^^^^^^ support.other.option.proto
+//                            ^ keyword.operator.assignment.proto
+//                              ^^^^ constant.language.proto
+//                                  ^ punctuation.definition.brackets.end.proto
+
+  int32 id = 2 [packed = true, json_name = "identifier"];
+//             ^ punctuation.definition.brackets.begin.proto
+//                           ^ punctuation.separator.proto
+//                                                     ^ punctuation.definition.brackets.end.proto
+
+  repeated int32 values = 4 [packed = true];
+//^^^^^^^^ keyword.other.modifier.proto
+//         ^^^^^ storage.type.proto
+//               ^^^^^^ variable.other.field.proto
+//                        ^ constant.numeric.proto
+//                          ^ punctuation.definition.brackets.begin.proto
+}

@@ -1,0 +1,45 @@
+// SYNTAX TEST "source.proto" "Options with = and ; tokens"
+
+syntax = "proto3";
+
+message Test {
+  option deprecated = true;
+//^^^^^^ keyword.other.option.proto
+//       ^^^^^^^^^^ support.other.option.proto
+//                  ^ keyword.operator.assignment.proto
+//                    ^^^^ constant.language.proto
+//                        ^ punctuation.terminator.proto
+
+  option (custom.option) = "value";
+//^^^^^^ keyword.other.option.proto
+//        ^^^^^^^^^^^^^ variable.other.option.proto
+//                       ^ keyword.operator.assignment.proto
+//                         ^^^^^^^ string.quoted.double.proto
+//                                ^ punctuation.terminator.proto
+
+  string name = 1;
+}
+
+enum Status {
+  option allow_alias = true;
+//^^^^^^ keyword.other.option.proto
+//                   ^ keyword.operator.assignment.proto
+//                     ^^^^ constant.language.proto
+//                         ^ punctuation.terminator.proto
+
+  UNKNOWN = 0;
+}
+
+service Svc {
+  option deprecated = false;
+//^^^^^^ keyword.other.option.proto
+//       ^^^^^^^^^^ support.other.option.proto
+//                  ^ keyword.operator.assignment.proto
+//                    ^^^^^ constant.language.proto
+//                         ^ punctuation.terminator.proto
+
+  rpc Call(Request) returns (Response);
+}
+
+message Request {}
+message Response {}

@@ -1,0 +1,35 @@
+// SYNTAX TEST "source.proto" "Map types with various key/value types"
+
+syntax = "proto3";
+
+message Value {}
+
+message MapTypes {
+  map<string, string> string_map = 1;
+//^^^ keyword.other.map.proto
+//   ^ punctuation.definition.typeparameters.begin.proto
+//    ^^^^^^ storage.type.proto
+//          ^ punctuation.separator.proto
+//            ^^^^^^ storage.type.proto
+//                  ^ punctuation.definition.typeparameters.end.proto
+//                    ^^^^^^^^^^ variable.other.field.proto
+
+  map<int32, bool> int_bool_map = 2;
+//^^^ keyword.other.map.proto
+//    ^^^^^ storage.type.proto
+//         ^ punctuation.separator.proto
+//           ^^^^ storage.type.proto
+
+  map<string, bytes> bytes_map = 3;
+//^^^ keyword.other.map.proto
+//    ^^^^^^ storage.type.proto
+//            ^^^^^ storage.type.proto
+
+  map<int64, double> double_map = 4;
+//    ^^^^^ storage.type.proto
+//           ^^^^^^ storage.type.proto
+
+  map<string, Value> custom_map = 5;
+//    ^^^^^^ storage.type.proto
+//            ^^^^^ entity.name.type.proto
+}

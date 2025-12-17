@@ -1,0 +1,18 @@
+// SYNTAX TEST "source.proto" "Comments - line and block"
+
+// This is a line comment
+// <---- comment.line.double-slash.proto
+
+/* This is a block comment */
+// <---------------------- comment.block.proto
+
+/*
+ * Multi-line
+ * block comment
+ */
+// <-- comment.block.proto
+
+message Example {
+  string name = 1; // trailing comment
+//                 ^^^^^^^^^^^^^^^^^^ comment.line.double-slash.proto
+}

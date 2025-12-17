@@ -1,0 +1,35 @@
+// SYNTAX TEST "source.proto" "Proto2 groups (deprecated)"
+
+syntax = "proto2";
+
+message WithGroups {
+  optional group MyGroup = 1 {
+//^^^^^^^^ keyword.other.modifier.proto
+//         ^^^^^ keyword.declaration.group.proto
+//               ^^^^^^^ entity.name.type.group.proto
+//                       ^ keyword.operator.assignment.proto
+//                         ^ constant.numeric.proto
+//                           ^ punctuation.definition.block.proto
+
+    optional string name = 1;
+//  ^^^^^^^^ keyword.other.modifier.proto
+//           ^^^^^^ storage.type.proto
+//                  ^^^^ variable.other.field.proto
+  }
+
+  required group RequiredGroup = 2 {
+//^^^^^^^^ keyword.other.modifier.proto
+//         ^^^^^ keyword.declaration.group.proto
+//               ^^^^^^^^^^^^^ entity.name.type.group.proto
+
+    required int32 id = 1;
+  }
+
+  repeated group RepeatedGroup = 3 {
+//^^^^^^^^ keyword.other.modifier.proto
+//         ^^^^^ keyword.declaration.group.proto
+//               ^^^^^^^^^^^^^ entity.name.type.group.proto
+
+    optional string value = 1;
+  }
+}

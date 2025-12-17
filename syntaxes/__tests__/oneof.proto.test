@@ -1,0 +1,33 @@
+// SYNTAX TEST "source.proto" "Oneof definitions"
+
+message OneofMessage {
+  oneof identifier {
+//^^^^^ keyword.declaration.oneof.proto
+//      ^^^^^^^^^^ variable.other.oneof.proto
+//                 ^ punctuation.definition.block.proto
+
+    string name = 1;
+//  ^^^^^^ storage.type.proto
+//         ^^^^ variable.other.field.proto
+//              ^ keyword.operator.assignment.proto
+//                ^ constant.numeric.proto
+//                 ^ punctuation.terminator.proto
+
+    int32 id = 2;
+//  ^^^^^ storage.type.proto
+//        ^^ variable.other.field.proto
+  }
+}
+
+message NestedOneof {
+  string prefix = 1;
+
+  oneof value {
+//^^^^^ keyword.declaration.oneof.proto
+    string text = 2;
+    bytes data = 3;
+    int64 number = 4;
+  }
+
+  string suffix = 5;
+}

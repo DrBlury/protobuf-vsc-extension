@@ -1,0 +1,32 @@
+// SYNTAX TEST "source.proto" "Basic syntax and declarations"
+
+syntax = "proto3";
+// <--- keyword.control.syntax.proto
+//     ^ keyword.operator.assignment.proto
+//       ^^^^^^^^ string.quoted.double.proto
+//               ^ punctuation.terminator.proto
+
+edition = "2023";
+// <---- keyword.control.edition.proto
+//      ^ keyword.operator.assignment.proto
+//        ^^^^^^ string.quoted.double.proto
+//              ^ punctuation.terminator.proto
+
+package my.package.name;
+// <--- keyword.control.package.proto
+//      ^^^^^^^^^^^^^^^ entity.name.namespace.proto
+//                     ^ punctuation.terminator.proto
+
+import "other.proto";
+// <-- keyword.control.import.proto
+//     ^^^^^^^^^^^^^ string.quoted.double.proto
+//                  ^ punctuation.terminator.proto
+
+import public "public.proto";
+// <-- keyword.control.import.proto
+//     ^^^^^^ keyword.other.import.modifier.proto
+//            ^^^^^^^^^^^^^^ string.quoted.double.proto
+
+import weak "weak.proto";
+// <-- keyword.control.import.proto
+//     ^^^^ keyword.other.import.modifier.proto

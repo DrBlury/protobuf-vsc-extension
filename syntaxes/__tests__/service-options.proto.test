@@ -1,0 +1,20 @@
+// SYNTAX TEST "source.proto" "Service options"
+
+syntax = "proto3";
+
+service MyService {
+  option deprecated = true;
+//^^^^^^ keyword.other.option.proto
+//       ^^^^^^^^^^ support.other.option.proto
+//                    ^^^^ constant.language.proto
+
+  option (custom.service_option) = "value";
+//^^^^^^ keyword.other.option.proto
+//        ^^^^^^^^^^^^^^^^^^^^^ variable.other.option.proto
+//                                 ^^^^^^^ string.quoted.double.proto
+
+  rpc Call(Request) returns (Response);
+}
+
+message Request {}
+message Response {}

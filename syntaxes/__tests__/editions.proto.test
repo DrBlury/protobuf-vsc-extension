@@ -1,0 +1,15 @@
+// SYNTAX TEST "source.proto" "Edition 2023 features"
+
+edition = "2023";
+
+message EditionMessage {
+  string name = 1;
+//^^^^^^ storage.type.proto
+//       ^^^^ variable.other.field.proto
+//            ^ keyword.operator.assignment.proto
+//              ^ constant.numeric.proto
+//               ^ punctuation.terminator.proto
+
+  int32 id = 2;
+//^^^^^ storage.type.proto
+}

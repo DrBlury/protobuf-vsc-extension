@@ -1,0 +1,150 @@
+// Edition 2023 syntax features for TextMate grammar testing
+// Tests edition-specific syntax highlighting
+
+edition = "2023";
+
+package textmate.edition;
+
+import "google/protobuf/descriptor.proto";
+
+// ============================================================================
+// EDITION DECLARATION
+// Edition syntax should be highlighted like syntax but with different values
+// ============================================================================
+
+// File-level options
+option features.field_presence = IMPLICIT;
+option features.enum_type = CLOSED;
+
+// ============================================================================
+// EDITION FIELD FEATURES
+// Fields can have features option in editions
+// ============================================================================
+
+message EditionFieldTests {
+  // Implicit presence (default in editions)
+	string implicit_field = 1;
+
+  // Explicit presence with features
+	string explicit_field = 2 [features.field_presence = EXPLICIT];
+
+  // Legacy required behavior
+	string required_like = 3 [features.field_presence = LEGACY_REQUIRED];
+
+  // Repeated fields with expansion
+	repeated int32 expanded = 4 [features.repeated_field_encoding = EXPANDED];
+	repeated int32 packed = 5 [features.repeated_field_encoding = PACKED];
+}
+
+// ============================================================================
+// EDITION ENUM FEATURES
+// Enums can be open or closed in editions
+// ============================================================================
+
+enum OpenEnum {
+	option features.enum_type = OPEN;
+
+	OPEN_UNKNOWN = 0;
+	OPEN_VALUE_A = 1;
+	OPEN_VALUE_B = 2;
+}
+
+enum ClosedEnum {
+	option features.enum_type = CLOSED;
+
+	CLOSED_UNSPECIFIED = 0;
+	CLOSED_VALUE_A = 1;
+	CLOSED_VALUE_B = 2;
+}
+
+// ============================================================================
+// EDITION MESSAGE FEATURES
+// Message-level features
+// ============================================================================
+
+message MessageWithFeatures {
+	option features.message_encoding = DELIMITED;
+
+	string name = 1;
+	int32 value = 2;
+}
+
+// ============================================================================
+// SERVICE IN EDITIONS
+// Services work the same but can test RPC option bodies
+// ============================================================================
+
+service EditionService {
+	rpc Unary (UnaryRequest) returns (UnaryResponse);
+
+	rpc ServerStream (StreamRequest) returns (stream StreamResponse) {
+		option idempotency_level = NO_SIDE_EFFECTS;
+	}
+
+	rpc ClientStream (stream StreamRequest) returns (StreamResponse) {
+		option idempotency_level = IDEMPOTENT;
+	}
+
+	rpc BiDiStream (stream StreamRequest) returns (stream StreamResponse) {
+		option deprecated = true;
+	}
+}
+
+message UnaryRequest {
+	string query = 1;
+}
+
+message UnaryResponse {
+	string result = 1;
+}
+
+message StreamRequest {
+	bytes data = 1;
+}
+
+message StreamResponse {
+	bytes chunk = 1;
+	bool done = 2;
+}
+
+// ============================================================================
+// COMPLEX NESTED STRUCTURES
+// Test highlighting in deeply nested contexts
+// ============================================================================
+
+message OuterMessage {
+	message MiddleMessage {
+		message InnerMessage {
+			string deep_field = 1;
+
+			enum InnerEnum {
+				INNER_UNKNOWN = 0;
+				INNER_VALUE = 1;
+			}
+
+			InnerEnum enum_field = 2;
+		}
+
+		repeated InnerMessage items = 1;
+		map<string, InnerMessage> item_map = 2;
+	}
+
+	MiddleMessage middle = 1;
+
+	oneof test_oneof {
+		string string_choice = 2;
+		int32 int_choice = 3;
+		MiddleMessage message_choice = 4;
+	}
+}
+
+// ============================================================================
+// STRING LITERALS IN EDITION
+// Same escape sequences should work
+// ============================================================================
+
+message EditionStrings {
+	string with_escapes = 1 [default = "line1\nline2\ttabbed"];
+	string with_hex = 2 [default = "\x00\xFF binary data"];
+	string with_unicode = 3 [default = "\u0041\u0042\u0043 = ABC"];
+}

@@ -1,0 +1,31 @@
+// SYNTAX TEST "source.proto" "Options at various levels"
+
+syntax = "proto3";
+
+option java_package = "com.example";
+// <-- keyword.other.option.proto
+//     ^^^^^^^^^^^^ support.other.option.proto
+
+option java_multiple_files = true;
+//     ^^^^^^^^^^^^^^^^^^^ support.other.option.proto
+
+message WithMessageOptions {
+  option deprecated = true;
+//^^^^^^ keyword.other.option.proto
+//       ^^^^^^^^^^ support.other.option.proto
+//                    ^^^^ constant.language.proto
+}
+
+enum WithEnumOptions {
+  option allow_alias = true;
+//^^^^^^ keyword.other.option.proto
+
+  VALUE_ZERO = 0 [deprecated = true];
+//^^^^^^^^^^ variable.other.enummember.proto
+//           ^ keyword.operator.assignment.proto
+//             ^ constant.numeric.proto
+//               ^ punctuation.definition.brackets.begin.proto
+//                ^^^^^^^^^^ support.other.option.proto
+//                             ^^^^ constant.language.proto
+//                                 ^ punctuation.definition.brackets.end.proto
+}

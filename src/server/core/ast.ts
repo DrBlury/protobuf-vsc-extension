@@ -114,6 +114,7 @@ export interface GroupFieldDefinition extends ProtoNode {
   reserved: ReservedStatement[];
   extensions: ExtensionsStatement[];
   maps: MapFieldDefinition[];
+  groups: GroupFieldDefinition[];
 }
 
 export interface FieldOption {

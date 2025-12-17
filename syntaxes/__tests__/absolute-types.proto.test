@@ -1,0 +1,28 @@
+// SYNTAX TEST "source.proto" "Absolute qualified type paths with leading dot"
+
+syntax = "proto3";
+
+package mypackage;
+
+message Request {
+  string id = 1;
+}
+
+message Container {
+  .mypackage.Request absolute = 1;
+//^^^^^^^^^^^^^^^^^^ entity.name.type.proto
+//                   ^^^^^^^^ variable.other.field.proto
+//                            ^ keyword.operator.assignment.proto
+//                              ^ constant.numeric.proto
+//                               ^ punctuation.terminator.proto
+
+  optional .other.Type optional_abs = 2;
+//^^^^^^^^ keyword.other.modifier.proto
+//         ^^^^^^^^^^^ entity.name.type.proto
+//                     ^^^^^^^^^^^^ variable.other.field.proto
+
+  repeated .pkg.Message repeated_abs = 3;
+//^^^^^^^^ keyword.other.modifier.proto
+//         ^^^^^^^^^^^^ entity.name.type.proto
+//                      ^^^^^^^^^^^^ variable.other.field.proto
+}

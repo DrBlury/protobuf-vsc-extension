@@ -48,6 +48,7 @@ export const KEYWORD_DESCRIPTIONS: Record<string, string> = {
   required: 'Field modifier indicating the field is required (proto2, deprecated)',
   repeated: 'Field modifier indicating the field can have multiple values',
   map: 'Defines a map field with key-value pairs',
+  group: 'Defines a group field (proto2, deprecated). Groups combine a message type and field in one declaration. Use nested messages instead.',
   weak: 'Import modifier for weak dependencies',
   public: 'Import modifier to re-export imported definitions'
 };

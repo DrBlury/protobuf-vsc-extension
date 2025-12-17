@@ -1,0 +1,17 @@
+// SYNTAX TEST "source.proto" "Fully qualified type names"
+
+syntax = "proto3";
+
+package mypackage;
+// <--- keyword.control.package.proto
+//      ^^^^^^^^^ entity.name.namespace.proto
+
+message Request {
+  string id = 1;
+}
+
+message Container {
+  mypackage.Request other = 1;
+//^^^^^^^^^^^^^^^^^ entity.name.type.proto
+//                  ^^^^^ variable.other.field.proto
+}

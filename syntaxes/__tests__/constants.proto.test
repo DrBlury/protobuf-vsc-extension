@@ -1,0 +1,16 @@
+// SYNTAX TEST "source.proto" "Constants - true, false, max, inf, nan"
+
+syntax = "proto3";
+
+message Constants {
+  option deprecated = true;
+//                    ^^^^ constant.language.proto
+
+  option deprecated = false;
+//                    ^^^^^ constant.language.proto
+}
+
+message Extensions {
+  extensions 1 to max;
+//                ^^^ keyword.other.max.proto
+}

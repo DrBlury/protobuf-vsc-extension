@@ -644,13 +644,23 @@ export class SemanticAnalyzer {
       return undefined;
     }
 
+    // Handle absolute type references (starting with .)
+    // In protobuf, a leading dot means "absolute path from root"
+    // e.g., ".com.example.MyMessage" is the same as "com.example.MyMessage"
+    const normalizedTypeName = typeName.startsWith('.') ? typeName.slice(1) : typeName;
+
     // Try exact match first ONLY for fully qualified names (containing a dot)
     // Simple names like "User" should go through proper scope resolution
-    if (typeName.includes('.')) {
-      const symbol = this.workspace.symbols.get(typeName);
+    if (normalizedTypeName.includes('.')) {
+      const symbol = this.workspace.symbols.get(normalizedTypeName);
       if (symbol) {
         return symbol;
       }
+    }
+
+    // If it was an absolute reference, don't do relative resolution
+    if (typeName.startsWith('.')) {
+      return undefined;
     }
 
     // Get the current file to check its imports AND its local definitions (for forward references)

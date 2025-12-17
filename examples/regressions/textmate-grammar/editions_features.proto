@@ -1,0 +1,359 @@
+// Regression test for TextMate grammar - Protobuf Editions features
+// This file demonstrates syntax highlighting for edition 2023+ syntax
+
+edition = "2023";
+
+package textmate.regression.editions;
+
+import "google/protobuf/descriptor.proto";
+
+// ============================================================================
+// FILE-LEVEL OPTIONS
+// Standard file options apply to editions too
+// ============================================================================
+
+option java_package = "com.example.editions";
+option java_outer_classname = "EditionFeaturesProto";
+option java_multiple_files = true;
+option optimize_for = SPEED;
+option cc_enable_arenas = true;
+option objc_class_prefix = "EDF";
+option csharp_namespace = "Example.Editions";
+option swift_prefix = "ED";
+option php_namespace = "Example\\Editions";
+option ruby_package = "Example::Editions";
+option go_package = "example.com/editions;editionspb";
+option deprecated = false;
+
+// ============================================================================
+// EDITION FEATURES
+// Features replace proto2/proto3 syntax differences
+// ============================================================================
+
+// File-level features
+option features.field_presence = EXPLICIT;
+option features.enum_type = CLOSED;
+option features.repeated_field_encoding = PACKED;
+option features.message_encoding = LENGTH_PREFIXED;
+option features.utf8_validation = VERIFY;
+option features.json_format = ALLOW;
+
+// ============================================================================
+// MESSAGES WITH FEATURES
+// ============================================================================
+
+message FeatureMessage {
+  // Message-level features override file-level
+	option features.field_presence = IMPLICIT;
+
+  // Field with implicit presence (proto3-like behavior)
+	string implicit_field = 1;
+
+  // Field with explicit presence
+	string explicit_field = 2 [features.field_presence = EXPLICIT];
+
+  // Legacy required behavior
+	string required_like = 3 [features.field_presence = LEGACY_REQUIRED];
+
+  // Repeated fields
+	repeated int32 packed_ints = 4; // Packed by default in editions
+	repeated int32 expanded_ints = 5 [features.repeated_field_encoding = EXPANDED];
+
+  // Delimited encoding (like proto2 groups)
+	NestedDelimited delimited_msg = 6 [features.message_encoding = DELIMITED];
+
+	message NestedDelimited {
+		string value = 1;
+	}
+}
+
+// ============================================================================
+// ENUM FEATURES
+// ============================================================================
+
+// Closed enum (proto2-like: unknown values are parse errors)
+enum ClosedEnum {
+	option features.enum_type = CLOSED;
+
+	CLOSED_UNSPECIFIED = 0;
+	CLOSED_VALUE_ONE = 1;
+	CLOSED_VALUE_TWO = 2;
+}
+
+// Open enum (proto3-like: unknown values are preserved)
+enum OpenEnum {
+	option features.enum_type = OPEN;
+
+	OPEN_UNSPECIFIED = 0;
+	OPEN_VALUE_ONE = 1;
+	OPEN_VALUE_TWO = 2;
+}
+
+// Enum with aliases
+enum EnumWithAliases {
+	option allow_alias = true;
+
+	ALIAS_UNSPECIFIED = 0;
+	ALIAS_PRIMARY = 1;
+	ALIAS_SECONDARY = 1; // Alias for PRIMARY
+	ALIAS_OTHER = 2;
+}
+
+// ============================================================================
+// STRING ESCAPE SEQUENCES
+// Same as proto2/proto3
+// ============================================================================
+
+message StringEscapeTests {
+  // Character escapes
+	string char_escapes = 1 [default = "bell:\a backspace:\b formfeed:\f newline:\n return:\r tab:\t vtab:\v"];
+	string quote_escapes = 2 [default = "backslash:\\ single:\' double:\""];
+
+  // Hex escapes
+	string hex_escapes = 3 [default = "\x00\x0A\xFF"];
+
+  // Octal escapes
+	string octal_escapes = 4 [default = "\0\177\377"];
+
+  // Unicode escapes
+	string unicode_escapes = 5 [default = "\u0000\uFFFF"];
+	string unicode_long = 6 [default = "\U00000000\U0001F600"];
+
+  // Single-quoted strings
+	string single_quoted = 7 [default = 'single with \n escape'];
+
+  // UTF-8 validation feature
+	string utf8_verified = 8 [features.utf8_validation = VERIFY];
+	string utf8_none = 9 [features.utf8_validation = NONE];
+}
+
+// ============================================================================
+// NUMBER FORMATS
+// ============================================================================
+
+message NumberFormatTests {
+  // Hex field numbers
+	int32 hex_field_num = 0x10;
+	int32 upper_hex = 0XFF;
+
+  // Decimal
+	int32 decimal_field = 100;
+
+  // Float defaults
+	double simple_float = 5 [default = 3.14159];
+	double exp_float = 6 [default = 1.5e10];
+	double neg_exp = 7 [default = -1.5e-10];
+	double pos_exp = 8 [default = +1.5e+10];
+	double dot_prefix = 9 [default = .5];
+	double inf_value = 10 [default = inf];
+	double neg_inf = 11 [default = -inf];
+	double nan_value = 12 [default = nan];
+}
+
+enum NumberValues {
+	option allow_alias = true;
+
+	NUMBER_UNSPECIFIED = 0;
+	NEGATIVE_ONE = -1;
+	NEGATIVE_HEX = -0x01; // Alias
+	POSITIVE_ONE = 1;
+	HEX_VALUE = 0x10;
+	MAX_INT = 0x7FFFFFFF;
+}
+
+// ============================================================================
+// FIELD OPTIONS
+// ============================================================================
+
+// Custom options
+extend google.protobuf.FieldOptions {
+	double scale_factor = 50001;
+	int32 offset = 50002;
+	string custom_name = 50003;
+}
+
+extend google.protobuf.EnumValueOptions {
+	string enum_description = 50010;
+}
+
+extend google.protobuf.MessageOptions {
+	string message_doc = 50020;
+}
+
+message FieldOptionTests {
+	option (message_doc) = "Field options test message";
+
+  // Standard options
+	string deprecated_field = 1 [deprecated = true];
+	string json_name_field = 2 [json_name = "customJsonName"];
+
+  // Custom options with numbers
+	double scaled = 3 [(scale_factor) = +1.5];
+	int32 offset_val = 4 [(offset) = -100];
+
+  // Multiple options
+	int32 multi = 5 [
+	deprecated = true,
+	json_name = "multiField",
+	(offset) = 42,
+	features.field_presence = EXPLICIT
+	];
+
+  // Debug redaction (editions feature)
+	string sensitive = 6 [debug_redact = true];
+
+  // Retention and targets (editions features)
+	int32 retention_test = 7 [
+	retention = RETENTION_SOURCE,
+	targets = TARGET_TYPE_FIELD
+	];
+}
+
+// ============================================================================
+// MAP FIELDS
+// ============================================================================
+
+message MapTests {
+	map<string, int32> simple_map = 1;
+	map<int64, FeatureMessage> message_map = 2;
+	map<string, string> deprecated_map = 3 [deprecated = true];
+	map<int32, OpenEnum> enum_map = 4;
+	map<bool, bytes> bool_key_map = 5;
+	map<string, bytes> hex_num_map = 0x10;
+}
+
+// ============================================================================
+// ONEOF
+// ============================================================================
+
+message OneofTests {
+	string name = 1;
+
+	oneof value {
+		int32 int_value = 2;
+		string string_value = 3;
+		bool bool_value = 4;
+		NestedMessage nested = 5;
+	}
+
+	message NestedMessage {
+		string data = 1;
+	}
+}
+
+// ============================================================================
+// SERVICE DEFINITIONS
+// ============================================================================
+
+service EditionsService {
+  // Unary RPC
+	rpc UnaryMethod (Request) returns (Response);
+
+  // RPC with options
+	rpc DeprecatedMethod (Request) returns (Response) {
+		option deprecated = true;
+		option idempotency_level = NO_SIDE_EFFECTS;
+	}
+
+  // Streaming RPCs
+	rpc ServerStreaming (Request) returns (stream Response);
+	rpc ClientStreaming (stream Request) returns (Response);
+	rpc BidirectionalStreaming (stream Request) returns (stream Response) {
+		option idempotency_level = IDEMPOTENT;
+	}
+}
+
+message Request {
+	string query = 1;
+	int32 page_size = 2;
+}
+
+message Response {
+	string result = 1;
+	repeated string items = 2;
+}
+
+// ============================================================================
+// NESTED MESSAGES AND ENUMS
+// ============================================================================
+
+message OuterMessage {
+	string outer_field = 1;
+
+	message InnerMessage {
+		string inner_field = 1;
+
+		message DeepMessage {
+			int32 deep_field = 1;
+		}
+
+		DeepMessage deep = 2;
+	}
+
+	enum InnerEnum {
+		INNER_UNKNOWN = 0;
+		INNER_VALUE = 1;
+	}
+
+	InnerMessage inner = 2;
+	InnerEnum inner_enum = 3;
+	InnerMessage.DeepMessage deep_ref = 4;
+}
+
+// ============================================================================
+// QUALIFIED TYPE NAMES
+// ============================================================================
+
+message QualifiedTypeTests {
+  // Relative qualified name
+	OuterMessage.InnerMessage inner_ref = 1;
+
+  // Absolute qualified name (starts with .)
+	.textmate.regression.editions.OuterMessage absolute_ref = 2;
+
+  // Fully qualified nested type
+	.textmate.regression.editions.OuterMessage.InnerMessage.DeepMessage deep_ref = 3;
+}
+
+// ============================================================================
+// RESERVED
+// ============================================================================
+
+message ReservedTests {
+	reserved 2, 15, 9 to 11, 100 to max;
+	reserved "old_field", "removed_field", "deleted";
+
+	string active_field = 1;
+	int32 another_active = 20;
+}
+
+// ============================================================================
+// ALL BUILTIN TYPES
+// ============================================================================
+
+message AllBuiltinTypes {
+  // Numeric types
+	double double_field = 1;
+	float float_field = 2;
+	int32 int32_field = 3;
+	int64 int64_field = 4;
+	uint32 uint32_field = 5;
+	uint64 uint64_field = 6;
+	sint32 sint32_field = 7;
+	sint64 sint64_field = 8;
+	fixed32 fixed32_field = 9;
+	fixed64 fixed64_field = 10;
+	sfixed32 sfixed32_field = 11;
+	sfixed64 sfixed64_field = 12;
+
+  // Other types
+	bool bool_field = 13;
+	string string_field = 14;
+	bytes bytes_field = 15;
+
+  // Repeated versions
+	repeated double repeated_double = 16;
+	repeated int32 repeated_int32 = 17;
+	repeated string repeated_string = 18;
+	repeated bytes repeated_bytes = 19;
+}

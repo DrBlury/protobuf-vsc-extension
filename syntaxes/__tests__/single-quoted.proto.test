@@ -1,0 +1,9 @@
+// SYNTAX TEST "source.proto" "Single quoted strings"
+
+syntax = "proto3";
+
+option java_package = 'com.example';
+//                    ^^^^^^^^^^^^^ string.quoted.single.proto
+
+option go_package = 'example/go';
+//                  ^^^^^^^^^^^^ string.quoted.single.proto

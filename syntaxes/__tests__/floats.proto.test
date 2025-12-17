@@ -1,0 +1,13 @@
+// SYNTAX TEST "source.proto" "Float and special numeric literals"
+
+syntax = "proto3";
+
+message Floats {
+  double simple = 1;
+//       ^^^^^^ variable.other.field.proto
+}
+
+enum FloatDefaults {
+  option allow_alias = true;
+  ZERO = 0;
+}

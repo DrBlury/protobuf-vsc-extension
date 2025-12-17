@@ -1,0 +1,25 @@
+// SYNTAX TEST "source.proto" "Complex field options"
+
+syntax = "proto3";
+
+import "google/api/field_behavior.proto";
+
+message FieldBehaviors {
+  string name = 1 [
+//                ^ punctuation.definition.brackets.begin.proto
+    (google.api.field_behavior) = REQUIRED,
+//   ^^^^^^^^^^^^^^^^^^^^^^^^^ variable.other.option.googleapi.proto
+//                              ^ keyword.operator.assignment.proto
+//                                ^^^^^^^^ constant.language.field_behavior.proto
+//                                        ^ punctuation.separator.proto
+    deprecated = false
+//  ^^^^^^^^^^ support.other.option.proto
+//             ^ keyword.operator.assignment.proto
+//               ^^^^^ constant.language.proto
+  ];
+//^ punctuation.definition.brackets.end.proto
+// ^ punctuation.terminator.proto
+
+  string id = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+//                                             ^^^^^^^^^^^ constant.language.field_behavior.proto
+}

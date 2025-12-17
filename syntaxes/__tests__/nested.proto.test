@@ -1,0 +1,33 @@
+// SYNTAX TEST "source.proto" "Nested messages and enums"
+
+syntax = "proto3";
+
+message Outer {
+// <--- keyword.declaration.message.proto
+//      ^^^^^ entity.name.type.message.proto
+
+  message Inner {
+//^^^^^^^ keyword.declaration.message.proto
+//        ^^^^^ entity.name.type.message.proto
+    string value = 1;
+//  ^^^^^^ storage.type.proto
+//         ^^^^^ variable.other.field.proto
+  }
+
+  enum Status {
+//^^^^ keyword.declaration.enum.proto
+//     ^^^^^^ entity.name.type.enum.proto
+    UNKNOWN = 0;
+//  ^^^^^^^ variable.other.enummember.proto
+    ACTIVE = 1;
+//  ^^^^^^ variable.other.enummember.proto
+  }
+
+  Inner inner = 1;
+//^^^^^ entity.name.type.proto
+//      ^^^^^ variable.other.field.proto
+
+  Status status = 2;
+//^^^^^^ entity.name.type.proto
+//       ^^^^^^ variable.other.field.proto
+}

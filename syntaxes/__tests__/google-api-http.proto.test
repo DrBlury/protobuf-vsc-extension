@@ -1,0 +1,25 @@
+// SYNTAX TEST "source.proto" "Google API HTTP option"
+
+syntax = "proto3";
+
+import "google/api/annotations.proto";
+
+service MyService {
+  rpc GetResource(GetRequest) returns (GetResponse) {
+    option (google.api.http) = {
+//  ^^^^^^ keyword.other.option.proto
+//         ^^^^^^^^^^^^^^^^^ variable.other.option.googleapi.proto
+      get: "/v1/resources/{name}"
+//    ^^^ keyword.control.http.method.proto
+//         ^^^^^^^^^^^^^^^^^^^^^ string.quoted.double.proto
+    };
+  }
+}
+
+message GetRequest {
+  string name = 1;
+}
+
+message GetResponse {
+  string data = 1;
+}

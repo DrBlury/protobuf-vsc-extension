@@ -1,0 +1,18 @@
+// SYNTAX TEST "source.proto" "Google API resource option"
+
+syntax = "proto3";
+
+import "google/api/resource.proto";
+
+message Book {
+  option (google.api.resource) = {
+//^^^^^^ keyword.other.option.proto
+//       ^^^^^^^^^^^^^^^^^^^^^ variable.other.option.googleapi.proto
+    type: "library.googleapis.com/Book"
+//  ^^^^ support.type.property-name.resource.proto
+    pattern: "shelves/{shelf}/books/{book}"
+//  ^^^^^^^ support.type.property-name.resource.proto
+  };
+
+  string name = 1;
+}

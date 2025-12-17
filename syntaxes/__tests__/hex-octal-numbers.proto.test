@@ -1,0 +1,21 @@
+// SYNTAX TEST "source.proto" "Hex and octal number literals"
+
+syntax = "proto2";
+
+message HexNumbers {
+  extensions 0x100 to 0x1FF;
+//           ^^^^^ constant.numeric.hex.proto
+//                    ^^^^^ constant.numeric.hex.proto
+}
+
+message OctalNumbers {
+  extensions 0100 to 0177;
+//           ^^^^ constant.numeric.octal.proto
+//                   ^^^^ constant.numeric.octal.proto
+}
+
+message MixedNumbers {
+  extensions 100 to 0xFF;
+//           ^^^ constant.numeric.integer.proto
+//                  ^^^^ constant.numeric.hex.proto
+}

@@ -1,0 +1,18 @@
+// SYNTAX TEST "source.proto" "Enum definitions"
+
+enum Status {
+// <- keyword.declaration.enum.proto
+//   ^^^^^^ entity.name.type.enum.proto
+//          ^ punctuation.definition.block.proto
+
+  STATUS_UNSPECIFIED = 0;
+//^^^^^^^^^^^^^^^^^^ variable.other.enummember.proto
+//                   ^ keyword.operator.assignment.proto
+//                     ^ constant.numeric.proto
+//                      ^ punctuation.terminator.proto
+
+  STATUS_ACTIVE = 1;
+//^^^^^^^^^^^^^ variable.other.enummember.proto
+
+  STATUS_INACTIVE = 2;
+}

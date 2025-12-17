@@ -1,0 +1,27 @@
+// SYNTAX TEST "source.proto" "Punctuation and operators"
+
+syntax = "proto3";
+//     ^ keyword.operator.assignment.proto
+//               ^ punctuation.terminator.proto
+
+message Test {
+//           ^ punctuation.definition.block.proto
+  string name = 1;
+//            ^ keyword.operator.assignment.proto
+}
+
+enum Status {
+//          ^ punctuation.definition.block.proto
+  UNKNOWN = 0;
+//        ^ keyword.operator.assignment.proto
+//           ^ punctuation.terminator.proto
+}
+
+service Svc {
+//          ^ punctuation.definition.block.proto
+  rpc Call(Request) returns (Response);
+//                                    ^ punctuation.terminator.proto
+}
+
+message Request {}
+message Response {}

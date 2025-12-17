@@ -1,0 +1,390 @@
+// Regression test for TextMate grammar - Proto2 specific features
+// This file demonstrates syntax highlighting for proto2 syntax
+
+syntax = "proto2";
+
+package textmate.regression.proto2;
+
+import "google/protobuf/descriptor.proto";
+
+// ============================================================================
+// FILE-LEVEL OPTIONS
+// Proto2 specific and common file options
+// ============================================================================
+
+option java_package = "com.example.proto2";
+option java_outer_classname = "Proto2FeaturesProto";
+option java_multiple_files = true;
+option java_generate_equals_and_hash = true;
+option java_string_check_utf8 = true;
+option optimize_for = SPEED;
+option cc_generic_services = true;
+option java_generic_services = true;
+option py_generic_services = true;
+option cc_enable_arenas = true;
+option objc_class_prefix = "P2F";
+option csharp_namespace = "Example.Proto2";
+option swift_prefix = "P2";
+option php_class_prefix = "P2";
+option php_namespace = "Example\\Proto2";
+option php_metadata_namespace = "Example\\Proto2\\Metadata";
+option ruby_package = "Example::Proto2";
+option go_package = "example.com/proto2;proto2pb";
+option deprecated = false;
+
+// Custom file option
+option (file_description) = "Proto2 feature test file";
+
+// ============================================================================
+// STRING ESCAPE SEQUENCES
+// The protobuf spec defines specific escape sequences
+// ============================================================================
+
+message StringEscapeTests {
+  // Character escapes: \a \b \f \n \r \t \v \\ \' \"
+	optional string char_escapes = 1 [default = "bell:\a backspace:\b formfeed:\f newline:\n return:\r tab:\t vtab:\v"];
+	optional string quote_escapes = 2 [default = "backslash:\\ single:\' double:\""];
+
+  // Hex escapes: \xNN or \XNN (1-2 hex digits)
+	optional string hex_escapes = 3 [default = "\x00\x0A\x0a\xFF\XFF null and newlines"];
+
+  // Octal escapes: \NNN (1-3 octal digits)
+	optional string octal_escapes = 4 [default = "\0\00\000\177\377 octal values"];
+
+  // Unicode escapes: \uNNNN (4 hex digits)
+	optional string unicode_escapes = 5 [default = "\u0000\u00FF\uFFFF unicode"];
+
+  // Unicode long escapes: \UNNNNNNNN (8 hex digits)
+	optional string unicode_long = 6 [default = "\U00000000\U0001F600 emoji support"];
+
+  // Single-quoted strings also support escapes
+	optional string single_quoted = 7 [default = 'single quotes with \n newline and \t tab'];
+
+  // String concatenation
+	optional string concatenated = 8 [default = "first part "
+	"second part "
+	'third part in single quotes'];
+}
+
+// ============================================================================
+// FIELD MODIFIERS (Proto2 specific: required, optional explicit)
+// ============================================================================
+
+message FieldModifierTests {
+  // Required fields (proto2 only)
+	required string required_string = 1;
+	required int32 required_int = 2;
+	required bytes required_bytes = 3;
+
+  // Optional fields (explicit in proto2)
+	optional string optional_string = 4;
+	optional int32 optional_int = 5 [default = 42];
+	optional bool optional_bool = 6 [default = true];
+	optional float optional_float = 7 [default = 3.14];
+
+  // Repeated fields
+	repeated string repeated_string = 8;
+	repeated int32 repeated_int = 9 [packed = true];
+	repeated int32 unpacked_ints = 10 [packed = false];
+}
+
+// ============================================================================
+// NUMBER FORMATS
+// Decimal, hex, octal, and float literals with +/- prefix
+// ============================================================================
+
+message NumberFormatTests {
+  // Hex field numbers (rare but valid)
+	optional int32 hex_field_num = 0x10;  // Field 16 in hex
+	optional int32 another_hex = 0xFF;    // Field 255
+	optional int32 upper_hex = 0XAB;      // Uppercase X
+
+  // Regular decimal
+	optional int32 decimal_field = 100;
+
+  // Float formats in defaults
+	optional double simple_float = 5 [default = 3.14159];
+	optional double exp_float = 6 [default = 1.5e10];
+	optional double neg_exp = 7 [default = -1.5e-10];
+	optional double pos_exp = 8 [default = +1.5e+10];
+	optional double no_decimal_exp = 9 [default = 1e10];
+	optional double dot_prefix = 10 [default = .5];
+	optional double inf_value = 11 [default = inf];
+	optional double neg_inf = 12 [default = -inf];
+	optional double nan_value = 13 [default = nan];
+}
+
+enum NumberValues {
+	option allow_alias = true;
+
+	NUMBER_UNSPECIFIED = 0;
+
+  // Negative enum values
+	NEGATIVE_ONE = -1;
+	NEGATIVE_TEN = -10;
+	NEGATIVE_HEX = -0x0A; // -10 in hex (alias for NEGATIVE_TEN)
+
+  // Positive values
+	POSITIVE_ONE = 1;
+
+  // Hex enum values
+	FLAG_A = 0x01;
+	FLAG_B = 0x02;
+	FLAG_C = 0x04;
+	FLAG_ALL = 0x07;
+	MAX_VALUE = 0x7FFFFFFF; // Max int32 in hex
+}
+
+// ============================================================================
+// PROTO2 GROUP SYNTAX (deprecated but valid)
+// Groups define both a message type and a field in one declaration
+// ============================================================================
+
+message GroupTests {
+  // Basic optional group
+	optional group SimpleGroup = 1 {
+		optional string name = 1;
+		optional int32 value = 2;
+	}
+
+  // Repeated group
+	repeated group ResultGroup = 2 {
+		required string url = 1;
+		optional string title = 2;
+		repeated string snippets = 3;
+	}
+
+  // Required group
+	required group RequiredGroup = 3 {
+		required int64 id = 1;
+		optional string description = 2;
+	}
+
+  // Nested groups
+	optional group OuterGroup = 4 {
+		optional string outer_field = 1;
+
+		// Group without modifier inside another group
+		group InnerGroup = 2 {
+			optional string inner_field = 1;
+		}
+
+		// Nested group with modifier
+		optional group AnotherInner = 3 {
+			optional int32 inner_value = 1;
+		}
+	}
+}
+
+// ============================================================================
+// EXTENSIONS (Proto2 feature)
+// ============================================================================
+
+message ExtensibleMessage {
+	optional string base_field = 1;
+
+  // Extension ranges
+	extensions 100 to 199;
+	extensions 1000 to max;
+
+  // Reserved ranges and names
+	reserved 2, 15, 9 to 11;
+	reserved "old_field", "removed_field";
+}
+
+// Extend a message with new fields
+extend ExtensibleMessage {
+	optional string extension_field = 100;
+	optional int32 another_extension = 101;
+	repeated string repeated_extension = 102;
+}
+
+// Custom field options
+extend google.protobuf.FieldOptions {
+	optional double scale_factor = 50001;
+	optional int32 offset = 50002;
+	optional string custom_name = 50003;
+}
+
+// Custom enum value options
+extend google.protobuf.EnumValueOptions {
+	optional string enum_description = 50010;
+}
+
+// Custom message options
+extend google.protobuf.MessageOptions {
+	optional bool is_deprecated = 50020;
+	optional string message_doc = 50021;
+}
+
+// Custom file options
+extend google.protobuf.FileOptions {
+	optional string file_description = 50030;
+}
+
+// ============================================================================
+// MESSAGES WITH OPTIONS
+// ============================================================================
+
+message MessageWithOptions {
+	option deprecated = true;
+	option (is_deprecated) = true;
+	option (message_doc) = "This message is documented";
+
+	optional string name = 1;
+}
+
+// ============================================================================
+// FIELD OPTIONS
+// Various field option syntaxes and value types
+// ============================================================================
+
+message FieldOptionTests {
+  // Boolean options
+	optional string deprecated_field = 1 [deprecated = true];
+
+  // String options
+	optional string json_name_field = 2 [json_name = "customJsonName"];
+
+  // Numeric options
+	optional double scaled_value = 3 [(scale_factor) = +1.5];
+	optional int32 offset_value = 4 [(offset) = -100];
+
+  // Multiple options
+	optional int32 multi_option = 5 [deprecated = true, json_name = "multi", (offset) = 0];
+
+  // Default values for various types
+	optional bool bool_default = 10 [default = false];
+	optional int32 int_default = 11 [default = -42];
+	optional int64 long_default = 12 [default = 9223372036854775807];
+	optional uint32 uint_default = 13 [default = 0xFFFFFFFF];
+	optional double double_default = 14 [default = -inf];
+	optional string string_default = 15 [default = "hello\nworld"];
+	optional bytes bytes_default = 16 [default = "\x00\x01\x02"];
+
+  // Enum default
+	optional NumberValues enum_default = 17 [default = POSITIVE_ONE];
+}
+
+// ============================================================================
+// ENUM VALUE OPTIONS
+// ============================================================================
+
+enum EnumWithOptions {
+	option allow_alias = true;
+
+	UNKNOWN = 0;
+	STARTED = 1;
+	RUNNING = 1 [(enum_description) = "Alias for STARTED", deprecated = true];
+	FINISHED = 2 [(enum_description) = "Task completed"];
+}
+
+// ============================================================================
+// MAP FIELDS
+// ============================================================================
+
+message MapTests {
+	map<string, int32> simple_map = 1;
+	map<int64, ExtensibleMessage> message_map = 2;
+	map<string, string> deprecated_map = 3 [deprecated = true];
+	map<int32, NumberValues> enum_map = 4;
+	map<bool, bytes> bool_key_map = 5;
+
+  // Hex field number for map
+	map<string, bytes> hex_num_map = 0x10;
+}
+
+// ============================================================================
+// ONEOF (also valid in proto2)
+// ============================================================================
+
+message OneofTests {
+	optional string name = 1;
+
+	oneof value_type {
+		int32 int_value = 2;
+		string string_value = 3;
+		bool bool_value = 4;
+		NestedMessage nested_value = 5;
+	}
+
+	message NestedMessage {
+		optional string data = 1;
+	}
+}
+
+// ============================================================================
+// SERVICE DEFINITIONS
+// ============================================================================
+
+service Proto2Service {
+  // Simple unary RPC
+	rpc SimpleMethod (SimpleRequest) returns (SimpleResponse);
+
+  // RPC with option body
+	rpc DeprecatedMethod (SimpleRequest) returns (SimpleResponse) {
+		option deprecated = true;
+	}
+
+  // Streaming RPCs
+	rpc ServerStream (SimpleRequest) returns (stream SimpleResponse);
+	rpc ClientStream (stream SimpleRequest) returns (SimpleResponse);
+	rpc BidiStream (stream SimpleRequest) returns (stream SimpleResponse) {
+		option idempotency_level = IDEMPOTENT;
+	}
+}
+
+message SimpleRequest {
+	optional string query = 1;
+}
+
+message SimpleResponse {
+	optional string result = 1;
+}
+
+// ============================================================================
+// NESTED MESSAGES AND ENUMS
+// ============================================================================
+
+message OuterMessage {
+	optional string outer_field = 1;
+
+  // Nested message
+	message InnerMessage {
+		optional string inner_field = 1;
+
+    // Double nested
+		message DeepMessage {
+			optional int32 deep_field = 1;
+		}
+
+		optional DeepMessage deep = 2;
+	}
+
+  // Nested enum
+	enum InnerEnum {
+		INNER_UNKNOWN = 0;
+		INNER_VALUE = 1;
+	}
+
+	optional InnerMessage inner = 2;
+	optional InnerEnum inner_enum = 3;
+
+  // Reference nested types
+	optional InnerMessage.DeepMessage deep_ref = 4;
+}
+
+// ============================================================================
+// QUALIFIED TYPE NAMES
+// ============================================================================
+
+message QualifiedTypeTests {
+  // Relative qualified name
+	optional OuterMessage.InnerMessage inner_ref = 1;
+
+  // Absolute qualified name (starts with .)
+	optional .textmate.regression.proto2.OuterMessage absolute_ref = 2;
+
+  // Fully qualified nested type
+	optional .textmate.regression.proto2.OuterMessage.InnerMessage.DeepMessage deep_ref = 3;
+}

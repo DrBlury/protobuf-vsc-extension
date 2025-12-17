@@ -242,8 +242,11 @@ export class ProtoParser {
         continue;
       }
 
-      // Number (including + or - prefix per spec)
-      if (/[0-9]/.test(text[i]!) || ((text[i]! === '-' || text[i]! === '+') && /[0-9]/.test(text[i + 1]!))) {
+      // Number (including + or - prefix per spec, and floats starting with .)
+      // Per protobuf spec: floatLit can be "." decimals [exponent] e.g., .5, .123e10
+      if (/[0-9]/.test(text[i]!) ||
+          ((text[i]! === '-' || text[i]! === '+') && /[0-9.]/.test(text[i + 1]!)) ||
+          (text[i]! === '.' && /[0-9]/.test(text[i + 1]!))) {
         const start = i;
         if (text[i] === '-' || text[i] === '+') {
           i++;
@@ -1195,6 +1198,7 @@ export class ProtoParser {
       reserved: [],
       extensions: [],
       maps: [],
+      groups: [],
       range: { start: startToken.range.start, end: startToken.range.end }
     };
     this.attachComment(group, startToken);
@@ -1230,12 +1234,23 @@ export class ProtoParser {
           // Diagnostics should flag this as an error if needed.
           group.maps.push(this.parseMapField());
           break;
+        case 'group':
+          // Nested group without modifier
+          group.groups.push(this.parseGroup());
+          break;
         case 'optional':
         case 'required':
-        case 'repeated':
-          // Groups cannot be nested, so always parse as field
-          group.fields.push(this.parseField());
+        case 'repeated': {
+          // Check if this is a nested group with modifier
+          const nextToken = this.tokens[this.pos + 1];
+          if (nextToken?.value === 'group') {
+            const modToken = this.advance()!;
+            group.groups.push(this.parseGroup(modToken.value as 'optional' | 'required' | 'repeated'));
+          } else {
+            group.fields.push(this.parseField());
+          }
           break;
+        }
         default:
           // Handle fields - type can start with '.' for fully-qualified names
           if (token.type === 'identifier' || (token.type === 'punctuation' && token.value === '.')) {

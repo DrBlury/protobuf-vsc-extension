@@ -1,0 +1,28 @@
+// SYNTAX TEST "source.proto" "Numbers - integers, floats, hex, octal"
+
+message Numbers {
+  // Decimal integers
+  int32 decimal = 42;
+//                ^^ constant.numeric.proto
+
+  int32 zero = 0;
+//             ^ constant.numeric.proto
+
+  // Hexadecimal
+  int32 hex_lower = 0xff;
+//                  ^^^^ constant.numeric.proto
+
+  int32 hex_upper = 0xFF;
+//                  ^^^^ constant.numeric.proto
+
+  int32 hex_mixed = 0xDeAdBeEf;
+//                  ^^^^^^^^^^ constant.numeric.proto
+
+  // Octal
+  int32 octal = 0777;
+//              ^^^^ constant.numeric.proto
+
+  // Floating point
+  float simple_float = 3.14;
+//                     ^ constant.numeric.proto
+}

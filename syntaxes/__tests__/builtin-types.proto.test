@@ -1,0 +1,51 @@
+// SYNTAX TEST "source.proto" "All builtin types"
+
+message BuiltinTypes {
+  // Numeric types
+  double double_field = 1;
+//^^^^^^ storage.type.proto
+
+  float float_field = 2;
+//^^^^^ storage.type.proto
+
+  int32 int32_field = 3;
+//^^^^^ storage.type.proto
+
+  int64 int64_field = 4;
+//^^^^^ storage.type.proto
+
+  uint32 uint32_field = 5;
+//^^^^^^ storage.type.proto
+
+  uint64 uint64_field = 6;
+//^^^^^^ storage.type.proto
+
+  sint32 sint32_field = 7;
+//^^^^^^ storage.type.proto
+
+  sint64 sint64_field = 8;
+//^^^^^^ storage.type.proto
+
+  fixed32 fixed32_field = 9;
+//^^^^^^^ storage.type.proto
+
+  fixed64 fixed64_field = 10;
+//^^^^^^^ storage.type.proto
+
+  sfixed32 sfixed32_field = 11;
+//^^^^^^^^ storage.type.proto
+
+  sfixed64 sfixed64_field = 12;
+//^^^^^^^^ storage.type.proto
+
+  // Boolean
+  bool bool_field = 13;
+//^^^^ storage.type.proto
+
+  // String and bytes
+  string string_field = 14;
+//^^^^^^ storage.type.proto
+
+  bytes bytes_field = 15;
+//^^^^^ storage.type.proto
+}
