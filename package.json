@@ -1,7 +1,7 @@
 {
   "name": "protobuf-vsc",
   "displayName": "Protobuf VSC",
-  "description": "Comprehensive Protocol Buffers support for VS Code with syntax highlighting, IntelliSense, diagnostics, formatting, protoc compilation, breaking change detection, and more",
+  "description": "Comprehensive Protocol Buffers support for VS Code with syntax highlighting, IntelliSense, diagnostics, formatting, protoc compilation, breaking change detection, and more. Successor to vscode-proto3. ",
   "version": "v0.0.0-dev",
   "publisher": "DrBlury",
   "author": {
