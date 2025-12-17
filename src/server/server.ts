@@ -211,6 +211,11 @@ connection.onInitialized(async () => {
 
         protoSrcsDir = newProtoSrcsDir;
 
+        // Update parser based on experimental.useTreeSitter setting
+        const useTreeSitter = config.experimental?.useTreeSitter ?? false;
+        providers.setUseTreeSitter(useTreeSitter);
+        logger.info(`Parser setting: useTreeSitter=${useTreeSitter}`);
+
         // Scan user-configured import paths for proto files
         if (userIncludePaths.length > 0) {
           scanImportPaths(userIncludePaths, providers.parser, providers.analyzer);
@@ -224,6 +229,23 @@ connection.onInitialized(async () => {
   // Scan workspace for proto files on initialization
   // Note: protoSrcsDir may now be set from initial config fetch above.
   scanWorkspaceForProtoFiles(workspaceFolders, providers.parser, providers.analyzer, protoSrcsDir);
+});
+
+// Handle Tree-sitter initialization request
+connection.onRequest('protobuf/initTreeSitter', async (params: { wasmPath: string }) => {
+  try {
+    const { initTreeSitterParser } = await import('./core/treeSitterParser');
+    await initTreeSitterParser(params.wasmPath);
+    logger.infoWithContext('Tree-sitter parser initialized', { wasmPath: params.wasmPath });
+    
+    // Initialize Tree-sitter in parser factory
+    providers.parser.initializeTreeSitter();
+    
+    return { success: true };
+  } catch (error) {
+    logger.errorWithContext('Failed to initialize Tree-sitter parser', { error });
+    return { success: false, error: String(error) };
+  }
 });
 
 
@@ -360,6 +382,12 @@ connection.onDidChangeConfiguration(async (change: { settings: unknown }) => {
 
     // Update protoSrcsDir
     protoSrcsDir = newProtoSrcsDir;
+
+    // Update parser based on experimental.useTreeSitter setting
+    const config = globalSettings.protobuf;
+    const useTreeSitter = config.experimental?.useTreeSitter ?? false;
+    providers.setUseTreeSitter(useTreeSitter);
+    logger.info(`Parser setting updated: useTreeSitter=${useTreeSitter}`);
 
     // Scan user-configured import paths for proto files (e.g., .buf-deps)
     if (userIncludePaths.length > 0) {

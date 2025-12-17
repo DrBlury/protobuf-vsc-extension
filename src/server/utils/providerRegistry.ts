@@ -4,7 +4,7 @@
  */
 
 import { SemanticAnalyzer } from '../core/analyzer';
-import { ProtoParser } from '../core/parser';
+import { ParserFactory } from '../core/parserFactory';
 import { DiagnosticsProvider } from '../providers/diagnostics';
 import { ProtoFormatter } from '../providers/formatter';
 import { CompletionProvider } from '../providers/completion';
@@ -31,7 +31,7 @@ import { MigrationProvider } from '../providers/migration';
  */
 export class ProviderRegistry {
   // Core
-  public readonly parser: ProtoParser;
+  public readonly parser: ParserFactory;
   public readonly analyzer: SemanticAnalyzer;
 
   // Providers
@@ -60,7 +60,7 @@ export class ProviderRegistry {
 
   constructor() {
     // Initialize core first
-    this.parser = new ProtoParser();
+    this.parser = new ParserFactory();
     this.analyzer = new SemanticAnalyzer();
 
     // Initialize services (mostly independent)
@@ -98,5 +98,12 @@ export class ProviderRegistry {
       this.externalLinter.setWorkspaceRoot(roots[0]!);
       this.analyzer.setWorkspaceRoots(roots);
     }
+  }
+
+  /**
+   * Set whether to use Tree-sitter parser
+   */
+  setUseTreeSitter(use: boolean): void {
+    this.parser.setUseTreeSitter(use);
   }
 }

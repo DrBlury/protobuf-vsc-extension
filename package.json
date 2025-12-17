@@ -196,6 +196,11 @@
           "default": false,
           "description": "Automatically renumber fields sequentially when formatting (removes gaps like 1,2,3,5,6 -> 1,2,3,4,5)"
         },
+        "protobuf.experimental.useTreeSitter": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use Tree-sitter parser for LSP features (experimental). When enabled, provides better error recovery and more robust parsing. When disabled, uses the traditional custom parser."
+        },
         "protobuf.diagnostics.enabled": {
           "type": "boolean",
           "default": true,

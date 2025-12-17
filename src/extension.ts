@@ -587,6 +587,16 @@ breaking:
   try {
     await client.start();
     outputChannel.appendLine('Language server started successfully');
+    
+    // Initialize Tree-sitter parser (if enabled)
+    try {
+      const wasmPath = path.join(context.extensionPath, 'out', 'tree-sitter', 'tree-sitter-proto.wasm');
+      // Send initialization request to server
+      await client.sendRequest('protobuf/initTreeSitter', { wasmPath });
+      outputChannel.appendLine('Tree-sitter parser initialized');
+    } catch (err) {
+      outputChannel.appendLine(`Tree-sitter initialization failed (will use fallback parser): ${err instanceof Error ? err.message : String(err)}`);
+    }
   } catch (err) {
     const msg = `Failed to start language server: ${err instanceof Error ? err.message : String(err)}`;
     outputChannel.appendLine(msg);
