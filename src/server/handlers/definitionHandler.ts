@@ -13,7 +13,7 @@ import { TextDocuments } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
 import { DefinitionProvider } from '../providers/definition';
-import { ProtoParser } from '../core/parser';
+import { IProtoParser } from '../core/parserFactory';
 import { SemanticAnalyzer } from '../core/analyzer';
 import { ProtoFile } from '../core/ast';
 import { ContentHashCache } from '../utils/cache';
@@ -65,7 +65,7 @@ export function handleDefinition(
   params: DefinitionParams,
   documents: TextDocuments<TextDocument>,
   definitionProvider: DefinitionProvider,
-  parser: ProtoParser,
+  parser: IProtoParser,
   analyzer: SemanticAnalyzer,
   parsedFileCache: ContentHashCache<ProtoFile>
 ): Location | Location[] | LocationLink[] | null {

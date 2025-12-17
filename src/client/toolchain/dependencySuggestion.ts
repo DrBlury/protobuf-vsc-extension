@@ -33,7 +33,7 @@ export const KNOWN_BSR_MODULES: { [pattern: string]: { module: string; descripti
   'xds/': { module: 'buf.build/cncf/xds', description: 'xDS APIs' },
 
   // OpenTelemetry
-  'opentelemetry/': { module: 'buf.build/open-telemetry/opentelemetry', description: 'OpenTelemetry protocol' },
+  'opentelemetry/': { module: 'buf.build/opentelemetry/opentelemetry', description: 'OpenTelemetry protocol' },
 
   // Cosmos SDK
   'cosmos/': { module: 'buf.build/cosmos/cosmos-sdk', description: 'Cosmos SDK' },

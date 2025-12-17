@@ -1,4 +1,3 @@
-/* eslint-env jest */
 import { CodeActionsProvider } from '../../codeActions';
 import { DiagnosticsProvider } from '../../diagnostics';
 import { ProtoParser } from '../../../core/parser';

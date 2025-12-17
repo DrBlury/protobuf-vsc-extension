@@ -196,15 +196,28 @@
           "default": false,
           "description": "Automatically renumber fields sequentially when formatting (removes gaps like 1,2,3,5,6 -> 1,2,3,4,5)"
         },
-        "protobuf.experimental.useTreeSitter": {
-          "type": "boolean",
-          "default": false,
-          "description": "Use Tree-sitter parser for LSP features (experimental). When enabled, provides better error recovery and more robust parsing. When disabled, uses the traditional custom parser."
+        "protobuf.parser": {
+          "type": "string",
+          "enum": [
+            "tree-sitter",
+            "legacy"
+          ],
+          "enumDescriptions": [
+            "Tree-sitter parser (recommended).",
+            "Legacy custom parser used prior to Tree-sitter."
+          ],
+          "default": "tree-sitter",
+          "description": "Select which parser powers language features. Tree-sitter is the default; choose 'legacy' to force the original parser."
         },
         "protobuf.diagnostics.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Enable/disable all diagnostics"
+        },
+        "protobuf.diagnostics.useBuiltIn": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable built-in AST-based diagnostics. When disabled, only external linters (buf, protolint) will provide diagnostics. Useful when testing Tree-sitter parser or preferring external tool validation."
         },
         "protobuf.diagnostics.namingConventions": {
           "type": "boolean",
@@ -796,7 +809,9 @@
     "test:watch": "node ./node_modules/jest/bin/jest.js --watch",
     "test:coverage": "node ./node_modules/jest/bin/jest.js --coverage",
     "test:grammar": "npx vscode-tmgrammar-test -g syntaxes/proto.tmLanguage.json 'syntaxes/__tests__/*.proto.test'",
-    "test:all": "npm run test && npm run test:grammar",
+    "test:parsers": "npx ts-node scripts/compare-parsers.ts --ci",
+    "test:parsers:all": "npx ts-node scripts/compare-parsers.ts --all",
+    "test:all": "npm run test && npm run test:grammar && npm run test:parsers",
     "build:tree-sitter": "cd tree-sitter-proto && npx tree-sitter build --wasm && mkdir -p ../out/tree-sitter && cp tree-sitter-proto.wasm ../out/tree-sitter/",
     "test:tree-sitter": "cd tree-sitter-proto && npx tree-sitter test",
     "package": "npm run compile && npm run build:tree-sitter && npx vsce package",

@@ -385,40 +385,51 @@ export class BreakingChangeDetector {
         });
       } else {
         // Check request type
-        if (currentRpc.inputType !== baselineRpc.inputType) {
+        const currentRequestType = currentRpc.requestType ?? currentRpc.inputType;
+        const baselineRequestType = baselineRpc.requestType ?? baselineRpc.inputType;
+        const currentResponseType = currentRpc.responseType ?? currentRpc.outputType;
+        const baselineResponseType = baselineRpc.responseType ?? baselineRpc.outputType;
+        const currentRequestStreaming = currentRpc.requestStreaming ?? currentRpc.inputStream ?? false;
+        const baselineRequestStreaming = baselineRpc.requestStreaming ?? baselineRpc.inputStream ?? false;
+        const currentResponseStreaming = currentRpc.responseStreaming ?? currentRpc.outputStream ?? false;
+        const baselineResponseStreaming = baselineRpc.responseStreaming ?? baselineRpc.outputStream ?? false;
+        const requestTypeRange = currentRpc.requestTypeRange ?? currentRpc.inputTypeRange ?? currentRpc.nameRange;
+        const responseTypeRange = currentRpc.responseTypeRange ?? currentRpc.outputTypeRange ?? currentRpc.nameRange;
+
+        if (currentRequestType !== baselineRequestType) {
           changes.push({
             rule: 'RPC_SAME_REQUEST_TYPE',
             severity: 'error',
-            message: `RPC '${name}' request type changed from '${baselineRpc.inputType}' to '${currentRpc.inputType}'`,
-            range: currentRpc.inputTypeRange
+            message: `RPC '${name}' request type changed from '${baselineRequestType}' to '${currentRequestType}'`,
+            range: requestTypeRange
           });
         }
 
         // Check response type
-        if (currentRpc.outputType !== baselineRpc.outputType) {
+        if (currentResponseType !== baselineResponseType) {
           changes.push({
             rule: 'RPC_SAME_RESPONSE_TYPE',
             severity: 'error',
-            message: `RPC '${name}' response type changed from '${baselineRpc.outputType}' to '${currentRpc.outputType}'`,
-            range: currentRpc.outputTypeRange
+            message: `RPC '${name}' response type changed from '${baselineResponseType}' to '${currentResponseType}'`,
+            range: responseTypeRange
           });
         }
 
         // Check streaming changes
-        if (currentRpc.inputStream !== baselineRpc.inputStream) {
+        if (currentRequestStreaming !== baselineRequestStreaming) {
           changes.push({
             rule: 'RPC_SAME_CLIENT_STREAMING',
             severity: 'error',
-            message: `RPC '${name}' client streaming changed from ${baselineRpc.inputStream} to ${currentRpc.inputStream}`,
+            message: `RPC '${name}' client streaming changed from ${baselineRequestStreaming} to ${currentRequestStreaming}`,
             range: currentRpc.nameRange
           });
         }
 
-        if (currentRpc.outputStream !== baselineRpc.outputStream) {
+        if (currentResponseStreaming !== baselineResponseStreaming) {
           changes.push({
             rule: 'RPC_SAME_SERVER_STREAMING',
             severity: 'error',
-            message: `RPC '${name}' server streaming changed from ${baselineRpc.outputStream} to ${currentRpc.outputStream}`,
+            message: `RPC '${name}' server streaming changed from ${baselineResponseStreaming} to ${currentResponseStreaming}`,
             range: currentRpc.nameRange
           });
         }

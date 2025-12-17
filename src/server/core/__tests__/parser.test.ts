@@ -455,9 +455,9 @@ service UserService {
 
       const rpc = file.services[0].rpcs[0];
       expect(rpc.inputType).toBe('GetUserRequest');
-      expect(rpc.inputTypeRange.start.line).toBe(2);
+      expect(rpc.inputTypeRange?.start.line).toBe(2);
       expect(rpc.outputType).toBe('GetUserResponse');
-      expect(rpc.outputTypeRange.start.line).toBe(2);
+      expect(rpc.outputTypeRange?.start.line).toBe(2);
     });
   });
 

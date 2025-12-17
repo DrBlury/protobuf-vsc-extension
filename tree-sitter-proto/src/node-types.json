@@ -1,5 +1,20 @@
 [
   {
+    "type": "array_value",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "constant",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "bool_lit",
     "named": true,
     "fields": {}
@@ -12,6 +27,10 @@
       "multiple": false,
       "required": true,
       "types": [
+        {
+          "type": "array_value",
+          "named": true
+        },
         {
           "type": "bool_lit",
           "named": true
@@ -194,7 +213,18 @@
   {
     "type": "extensions",
     "named": true,
-    "fields": {},
+    "fields": {
+      "options": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "field_options",
+            "named": true
+          }
+        ]
+      }
+    },
     "children": {
       "multiple": false,
       "required": true,
@@ -594,11 +624,11 @@
           "named": true
         },
         {
-          "type": "identifier",
+          "type": "full_ident",
           "named": true
         },
         {
-          "type": "message_value",
+          "type": "identifier",
           "named": true
         }
       ]

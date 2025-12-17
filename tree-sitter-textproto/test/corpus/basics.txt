@@ -1,0 +1,322 @@
+==================
+Simple Fields
+==================
+
+name: "Hello"
+id: 123
+enabled: true
+
+---
+
+(source_file
+  (field
+    (scalar_field
+      (field_name
+        (identifier))
+      (scalar_value
+        (string
+          (double_string)))))
+  (field
+    (scalar_field
+      (field_name
+        (identifier))
+      (scalar_value
+        (number
+          (int_lit
+            (decimal_lit))))))
+  (field
+    (scalar_field
+      (field_name
+        (identifier))
+      (scalar_value
+        (identifier)))))
+
+==================
+Nested Messages
+==================
+
+person {
+  name: "John"
+  age: 30
+}
+
+---
+
+(source_file
+  (field
+    (message_field
+      (field_name
+        (identifier))
+      (message_value
+        (message_body
+          (field
+            (scalar_field
+              (field_name
+                (identifier))
+              (scalar_value
+                (string
+                  (double_string)))))
+          (field
+            (scalar_field
+              (field_name
+                (identifier))
+              (scalar_value
+                (number
+                  (int_lit
+                    (decimal_lit)))))))))))
+
+==================
+Angle Bracket Messages
+==================
+
+config <
+  timeout: 30
+  retry: true
+>
+
+---
+
+(source_file
+  (field
+    (message_field
+      (field_name
+        (identifier))
+      (message_value
+        (message_body
+          (field
+            (scalar_field
+              (field_name
+                (identifier))
+              (scalar_value
+                (number
+                  (int_lit
+                    (decimal_lit))))))
+          (field
+            (scalar_field
+              (field_name
+                (identifier))
+              (scalar_value
+                (identifier)))))))))
+
+==================
+Extension Fields
+==================
+
+[my.package.Extension] {
+  value: 42
+}
+
+---
+
+(source_file
+  (field
+    (message_field
+      (field_name
+        (extension_name
+          (type_name
+            (identifier)
+            (identifier)
+            (identifier))))
+      (message_value
+        (message_body
+          (field
+            (scalar_field
+              (field_name
+                (identifier))
+              (scalar_value
+                (number
+                  (int_lit
+                    (decimal_lit)))))))))))
+
+==================
+Any Fields
+==================
+
+[type.googleapis.com/my.Type] {
+  data: "value"
+}
+
+---
+
+(source_file
+  (field
+    (message_field
+      (field_name
+        (any_name
+          (domain
+            (identifier)
+            (identifier)
+            (identifier))
+          (type_name
+            (identifier)
+            (identifier))))
+      (message_value
+        (message_body
+          (field
+            (scalar_field
+              (field_name
+                (identifier))
+              (scalar_value
+                (string
+                  (double_string))))))))))
+
+==================
+Lists
+==================
+
+values: [1, 2, 3]
+names: ["a", "b", "c"]
+items: [
+  { id: 1 },
+  { id: 2 },
+]
+
+---
+
+(source_file
+  (field
+    (scalar_field
+      (field_name
+        (identifier))
+      (scalar_list
+        (scalar_value
+          (number
+            (int_lit
+              (decimal_lit))))
+        (scalar_value
+          (number
+            (int_lit
+              (decimal_lit))))
+        (scalar_value
+          (number
+            (int_lit
+              (decimal_lit)))))))
+  (field
+    (scalar_field
+      (field_name
+        (identifier))
+      (scalar_list
+        (scalar_value
+          (string
+            (double_string)))
+        (scalar_value
+          (string
+            (double_string)))
+        (scalar_value
+          (string
+            (double_string))))))
+  (field
+    (message_field
+      (field_name
+        (identifier))
+      (message_list
+        (message_value
+          (message_body
+            (field
+              (scalar_field
+                (field_name
+                  (identifier))
+                (scalar_value
+                  (number
+                    (int_lit
+                      (decimal_lit))))))))
+        (message_value
+          (message_body
+            (field
+              (scalar_field
+                (field_name
+                  (identifier))
+                (scalar_value
+                  (number
+                    (int_lit
+                      (decimal_lit))))))))))))
+
+==================
+Number Formats
+==================
+
+decimal: 123
+octal: 0755
+hex: 0xDEADBEEF
+negative: -42
+float_val: 3.14159
+scientific: 1.5e10
+inf_val: inf
+neg_inf: -inf
+
+---
+
+(source_file
+  (field
+    (scalar_field
+      (field_name (identifier))
+      (scalar_value (number (int_lit (decimal_lit))))))
+  (field
+    (scalar_field
+      (field_name (identifier))
+      (scalar_value (number (int_lit (octal_lit))))))
+  (field
+    (scalar_field
+      (field_name (identifier))
+      (scalar_value (number (int_lit (hex_lit))))))
+  (field
+    (scalar_field
+      (field_name (identifier))
+      (scalar_value (number (int_lit (decimal_lit))))))
+  (field
+    (scalar_field
+      (field_name (identifier))
+      (scalar_value (number (float_lit)))))
+  (field
+    (scalar_field
+      (field_name (identifier))
+      (scalar_value (number (float_lit)))))
+  (field
+    (scalar_field
+      (field_name (identifier))
+      (scalar_value (identifier))))
+  (field
+    (scalar_field
+      (field_name (identifier))
+      (scalar_value (signed_identifier (identifier))))))
+
+==================
+Comments
+==================
+
+# This is a comment
+name: "value" # inline comment
+# Another comment
+id: 42
+
+---
+
+(source_file
+  (comment)
+  (field
+    (scalar_field
+      (field_name (identifier))
+      (scalar_value (string (double_string)))))
+  (comment)
+  (comment)
+  (field
+    (scalar_field
+      (field_name (identifier))
+      (scalar_value (number (int_lit (decimal_lit)))))))
+
+==================
+String Concatenation
+==================
+
+description: "Hello "
+             "World"
+
+---
+
+(source_file
+  (field
+    (scalar_field
+      (field_name (identifier))
+      (scalar_value
+        (string (double_string))
+        (string (double_string))))))

@@ -32,6 +32,7 @@ export interface Settings {
     };
     diagnostics: {
       enabled: boolean;
+      useBuiltIn: boolean;
       namingConventions: boolean;
       referenceChecks: boolean;
       importChecks: boolean;
@@ -57,6 +58,7 @@ export interface Settings {
       showFieldNumbers: boolean;
       showDocumentation: boolean;
     };
+    parser?: 'tree-sitter' | 'legacy';
     buf?: {
       path?: string;
     };
@@ -124,6 +126,7 @@ export const defaultSettings: Settings = {
     },
     diagnostics: {
       enabled: true,
+      useBuiltIn: true,
       namingConventions: true,
       referenceChecks: true,
       importChecks: true,
@@ -149,6 +152,7 @@ export const defaultSettings: Settings = {
       showFieldNumbers: true,
       showDocumentation: true
     },
+    parser: 'tree-sitter',
     buf: {
       path: DEFAULT_CONFIG.BUF_PATH
     },

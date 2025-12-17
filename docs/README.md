@@ -33,6 +33,7 @@ Welcome to the comprehensive documentation for the Protobuf VSC extension. This 
 - [Playground](./playground.md) - Test gRPC services interactively
 - [Option Inspector](./option-inspector.md) - Browse and navigate options
 - [Registry Management](./registry.md) - Add Buf registry dependencies
+- [Tree-sitter Parser](./tree-sitter.md) - Parser internals and development
 
 ### Configuration
 

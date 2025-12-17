@@ -81,7 +81,9 @@ import {
   handleDocumentLinks,
   handlePrepareRename,
   handleRename,
-  handleCodeActions
+  handleCodeActions,
+  handleSemanticTokensFull,
+  handleInlayHints
 } from './handlers';
 import { bufConfigProvider } from './services/bufConfig';
 
@@ -132,6 +134,30 @@ let protoSrcsDir: string = '';
 
 // Cache for parsed files to avoid re-parsing unchanged content
 const parsedFileCache = new ContentHashCache<ProtoFile>();
+
+type ParserPreference = 'tree-sitter' | 'legacy';
+
+function resolveParserPreference(config: Settings['protobuf']): ParserPreference {
+  if (config.parser === 'legacy') {
+    return 'legacy';
+  }
+  if (config.parser === 'tree-sitter') {
+    return 'tree-sitter';
+  }
+
+  const experimental = (config as { experimental?: { parser?: ParserPreference; useTreeSitter?: boolean } }).experimental;
+  if (experimental?.parser === 'legacy' || experimental?.parser === 'tree-sitter') {
+    return experimental.parser;
+  }
+
+  if (typeof experimental?.useTreeSitter === 'boolean') {
+    return experimental.useTreeSitter ? 'tree-sitter' : 'legacy';
+  }
+
+  return 'tree-sitter';
+}
+
+
 
 connection.onInitialize((params: InitializeParams): InitializeResult => {
   const capabilities = params.capabilities;
@@ -211,10 +237,11 @@ connection.onInitialized(async () => {
 
         protoSrcsDir = newProtoSrcsDir;
 
-        // Update parser based on experimental.useTreeSitter setting
-        const useTreeSitter = config.experimental?.useTreeSitter ?? false;
+        // Update parser preference (Tree-sitter is the default)
+        const parserPreference = resolveParserPreference(config);
+        const useTreeSitter = parserPreference === 'tree-sitter';
         providers.setUseTreeSitter(useTreeSitter);
-        logger.info(`Parser setting: useTreeSitter=${useTreeSitter}`);
+        logger.info(`Parser selection: ${parserPreference} (useTreeSitter=${useTreeSitter})`);
 
         // Scan user-configured import paths for proto files
         if (userIncludePaths.length > 0) {
@@ -236,11 +263,11 @@ connection.onRequest('protobuf/initTreeSitter', async (params: { wasmPath: strin
   try {
     const { initTreeSitterParser } = await import('./core/treeSitterParser');
     await initTreeSitterParser(params.wasmPath);
-    logger.infoWithContext('Tree-sitter parser initialized', { wasmPath: params.wasmPath });
-    
+    logger.info(`Tree-sitter parser initialized with wasmPath: ${params.wasmPath}`);
+
     // Initialize Tree-sitter in parser factory
     providers.parser.initializeTreeSitter();
-    
+
     return { success: true };
   } catch (error) {
     logger.errorWithContext('Failed to initialize Tree-sitter parser', { error });
@@ -383,11 +410,12 @@ connection.onDidChangeConfiguration(async (change: { settings: unknown }) => {
     // Update protoSrcsDir
     protoSrcsDir = newProtoSrcsDir;
 
-    // Update parser based on experimental.useTreeSitter setting
+    // Update parser preference (Tree-sitter is the default)
     const config = globalSettings.protobuf;
-    const useTreeSitter = config.experimental?.useTreeSitter ?? false;
+    const parserPreference = resolveParserPreference(config);
+    const useTreeSitter = parserPreference === 'tree-sitter';
     providers.setUseTreeSitter(useTreeSitter);
-    logger.info(`Parser setting updated: useTreeSitter=${useTreeSitter}`);
+    logger.info(`Parser selection updated: ${parserPreference} (useTreeSitter=${useTreeSitter})`);
 
     // Scan user-configured import paths for proto files (e.g., .buf-deps)
     if (userIncludePaths.length > 0) {
@@ -444,8 +472,13 @@ async function validateDocument(document: TextDocument): Promise<void> {
       return;
     }
 
-    // Run diagnostics
-    const diagnostics = providers.diagnostics.validate(uri, file, text);
+    // Run built-in diagnostics only if useBuiltIn is enabled
+    let diagnostics: Diagnostic[] = [];
+    if (globalSettings.protobuf.diagnostics.useBuiltIn !== false) {
+      diagnostics = providers.diagnostics.validate(uri, file, text);
+    } else {
+      logger.verboseWithContext('Built-in diagnostics disabled, skipping AST validation', { uri });
+    }
 
     const duration = Date.now() - startTime;
     logger.verboseWithContext('Document validation complete', {
@@ -459,24 +492,28 @@ async function validateDocument(document: TextDocument): Promise<void> {
     // Clear cache entry on parse error
     parsedFileCache.delete(uri);
 
-    // Send parse error as diagnostic
-    const diagnostics: Diagnostic[] = [{
-      severity: DiagnosticSeverity.Error,
-      range: {
-        start: { line: DEFAULT_POSITIONS.ERROR_START_LINE, character: DEFAULT_POSITIONS.ERROR_START_CHAR },
-        end: { line: DEFAULT_POSITIONS.ERROR_START_LINE, character: DEFAULT_POSITIONS.ERROR_END_CHAR }
-      },
-      message: `Parse error: ${getErrorMessage(error)}`,
-      source: DIAGNOSTIC_SOURCE,
-      code: ERROR_CODES.PARSE_ERROR
-    }];
-
     logger.errorWithContext('Document validation failed', {
       uri,
       error
     });
 
-    connection.sendDiagnostics({ uri, diagnostics });
+    // Only send parse error as diagnostic if built-in diagnostics are enabled
+    if (globalSettings.protobuf.diagnostics.useBuiltIn !== false) {
+      const diagnostics: Diagnostic[] = [{
+        severity: DiagnosticSeverity.Error,
+        range: {
+          start: { line: DEFAULT_POSITIONS.ERROR_START_LINE, character: DEFAULT_POSITIONS.ERROR_START_CHAR },
+          end: { line: DEFAULT_POSITIONS.ERROR_START_LINE, character: DEFAULT_POSITIONS.ERROR_END_CHAR }
+        },
+        message: `Parse error: ${getErrorMessage(error)}`,
+        source: DIAGNOSTIC_SOURCE,
+        code: ERROR_CODES.PARSE_ERROR
+      }];
+      connection.sendDiagnostics({ uri, diagnostics });
+    } else {
+      // Clear diagnostics when built-in is disabled
+      connection.sendDiagnostics({ uri, diagnostics: [] });
+    }
   }
 }
 
@@ -525,6 +562,20 @@ connection.onCodeLens((params) => {
 // Document Links
 connection.onDocumentLinks((params) => {
   return handleDocumentLinks(params, documents, providers.documentLinks, providers.parser);
+});
+
+// Semantic Tokens
+connection.languages.semanticTokens.on((params) => {
+  return handleSemanticTokensFull(
+    params,
+    providers.semanticTokens,
+    (uri) => documents.get(uri)
+  );
+});
+
+// Inlay Hints
+connection.languages.inlayHint.on((params) => {
+  return handleInlayHints(params, documents, providers.parser);
 });
 
 // Formatting

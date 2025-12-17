@@ -4,8 +4,11 @@
 
 import {
   InitializeResult,
-  TextDocumentSyncKind
+  TextDocumentSyncKind,
+  SemanticTokensOptions
 } from 'vscode-languageserver/node';
+
+import { semanticTokensLegend } from '../providers/semanticTokens';
 
 /**
  * Server capabilities returned during initialization
@@ -29,6 +32,7 @@ export function getServerCapabilities(): InitializeResult {
       renameProvider: {
         prepareProvider: true
       },
+      inlayHintProvider: true,
       codeActionProvider: {
         codeActionKinds: [
           'quickfix',
@@ -45,7 +49,12 @@ export function getServerCapabilities(): InitializeResult {
       },
       documentLinkProvider: {
         resolveProvider: false
-      }
+      },
+      semanticTokensProvider: {
+        legend: semanticTokensLegend,
+        full: true,
+        range: false
+      } as SemanticTokensOptions
     }
   };
 }

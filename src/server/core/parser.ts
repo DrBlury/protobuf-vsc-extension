@@ -305,8 +305,8 @@ export class ProtoParser {
         continue;
       }
 
-      // Punctuation (including dot for option path separators)
-      const punctuation = '{}[]()<>;=,.:';
+      // Punctuation (including dot for option path separators, and +/- for signed values)
+      const punctuation = '{}[]()<>;=,.:-+';
       if (punctuation.includes(text[i]!)) {
         tokens.push({
           type: 'punctuation',
@@ -765,7 +765,7 @@ export class ProtoParser {
       return undefined;
     }
 
-    this.advance();
+    const startBracket = this.advance()!;
     const options: FieldOption[] = [];
 
     while (!this.match('punctuation', ']')) {
@@ -775,6 +775,7 @@ export class ProtoParser {
       }
 
       let name = '';
+      const optionStart = this.peek()?.range.start || startBracket.range.start;
       if (this.match('punctuation', '(')) {
         this.advance();
         // Handle qualified names like buf.validate.field
@@ -807,6 +808,22 @@ export class ProtoParser {
       // Check for aggregate option value (braces)
       if (this.match('punctuation', '{')) {
         value = this.parseAggregateOptionValue();
+      } else if (this.match('punctuation', '-') || this.match('punctuation', '+')) {
+        // Handle signed values: -inf, +inf, -nan, +nan, -123, +456
+        const signToken = this.advance()!;
+        const sign = signToken.value;
+        const nextToken = this.advance()!;
+
+        if (nextToken.value === 'inf' || nextToken.value === 'nan') {
+          // -inf, +inf, -nan, +nan
+          value = parseFloatLiteral(sign + nextToken.value);
+        } else if (nextToken.type === 'number') {
+          // -123, +456
+          value = parseFloatLiteral(sign + nextToken.value);
+        } else {
+          // Negative identifier (shouldn't happen in valid proto)
+          value = sign + nextToken.value;
+        }
       } else {
         const valueToken = this.advance()!;
 
@@ -832,7 +849,10 @@ export class ProtoParser {
         }
       }
 
-      options.push({ name, value });
+      const valueEndPos = this.peek()?.range.start || optionStart;
+      const optionRange = { start: optionStart, end: valueEndPos };
+
+      options.push({ type: 'field_option', name, value, range: optionRange });
     }
 
     this.expect('punctuation', ']');
@@ -949,7 +969,7 @@ export class ProtoParser {
     this.expect('punctuation', ';');
 
     const node: EnumValue = {
-      type: 'enumValue',
+      type: 'enum_value',
       name: nameToken.value,
       nameRange: nameToken.range,
       number: parseIntegerLiteral(numberToken.value),
@@ -1025,6 +1045,13 @@ export class ProtoParser {
       type: 'rpc',
       name: nameToken.value,
       nameRange: nameToken.range,
+      requestType: inputTypeInfo.value,
+      requestTypeRange: inputTypeInfo.range,
+      requestStreaming: inputStream,
+      responseType: outputTypeInfo.value,
+      responseTypeRange: outputTypeInfo.range,
+      responseStreaming: outputStream,
+      // Legacy field names for backward compatibility
       inputType: inputTypeInfo.value,
       inputTypeRange: inputTypeInfo.range,
       inputStream,
@@ -1063,9 +1090,13 @@ export class ProtoParser {
 
     const extend: ExtendDefinition = {
       type: 'extend',
+      extendType: messageNameInfo.value,
+      extendTypeRange: messageNameInfo.range,
+      fields: [],
+      groups: [],
+      // Legacy field names for backward compatibility
       messageName: messageNameInfo.value,
       messageNameRange: messageNameInfo.range,
-      fields: [],
       range: { start: startToken.range.start, end: startToken.range.end }
     };
     this.attachComment(extend, startToken);

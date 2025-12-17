@@ -12,7 +12,7 @@ import {
 } from 'vscode-languageserver/node';
 
 import { ProtoFile, MessageDefinition, EnumDefinition, FieldDefinition, MapFieldDefinition, EnumValue, Range as AstRange, MAX_FIELD_NUMBER } from '../core/ast';
-import { ProtoParser } from '../core/parser';
+import { IProtoParser } from '../core/parserFactory';
 import { FIELD_NUMBER } from '../utils/constants';
 
 export interface RenumberSettings {
@@ -31,9 +31,9 @@ const DEFAULT_SETTINGS: RenumberSettings = {
 
 export class RenumberProvider {
   private settings: RenumberSettings = DEFAULT_SETTINGS;
-  private parser: ProtoParser;
+  private parser: IProtoParser;
 
-  constructor(parser: ProtoParser) {
+  constructor(parser: IProtoParser) {
     this.parser = parser;
   }
 

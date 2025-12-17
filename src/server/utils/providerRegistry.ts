@@ -18,6 +18,7 @@ import { CodeActionsProvider } from '../providers/codeActions';
 import { SchemaGraphProvider } from '../providers/schemaGraph';
 import { CodeLensProvider } from '../providers/codeLens';
 import { DocumentLinksProvider } from '../providers/documentLinks';
+import { SemanticTokensProvider } from '../providers/semanticTokens';
 import { GrpcProvider } from '../providers/grpc';
 import { ProtocCompiler } from '../services/protoc';
 import { BreakingChangeDetector } from '../services/breaking';
@@ -48,6 +49,7 @@ export class ProviderRegistry {
   public readonly schemaGraph: SchemaGraphProvider;
   public readonly codeLens: CodeLensProvider;
   public readonly documentLinks: DocumentLinksProvider;
+  public readonly semanticTokens: SemanticTokensProvider;
   public readonly migration: MigrationProvider;
   public readonly grpc: GrpcProvider;
 
@@ -84,6 +86,7 @@ export class ProviderRegistry {
     this.schemaGraph = new SchemaGraphProvider(this.analyzer);
     this.codeLens = new CodeLensProvider(this.analyzer);
     this.documentLinks = new DocumentLinksProvider(this.analyzer);
+    this.semanticTokens = new SemanticTokensProvider(this.analyzer);
     this.migration = new MigrationProvider();
     this.grpc = new GrpcProvider(this.analyzer);
   }
