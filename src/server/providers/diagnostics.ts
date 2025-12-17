@@ -1355,6 +1355,12 @@ export class DiagnosticsProvider {
       return;
     }
 
+    // Types declared in the default (empty) package behave like globals, so using
+    // the short name is acceptable regardless of the referencing package.
+    if (symbolPackage === '') {
+      return;
+    }
+
     // If they're in different packages, the type must be fully qualified
     diagnostics.push({
       severity: DiagnosticSeverity.Error,

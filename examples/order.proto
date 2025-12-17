@@ -5,6 +5,7 @@ package order.v1;
 import "common.proto";
 import "example.proto";
 import "google/type/money.proto";
+import "global.proto";
 
 option go_package = "example.com/api/order/v1";
 
@@ -86,6 +87,7 @@ message CreateOrderResponse
 message GetOrderRequest
 {
 	string id = 1;
+	GlobalMessage global_info = 2;
 }
 
 message GetOrderResponse

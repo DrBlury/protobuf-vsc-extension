@@ -397,4 +397,42 @@ message MyMessage {
     const unqualifiedDiag = diags.find(d => d.message.includes('must be fully qualified'));
     expect(unqualifiedDiag).toBeUndefined();
   });
+
+  it('should not report error when importing type from default (empty) package into packaged file', () => {
+    // mytypes.proto - no package (default/empty package)
+    const mytypesContent = `syntax = "proto3";
+
+message Int32Value {
+  int32 value = 1;
+}
+`;
+    const mytypesUri = 'file:///workspace/mytypes.proto';
+    const mytypesFile = parser.parse(mytypesContent, mytypesUri);
+    analyzer.updateFile(mytypesUri, mytypesFile);
+
+    // protoA.proto - has a package, imports type from empty package
+    const protoAContent = `syntax = "proto3";
+
+package protoA;
+
+import "mytypes.proto";
+
+message MessageA {
+  Int32Value option_id = 1;
+}`;
+    const protoAUri = 'file:///workspace/protoA.proto';
+    const protoAFile = parser.parse(protoAContent, protoAUri);
+    analyzer.updateFile(protoAUri, protoAFile);
+
+    diagnosticsProvider.updateSettings({ referenceChecks: true });
+    const diags = diagnosticsProvider.validate(protoAUri, protoAFile, protoAContent);
+
+    // Should NOT report "must be fully qualified" for types from empty package
+    const unqualifiedDiag = diags.find(d => d.message.includes('must be fully qualified'));
+    expect(unqualifiedDiag).toBeUndefined();
+
+    // Should NOT report "Unknown type" either
+    const unknownTypeDiag = diags.find(d => d.message.includes("Unknown type 'Int32Value'"));
+    expect(unknownTypeDiag).toBeUndefined();
+  });
 });
