@@ -7,8 +7,7 @@ syntax = "proto3";
 --------------------------------------------------------------------------------
 
 (source_file
-  (syntax
-    version: "\"proto3\""))
+  (syntax))
 
 ================================================================================
 Package and imports
@@ -23,15 +22,19 @@ import public "public.proto";
 --------------------------------------------------------------------------------
 
 (source_file
-  (syntax
-    version: "\"proto3\"")
+  (syntax)
   (package
     name: (full_ident
+      (identifier)
       (identifier)))
   (import
     path: (string))
   (import
     modifier: (identifier)
+    path: (string)))
+  (import
+    path: (string))
+  (import
     path: (string)))
 
 ================================================================================
