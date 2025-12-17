@@ -597,37 +597,48 @@
         }
       ]
     },
+    "rpc_keywords": {
+      "patterns": [
+        {
+          "comment": "RPC request type definition",
+          "match": "\\(\\s*(stream)?\\s*([\\w.]+)\\s*\\)",
+          "captures": {
+            "1": { "name": "keyword.other.stream.proto" },
+            "2": { "name": "entity.name.type.proto" }
+          }
+        },
+        {
+          "comment": "RPC return type definition",
+          "match": "\\s+(returns)\\s+",
+          "captures": {
+            "1": { "name": "keyword.control.returns.proto" }
+          }
+        },
+        {
+          "comment": "opening brace for options block",
+          "match": "(\\{)",
+          "name": "punctuation.definition.block.proto"
+        }
+      ]
+    },
     "rpc": {
       "patterns": [
         {
-          "comment": "RPC with option body",
-          "begin": "\\b(rpc)\\s+(\\w+)\\s*\\(\\s*(stream)?\\s*([\\w.]+)\\s*\\)\\s*(returns)\\s*\\(\\s*(stream)?\\s*([\\w.]+)\\s*\\)\\s*(\\{)",
-          "end": "\\}",
+          "comment": "RPC with multi-line definition",
+          "begin": "(rpc)\\s+(\\w+)",
+          "end": "\\}|(;)",
           "beginCaptures": {
             "1": { "name": "keyword.declaration.rpc.proto" },
-            "2": { "name": "entity.name.function.rpc.proto" },
-            "3": { "name": "keyword.other.stream.proto" },
-            "4": { "name": "entity.name.type.proto" },
-            "5": { "name": "keyword.control.returns.proto" },
-            "6": { "name": "keyword.other.stream.proto" },
-            "7": { "name": "entity.name.type.proto" },
-            "8": { "name": "punctuation.definition.block.proto" }
+            "2": { "name": "entity.name.function.rpc.proto" }
           },
-          "patterns": [{ "include": "#comments" }, { "include": "#option" }]
-        },
-        {
-          "comment": "RPC without body (ending with semicolon)",
-          "match": "\\b(rpc)\\s+(\\w+)\\s*\\(\\s*(stream)?\\s*([\\w.]+)\\s*\\)\\s*(returns)\\s*\\(\\s*(stream)?\\s*([\\w.]+)\\s*\\)\\s*(;)",
-          "captures": {
-            "1": { "name": "keyword.declaration.rpc.proto" },
-            "2": { "name": "entity.name.function.rpc.proto" },
-            "3": { "name": "keyword.other.stream.proto" },
-            "4": { "name": "entity.name.type.proto" },
-            "5": { "name": "keyword.control.returns.proto" },
-            "6": { "name": "keyword.other.stream.proto" },
-            "7": { "name": "entity.name.type.proto" },
-            "8": { "name": "punctuation.terminator.proto" }
-          }
+          "endCaptures": {
+            "1": { "name": "punctuation.terminator.proto" }
+          },
+          "patterns": [
+            { "include": "#rpc_keywords" },
+            { "include": "#comments" },
+            { "include": "#option" }
+          ]
         }
       ]
     },
