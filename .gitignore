@@ -6,3 +6,9 @@ out/
 coverage/
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+tree-sitter-proto/build/
+tree-sitter-proto/*.wasm
+tree-sitter-proto/*.so
+tree-sitter-proto/*.dylib
+tree-sitter-proto/*.dll
+tree-sitter-proto/node_modules/

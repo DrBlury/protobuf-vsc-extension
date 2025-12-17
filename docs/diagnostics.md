@@ -275,6 +275,19 @@ To disable all diagnostics:
 }
 ```
 
+To disable only built-in AST diagnostics (while keeping external linter diagnostics):
+
+```jsonc
+{
+  "protobuf.diagnostics.useBuiltIn": false
+}
+```
+
+This is useful when:
+- Testing parser changes
+- Preferring external tools like `buf lint` or `protolint` for validation
+- Avoiding duplicate diagnostics from both built-in and external linters
+
 To disable specific checks:
 
 ```jsonc

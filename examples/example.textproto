@@ -1,0 +1,78 @@
+# Example textproto file demonstrating various features
+# This is a configuration message
+
+# Simple scalar fields
+name: "MyService"
+version: 1
+enabled: true
+timeout_ms: 30000
+rate_limit: 1.5
+
+# Nested message with curly braces
+config {
+	max_connections: 100
+	retry_policy {
+		max_retries: 3
+		initial_backoff_ms: 100
+		max_backoff_ms: 5000
+	}
+}
+
+# Nested message with angle brackets
+metadata <
+created_by: "admin"
+created_at: 1702828800
+>
+
+# Repeated fields
+allowed_methods: ["GET", "POST", "PUT", "DELETE"]
+ports: [8080, 8443, 9090]
+
+# Repeated messages
+endpoints: [
+{
+	path: "/api/v1/users"
+	method: "GET"
+	auth_required: true
+},
+{
+	path: "/api/v1/health"
+	method: "GET"
+	auth_required: false
+},
+]
+
+# Extension field
+[my.company.custom_option] {
+	feature_flags: ["new_ui", "dark_mode"]
+	rollout_percentage: 50
+}
+
+# Any type field
+[type.googleapis.com/google.protobuf.Duration] {
+	seconds: 3600
+	nanos: 0
+}
+
+# Various number formats
+decimal_value: 42
+octal_value: 0755
+hex_value: 0xDEADBEEF
+negative_value: -123
+float_value: 3.14159
+scientific: 1.5e-10
+infinity: inf
+neg_infinity: -inf
+
+# String with escapes
+description: "Line 1\nLine 2\tTabbed"
+unicode: "Hello \u4e16\u754c"  # Hello 世界
+
+# String concatenation (adjacent strings are joined)
+long_text: "This is a very long string that "
+"spans multiple lines for "
+"better readability."
+
+# Enum values
+status: ACTIVE
+log_level: INFO

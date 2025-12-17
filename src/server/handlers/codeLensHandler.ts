@@ -12,7 +12,7 @@ import { TextDocuments } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
 import { CodeLensProvider } from '../providers/codeLens';
-import { ProtoParser } from '../core/parser';
+import { IProtoParser } from '../core/parserFactory';
 
 /**
  * Handle code lens request
@@ -21,7 +21,7 @@ export function handleCodeLens(
   params: CodeLensParams,
   documents: TextDocuments<TextDocument>,
   codeLensProvider: CodeLensProvider,
-  parser: ProtoParser
+  parser: IProtoParser
 ): CodeLens[] {
   const document = documents.get(params.textDocument.uri);
   if (!document) {

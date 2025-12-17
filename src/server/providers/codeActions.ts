@@ -2157,7 +2157,7 @@ export class CodeActionsProvider {
       { pattern: /^xds\//, module: 'buf.build/cncf/xds' },
 
       // OpenTelemetry
-      { pattern: /^opentelemetry\//, module: 'buf.build/open-telemetry/opentelemetry' },
+      { pattern: /^opentelemetry\//, module: 'buf.build/opentelemetry/opentelemetry' },
 
       // Cosmos SDK
       { pattern: /^cosmos\//, module: 'buf.build/cosmos/cosmos-sdk' },

@@ -4,7 +4,7 @@
  */
 
 import { SemanticAnalyzer } from '../core/analyzer';
-import { ProtoParser } from '../core/parser';
+import { ParserFactory } from '../core/parserFactory';
 import { DiagnosticsProvider } from '../providers/diagnostics';
 import { ProtoFormatter } from '../providers/formatter';
 import { CompletionProvider } from '../providers/completion';
@@ -18,6 +18,7 @@ import { CodeActionsProvider } from '../providers/codeActions';
 import { SchemaGraphProvider } from '../providers/schemaGraph';
 import { CodeLensProvider } from '../providers/codeLens';
 import { DocumentLinksProvider } from '../providers/documentLinks';
+import { SemanticTokensProvider } from '../providers/semanticTokens';
 import { GrpcProvider } from '../providers/grpc';
 import { ProtocCompiler } from '../services/protoc';
 import { BreakingChangeDetector } from '../services/breaking';
@@ -31,7 +32,7 @@ import { MigrationProvider } from '../providers/migration';
  */
 export class ProviderRegistry {
   // Core
-  public readonly parser: ProtoParser;
+  public readonly parser: ParserFactory;
   public readonly analyzer: SemanticAnalyzer;
 
   // Providers
@@ -48,6 +49,7 @@ export class ProviderRegistry {
   public readonly schemaGraph: SchemaGraphProvider;
   public readonly codeLens: CodeLensProvider;
   public readonly documentLinks: DocumentLinksProvider;
+  public readonly semanticTokens: SemanticTokensProvider;
   public readonly migration: MigrationProvider;
   public readonly grpc: GrpcProvider;
 
@@ -60,7 +62,7 @@ export class ProviderRegistry {
 
   constructor() {
     // Initialize core first
-    this.parser = new ProtoParser();
+    this.parser = new ParserFactory();
     this.analyzer = new SemanticAnalyzer();
 
     // Initialize services (mostly independent)
@@ -84,6 +86,7 @@ export class ProviderRegistry {
     this.schemaGraph = new SchemaGraphProvider(this.analyzer);
     this.codeLens = new CodeLensProvider(this.analyzer);
     this.documentLinks = new DocumentLinksProvider(this.analyzer);
+    this.semanticTokens = new SemanticTokensProvider(this.analyzer);
     this.migration = new MigrationProvider();
     this.grpc = new GrpcProvider(this.analyzer);
   }
@@ -98,5 +101,12 @@ export class ProviderRegistry {
       this.externalLinter.setWorkspaceRoot(roots[0]!);
       this.analyzer.setWorkspaceRoots(roots);
     }
+  }
+
+  /**
+   * Set whether to use Tree-sitter parser
+   */
+  setUseTreeSitter(use: boolean): void {
+    this.parser.setUseTreeSitter(use);
   }
 }

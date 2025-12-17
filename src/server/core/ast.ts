@@ -117,7 +117,8 @@ export interface GroupFieldDefinition extends ProtoNode {
   groups: GroupFieldDefinition[];
 }
 
-export interface FieldOption {
+export interface FieldOption extends ProtoNode {
+  type: 'field_option';
   name: string;
   value: string | number | boolean;
 }
@@ -139,7 +140,7 @@ export interface EnumDefinition extends ProtoNode {
 }
 
 export interface EnumValue extends ProtoNode {
-  type: 'enumValue';
+  type: 'enum_value';
   name: string;
   nameRange: Range;
   number: number;
@@ -158,20 +159,31 @@ export interface RpcDefinition extends ProtoNode {
   type: 'rpc';
   name: string;
   nameRange: Range;
-  inputType: string;
-  inputTypeRange: Range;
-  inputStream: boolean;
-  outputType: string;
-  outputTypeRange: Range;
-  outputStream: boolean;
+  requestType: string;
+  requestTypeRange: Range;
+  requestStreaming: boolean;
+  responseType: string;
+  responseTypeRange: Range;
+  responseStreaming: boolean;
   options: OptionStatement[];
+  // Legacy field names for backward compatibility
+  inputType?: string;
+  inputTypeRange?: Range;
+  inputStream?: boolean;
+  outputType?: string;
+  outputTypeRange?: Range;
+  outputStream?: boolean;
 }
 
 export interface ExtendDefinition extends ProtoNode {
   type: 'extend';
-  messageName: string;
-  messageNameRange: Range;
+  extendType: string;
+  extendTypeRange: Range;
   fields: FieldDefinition[];
+  groups: GroupFieldDefinition[];
+  // Legacy field names for backward compatibility
+  messageName?: string;
+  messageNameRange?: Range;
 }
 
 export interface ReservedStatement extends ProtoNode {

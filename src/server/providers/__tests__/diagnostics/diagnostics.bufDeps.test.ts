@@ -1,4 +1,3 @@
-/* eslint-env jest */
 /**
  * Tests for BSR dependency validation in diagnostics
  * Verifies that resolved BSR imports without buf.yaml deps trigger warnings

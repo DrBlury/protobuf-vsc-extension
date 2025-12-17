@@ -68,7 +68,7 @@ When you import an external proto file that cannot be resolved, the extension re
 | `grpc/*` | buf.build/grpc/grpc | gRPC definitions |
 | `envoy/*` | buf.build/envoyproxy/envoy | Envoy Proxy APIs |
 | `xds/*` | buf.build/cncf/xds | xDS APIs |
-| `opentelemetry/*` | buf.build/open-telemetry/opentelemetry | OpenTelemetry protocol |
+| `opentelemetry/*` | buf.build/opentelemetry/opentelemetry | OpenTelemetry protocol |
 | `cosmos/*` | buf.build/cosmos/cosmos-sdk | Cosmos SDK |
 | `connectrpc/*` | buf.build/connectrpc/connect | Connect RPC |
 

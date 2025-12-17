@@ -2,8 +2,14 @@ version: v2
 modules:
   - path: .
     name: buf.build/example/orders
+    excludes:
+      - .buf-deps
 deps:
+  - buf.build/envoyproxy/protoc-gen-validate
   - buf.build/googleapis/googleapis
+  - buf.build/envoyproxy/envoy
+  - buf.build/opentelemetry/opentelemetry
+  - buf.build/cncf/xds
 lint:
   use:
     - DEFAULT

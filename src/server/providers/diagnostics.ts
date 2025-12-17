@@ -16,6 +16,7 @@ import {
   ServiceDefinition,
   OneofDefinition,
   FieldDefinition,
+  FieldOption,
   GroupFieldDefinition,
   OptionStatement,
   BUILTIN_TYPES,
@@ -55,6 +56,13 @@ export class DiagnosticsProvider {
 
   updateSettings(settings: Partial<DiagnosticsSettings>): void {
     this.settings = { ...this.settings, ...settings };
+  }
+
+  /**
+   * Check if the current file is proto3 syntax
+   */
+  private isProto3(): boolean {
+    return this.currentFile?.syntax?.version === 'proto3';
   }
 
   validate(uri: string, file: ProtoFile, documentText?: string): Diagnostic[] {
@@ -152,13 +160,13 @@ export class DiagnosticsProvider {
     }
 
     // If file uses features but doesn't have edition declaration
-    if (this.settings.editionFeatures) {
-      const hasFeatures = this.checkForFeatures(file);
-      if (hasFeatures && !hasEdition) {
+    if (this.settings.editionFeatures && !hasEdition) {
+      const featureOptions = this.collectFeatureOptions(file);
+      for (const opt of featureOptions) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Error,
-          range: this.toRange(file.range),
-          message: 'Edition features require an edition declaration. Add "edition = "2023";" at the top of the file.',
+          severity: DiagnosticSeverity.Warning,
+          range: this.toRange(opt.range),
+          message: `Edition feature '${opt.name}' requires an edition declaration. Add "edition = "2023";" at the top of the file.`,
           code: ERROR_CODES.FEATURES_WITHOUT_EDITION,
           source: DIAGNOSTIC_SOURCE
         });
@@ -928,8 +936,8 @@ export class DiagnosticsProvider {
       }
     }
 
-    // Check for first value being 0 (required for proto3)
-    if (this.settings.discouragedConstructs && !hasZeroValue && enumDef.values.length > 0) {
+    // Check for first value being 0 (required for proto3 only)
+    if (this.settings.discouragedConstructs && this.isProto3() && !hasZeroValue && enumDef.values.length > 0) {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
         range: this.toRange(enumDef.values[0]!.range),
@@ -1040,67 +1048,77 @@ export class DiagnosticsProvider {
 
       // Check input type reference
       if (this.settings.referenceChecks) {
-        const inputSymbol = this.analyzer.resolveType(rpc.inputType, uri, prefix);
-        if (!inputSymbol) {
-          // Type not resolved via imports - check if it exists anywhere in the workspace
-          const workspaceMatch = this.findTypeInWorkspace(rpc.inputType, uri);
-          if (workspaceMatch) {
-            diagnostics.push({
-              severity: DiagnosticSeverity.Error,
-              range: this.toRange(rpc.inputTypeRange),
-              message: `Type '${rpc.inputType}' must be fully qualified as '${workspaceMatch.fullName}' and requires import`,
-              source: DIAGNOSTIC_SOURCE,
-              code: ERROR_CODES.UNQUALIFIED_TYPE,
-              data: {
-                typeName: rpc.inputType,
-                fullName: workspaceMatch.fullName,
-                symbolUri: workspaceMatch.location.uri
-              }
-            });
+        const inputType = rpc.requestType ?? rpc.inputType;
+        const inputTypeRange = rpc.requestTypeRange ?? rpc.inputTypeRange;
+
+        if (inputType && inputTypeRange) {
+          const inputSymbol = this.analyzer.resolveType(inputType, uri, prefix);
+          if (!inputSymbol) {
+            // Type not resolved via imports - check if it exists anywhere in the workspace
+            const workspaceMatch = this.findTypeInWorkspace(inputType, uri);
+            if (workspaceMatch) {
+              diagnostics.push({
+                severity: DiagnosticSeverity.Error,
+                range: this.toRange(inputTypeRange),
+                message: `Type '${inputType}' must be fully qualified as '${workspaceMatch.fullName}' and requires import`,
+                source: DIAGNOSTIC_SOURCE,
+                code: ERROR_CODES.UNQUALIFIED_TYPE,
+                data: {
+                  typeName: inputType,
+                  fullName: workspaceMatch.fullName,
+                  symbolUri: workspaceMatch.location.uri
+                }
+              });
+            } else {
+              diagnostics.push({
+                severity: DiagnosticSeverity.Error,
+                range: this.toRange(inputTypeRange),
+                message: `Unknown type '${inputType}'`,
+                source: DIAGNOSTIC_SOURCE
+              });
+            }
           } else {
-            diagnostics.push({
-              severity: DiagnosticSeverity.Error,
-              range: this.toRange(rpc.inputTypeRange),
-              message: `Unknown type '${rpc.inputType}'`,
-              source: DIAGNOSTIC_SOURCE
-            });
+            this.ensureImported(uri, inputType, inputSymbol.location.uri, this.toRange(inputTypeRange), diagnostics);
+            // Check if an unqualified type name is used when it should be fully qualified
+            this.checkTypeQualification(uri, inputType, inputSymbol, inputTypeRange, diagnostics);
           }
-        } else {
-          this.ensureImported(uri, rpc.inputType, inputSymbol.location.uri, this.toRange(rpc.inputTypeRange), diagnostics);
-          // Check if an unqualified type name is used when it should be fully qualified
-          this.checkTypeQualification(uri, rpc.inputType, inputSymbol, rpc.inputTypeRange, diagnostics);
         }
 
         // Check output type reference
-        const outputSymbol = this.analyzer.resolveType(rpc.outputType, uri, prefix);
-        if (!outputSymbol) {
-          // Type not resolved via imports - check if it exists anywhere in the workspace
-          const workspaceMatch = this.findTypeInWorkspace(rpc.outputType, uri);
-          if (workspaceMatch) {
-            diagnostics.push({
-              severity: DiagnosticSeverity.Error,
-              range: this.toRange(rpc.outputTypeRange),
-              message: `Type '${rpc.outputType}' must be fully qualified as '${workspaceMatch.fullName}' and requires import`,
-              source: DIAGNOSTIC_SOURCE,
-              code: ERROR_CODES.UNQUALIFIED_TYPE,
-              data: {
-                typeName: rpc.outputType,
-                fullName: workspaceMatch.fullName,
-                symbolUri: workspaceMatch.location.uri
-              }
-            });
+        const outputType = rpc.responseType ?? rpc.outputType;
+        const outputTypeRange = rpc.responseTypeRange ?? rpc.outputTypeRange;
+
+        if (outputType && outputTypeRange) {
+          const outputSymbol = this.analyzer.resolveType(outputType, uri, prefix);
+          if (!outputSymbol) {
+            // Type not resolved via imports - check if it exists anywhere in the workspace
+            const workspaceMatch = this.findTypeInWorkspace(outputType, uri);
+            if (workspaceMatch) {
+              diagnostics.push({
+                severity: DiagnosticSeverity.Error,
+                range: this.toRange(outputTypeRange),
+                message: `Type '${outputType}' must be fully qualified as '${workspaceMatch.fullName}' and requires import`,
+                source: DIAGNOSTIC_SOURCE,
+                code: ERROR_CODES.UNQUALIFIED_TYPE,
+                data: {
+                  typeName: outputType,
+                  fullName: workspaceMatch.fullName,
+                  symbolUri: workspaceMatch.location.uri
+                }
+              });
+            } else {
+              diagnostics.push({
+                severity: DiagnosticSeverity.Error,
+                range: this.toRange(outputTypeRange),
+                message: `Unknown type '${outputType}'`,
+                source: DIAGNOSTIC_SOURCE
+              });
+            }
           } else {
-            diagnostics.push({
-              severity: DiagnosticSeverity.Error,
-              range: this.toRange(rpc.outputTypeRange),
-              message: `Unknown type '${rpc.outputType}'`,
-              source: DIAGNOSTIC_SOURCE
-            });
+            this.ensureImported(uri, outputType, outputSymbol.location.uri, this.toRange(outputTypeRange), diagnostics);
+            // Check if an unqualified type name is used when it should be fully qualified
+            this.checkTypeQualification(uri, outputType, outputSymbol, outputTypeRange, diagnostics);
           }
-        } else {
-          this.ensureImported(uri, rpc.outputType, outputSymbol.location.uri, this.toRange(rpc.outputTypeRange), diagnostics);
-          // Check if an unqualified type name is used when it should be fully qualified
-          this.checkTypeQualification(uri, rpc.outputType, outputSymbol, rpc.outputTypeRange, diagnostics);
         }
       }
     }
@@ -1384,8 +1402,14 @@ export class DiagnosticsProvider {
     for (const service of file.services) {
       const prefix = file.package?.name || '';
       for (const rpc of service.rpcs) {
-        this.addResolvedTypeUri(rpc.inputType, uri, prefix, used);
-        this.addResolvedTypeUri(rpc.outputType, uri, prefix, used);
+        const inputType = rpc.requestType ?? rpc.inputType;
+        const outputType = rpc.responseType ?? rpc.outputType;
+        if (inputType) {
+          this.addResolvedTypeUri(inputType, uri, prefix, used);
+        }
+        if (outputType) {
+          this.addResolvedTypeUri(outputType, uri, prefix, used);
+        }
       }
     }
 
@@ -1527,37 +1551,33 @@ export class DiagnosticsProvider {
   }
 
   /**
-   * Check if file uses edition features
+   * Collect all feature options from file (for edition feature warnings)
    */
-  private checkForFeatures(file: ProtoFile): boolean {
-    // Check if any field uses features option
+  private collectFeatureOptions(file: ProtoFile): FieldOption[] {
+    const features: FieldOption[] = [];
     for (const message of file.messages) {
-      if (this.messageHasFeatures(message)) {
-        return true;
-      }
+      this.collectMessageFeatureOptions(message, features);
     }
-    return false;
+    return features;
   }
 
   /**
-   * Recursively check if message or nested messages use features
+   * Recursively collect feature options from message and nested messages
    */
-  private messageHasFeatures(message: MessageDefinition): boolean {
+  private collectMessageFeatureOptions(message: MessageDefinition, features: FieldOption[]): void {
     // Check field options for features
     for (const field of message.fields) {
-      if (field.options?.some(opt => opt.name.startsWith('features.'))) {
-        return true;
+      for (const opt of field.options || []) {
+        if (opt.name.startsWith('features.')) {
+          features.push(opt);
+        }
       }
     }
 
     // Check nested messages
     for (const nested of message.nestedMessages) {
-      if (this.messageHasFeatures(nested)) {
-        return true;
-      }
+      this.collectMessageFeatureOptions(nested, features);
     }
-
-    return false;
   }
 
   /**
@@ -2102,7 +2122,7 @@ export class DiagnosticsProvider {
       { pattern: /^opencensus\//, module: 'buf.build/opencensus/opencensus' },
 
       // OpenTelemetry
-      { pattern: /^opentelemetry\//, module: 'buf.build/open-telemetry/opentelemetry' },
+      { pattern: /^opentelemetry\//, module: 'buf.build/opentelemetry/opentelemetry' },
 
       // Cosmos SDK
       { pattern: /^cosmos\//, module: 'buf.build/cosmos/cosmos-sdk' },

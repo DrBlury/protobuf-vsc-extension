@@ -98,7 +98,7 @@ describe('BSR Module Detection Patterns', () => {
       { pattern: /^grpc\//, module: 'buf.build/grpc/grpc' },
       { pattern: /^envoy\//, module: 'buf.build/envoyproxy/envoy' },
       { pattern: /^xds\//, module: 'buf.build/cncf/xds' },
-      { pattern: /^opentelemetry\//, module: 'buf.build/open-telemetry/opentelemetry' },
+      { pattern: /^opentelemetry\//, module: 'buf.build/opentelemetry/opentelemetry' },
       { pattern: /^cosmos\//, module: 'buf.build/cosmos/cosmos-sdk' },
       { pattern: /^tendermint\//, module: 'buf.build/cosmos/cosmos-sdk' },
     ];
@@ -135,7 +135,7 @@ describe('BSR Module Detection Patterns', () => {
     });
 
     it('should suggest correct module for opentelemetry imports', () => {
-      expect(suggestBufModule('opentelemetry/proto/trace/v1/trace.proto')).toBe('buf.build/open-telemetry/opentelemetry');
+      expect(suggestBufModule('opentelemetry/proto/trace/v1/trace.proto')).toBe('buf.build/opentelemetry/opentelemetry');
     });
 
     it('should suggest correct module for cosmos imports', () => {

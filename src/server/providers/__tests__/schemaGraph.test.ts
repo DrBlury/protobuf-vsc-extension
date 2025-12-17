@@ -1,4 +1,3 @@
-/* eslint-env jest */
 import { ProtoParser } from '../../core/parser';
 import { SemanticAnalyzer } from '../../core/analyzer';
 import { SchemaGraphProvider } from '../schemaGraph';

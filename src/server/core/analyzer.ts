@@ -822,11 +822,16 @@ export class SemanticAnalyzer {
 
       // Search in extends
       for (const extend of file.extends) {
-        if (this.matchesSymbol(extend.messageName, symbolName, fullyQualifiedName)) {
-          references.push({ uri, range: extend.messageNameRange });
+        const extendTypeName = extend.extendType ?? extend.messageName;
+        const extendTypeRange = extend.extendTypeRange ?? extend.messageNameRange;
+
+        if (extendTypeName && this.matchesSymbolInContext(extendTypeName, symbolName, fullyQualifiedName, uri, packageName)) {
+          if (extendTypeRange) {
+            references.push({ uri, range: extendTypeRange });
+          }
         }
         for (const field of extend.fields) {
-          if (this.matchesSymbol(field.fieldType, symbolName, fullyQualifiedName)) {
+          if (this.matchesSymbolInContext(field.fieldType, symbolName, fullyQualifiedName, uri, packageName)) {
             references.push({ uri, range: field.fieldTypeRange });
           }
         }
@@ -848,14 +853,14 @@ export class SemanticAnalyzer {
 
     // Check fields
     for (const field of message.fields) {
-      if (this.matchesSymbol(field.fieldType, symbolName, fullyQualifiedName)) {
+      if (this.matchesSymbolInContext(field.fieldType, symbolName, fullyQualifiedName, uri, fullName)) {
         references.push({ uri, range: field.fieldTypeRange });
       }
     }
 
     // Check map fields
     for (const mapField of message.maps) {
-      if (this.matchesSymbol(mapField.valueType, symbolName, fullyQualifiedName)) {
+      if (this.matchesSymbolInContext(mapField.valueType, symbolName, fullyQualifiedName, uri, fullName)) {
         references.push({ uri, range: mapField.valueTypeRange });
       }
     }
@@ -863,7 +868,7 @@ export class SemanticAnalyzer {
     // Check oneofs
     for (const oneof of message.oneofs) {
       for (const field of oneof.fields) {
-        if (this.matchesSymbol(field.fieldType, symbolName, fullyQualifiedName)) {
+        if (this.matchesSymbolInContext(field.fieldType, symbolName, fullyQualifiedName, uri, fullName)) {
           references.push({ uri, range: field.fieldTypeRange });
         }
       }
@@ -882,14 +887,60 @@ export class SemanticAnalyzer {
     references: Location[],
     fullyQualifiedName?: string
   ): void {
+    // Get the file's package for context
+    const file = this.workspace.files.get(uri);
+    const packageName = file?.package?.name || '';
+
     for (const rpc of service.rpcs) {
-      if (this.matchesSymbol(rpc.inputType, symbolName, fullyQualifiedName)) {
-        references.push({ uri, range: rpc.inputTypeRange });
+      const inputType = rpc.requestType ?? rpc.inputType;
+      const inputTypeRange = rpc.requestTypeRange ?? rpc.inputTypeRange;
+      const outputType = rpc.responseType ?? rpc.outputType;
+      const outputTypeRange = rpc.responseTypeRange ?? rpc.outputTypeRange;
+
+      if (inputType && this.matchesSymbolInContext(inputType, symbolName, fullyQualifiedName, uri, packageName)) {
+        if (inputTypeRange) {
+          references.push({ uri, range: inputTypeRange });
+        }
       }
-      if (this.matchesSymbol(rpc.outputType, symbolName, fullyQualifiedName)) {
-        references.push({ uri, range: rpc.outputTypeRange });
+      if (outputType && this.matchesSymbolInContext(outputType, symbolName, fullyQualifiedName, uri, packageName)) {
+        if (outputTypeRange) {
+          references.push({ uri, range: outputTypeRange });
+        }
       }
     }
+  }
+
+  /**
+   * Check if a type reference matches a symbol by resolving it in context.
+   * This properly handles package scoping to avoid false matches across packages.
+   */
+  private matchesSymbolInContext(
+    typeName: string,
+    symbolName: string,
+    fullyQualifiedName: string | undefined,
+    uri: string,
+    currentScope: string
+  ): boolean {
+    // If no fully qualified name provided, fall back to simple matching
+    if (!fullyQualifiedName) {
+      return this.matchesSymbol(typeName, symbolName, fullyQualifiedName);
+    }
+
+    // If typeName is already fully qualified (contains a dot or starts with dot),
+    // normalize and compare directly
+    if (typeName.includes('.')) {
+      const normalizedTypeName = typeName.startsWith('.') ? typeName.slice(1) : typeName;
+      return normalizedTypeName === fullyQualifiedName;
+    }
+
+    // For simple names, resolve to get the actual fully qualified name
+    const resolved = this.resolveType(typeName, uri, currentScope);
+    if (resolved) {
+      return resolved.fullName === fullyQualifiedName;
+    }
+
+    // If resolution failed, it might be an unimported type - don't match
+    return false;
   }
 
   private matchesSymbol(typeName: string, symbolName: string, fullyQualifiedName?: string): boolean {

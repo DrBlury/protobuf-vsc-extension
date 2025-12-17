@@ -19,6 +19,12 @@ Settings can be configured in:
 - **Default**: `true`
 - **Description**: Enable/disable all diagnostics
 
+#### `protobuf.diagnostics.useBuiltIn`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Enable/disable built-in AST-based diagnostics. When disabled, only external linters (buf, protolint) will provide diagnostics. Useful when testing the Tree-sitter parser or preferring external tool validation over built-in checks.
+
 #### `protobuf.diagnostics.namingConventions`
 
 - **Type**: `boolean`

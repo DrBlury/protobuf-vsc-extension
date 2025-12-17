@@ -51,14 +51,18 @@ export class GrpcProvider {
         const rpcs: GrpcRpcInfo[] = service.rpcs.map(rpc => {
           const rpcFullName = `${fullName}.${rpc.name}`;
           const streamingType = this.getStreamingType(rpc);
+          const inputType = rpc.requestType ?? rpc.inputType ?? '';
+          const outputType = rpc.responseType ?? rpc.outputType ?? '';
+          const inputStream = rpc.requestStreaming ?? rpc.inputStream ?? false;
+          const outputStream = rpc.responseStreaming ?? rpc.outputStream ?? false;
 
           return {
             name: rpc.name,
             fullName: rpcFullName,
-            inputType: rpc.inputType,
-            outputType: rpc.outputType,
-            inputStream: rpc.inputStream,
-            outputStream: rpc.outputStream,
+            inputType,
+            outputType,
+            inputStream,
+            outputStream,
             streamingType,
             uri,
             range: rpc.range

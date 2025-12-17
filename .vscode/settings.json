@@ -24,6 +24,9 @@
   "protobuf.diagnostics.namingConventions": true,
   "protobuf.diagnostics.referenceChecks": true,
   "protobuf.diagnostics.importChecks": true,
+  "protobuf.diagnostics.useBuiltIn": true,
+  // Parser selection
+  "protobuf.parser": "tree-sitter",
 
   // Formatter settings
   "protobuf.formatter.enabled": true,

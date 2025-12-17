@@ -239,31 +239,72 @@ export async function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    // Find buf.yaml
+    // Find buf.yaml (or buf.yml) starting from document directory
     const fs = await import('fs');
     const pathModule = await import('path');
 
-    let searchDir = editor ? pathModule.dirname(editor.document.uri.fsPath) : workspaceFolders[0]!.uri.fsPath;
+    const documentDir = editor ? pathModule.dirname(editor.document.uri.fsPath) : workspaceFolders[0]!.uri.fsPath;
+    let searchDir = documentDir;
     let bufYamlPath: string | null = null;
 
+    // Search up the directory tree for buf.yaml or buf.yml
     while (searchDir !== pathModule.dirname(searchDir)) {
-      const candidate = pathModule.join(searchDir, 'buf.yaml');
-      if (fs.existsSync(candidate)) {
-        bufYamlPath = candidate;
+      const yamlCandidate = pathModule.join(searchDir, 'buf.yaml');
+      const ymlCandidate = pathModule.join(searchDir, 'buf.yml');
+
+      if (fs.existsSync(yamlCandidate)) {
+        bufYamlPath = yamlCandidate;
+        break;
+      }
+      if (fs.existsSync(ymlCandidate)) {
+        bufYamlPath = ymlCandidate;
         break;
       }
       searchDir = pathModule.dirname(searchDir);
     }
 
     if (!bufYamlPath) {
+      // Determine best location for new buf.yaml - prefer directory closest to document
+      // that contains proto files or is a reasonable project root
+      let createDir = documentDir;
+
+      // If there's a buf.work.yaml nearby, find the appropriate module directory
+      let workSearchDir = documentDir;
+      while (workSearchDir !== pathModule.dirname(workSearchDir)) {
+        if (fs.existsSync(pathModule.join(workSearchDir, 'buf.work.yaml'))) {
+          // Found a buf workspace - suggest creating buf.yaml in the document's module directory
+          // which is typically one level below the workspace
+          createDir = documentDir;
+          break;
+        }
+        workSearchDir = pathModule.dirname(workSearchDir);
+      }
+
       const create = await vscode.window.showInformationMessage(
-        `buf.yaml not found. Create one with dependency '${moduleName}'?`,
-        'Create', 'Cancel'
+        `buf.yaml not found. Create one at '${createDir}' with dependency '${moduleName}'?`,
+        'Create', 'Choose Location', 'Cancel'
       );
+
       if (create === 'Create') {
-        const rootPath = workspaceFolders[0]!.uri.fsPath;
-        bufYamlPath = pathModule.join(rootPath, 'buf.yaml');
-        const content = `version: v2
+        bufYamlPath = pathModule.join(createDir, 'buf.yaml');
+      } else if (create === 'Choose Location') {
+        const selected = await vscode.window.showOpenDialog({
+          canSelectFiles: false,
+          canSelectFolders: true,
+          canSelectMany: false,
+          defaultUri: vscode.Uri.file(createDir),
+          title: 'Select folder for buf.yaml'
+        });
+        if (selected && selected[0]) {
+          bufYamlPath = pathModule.join(selected[0].fsPath, 'buf.yaml');
+        } else {
+          return;
+        }
+      } else {
+        return;
+      }
+
+      const content = `version: v2
 deps:
   - ${moduleName}
 lint:
@@ -273,11 +314,8 @@ breaking:
   use:
     - FILE
 `;
-        fs.writeFileSync(bufYamlPath, content);
-        outputChannel.appendLine(`Created ${bufYamlPath} with dependency ${moduleName}`);
-      } else {
-        return;
-      }
+      fs.writeFileSync(bufYamlPath, content);
+      outputChannel.appendLine(`Created ${bufYamlPath} with dependency ${moduleName}`);
     } else {
       // Add dependency to existing buf.yaml
       let content = fs.readFileSync(bufYamlPath, 'utf-8');
@@ -587,6 +625,16 @@ breaking:
   try {
     await client.start();
     outputChannel.appendLine('Language server started successfully');
+
+    // Initialize Tree-sitter parser (if enabled)
+    try {
+      const wasmPath = path.join(context.extensionPath, 'out', 'tree-sitter', 'tree-sitter-proto.wasm');
+      // Send initialization request to server
+      await client.sendRequest('protobuf/initTreeSitter', { wasmPath });
+      outputChannel.appendLine('Tree-sitter parser initialized');
+    } catch (err) {
+      outputChannel.appendLine(`Tree-sitter initialization failed (will use fallback parser): ${err instanceof Error ? err.message : String(err)}`);
+    }
   } catch (err) {
     const msg = `Failed to start language server: ${err instanceof Error ? err.message : String(err)}`;
     outputChannel.appendLine(msg);

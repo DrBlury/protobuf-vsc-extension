@@ -13,3 +13,5 @@ export { handleCodeLens } from './codeLensHandler';
 export { handleDocumentLinks } from './documentLinksHandler';
 export { handlePrepareRename, handleRename } from './renameHandler';
 export { handleCodeActions } from './codeActionsHandler';
+export { handleSemanticTokensFull } from './semanticTokensHandler';
+export { handleInlayHints, initializeInlayHintsProvider } from './inlayHintsHandler';

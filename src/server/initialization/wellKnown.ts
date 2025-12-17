@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
 
-import { ProtoParser } from '../core/parser';
+import { IProtoParser } from '../core/parserFactory';
 import { SemanticAnalyzer } from '../core/analyzer';
 import { logger } from '../utils/logger';
 import { PROTOC_INCLUDE_PATHS, GOOGLE_WELL_KNOWN_TEST_FILE } from '../utils/constants';
@@ -46,7 +46,7 @@ export function discoverWellKnownIncludePath(): string | undefined {
  */
 export function preloadGoogleWellKnownProtos(
   discoveredIncludePath: string | undefined,
-  parser: ProtoParser,
+  parser: IProtoParser,
   analyzer: SemanticAnalyzer,
   wellKnownCacheDir?: string
 ): void {

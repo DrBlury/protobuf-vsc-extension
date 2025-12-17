@@ -1,0 +1,31 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "proto",
+      "camelcase": "Proto",
+      "scope": "source.proto",
+      "path": ".",
+      "file-types": ["proto"],
+      "highlights": "queries/highlights.scm",
+      "injection-regex": "^proto$"
+    }
+  ],
+  "metadata": {
+    "version": "1.0.0",
+    "license": "MIT",
+    "description": "Protocol Buffers grammar for tree-sitter (proto2, proto3, and editions)",
+    "authors": [
+      {
+        "name": "drblury"
+      }
+    ],
+    "links": {
+      "repository": "https://github.com/drblury/protobuf-vsc-extension"
+    }
+  },
+  "bindings": {
+    "c": true,
+    "node": true
+  }
+}

@@ -6,7 +6,7 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { TextDocuments } from 'vscode-languageserver/node';
 import { ProtoFile } from '../core/ast';
-import { ProtoParser } from '../core/parser';
+import { IProtoParser } from '../core/parserFactory';
 import { SemanticAnalyzer } from '../core/analyzer';
 import { ContentHashCache, simpleHash } from './cache';
 import { logger } from './logger';
@@ -26,7 +26,7 @@ import { getErrorMessage } from './utils';
 export function refreshDocumentAndImports(
   uri: string,
   documents: TextDocuments<TextDocument>,
-  parser: ProtoParser,
+  parser: IProtoParser,
   analyzer: SemanticAnalyzer,
   cache: ContentHashCache<ProtoFile>
 ): string[] {

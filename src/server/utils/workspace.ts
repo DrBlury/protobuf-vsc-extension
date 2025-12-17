@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { URI } from 'vscode-uri';
-import { ProtoParser } from '../core/parser';
+import { IProtoParser } from '../core/parserFactory';
 import { SemanticAnalyzer } from '../core/analyzer';
 import { logger } from './logger';
 import { getErrorMessage } from './utils';
@@ -59,7 +59,7 @@ export function findProtoFiles(dir: string, files: string[] = [], includeHidden:
  */
 export function scanWorkspaceForProtoFiles(
   workspaceFolders: string[],
-  parser: ProtoParser,
+  parser: IProtoParser,
   analyzer: SemanticAnalyzer,
   protoSrcsDir?: string
 ): void {
@@ -140,7 +140,7 @@ export function scanWorkspaceForProtoFiles(
  */
 export function scanImportPaths(
   importPaths: string[],
-  parser: ProtoParser,
+  parser: IProtoParser,
   analyzer: SemanticAnalyzer
 ): void {
   if (importPaths.length === 0) {

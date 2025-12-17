@@ -12,7 +12,7 @@ import { TextDocuments } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
 import { DocumentLinksProvider } from '../providers/documentLinks';
-import { ProtoParser } from '../core/parser';
+import { IProtoParser } from '../core/parserFactory';
 
 /**
  * Handle document links request
@@ -21,7 +21,7 @@ export function handleDocumentLinks(
   params: DocumentLinkParams,
   documents: TextDocuments<TextDocument>,
   documentLinksProvider: DocumentLinksProvider,
-  parser: ProtoParser
+  parser: IProtoParser
 ): DocumentLink[] {
   const document = documents.get(params.textDocument.uri);
   if (!document) {
