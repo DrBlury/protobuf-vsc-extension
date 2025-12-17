@@ -26,4 +26,34 @@ service Greeter {
   rpc WithOptions (Request) returns (Response) {
 //                                             ^ punctuation.definition.block.proto
   }
+
+  rpc WithLineBreak (Request)
+//^^^ keyword.declaration.rpc.proto
+//    ^^^^^^^^^^^^^ entity.name.function.rpc.proto
+//                   ^^^^^^^ entity.name.type.proto
+      returns (Response);
+//    ^^^^^^^ keyword.control.returns.proto
+//             ^^^^^^^^ entity.name.type.proto
+                        ^ punctuation.terminator.proto
+
+  rpc WithLineBreak (stream Request)
+//^^^ keyword.declaration.rpc.proto
+//    ^^^^^^^^^^^^^ entity.name.function.rpc.proto
+//                   ^^^^^^ keyword.other.stream.proto
+//                          ^^^^^^^ entity.name.type.proto
+      returns (stream Response);
+//    ^^^^^^^ keyword.control.returns.proto
+//             ^^^^^^ keyword.other.stream.proto
+//                    ^^^^^^^^ entity.name.type.proto
+                               ^ punctuation.terminator.proto
+
+  rpc WithLineBreak (Request)
+//^^^ keyword.declaration.rpc.proto
+//    ^^^^^^^^^^^^^ entity.name.function.rpc.proto
+//                   ^^^^^^^ entity.name.type.proto
+      returns (Response) {
+//    ^^^^^^^ keyword.control.returns.proto
+//             ^^^^^^^^ entity.name.type.proto
+//                       ^ punctuation.definition.block.proto
+  }
 }

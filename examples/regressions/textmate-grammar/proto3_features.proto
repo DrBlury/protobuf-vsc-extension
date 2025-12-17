@@ -272,6 +272,16 @@ service Proto3Service {
 	rpc SafeMethod (Request) returns (Response) {
 		option idempotency_level = NO_SIDE_EFFECTS;
 	}
+
+  // RPC with a very long method name.
+	rpc VeryLongMethodNameThatCausesTheDefinitionToOverflow (Request)
+	    returns (Response);
+
+  // RPC with a very long method name and no side effects.
+	rpc SafeVeryLongMethodNameThatCausesTheDefinitionToOverflow (Request)
+		returns (Response) {
+		option idempotency_level = NO_SIDE_EFFECTS;
+	}
 }
 
 message Request {

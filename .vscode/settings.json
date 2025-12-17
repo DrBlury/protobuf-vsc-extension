@@ -1,12 +1,9 @@
 {
-  "protobuf.buf.path": "/opt/homebrew/bin/buf",
-  "protobuf.protoc.path": "/opt/homebrew/bin/protoc",
   "protobuf.includes": ["${workspaceFolder}/examples/buf/.buf-deps"],
   "protobuf.formatter.alignFields": false,
   // Use buf linter instead of protoc
   "protobuf.externalLinter.enabled": true,
   "protobuf.externalLinter.linter": "buf",
-  "protobuf.externalLinter.bufPath": "/opt/homebrew/bin/buf",
   "protobuf.externalLinter.runOnSave": true,
 
   // Code generation on save
@@ -47,6 +44,5 @@
   "search.exclude": {
     "out": true
   },
-  "typescript.tsc.autoDetect": "off",
-  "protobuf.clangFormat.path": "/opt/homebrew/bin/clang-format"
+  "typescript.tsc.autoDetect": "off"
 }
