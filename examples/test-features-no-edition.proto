@@ -7,7 +7,7 @@ package test.no_edition;
 
 message TestFeaturesWithoutEdition {
   // This should trigger an error: using features without edition declaration
-  string name = 1 [features.field_presence = EXPLICIT];
-  
-  int32 age = 2;
+	string name = 1 [features.field_presence = EXPLICIT];
+
+	int32 age = 2;
 }

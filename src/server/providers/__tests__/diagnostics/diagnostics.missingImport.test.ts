@@ -105,6 +105,51 @@ message UsesCommon {
     expect(missing).toBeUndefined();
   });
 
+  it('allows absolute-style imports when canonical suggestion is relative path with parent traversal', () => {
+    // This test covers the case where the user imports via an absolute-style path (e.g., from proto_path root)
+    // but the suggested import is a relative path with ../ traversal. Since the import resolves correctly,
+    // it should not flag an error.
+    const localParser = new ProtoParser();
+    const localAnalyzer = new SemanticAnalyzer();
+    const localDiagnostics = new DiagnosticsProvider(localAnalyzer);
+    localAnalyzer.setWorkspaceRoots(['/workspace']);
+    localAnalyzer.setImportPaths(['/workspace']);
+
+    // The type definition is at /workspace/sh/t/message.proto
+    const messageUri = 'file:///workspace/sh/t/message.proto';
+    const messageContent = `syntax = "proto3";
+package sh.t;
+
+message BotId {
+  string id = 1;
+}`;
+    const messageFile = localParser.parse(messageContent, messageUri);
+    localAnalyzer.updateFile(messageUri, messageFile);
+
+    // The main file is at /workspace/sh/bot/api/bot.proto
+    // It imports via the absolute-style path "sh/t/message.proto" (from workspace root)
+    // but the canonical relative path would be "../../t/message.proto"
+    const botUri = 'file:///workspace/sh/bot/api/bot.proto';
+    const botContent = `syntax = "proto3";
+package sh.bot.api;
+
+import "sh/t/message.proto";
+
+message Bot {
+  sh.t.BotId bot_id = 1;
+}`;
+    const botFile = localParser.parse(botContent, botUri);
+    localAnalyzer.updateFile(botUri, botFile);
+
+    const diags = localDiagnostics.validate(botUri, botFile);
+    const mismatch = diags.find(d => d.message.includes('should be imported via'));
+    const missing = diags.find(d => d.message.includes('not imported'));
+
+    // Should not report any import-related errors since the import resolves correctly
+    expect(mismatch).toBeUndefined();
+    expect(missing).toBeUndefined();
+  });
+
   it('should not suggest importing a type when it is already imported from another file, even if same-named type exists elsewhere', () => {
     // This test verifies that when a file imports "user.proto" which defines test.user.User,
     // and we use "test.user.User" in a field, it should NOT suggest importing "example.proto"

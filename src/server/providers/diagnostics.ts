@@ -1459,6 +1459,13 @@ export class DiagnosticsProvider {
       return true;
     }
 
+    // If the canonical import contains parent traversal (../), we cannot do a simple suffix match.
+    // Since the caller already verified that actualImport resolves to the correct definition file,
+    // we should consider them compatible - the import is working correctly regardless of path style.
+    if (normalizedCanonical.includes('../')) {
+      return true;
+    }
+
     if (normalizedActual.endsWith(`/${normalizedCanonical}`) || normalizedActual.endsWith(normalizedCanonical)) {
       return true;
     }
