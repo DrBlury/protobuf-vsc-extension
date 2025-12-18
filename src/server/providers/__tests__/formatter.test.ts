@@ -675,6 +675,79 @@ message Optionalf {
       expect(formatted).toBeDefined();
       expect(formatted).toContain('string');
     });
+
+    it('should only align adjacent fields (gofmt-style) - blank lines break alignment groups', async () => {
+      formatter.updateSettings({ alignFields: true, renumberOnFormat: false });
+      const text = `message Message {
+  int32 a   = 1;
+  int32 bbb = 2;
+
+  int32 cccccc = 3;
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      // Fields a and bbb should be aligned together (same group)
+      // Field cccccc should be in its own group (after blank line)
+      const lines = formatted.split('\n').filter(l => l.includes('='));
+
+      // First group: a and bbb - should have same alignment
+      const lineA = lines.find(l => l.includes('int32 a'));
+      const lineBbb = lines.find(l => l.includes('int32 bbb'));
+      const lineCccccc = lines.find(l => l.includes('int32 cccccc'));
+
+      expect(lineA).toBeDefined();
+      expect(lineBbb).toBeDefined();
+      expect(lineCccccc).toBeDefined();
+
+      // a and bbb should have = at same position (aligned to "bbb")
+      expect(lineA!.indexOf('=')).toBe(lineBbb!.indexOf('='));
+
+      // cccccc should NOT be aligned with a/bbb (it's in its own group)
+      // cccccc's = should be closer to the field name
+      expect(lineCccccc!.indexOf('=')).not.toBe(lineA!.indexOf('='));
+    });
+
+    it('should align nested message fields independently from parent', async () => {
+      formatter.updateSettings({ alignFields: true, renumberOnFormat: false });
+      const text = `message Message {
+  message Nested {
+    int32 a      = 1;
+    int32 bbb    = 2;
+
+    int32 cccccc = 3;
+  }
+
+  int32 a                  = 1;
+
+  int32 bbbbbbbbbbbbbbbb = 2;
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      // Nested message should have its own alignment context
+      // Parent message fields should have their own alignment context
+      const lines = formatted.split('\n');
+
+      // Find Nested message fields (indented more)
+      const nestedLines = lines.filter(l => l.includes('int32') && l.startsWith('    '));
+      const _parentLines = lines.filter(l => l.includes('int32') && l.startsWith('  ') && !l.startsWith('    '));
+
+      // Nested fields a and bbb should be aligned (before blank line)
+      const nestedA = nestedLines.find(l => l.includes('int32 a'));
+      const nestedBbb = nestedLines.find(l => l.includes('int32 bbb'));
+
+      if (nestedA && nestedBbb) {
+        expect(nestedA.indexOf('=')).toBe(nestedBbb.indexOf('='));
+      }
+
+      // cccccc in nested should be in its own group
+      const nestedCccccc = nestedLines.find(l => l.includes('int32 cccccc'));
+      if (nestedA && nestedCccccc) {
+        // They should NOT be aligned (different groups)
+        expect(nestedCccccc.indexOf('=')).not.toBe(nestedA.indexOf('='));
+      }
+    });
   });
 
   describe('CRLF line ending handling', () => {

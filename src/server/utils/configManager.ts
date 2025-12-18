@@ -130,12 +130,14 @@ function extractProtoPathOptions(options: string[] | undefined): string[] {
       continue;
     }
 
-    if (option.startsWith('--proto_path=')) {
-      protoPaths.push(option.substring('--proto_path='.length));
+    // Support both --proto_path (correct) and --proto-path (common typo)
+    if (option.startsWith('--proto_path=') || option.startsWith('--proto-path=')) {
+      const prefix = option.startsWith('--proto_path=') ? '--proto_path=' : '--proto-path=';
+      protoPaths.push(option.substring(prefix.length));
       continue;
     }
 
-    if (option === '--proto_path' || option === '-I') {
+    if (option === '--proto_path' || option === '--proto-path' || option === '-I') {
       const next = options[i + 1];
       if (next) {
         protoPaths.push(next);

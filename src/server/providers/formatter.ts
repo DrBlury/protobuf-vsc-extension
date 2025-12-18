@@ -189,7 +189,6 @@ export class ProtoFormatter {
     let optionBraceDepth = 0;
     // Track depth inside inline field options [...] containing braces
     let inlineOptionBraceDepth = 0;
-    let currentBlockStartLine = 0;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
@@ -226,9 +225,9 @@ export class ProtoFormatter {
           indentLevel--;
         }
 
-        // Format option block lines with alignment if enabled
+        // Format option block lines with alignment if enabled (now using line-based lookup)
         const formattedLine = this.settings.alignFields && alignmentInfo
-          ? formatOptionLine(trimmedLine, indentLevel, alignmentInfo.get(currentBlockStartLine), this.settings)
+          ? formatOptionLine(trimmedLine, indentLevel, alignmentInfo.get(i), this.settings)
           : getIndent(indentLevel, this.settings) + trimmedLine;
         formattedLines.push(formattedLine);
 
@@ -267,7 +266,6 @@ export class ProtoFormatter {
         const openBraces = (trimmedLine.match(/\{/g) || []).length;
         const closeBraces = (trimmedLine.match(/\}/g) || []).length;
         optionBraceDepth = openBraces - closeBraces;
-        currentBlockStartLine = i;
 
         formattedLines.push(getIndent(indentLevel, this.settings) + trimmedLine);
 
@@ -293,20 +291,15 @@ export class ProtoFormatter {
         }
       }
 
-      // Track message/enum block starts for alignment
-      if (/^(message|enum)\s+\w+\s*\{/.test(trimmedLine)) {
-        currentBlockStartLine = i;
-      }
-
       // Check for closing brace
       const startsWithClosingBrace = trimmedLine.startsWith('}');
       if (startsWithClosingBrace && indentLevel > 0) {
         indentLevel--;
       }
 
-      // Format the line with alignment if enabled
+      // Format the line with alignment if enabled (now using line-based lookup for gofmt-style grouping)
       const formattedLine = this.settings.alignFields && alignmentInfo
-        ? formatLineWithAlignment(trimmedLine, indentLevel, alignmentInfo.get(currentBlockStartLine), this.settings, line)
+        ? formatLineWithAlignment(trimmedLine, indentLevel, alignmentInfo.get(i), this.settings, line)
         : formatLine(trimmedLine, indentLevel, this.settings, line);
       formattedLines.push(formattedLine);
 

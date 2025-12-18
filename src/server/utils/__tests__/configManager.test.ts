@@ -196,6 +196,99 @@ describe('ConfigManager', () => {
     expect(analyzer.setImportPaths).toHaveBeenCalledWith(['/path1', '/path2']);
   });
 
+  it('should extract --proto_path options from protoc.options and add to import paths', () => {
+    const settings: Settings = {
+      ...defaultSettings,
+      protobuf: {
+        ...defaultSettings.protobuf,
+        protoc: {
+          ...defaultSettings.protobuf.protoc,
+          options: ['--proto_path=/proto/path1', '-I/proto/path2', '--go_out=/out']
+        }
+      }
+    };
+
+    updateProvidersWithSettings(
+      settings,
+      diagnosticsProvider,
+      formatter,
+      renumberProvider,
+      analyzer,
+      protocCompiler,
+      breakingChangeDetector,
+      externalLinter,
+      clangFormat,
+      undefined,
+      undefined
+    );
+
+    const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+    expect(importPaths).toContain('/proto/path1');
+    expect(importPaths).toContain('/proto/path2');
+  });
+
+  it('should support --proto-path (with hyphen) as well as --proto_path (with underscore)', () => {
+    const settings: Settings = {
+      ...defaultSettings,
+      protobuf: {
+        ...defaultSettings.protobuf,
+        protoc: {
+          ...defaultSettings.protobuf.protoc,
+          options: ['--proto-path=/proto/hyphen', '--proto_path=/proto/underscore']
+        }
+      }
+    };
+
+    updateProvidersWithSettings(
+      settings,
+      diagnosticsProvider,
+      formatter,
+      renumberProvider,
+      analyzer,
+      protocCompiler,
+      breakingChangeDetector,
+      externalLinter,
+      clangFormat,
+      undefined,
+      undefined
+    );
+
+    const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+    expect(importPaths).toContain('/proto/hyphen');
+    expect(importPaths).toContain('/proto/underscore');
+  });
+
+  it('should expand ${workspaceFolder} in --proto-path options', () => {
+    const settings: Settings = {
+      ...defaultSettings,
+      protobuf: {
+        ...defaultSettings.protobuf,
+        protoc: {
+          ...defaultSettings.protobuf.protoc,
+          options: ['--proto-path=${workspaceFolder}/path/to/proto']
+        }
+      }
+    };
+
+    updateProvidersWithSettings(
+      settings,
+      diagnosticsProvider,
+      formatter,
+      renumberProvider,
+      analyzer,
+      protocCompiler,
+      breakingChangeDetector,
+      externalLinter,
+      clangFormat,
+      undefined,
+      undefined,
+      ['/workspace']
+    );
+
+    const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+    expect(importPaths).toContain('/workspace/path/to/proto');
+  });
+
   it('should add well-known include path to analyzer', () => {
     const settings: Settings = defaultSettings;
     updateProvidersWithSettings(

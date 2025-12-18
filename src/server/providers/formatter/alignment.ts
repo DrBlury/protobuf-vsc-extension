@@ -1,5 +1,9 @@
 /**
  * Alignment calculation utilities for formatter
+ *
+ * Implements gofmt-style alignment: only adjacent fields (without blank lines)
+ * are aligned together. Each group of consecutive fields forms its own
+ * independent alignment context.
  */
 
 import { AlignmentData } from './types';
@@ -39,110 +43,232 @@ export function parseMapTypes(mapContent: string): { keyType: string; valueType:
 }
 
 /**
- * Calculate alignment info for each message/enum/option block
+ * Check if a line is a field declaration (message field or enum value)
+ */
+function isFieldLine(trimmedLine: string): boolean {
+  // Field pattern: [modifier] type name = number
+  if (/^(optional|required|repeated)?\s*\S+\s+\w+\s*=/.test(trimmedLine)) {
+    return true;
+  }
+  // Map field pattern: map<K, V> name = number
+  if (/^map\s*<.+>\s+\w+\s*=/.test(trimmedLine)) {
+    return true;
+  }
+  // Enum value pattern: NAME = number (but not option, syntax, edition)
+  if (/^\w+\s*=/.test(trimmedLine) && !trimmedLine.startsWith('option') &&
+      !trimmedLine.startsWith('syntax') && !trimmedLine.startsWith('edition')) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Check if a line is an option key-value line (e.g., "id: value")
+ */
+function isOptionKeyLine(trimmedLine: string): boolean {
+  return /^\w+:\s*/.test(trimmedLine);
+}
+
+/**
+ * Extract field info for alignment calculation
+ */
+function getFieldInfo(trimmedLine: string): { typeLength: number; nameLength: number } | null {
+  // Field pattern: [modifier] type name = number
+  const fieldMatch = trimmedLine.match(/^(optional|required|repeated)?\s*(\S+)\s+(\w+)\s*=/);
+  if (fieldMatch) {
+    const [, modifier, type, name] = fieldMatch;
+    const typeWithModifier = modifier ? `${modifier} ${type}` : type!;
+    return { typeLength: typeWithModifier.length, nameLength: name!.length };
+  }
+
+  // Map field pattern: map<K, V> name = number
+  const mapMatch = trimmedLine.match(/^map\s*<(.+)>\s+(\w+)\s*=/);
+  if (mapMatch) {
+    const [, mapContent, name] = mapMatch;
+    const { keyType, valueType } = parseMapTypes(mapContent!);
+    const mapType = `map<${keyType}, ${valueType}>`;
+    return { typeLength: mapType.length, nameLength: name!.length };
+  }
+
+  // Enum value pattern: NAME = number
+  const enumMatch = trimmedLine.match(/^(\w+)\s*=/);
+  if (enumMatch && !trimmedLine.startsWith('option')) {
+    const [, name] = enumMatch;
+    return { typeLength: 0, nameLength: name!.length };
+  }
+
+  return null;
+}
+
+/**
+ * Calculate alignment info for each line using gofmt-style grouping.
+ * Only adjacent fields (without blank lines between them) at the same
+ * nesting depth are aligned together.
  */
 export function calculateAlignmentInfo(lines: string[]): Map<number, AlignmentData> {
   const alignmentInfo = new Map<number, AlignmentData>();
-  let blockStartLine = -1;
-  let blockDepth = 0;
+
+  // First pass: identify alignment groups
+  // Each group is a contiguous set of field lines at the same depth
+  // separated by blank lines or non-field lines
+
+  interface AlignmentGroup {
+    startLine: number;
+    endLine: number;
+    depth: number;
+    isOptionBlock: boolean;
+    lines: number[];
+  }
+
+  const groups: AlignmentGroup[] = [];
+  let currentGroup: AlignmentGroup | null = null;
+  let depth = 0;
   let inOptionBlock = false;
-  let maxFieldNameLength = 0;
-  let maxTypeLength = 0;
-  let maxKeyLength = 0;
+  let optionBraceDepth = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const trimmedLine = lines[i]!.trim();
 
-    // Track block starts (message, enum, option)
-    if (/^(message|enum)\s+\w+\s*\{/.test(trimmedLine)) {
-      if (blockStartLine >= 0 && blockDepth > 0) {
-        // Save info for previous block
-        alignmentInfo.set(blockStartLine, { maxFieldNameLength, maxTypeLength, isOptionBlock: inOptionBlock, maxKeyLength });
-      }
-      blockStartLine = i;
-      const openBraces = (trimmedLine.match(/\{/g) || []).length;
-      const closeBraces = (trimmedLine.match(/\}/g) || []).length;
-      blockDepth = openBraces - closeBraces;
-      inOptionBlock = false;
-      maxFieldNameLength = 0;
-      maxTypeLength = 0;
-      maxKeyLength = 0;
-      continue;
-    }
-
-    if (trimmedLine.startsWith('option') && trimmedLine.includes('{')) {
-      if (blockStartLine >= 0 && blockDepth > 0) {
-        alignmentInfo.set(blockStartLine, { maxFieldNameLength, maxTypeLength, isOptionBlock: inOptionBlock, maxKeyLength });
-      }
-      blockStartLine = i;
-      const openBraces = (trimmedLine.match(/\{/g) || []).length;
-      const closeBraces = (trimmedLine.match(/\}/g) || []).length;
-      blockDepth = openBraces - closeBraces;
-      inOptionBlock = true;
-      maxFieldNameLength = 0;
-      maxTypeLength = 0;
-      maxKeyLength = 0;
-      continue;
-    }
-
     // Track braces for depth
-    if (trimmedLine.includes('{')) {
-      const openBraces = (trimmedLine.match(/\{/g) || []).length;
-      blockDepth += openBraces;
-    }
-    if (trimmedLine.includes('}')) {
-      const closeBraces = (trimmedLine.match(/\}/g) || []).length;
-      blockDepth -= closeBraces;
-      if (blockDepth === 0 && blockStartLine >= 0) {
-        // Save info for completed block
-        alignmentInfo.set(blockStartLine, { maxFieldNameLength, maxTypeLength, isOptionBlock: inOptionBlock, maxKeyLength });
-        blockStartLine = -1;
+    const openBraces = (trimmedLine.match(/\{/g) || []).length;
+    const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+
+    // Check if entering option block
+    if (trimmedLine.startsWith('option') && trimmedLine.includes('{')) {
+      // Finish current group if any
+      if (currentGroup && currentGroup.lines.length > 0) {
+        groups.push(currentGroup);
       }
+      currentGroup = null;
+      inOptionBlock = true;
+      optionBraceDepth = openBraces - closeBraces;
+      depth += openBraces - closeBraces;
       continue;
     }
 
-    // Only analyze direct children (blockDepth > 0, in the block)
-    if (blockDepth <= 0 || blockStartLine < 0) {
-      continue;
-    }
-
-    // Analyze option block lines (e.g., "id: value", "message: value")
+    // Track option block depth
     if (inOptionBlock) {
-      const optionKeyMatch = trimmedLine.match(/^(\w+):\s*/);
-      if (optionKeyMatch) {
-        const keyLen = optionKeyMatch[1]!.length;
-        maxKeyLength = Math.max(maxKeyLength, keyLen);
+      optionBraceDepth += openBraces - closeBraces;
+      if (optionBraceDepth <= 0) {
+        inOptionBlock = false;
+        // Finish current option group if any
+        if (currentGroup && currentGroup.lines.length > 0) {
+          groups.push(currentGroup);
+        }
+        currentGroup = null;
+      } else if (isOptionKeyLine(trimmedLine) && optionBraceDepth === 1) {
+        // Only track top-level option keys
+        if (!currentGroup || !currentGroup.isOptionBlock || currentGroup.depth !== depth) {
+          if (currentGroup && currentGroup.lines.length > 0) {
+            groups.push(currentGroup);
+          }
+          currentGroup = { startLine: i, endLine: i, depth, isOptionBlock: true, lines: [i] };
+        } else {
+          currentGroup.endLine = i;
+          currentGroup.lines.push(i);
+        }
       }
+      depth += openBraces - closeBraces;
       continue;
     }
 
-    // Analyze field lines for messages/enums
-    // Field pattern: [modifier] type name = number
-    const fieldMatch = trimmedLine.match(/^(optional|required|repeated)?\s*(\S+)\s+(\w+)\s*=/);
-    if (fieldMatch) {
-      const [, modifier, type, name] = fieldMatch;
-      const typeWithModifier = modifier ? `${modifier} ${type}` : type!;
-      maxTypeLength = Math.max(maxTypeLength, typeWithModifier.length);
-      maxFieldNameLength = Math.max(maxFieldNameLength, name!.length);
+    // Handle closing brace - decrements depth
+    if (trimmedLine.startsWith('}')) {
+      // Finish current group if any
+      if (currentGroup && currentGroup.lines.length > 0) {
+        groups.push(currentGroup);
+      }
+      currentGroup = null;
+      depth += openBraces - closeBraces;
       continue;
     }
 
-    // Map field pattern: map<K, V> name = number
-    const mapMatch = trimmedLine.match(/^map\s*<(.+)>\s+(\w+)\s*=/);
-    if (mapMatch) {
-      const [, mapContent, name] = mapMatch;
-      const { keyType, valueType } = parseMapTypes(mapContent!);
-      const mapType = `map<${keyType}, ${valueType}>`;
-      maxTypeLength = Math.max(maxTypeLength, mapType.length);
-      maxFieldNameLength = Math.max(maxFieldNameLength, name!.length);
+    // Handle blank lines - they break alignment groups
+    if (trimmedLine === '') {
+      if (currentGroup && currentGroup.lines.length > 0) {
+        groups.push(currentGroup);
+      }
+      currentGroup = null;
       continue;
     }
 
-    // Enum value pattern: NAME = number
-    const enumMatch = trimmedLine.match(/^(\w+)\s*=/);
-    if (enumMatch && !trimmedLine.startsWith('option')) {
-      const [, name] = enumMatch;
-      maxFieldNameLength = Math.max(maxFieldNameLength, name!.length);
+    // Handle message/enum/oneof block starts
+    if (/^(message|enum|oneof)\s+\w+\s*\{/.test(trimmedLine)) {
+      // Finish current group if any
+      if (currentGroup && currentGroup.lines.length > 0) {
+        groups.push(currentGroup);
+      }
+      currentGroup = null;
+      depth += openBraces - closeBraces;
+      continue;
+    }
+
+    // Check if this is a field line
+    if (isFieldLine(trimmedLine) && depth > 0) {
+      // Check if we should continue the current group or start a new one
+      if (currentGroup && !currentGroup.isOptionBlock && currentGroup.depth === depth) {
+        // Continue current group
+        currentGroup.endLine = i;
+        currentGroup.lines.push(i);
+      } else {
+        // Start new group
+        if (currentGroup && currentGroup.lines.length > 0) {
+          groups.push(currentGroup);
+        }
+        currentGroup = { startLine: i, endLine: i, depth, isOptionBlock: false, lines: [i] };
+      }
+    } else {
+      // Non-field line breaks the group (comments, reserved, etc.)
+      if (currentGroup && currentGroup.lines.length > 0) {
+        groups.push(currentGroup);
+      }
+      currentGroup = null;
+    }
+
+    // Update depth for opening braces (after processing the line)
+    if (openBraces > closeBraces && !trimmedLine.startsWith('}')) {
+      depth += openBraces - closeBraces;
+    }
+  }
+
+  // Don't forget the last group
+  if (currentGroup && currentGroup.lines.length > 0) {
+    groups.push(currentGroup);
+  }
+
+  // Second pass: calculate alignment for each group
+  for (const group of groups) {
+    let maxFieldNameLength = 0;
+    let maxTypeLength = 0;
+    let maxKeyLength = 0;
+
+    for (const lineNum of group.lines) {
+      const trimmedLine = lines[lineNum]!.trim();
+
+      if (group.isOptionBlock) {
+        const optionKeyMatch = trimmedLine.match(/^(\w+):\s*/);
+        if (optionKeyMatch) {
+          maxKeyLength = Math.max(maxKeyLength, optionKeyMatch[1]!.length);
+        }
+      } else {
+        const fieldInfo = getFieldInfo(trimmedLine);
+        if (fieldInfo) {
+          maxTypeLength = Math.max(maxTypeLength, fieldInfo.typeLength);
+          maxFieldNameLength = Math.max(maxFieldNameLength, fieldInfo.nameLength);
+        }
+      }
+    }
+
+    const alignmentData: AlignmentData = {
+      maxFieldNameLength,
+      maxTypeLength,
+      isOptionBlock: group.isOptionBlock,
+      maxKeyLength
+    };
+
+    // Store alignment data for each line in the group
+    for (const lineNum of group.lines) {
+      alignmentInfo.set(lineNum, alignmentData);
     }
   }
 

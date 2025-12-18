@@ -77,6 +77,27 @@ export class SemanticAnalyzer {
   }
 
   /**
+   * Get configured import paths (from protobuf.includes, --proto_path, etc.)
+   */
+  getImportPaths(): string[] {
+    return [...this.importPaths];
+  }
+
+  /**
+   * Get detected proto roots (directories that serve as base paths for imports)
+   */
+  getProtoRoots(): string[] {
+    return Array.from(this.protoRoots);
+  }
+
+  /**
+   * Get workspace root directories
+   */
+  getWorkspaceRoots(): string[] {
+    return [...this.workspaceRoots];
+  }
+
+  /**
    * Add a directory as a proto root for import path resolution.
    * Proto roots are directories that serve as base paths for proto imports.
    */

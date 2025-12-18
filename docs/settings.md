@@ -161,20 +161,37 @@ Settings can be configured in:
 
 - **Type**: `boolean`
 - **Default**: `true`
-- **Description**: Align field names and field numbers for prettier formatting. When enabled:
-  - Field numbers (`=` signs) are vertically aligned within message/enum blocks
+- **Description**: Align field names and field numbers for prettier formatting using **gofmt-style grouping**. When enabled:
+  - Only **adjacent fields** (without blank lines between them) are aligned together
+  - Blank lines break alignment groups, creating independent alignment contexts
+  - Each nested message/enum has its own independent alignment
   - Option block keys (e.g., in CEL expressions) have colons aligned vertically
-  - Each message/enum block has independent alignment based on its longest field
+
+This behavior matches `gofmt` where alignment is context-aware and only applies to consecutive lines.
 
 **Example with alignment enabled (default):**
 
 ```proto
 message User {
+  // These three fields are aligned together (no blank lines between them)
   string             id     = 1;
   string             name   = 2;
   int32              age    = 3;
+
+  // Blank line above starts a new alignment group
   repeated string    tags   = 10;
   map<string, int32> scores = 20;
+}
+
+// Nested messages have independent alignment
+message Container {
+  message Nested {
+    int32 a   = 1;
+    int32 bbb = 2;  // Aligned with 'a' above
+  }
+
+  int32 very_long_field_name = 1;
+  int32 b                    = 2;  // Aligned with long field above
 }
 
 option (buf.validate.message).cel = {
