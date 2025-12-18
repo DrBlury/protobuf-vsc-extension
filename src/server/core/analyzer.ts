@@ -1051,10 +1051,7 @@ export class SemanticAnalyzer {
     // Check explicitly configured import paths
     for (const importPath of this.importPaths) {
       const normalizedImportPath = importPath.replace(/\\/g, '/');
-      if (
-        currentPath.startsWith(`${normalizedImportPath}/`) &&
-        targetPath.startsWith(`${normalizedImportPath}/`)
-      ) {
+      if (targetPath.startsWith(`${normalizedImportPath}/`)) {
         const relPath = path.posix.relative(normalizedImportPath, targetPath);
         candidates.push({ path: relPath, source: 'import-path' });
       }
@@ -1096,16 +1093,20 @@ export class SemanticAnalyzer {
       return true;
     });
 
-    // Sort primarily by path length (shorter is better), with tie-breaker for forward-relative
+    // Sort by priority: import-path > forward-relative > workspace-root > others
+    // Secondary sort by path length (shorter is better)
     const sorted = unique.sort((a, b) => {
-      // If one is forward-relative and significantly shorter, prefer it
-      if (a.source === 'forward-relative' && a.path.length <= b.path.length) {
-        return -1;
+      // Define priority order
+      const priorityOrder = ['import-path', 'forward-relative', 'basename', 'workspace-root', 'parent-relative'];
+      const aPriority = priorityOrder.indexOf(a.source);
+      const bPriority = priorityOrder.indexOf(b.source);
+
+      // Primary sort by priority (lower index = higher priority)
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority;
       }
-      if (b.source === 'forward-relative' && b.path.length < a.path.length) {
-        return 1;
-      }
-      // Otherwise sort by length
+
+      // Secondary sort by path length (shorter is better)
       return a.path.length - b.path.length;
     });
 
