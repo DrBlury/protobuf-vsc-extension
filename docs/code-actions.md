@@ -131,33 +131,50 @@ import "unused.proto";  // Not used anywhere
 
 #### 6. Organize Imports
 
-**When it appears:** Always available via Command Palette
+**When it appears:** Always available via Command Palette or as a code action
 
 **What it does:**
 
 - Sorts imports alphabetically
 - Removes duplicates
-- Groups by modifier (public, weak, regular)
+- Groups imports by category (when `protobuf.organizeImports.groupByCategory` is enabled):
+  - **Google well-known protos** (`google/protobuf/*`) - first
+  - **Third-party libraries** (`buf/`, `google/api/`, `validate/`, `grpc/`, etc.) - second
+  - **Local project imports** - last
+- Groups are separated by blank lines
+- Groups by modifier (public, weak, regular) within each category
 
 **How to use:**
 
 1. Press `Cmd/Ctrl+Shift+P`
-2. Type "Organize Imports"
-3. Or use the code action
+2. Type "Protobuf: Organize Imports"
+3. Or use the code action via `Cmd/Ctrl+.`
+4. Or configure to run on save (see [Configuration](#configuration))
 
-**Example:**
+**Example - Before (Messy):**
 
 ```proto
-import "zebra.proto";
-import "apple.proto";
-import "apple.proto";  // Duplicate
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "myproject/v1/user.proto";
+import "google/protobuf/any.proto";
+import "third_party/validate/validate.proto";
+import "myproject/v1/auth.proto";
 ```
 
-**After organizing:**
+**After organizing (with grouping enabled):**
 
 ```proto
-import "apple.proto";
-import "zebra.proto";
+syntax = "proto3";
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+
+import "third_party/validate/validate.proto";
+
+import "myproject/v1/auth.proto";
+import "myproject/v1/user.proto";
 ```
 
 ### Refactoring Actions
@@ -285,25 +302,18 @@ Code Actions are enabled by default. You can configure:
 
 ```jsonc
 {
+  // Organize imports on save
   "editor.codeActionsOnSave": {
-    "source.organizeImports": true,  // Organize imports on save
-    "source.fixAll": true            // Fix all on save
-  }
+    "source.organizeImports": "explicit"  // Organize imports on save
+  },
+
+  // Protobuf-specific settings
+  "protobuf.organizeImports.groupByCategory": true  // Group imports by category (default: true)
 }
 ```
 
-## Best Practices
+### Organize Imports Settings
 
-1. **Use quick fixes** - They save time and reduce errors
-2. **Organize imports** - Keep imports clean and sorted
-3. **Fix all on save** - Automatically fix issues when saving
-4. **Review changes** - Always review automatic fixes
-5. **Use refactoring** - Use refactoring actions for larger changes
-
-## Tips
-
-1. **Hover for actions** - Hover over diagnostics to see available fixes
-2. **Use Command Palette** - Access all actions via Command Palette
-3. **Batch fixes** - Use "Fix All" for multiple issues
-4. **Organize regularly** - Keep imports organized
-5. **Learn shortcuts** - Keyboard shortcuts speed up workflow
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `protobuf.organizeImports.groupByCategory` | `true` | Group imports by category: Google well-known protos first, third-party libraries second, local imports last. Groups are separated by blank lines. |

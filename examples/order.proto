@@ -2,9 +2,10 @@ edition = "2023";
 
 package order.v1;
 
+import "google/type/money.proto";
+
 import "common.proto";
 import "example.proto";
-import "google/type/money.proto";
 import "global.proto";
 
 option go_package = "example.com/api/order/v1";

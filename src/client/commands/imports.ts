@@ -4,6 +4,7 @@
 
 import * as vscode from 'vscode';
 import { LanguageClient } from 'vscode-languageclient/node';
+import { CodeActionKind } from 'vscode-languageclient/node';
 import { REQUEST_METHODS, VALIDATION_MESSAGES, ERROR_MESSAGES } from '../../server/utils/constants';
 
 interface ImportInfo {
@@ -22,7 +23,61 @@ export function registerImportCommands(
   context: vscode.ExtensionContext,
   client: LanguageClient
 ): vscode.Disposable[] {
-  return [registerOpenImportedFileCommand(context, client)];
+  return [
+    registerOpenImportedFileCommand(context, client),
+    registerOrganizeImportsCommand(context, client)
+  ];
+}
+
+/**
+ * Registers the organize imports command
+ * Sorts, deduplicates, and groups imports in the current proto file
+ * @param context - The VS Code extension context
+ * @param client - The language client instance
+ * @returns A disposable for the registered command
+ */
+function registerOrganizeImportsCommand(
+  _context: vscode.ExtensionContext,
+  _client: LanguageClient
+): vscode.Disposable {
+  return vscode.commands.registerCommand('protobuf.organizeImports', async () => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || editor.document.languageId !== 'proto') {
+      vscode.window.showWarningMessage(VALIDATION_MESSAGES.NO_PROTO_FILE);
+      return;
+    }
+
+    try {
+      // Use VS Code's built-in mechanism to trigger source.organizeImports code action
+      const codeActions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
+        'vscode.executeCodeActionProvider',
+        editor.document.uri,
+        new vscode.Range(0, 0, editor.document.lineCount, 0),
+        CodeActionKind.SourceOrganizeImports
+      );
+
+      if (!codeActions || codeActions.length === 0) {
+        vscode.window.showInformationMessage('Imports are already organized.');
+        return;
+      }
+
+      // Find the organize imports action
+      const organizeAction = codeActions.find(
+        action => action.kind?.value === 'source.organizeImports' ||
+                  action.title?.toLowerCase().includes('organize')
+      );
+
+      if (organizeAction?.edit) {
+        await vscode.workspace.applyEdit(organizeAction.edit);
+        vscode.window.showInformationMessage('Imports organized successfully.');
+      } else {
+        vscode.window.showInformationMessage('Imports are already organized.');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      vscode.window.showErrorMessage(`Failed to organize imports: ${errorMessage}`);
+    }
+  });
 }
 
 /**

@@ -61,6 +61,10 @@ export interface Settings {
       showFieldNumbers: boolean;
       showDocumentation: boolean;
     };
+    organizeImports: {
+      enabled: boolean;
+      groupByCategory: boolean;
+    };
     parser?: 'tree-sitter' | 'legacy';
     buf?: {
       path?: string;
@@ -157,6 +161,10 @@ export const defaultSettings: Settings = {
     hover: {
       showFieldNumbers: true,
       showDocumentation: true
+    },
+    organizeImports: {
+      enabled: true,
+      groupByCategory: true
     },
     parser: 'tree-sitter',
     buf: {

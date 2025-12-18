@@ -1,8 +1,9 @@
 edition = "2023";
 
 package common.v1;
-import "google/type/money.proto";
 import "google/protobuf/wrappers.proto";
+
+import "google/type/money.proto";
 import "google/type/timeofday.proto";
 
 // Common timestamp wrapper

@@ -209,10 +209,14 @@ export function updateProvidersWithSettings(
   if (codeActionsProvider) {
     const codeActionsSettings = {
       renumberOnFormat: settings.protobuf.renumber.onFormat,
-      formatterEnabled: settings.protobuf.formatter?.enabled ?? true
+      formatterEnabled: settings.protobuf.formatter?.enabled ?? true,
+      organizeImports: {
+        enabled: settings.protobuf.organizeImports?.enabled ?? true,
+        groupByCategory: settings.protobuf.organizeImports?.groupByCategory ?? true
+      }
     };
     codeActionsProvider.updateSettings(codeActionsSettings);
-    logger.info(`Code actions settings updated: renumberOnFormat=${codeActionsSettings.renumberOnFormat}, formatterEnabled=${codeActionsSettings.formatterEnabled}`);
+    logger.info(`Code actions settings updated: renumberOnFormat=${codeActionsSettings.renumberOnFormat}, formatterEnabled=${codeActionsSettings.formatterEnabled}, organizeImports.enabled=${codeActionsSettings.organizeImports.enabled}, organizeImports.groupByCategory=${codeActionsSettings.organizeImports.groupByCategory}`);
   }
 
   // Update renumber settings

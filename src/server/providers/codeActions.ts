@@ -1972,11 +1972,57 @@ export class CodeActionsProvider {
   }
 
   /**
-   * Organize imports: sort them and remove duplicates
+   * Categorize an import path into one of three groups:
+   * - 'google': Google well-known protos (google/protobuf/*)
+   * - 'thirdParty': Third-party libraries (buf/, validate/, grpc/, envoy/, etc.)
+   * - 'local': Local project imports
+   */
+  private categorizeImport(importPath: string): 'google' | 'thirdParty' | 'local' {
+    // Google well-known protos
+    if (importPath.startsWith('google/protobuf/')) {
+      return 'google';
+    }
+
+    // Third-party libraries patterns
+    const thirdPartyPatterns = [
+      /^google\/api\//,            // googleapis
+      /^google\/type\//,           // googleapis
+      /^google\/rpc\//,            // googleapis
+      /^google\/cloud\//,          // googleapis
+      /^google\/logging\//,        // googleapis
+      /^google\/longrunning\//,    // googleapis
+      /^buf\//,                    // buf.build modules
+      /^grpc\//,                   // grpc modules
+      /^envoy\//,                  // envoy proxy
+      /^validate\//,               // protoc-gen-validate (PGV)
+      /^xds\//,                    // xDS API
+      /^opencensus\//,             // OpenCensus
+      /^opentelemetry\//,          // OpenTelemetry
+      /^cosmos\//,                 // Cosmos SDK
+      /^tendermint\//,             // Tendermint
+      /^connectrpc\//,             // Connect RPC
+      /^third_party\//,            // Common third-party folder
+    ];
+
+    if (thirdPartyPatterns.some(pattern => pattern.test(importPath))) {
+      return 'thirdParty';
+    }
+
+    // Everything else is local
+    return 'local';
+  }
+
+  /**
+   * Organize imports: sort them, remove duplicates, and optionally group by category
    */
   private createOrganizeImportsAction(uri: string, documentText: string): CodeAction | null {
+    // Check if organize imports is enabled
+    if (this.settings.organizeImports?.enabled === false) {
+      return null;
+    }
+
     const lines = splitLines(documentText);
-    const importLines: { line: number; text: string; modifier?: string }[] = [];
+    const importLines: { line: number; text: string; modifier?: string; path?: string }[] = [];
     const otherLines: { line: number; text: string }[] = [];
     let inImportsSection = false;
     let lastImportLine = -1;
@@ -1994,7 +2040,8 @@ export class CodeActionsProvider {
           importLines.push({
             line: i,
             text: line,
-            modifier: modifierMatch ? modifierMatch[1] : undefined
+            modifier: modifierMatch ? modifierMatch[1] : undefined,
+            path: match[1]
           });
         }
       } else if (trimmed && (trimmed.startsWith('syntax') || trimmed.startsWith('package') || trimmed.startsWith('option'))) {
@@ -2019,21 +2066,22 @@ export class CodeActionsProvider {
       return null;
     }
 
-    // Remove duplicates and sort
-    const uniqueImports = new Map<string, { text: string; modifier?: string }>();
+    // Remove duplicates
+    const uniqueImports = new Map<string, { text: string; modifier?: string; path: string }>();
     for (const imp of importLines) {
-      const match = imp.text.match(/import\s+(?:weak|public)?\s*"([^"]+)"/);
-      if (match) {
-        const path = match[1];
-        const key = `${imp.modifier || ''}:${path}`;
+      if (imp.path) {
+        const key = `${imp.modifier || ''}:${imp.path}`;
         if (!uniqueImports.has(key)) {
-          uniqueImports.set(key, { text: imp.text, modifier: imp.modifier });
+          uniqueImports.set(key, { text: imp.text, modifier: imp.modifier, path: imp.path });
         }
       }
     }
 
-    // Sort imports: public first, then weak, then regular, then alphabetically
+    const groupByCategory = this.settings.organizeImports?.groupByCategory ?? true;
+
+    // Sort imports by modifier (public first, then weak, then regular), then by category, then alphabetically
     const sortedImports = Array.from(uniqueImports.values()).sort((a, b) => {
+      // First sort by modifier
       if (a.modifier === 'public' && b.modifier !== 'public') {
         return -1;
       }
@@ -2046,32 +2094,66 @@ export class CodeActionsProvider {
       if (a.modifier !== 'weak' && b.modifier === 'weak') {
         return 1;
       }
-      const aPath = a.text.match(/"([^"]+)"/)?.[1] ?? '';
-      const bPath = b.text.match(/"([^"]+)"/)?.[1] ?? '';
-      return aPath.localeCompare(bPath);
+
+      // Then sort by category if grouping is enabled
+      if (groupByCategory) {
+        const aCat = this.categorizeImport(a.path);
+        const bCat = this.categorizeImport(b.path);
+        const categoryOrder = { 'google': 0, 'thirdParty': 1, 'local': 2 };
+        if (categoryOrder[aCat] !== categoryOrder[bCat]) {
+          return categoryOrder[aCat] - categoryOrder[bCat];
+        }
+      }
+
+      // Finally sort alphabetically
+      return a.path.localeCompare(b.path);
     });
 
-    // Check if anything changed
-    const originalImports = importLines.map(i => i.text.trim()).join('\n');
-    const newImports = sortedImports.map(i => i.text).join('\n');
-    if (originalImports === newImports.trim()) {
+    // Format the output with blank lines between groups if grouping is enabled
+    let formattedImports: string;
+    if (groupByCategory && sortedImports.length > 1) {
+      const groups: string[][] = [[], [], []]; // google, thirdParty, local
+      const categoryIndex = { 'google': 0, 'thirdParty': 1, 'local': 2 };
+
+      for (const imp of sortedImports) {
+        const cat = this.categorizeImport(imp.path);
+        groups[categoryIndex[cat]]!.push(imp.text.trim());
+      }
+
+      // Join groups with blank lines between non-empty groups
+      formattedImports = groups
+        .filter(g => g.length > 0)
+        .map(g => g.join('\n'))
+        .join('\n\n');
+    } else {
+      formattedImports = sortedImports.map(i => i.text.trim()).join('\n');
+    }
+
+    // Check if anything changed by comparing the actual text in the imports section
+    // We need to get the original text including blank lines between imports
+    const firstImportLine = importLines[0]!.line;
+    const lastImportLineNum = importLines[importLines.length - 1]!.line;
+    const originalSection = lines.slice(firstImportLine, lastImportLineNum + 1).join('\n');
+
+    // Normalize both for comparison (remove trailing whitespace from each line)
+    const normalizedOriginal = originalSection.split('\n').map(l => l.trimEnd()).join('\n');
+    const normalizedFormatted = formattedImports.split('\n').map(l => l.trimEnd()).join('\n');
+
+    if (normalizedOriginal === normalizedFormatted) {
       return null;
     }
 
     // Create edits
     const edits: TextEdit[] = [];
-    const firstImportLine = importLines[0]!.line;
 
-    // Remove old imports
-    for (const imp of importLines) {
-      edits.push({
-        range: {
-          start: { line: imp.line, character: 0 },
-          end: { line: imp.line, character: lines[imp.line]!.length }
-        },
-        newText: ''
-      });
-    }
+    // Remove old imports (as a single range to handle blank lines between them)
+    edits.push({
+      range: {
+        start: { line: firstImportLine, character: 0 },
+        end: { line: lastImportLineNum + 1, character: 0 }
+      },
+      newText: ''
+    });
 
     // Add sorted imports
     const insertPosition = { line: firstImportLine, character: 0 };
@@ -2080,11 +2162,11 @@ export class CodeActionsProvider {
         start: insertPosition,
         end: insertPosition
       },
-      newText: sortedImports.map(i => i.text).join('\n') + (sortedImports.length > 0 ? '\n' : '')
+      newText: formattedImports + '\n'
     });
 
     return {
-      title: 'Organize imports (sort and remove duplicates)',
+      title: 'Organize imports (sort, dedupe, and group)',
       kind: CodeActionKind.SourceOrganizeImports,
       edit: {
         changes: {

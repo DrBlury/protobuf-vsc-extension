@@ -28,6 +28,13 @@ export interface CodeActionsSettings {
   renumberOnFormat?: boolean;
   /** Whether the formatter is enabled */
   formatterEnabled?: boolean;
+  /** Settings for organize imports feature */
+  organizeImports?: {
+    /** Enable or disable organize imports feature */
+    enabled?: boolean;
+    /** Group imports by category (google well-known, third-party, local) */
+    groupByCategory?: boolean;
+  };
 }
 
 /**
@@ -35,5 +42,9 @@ export interface CodeActionsSettings {
  */
 export const DEFAULT_CODE_ACTIONS_SETTINGS: CodeActionsSettings = {
   renumberOnFormat: false,
-  formatterEnabled: true
+  formatterEnabled: true,
+  organizeImports: {
+    enabled: true,
+    groupByCategory: true
+  }
 };

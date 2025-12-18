@@ -2,6 +2,7 @@ edition = "2023";
 
 package example.v1;
 import "google/protobuf/timestamp.proto";
+
 import "google/type/date.proto";
 
 option go_package = "example.com/api/v1";

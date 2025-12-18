@@ -159,6 +159,16 @@
           "default": false,
           "description": "Preserve multi-line field declarations. When enabled, field declarations split across multiple lines (e.g., 'type name =\\n    1;') are kept as-is instead of being joined to a single line."
         },
+        "protobuf.organizeImports.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable the organize imports feature. When disabled, no sorting or grouping of imports will be performed."
+        },
+        "protobuf.organizeImports.groupByCategory": {
+          "type": "boolean",
+          "default": true,
+          "description": "Group imports by category when organizing: Google well-known protos first, then third-party libraries (buf/, validate/, googleapis, etc.), then local project imports. Groups are separated by blank lines. When disabled, imports are sorted alphabetically without grouping."
+        },
         "protobuf.semanticHighlighting.enabled": {
           "type": "string",
           "enum": [
@@ -591,6 +601,11 @@
       }
     },
     "commands": [
+      {
+        "command": "protobuf.organizeImports",
+        "title": "Organize Imports",
+        "category": "Protobuf"
+      },
       {
         "command": "protobuf.debugDefinition",
         "title": "Debug: Test Definition Provider",
