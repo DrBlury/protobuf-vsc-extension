@@ -200,12 +200,14 @@ export function updateProvidersWithSettings(
     renumberIncrement: settings.protobuf.renumber.increment,
     preset: settings.protobuf.formatter?.preset as 'minimal' | 'google' | 'buf' | 'custom',
     alignFields: settings.protobuf.formatter?.alignFields,
-    preserveMultiLineFields: settings.protobuf.formatter?.preserveMultiLineFields
+    preserveMultiLineFields: settings.protobuf.formatter?.preserveMultiLineFields,
+    insertEmptyLineBetweenDefinitions: settings.protobuf.formatter?.insertEmptyLineBetweenDefinitions,
+    maxEmptyLines: settings.protobuf.formatter?.maxEmptyLines
   };
   formatter.updateSettings(formatterSettings);
   // Pass clangFormat.enabled to formatter so it can use clang-format even without preset='google'
   formatter.setClangFormatEnabled(settings.protobuf.clangFormat.enabled);
-  logger.info(`Formatter settings updated: renumberOnFormat=${formatterSettings.renumberOnFormat}, preset=${formatterSettings.preset}, alignFields=${formatterSettings.alignFields}, preserveMultiLineFields=${formatterSettings.preserveMultiLineFields}, clangFormatEnabled=${settings.protobuf.clangFormat.enabled}`);
+  logger.info(`Formatter settings updated: renumberOnFormat=${formatterSettings.renumberOnFormat}, preset=${formatterSettings.preset}, alignFields=${formatterSettings.alignFields}, preserveMultiLineFields=${formatterSettings.preserveMultiLineFields}, insertEmptyLineBetweenDefinitions=${formatterSettings.insertEmptyLineBetweenDefinitions}, maxEmptyLines=${formatterSettings.maxEmptyLines}, clangFormatEnabled=${settings.protobuf.clangFormat.enabled}`);
 
   // Update code actions settings
   if (codeActionsProvider) {

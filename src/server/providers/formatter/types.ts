@@ -9,6 +9,10 @@ export interface FormatterSettings {
   indentSize: number;
   useTabIndent: boolean;
   maxLineLength?: number;
+  /** Insert a blank line between top-level definitions (message/enum/service) */
+  insertEmptyLineBetweenDefinitions?: boolean;
+  /** Maximum number of consecutive empty lines to keep */
+  maxEmptyLines?: number;
   renumberOnFormat?: boolean;
   renumberStartNumber?: number;
   renumberIncrement?: number;
@@ -34,6 +38,8 @@ export interface AlignmentData {
 export const DEFAULT_SETTINGS: FormatterSettings = {
   indentSize: 2,
   useTabIndent: false,
+  insertEmptyLineBetweenDefinitions: true,
+  maxEmptyLines: 1,
   renumberOnFormat: false,
   renumberStartNumber: 1,
   renumberIncrement: 1,

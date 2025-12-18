@@ -94,6 +94,14 @@ export function formatLine(line: string, indentLevel: number, settings: Formatte
     return `${indent}option ${optionMatch[1]}`;
   }
 
+  // Format option key-value pairs inside option blocks (e.g., "title: value")
+  // This handles lines within complex option blocks
+  const optionKeyMatch = line.match(/^(\w+)\s*:\s*(.*)$/);
+  if (optionKeyMatch) {
+    const [, key, value] = optionKeyMatch;
+    return `${indent}${key}: ${value}`;
+  }
+
   // Format syntax/edition/package/import statements (no indent)
   if (line.startsWith('syntax') || line.startsWith('edition') ||
       line.startsWith('package') || line.startsWith('import')) {
@@ -200,7 +208,8 @@ export function formatOptionLine(
   const { maxKeyLength } = alignmentData;
 
   // Match option key-value pairs (e.g., "id: value", "message: value")
-  const keyValueMatch = line.match(/^(\w+):\s*(.*)$/);
+  // The pattern now allows optional whitespace before the colon to handle already-aligned lines
+  const keyValueMatch = line.match(/^(\w+)\s*:\s*(.*)$/);
   if (keyValueMatch) {
     const [, key, value] = keyValueMatch;
     const keyPadding = ' '.repeat(Math.max(0, maxKeyLength - key!.length));

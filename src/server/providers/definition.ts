@@ -5,7 +5,7 @@
  */
 
 import { Location, Position, Range } from 'vscode-languageserver/node';
-import { ProtoFile, BUILTIN_TYPES, MessageDefinition } from '../core/ast';
+import { ProtoFile, BUILTIN_TYPES, PROTOBUF_KEYWORDS, MessageDefinition } from '../core/ast';
 import { SemanticAnalyzer } from '../core/analyzer';
 import * as path from 'path';
 
@@ -25,6 +25,11 @@ export class DefinitionProvider {
 
     // Built-in types don't have definitions
     if (BUILTIN_TYPES.includes(word)) {
+      return null;
+    }
+
+    // Keywords don't have definitions
+    if (PROTOBUF_KEYWORDS.includes(word)) {
       return null;
     }
 

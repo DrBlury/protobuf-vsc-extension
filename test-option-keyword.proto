@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option java_package = "com.example";
+option java_multiple_files = true;
+
+message TestMessage {
+	string name = 1;
+  // Testing field names that are keywords
+	string option = 2; // field named "option"
+	string import = 3; // field named "import"
+	string message = 4; // field named "message"
+}
+
+message FieldReference {
+  // Can we click on "option" here to jump to TestMessage?
+	TestMessage test = 1;
+}

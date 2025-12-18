@@ -142,7 +142,9 @@ describe('ConfigManager', () => {
       renumberIncrement: settings.protobuf.renumber.increment,
       preset: settings.protobuf.formatter.preset,
       alignFields: settings.protobuf.formatter.alignFields,
-      preserveMultiLineFields: settings.protobuf.formatter.preserveMultiLineFields
+      preserveMultiLineFields: settings.protobuf.formatter.preserveMultiLineFields,
+      insertEmptyLineBetweenDefinitions: settings.protobuf.formatter.insertEmptyLineBetweenDefinitions,
+      maxEmptyLines: settings.protobuf.formatter.maxEmptyLines
     });
   });
 

@@ -211,6 +211,74 @@ describe('ProtoFormatter', () => {
       expect(lines).toContain('');
     });
 
+    it('should insert a blank line between top-level definitions and collapse extras by default', async () => {
+      const text = `message A {
+  int32 id = 1;
+}
+message B {
+  string name = 1;
+}
+
+
+message C {
+  bool ok = 1;
+}`;
+      const result = await formatter.formatDocument(text);
+      const lines = result[0].newText.split('\n');
+
+      const indexB = lines.findIndex(l => l.startsWith('message B'));
+      expect(indexB).toBeGreaterThan(0);
+      expect(lines[indexB - 1]).toBe('');
+
+      for (let i = 1; i < lines.length; i++) {
+        expect(lines[i] === '' && lines[i - 1] === '').toBe(false);
+      }
+    });
+
+    it('should respect insertEmptyLineBetweenDefinitions=false', async () => {
+      formatter.updateSettings({ insertEmptyLineBetweenDefinitions: false, maxEmptyLines: 5 });
+      const text = `message A {
+  int32 id = 1;
+}
+message B {
+  string name = 1;
+}`;
+      const result = await formatter.formatDocument(text);
+      const lines = result[0].newText.split('\n');
+
+      const indexB = lines.findIndex(l => l.startsWith('message B'));
+      expect(indexB).toBeGreaterThan(0);
+      expect(lines[indexB - 1]).not.toBe('');
+    });
+
+    it('should limit consecutive blank lines based on maxEmptyLines', async () => {
+      formatter.updateSettings({ maxEmptyLines: 2 });
+      const text = `message A {
+  int32 id = 1;
+}
+
+
+
+message B {
+  string name = 1;
+}`;
+      const result = await formatter.formatDocument(text);
+      const lines = result[0].newText.split('\n');
+
+      let longestRun = 0;
+      let currentRun = 0;
+      for (const line of lines) {
+        if (line.trim() === '') {
+          currentRun++;
+          longestRun = Math.max(longestRun, currentRun);
+        } else {
+          currentRun = 0;
+        }
+      }
+
+      expect(longestRun).toBeLessThanOrEqual(2);
+    });
+
     it('should handle block comments', async () => {
       const text = 'message Test {\n/* comment */\n  string name = 1;\n}';
       const result = await formatter.formatDocument(text);
@@ -747,6 +815,71 @@ message Optionalf {
         // They should NOT be aligned (different groups)
         expect(nestedCccccc.indexOf('=')).not.toBe(nestedA.indexOf('='));
       }
+    });
+
+    // Regression test for GitHub issue: formatter not recalculating alignment
+    // when manually modified, and not removing alignment when disabled
+    it('should recalculate alignment on already-aligned option blocks', async () => {
+      formatter.updateSettings({ alignFields: true, renumberOnFormat: false });
+
+      // Scenario A: Option block with manually broken alignment
+      const manuallyModified = `option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info   : {
+    title  : "My Service API"
+    version    : "v1"
+    description: "Service description here..."
+  }
+};`;
+
+      const result1 = await formatter.formatDocument(manuallyModified);
+      const formatted1 = result1[0].newText;
+
+      // All colons in the info block should be aligned
+      const infoLines = formatted1.split('\n').filter(l =>
+        l.includes(':') && !l.includes('option') && !l.includes('{') && !l.includes('}')
+      );
+
+      if (infoLines.length > 1) {
+        const colonPositions = infoLines.map(l => l.indexOf(':'));
+        const firstPos = colonPositions[0];
+        // All colons should be at the same position
+        expect(colonPositions.every(pos => pos === firstPos)).toBe(true);
+      }
+    });
+
+    it('should remove alignment when alignFields is disabled', async () => {
+      // First format with alignment enabled
+      formatter.updateSettings({ alignFields: true, renumberOnFormat: false });
+
+      const text = `option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {
+    title: "My Service API"
+    version: "v1"
+    description: "Service description here..."
+  }
+};`;
+
+      const result1 = await formatter.formatDocument(text);
+      const aligned = result1[0].newText;
+
+      // Verify it's aligned (has extra spaces before colons)
+      expect(aligned).toContain('title      :');
+      expect(aligned).toContain('version    :');
+      expect(aligned).toContain('description:');
+
+      // Now disable alignment and format again
+      formatter.updateSettings({ alignFields: false, renumberOnFormat: false });
+      const result2 = await formatter.formatDocument(aligned);
+      const unaligned = result2[0].newText;
+
+      // Verify alignment spaces are removed (single space after key, before colon)
+      expect(unaligned).toContain('title: "My Service API"');
+      expect(unaligned).toContain('version: "v1"');
+      expect(unaligned).toContain('description: "Service description here..."');
+
+      // Should NOT contain the aligned version
+      expect(unaligned).not.toContain('title      :');
+      expect(unaligned).not.toContain('version    :');
     });
   });
 

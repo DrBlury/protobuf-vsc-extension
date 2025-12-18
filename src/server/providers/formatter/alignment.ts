@@ -63,10 +63,11 @@ function isFieldLine(trimmedLine: string): boolean {
 }
 
 /**
- * Check if a line is an option key-value line (e.g., "id: value")
+ * Check if a line is an option key-value line (e.g., "id: value" or "id  : value")
+ * Allows optional whitespace before the colon to handle already-aligned lines
  */
 function isOptionKeyLine(trimmedLine: string): boolean {
-  return /^\w+:\s*/.test(trimmedLine);
+  return /^\w+\s*:\s*/.test(trimmedLine);
 }
 
 /**
@@ -148,6 +149,18 @@ export function calculateAlignmentInfo(lines: string[]): Map<number, AlignmentDa
 
     // Track option block depth
     if (inOptionBlock) {
+      // Check if this line changes depth (before processing it)
+      const hasOpeningBrace = openBraces > closeBraces;
+      const hasClosingBrace = closeBraces > openBraces;
+
+      // Handle closing braces - finish current group before decreasing depth
+      if (hasClosingBrace) {
+        if (currentGroup && currentGroup.lines.length > 0) {
+          groups.push(currentGroup);
+        }
+        currentGroup = null;
+      }
+
       optionBraceDepth += openBraces - closeBraces;
       if (optionBraceDepth <= 0) {
         inOptionBlock = false;
@@ -156,8 +169,9 @@ export function calculateAlignmentInfo(lines: string[]): Map<number, AlignmentDa
           groups.push(currentGroup);
         }
         currentGroup = null;
-      } else if (isOptionKeyLine(trimmedLine) && optionBraceDepth === 1) {
-        // Only track top-level option keys
+      } else if (isOptionKeyLine(trimmedLine)) {
+        // Track option keys at any depth level (not just top-level)
+        // Each depth level forms its own alignment group
         if (!currentGroup || !currentGroup.isOptionBlock || currentGroup.depth !== depth) {
           if (currentGroup && currentGroup.lines.length > 0) {
             groups.push(currentGroup);
@@ -166,6 +180,14 @@ export function calculateAlignmentInfo(lines: string[]): Map<number, AlignmentDa
         } else {
           currentGroup.endLine = i;
           currentGroup.lines.push(i);
+        }
+
+        // If this line opens a brace, finish the group (next lines will be at different depth)
+        if (hasOpeningBrace) {
+          if (currentGroup && currentGroup.lines.length > 0) {
+            groups.push(currentGroup);
+          }
+          currentGroup = null;
         }
       }
       depth += openBraces - closeBraces;
@@ -246,7 +268,8 @@ export function calculateAlignmentInfo(lines: string[]): Map<number, AlignmentDa
       const trimmedLine = lines[lineNum]!.trim();
 
       if (group.isOptionBlock) {
-        const optionKeyMatch = trimmedLine.match(/^(\w+):\s*/);
+        // Match option keys allowing optional whitespace before colon (to handle already-aligned lines)
+        const optionKeyMatch = trimmedLine.match(/^(\w+)\s*:\s*/);
         if (optionKeyMatch) {
           maxKeyLength = Math.max(maxKeyLength, optionKeyMatch[1]!.length);
         }

@@ -8,7 +8,7 @@ import {
   Position,
   TextEdit
 } from 'vscode-languageserver/node';
-import { ProtoFile, BUILTIN_TYPES, MessageDefinition } from '../core/ast';
+import { ProtoFile, BUILTIN_TYPES, PROTOBUF_KEYWORDS, MessageDefinition } from '../core/ast';
 import { SemanticAnalyzer } from '../core/analyzer';
 
 export interface RenameResult {
@@ -37,6 +37,11 @@ export class RenameProvider {
 
     // Can't rename built-in types
     if (BUILTIN_TYPES.includes(word.text)) {
+      return null;
+    }
+
+    // Can't rename keywords
+    if (PROTOBUF_KEYWORDS.includes(word.text)) {
       return null;
     }
 
@@ -89,6 +94,11 @@ export class RenameProvider {
 
     // Can't rename built-in types
     if (BUILTIN_TYPES.includes(word.text)) {
+      return result;
+    }
+
+    // Can't rename keywords
+    if (PROTOBUF_KEYWORDS.includes(word.text)) {
       return result;
     }
 

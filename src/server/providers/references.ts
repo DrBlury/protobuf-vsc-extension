@@ -4,7 +4,7 @@
  */
 
 import { Location, Position, Range } from 'vscode-languageserver/node';
-import { BUILTIN_TYPES, MessageDefinition, ProtoFile } from '../core/ast';
+import { BUILTIN_TYPES, PROTOBUF_KEYWORDS, MessageDefinition, ProtoFile } from '../core/ast';
 import { SemanticAnalyzer } from '../core/analyzer';
 
 export class ReferencesProvider {
@@ -28,6 +28,11 @@ export class ReferencesProvider {
 
     // Built-in types don't have references
     if (BUILTIN_TYPES.includes(word)) {
+      return [];
+    }
+
+    // Keywords don't have references
+    if (PROTOBUF_KEYWORDS.includes(word)) {
       return [];
     }
 

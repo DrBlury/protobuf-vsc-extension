@@ -61,7 +61,31 @@ message User {
 
       expect(def).toBeNull();
     });
+    it('should allow navigation to fields named with keywords', () => {
+      const content = `syntax = "proto3";
+package test.v1;
 
+message TestMessage {
+  string option = 1;
+  string import = 2;
+}
+
+message Container {
+  TestMessage msg = 1;
+}`;
+
+      const file = parser.parse(content, 'file:///test.proto');
+      analyzer.updateFile('file:///test.proto', file);
+
+      // Click on "TestMessage" type reference should work
+      const lineText = '  TestMessage msg = 1;';
+      const position = { line: 11, character: 4 };
+
+      const def = provider.getDefinition('file:///test.proto', position, lineText) as Location;
+
+      expect(def).not.toBeNull();
+      expect(def.range.start.line).toBe(3); // Line where "message TestMessage" is defined
+    });
     it('should find definition of an enum type', () => {
       const content = `syntax = "proto3";
 package test.v1;
@@ -479,6 +503,48 @@ message Container { Data data = 1; }`;
 
       expect(def).not.toBeNull();
       expect(def.uri).toBe('file:///common.proto');
+    });
+
+    it('should return null for protobuf keywords', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+option java_package = "com.example";
+
+message User {
+  string name = 1;
+}`;
+
+      const file = parser.parse(content, 'file:///test.proto');
+      analyzer.updateFile('file:///test.proto', file);
+
+      // Test cursor on "option" keyword
+      const optionLineText = 'option java_package = "com.example";';
+      const optionPosition = { line: 3, character: 2 };
+
+      const optionDef = provider.getDefinition('file:///test.proto', optionPosition, optionLineText);
+      expect(optionDef).toBeNull();
+
+      // Test cursor on "message" keyword
+      const messageLineText = 'message User {';
+      const messagePosition = { line: 5, character: 2 };
+
+      const messageDef = provider.getDefinition('file:///test.proto', messagePosition, messageLineText);
+      expect(messageDef).toBeNull();
+
+      // Test cursor on "import" keyword
+      const importContent = `syntax = "proto3";
+import "common.proto";
+message User { string name = 1; }`;
+
+      const importFile = parser.parse(importContent, 'file:///test2.proto');
+      analyzer.updateFile('file:///test2.proto', importFile);
+
+      const importLineText = 'import "common.proto";';
+      const importPosition = { line: 1, character: 2 };
+
+      const importDef = provider.getDefinition('file:///test2.proto', importPosition, importLineText);
+      expect(importDef).toBeNull();
     });
   });
 });

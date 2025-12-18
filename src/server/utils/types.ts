@@ -19,6 +19,8 @@ export interface Settings {
       preset: string;
       alignFields?: boolean;
       preserveMultiLineFields?: boolean;
+      insertEmptyLineBetweenDefinitions?: boolean;
+      maxEmptyLines?: number;
     };
     semanticHighlighting: {
       enabled: 'hybrid' | 'semantic' | 'textmate';
@@ -119,7 +121,9 @@ export const defaultSettings: Settings = {
       enabled: true,
       preset: 'minimal',
       alignFields: true,
-      preserveMultiLineFields: false
+      preserveMultiLineFields: false,
+      insertEmptyLineBetweenDefinitions: true,
+      maxEmptyLines: 1
     },
     semanticHighlighting: {
       enabled: 'textmate'

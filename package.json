@@ -154,6 +154,17 @@
           "default": true,
           "description": "Align field names and field numbers for prettier formatting. When enabled, field numbers and option keys are vertically aligned."
         },
+        "protobuf.formatter.insertEmptyLineBetweenDefinitions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically insert a single empty line between top-level definitions (message/enum/service) when missing. Applies to the built-in formatter."
+        },
+        "protobuf.formatter.maxEmptyLines": {
+          "type": "number",
+          "default": 1,
+          "minimum": 0,
+          "description": "Collapse runs of blank lines down to this limit when formatting. Set to 1 to keep at most one consecutive empty line."
+        },
         "protobuf.formatter.preserveMultiLineFields": {
           "type": "boolean",
           "default": false,

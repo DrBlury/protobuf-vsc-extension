@@ -213,6 +213,19 @@ message User {
 }
 ```
 
+#### `protobuf.formatter.insertEmptyLineBetweenDefinitions`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Insert a single empty line between top-level definitions (messages, enums, services) when one is missing. Leading comments that belong to a definition are kept attached to it, and the separator is placed above those comments.
+
+#### `protobuf.formatter.maxEmptyLines`
+
+- **Type**: `number`
+- **Default**: `1`
+- **Minimum**: `0`
+- **Description**: Collapse consecutive blank lines down to this limit across the file. Set to `1` (default) to keep at most one empty line in a row, or to `0` to remove blank lines entirely. Applies to the built-in formatter (minimal preset and fallback).
+
 ### Completion
 
 #### `protobuf.completion.autoImport`

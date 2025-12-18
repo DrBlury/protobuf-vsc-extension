@@ -228,7 +228,7 @@ export class ProtoFormatter {
         // Format option block lines with alignment if enabled (now using line-based lookup)
         const formattedLine = this.settings.alignFields && alignmentInfo
           ? formatOptionLine(trimmedLine, indentLevel, alignmentInfo.get(i), this.settings)
-          : getIndent(indentLevel, this.settings) + trimmedLine;
+          : formatLine(trimmedLine, indentLevel, this.settings);
         formattedLines.push(formattedLine);
 
         // Adjust indent for opening brace
@@ -316,7 +316,8 @@ export class ProtoFormatter {
       }
     }
 
-    let result = formattedLines.join('\n');
+    const normalizedLines = this.applyVerticalSpacingRules(formattedLines);
+    let result = normalizedLines.join('\n');
 
     // Apply renumbering if enabled
     logger.verbose(`Renumbering setting check: renumberOnFormat=${this.settings.renumberOnFormat} (type: ${typeof this.settings.renumberOnFormat})`);
@@ -364,6 +365,133 @@ export class ProtoFormatter {
 
     // Defensive: ensure no stray \r characters in output
     return formattedLines.join('\n').replace(/\r/g, '');
+  }
+
+  private applyVerticalSpacingRules(lines: string[]): string[] {
+    let result = [...lines];
+
+    if (this.settings.insertEmptyLineBetweenDefinitions !== false) {
+      result = this.ensureBlankLineBetweenTopLevelDefinitions(result);
+    }
+
+    const maxEmptyLines = this.settings.maxEmptyLines ?? DEFAULT_SETTINGS.maxEmptyLines ?? 0;
+    result = this.collapseEmptyLines(result, maxEmptyLines);
+
+    return result;
+  }
+
+  private ensureBlankLineBetweenTopLevelDefinitions(lines: string[]): string[] {
+    const ranges = this.findTopLevelDefinitionRanges(lines);
+    if (ranges.length < 2) {
+      return lines;
+    }
+
+    const insertBefore = new Set<number>();
+
+    for (let i = 0; i < ranges.length - 1; i++) {
+      const current = ranges[i]!;
+      const next = ranges[i + 1]!;
+      const between = lines.slice(current.end + 1, next.start);
+      const hasEmptyLine = between.some(line => line.trim() === '');
+
+      if (!hasEmptyLine) {
+        insertBefore.add(next.start);
+      }
+    }
+
+    if (insertBefore.size === 0) {
+      return lines;
+    }
+
+    const result: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (insertBefore.has(i)) {
+        result.push('');
+      }
+      result.push(lines[i]!);
+    }
+
+    return result;
+  }
+
+  private findTopLevelDefinitionRanges(lines: string[]): Array<{ start: number; end: number }> {
+    const ranges: Array<{ start: number; end: number }> = [];
+    let depth = 0;
+    let current: { start: number; end: number } | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
+      const trimmed = line.trim();
+      const isComment = this.isCommentLine(trimmed);
+
+      if (!isComment && depth === 0 && /^(message|enum|service)\s+\w+/.test(trimmed)) {
+        const start = this.includeLeadingComments(lines, i);
+        current = { start, end: i };
+      }
+
+      const openBraces = isComment ? 0 : (trimmed.match(/\{/g) || []).length;
+      const closeBraces = isComment ? 0 : (trimmed.match(/\}/g) || []).length;
+      depth += openBraces - closeBraces;
+
+      if (current) {
+        current.end = i;
+        if (depth <= 0) {
+          ranges.push(current);
+          current = null;
+          depth = Math.max(0, depth);
+        }
+      }
+    }
+
+    return ranges;
+  }
+
+  private includeLeadingComments(lines: string[], definitionIndex: number): number {
+    let start = definitionIndex;
+
+    for (let i = definitionIndex - 1; i >= 0; i--) {
+      const trimmed = lines[i]!.trim();
+
+      if (trimmed === '') {
+        break;
+      }
+
+      if (this.isCommentLine(trimmed)) {
+        start = i;
+        continue;
+      }
+
+      break;
+    }
+
+    return start;
+  }
+
+  private isCommentLine(trimmedLine: string): boolean {
+    return trimmedLine.startsWith('//') ||
+      trimmedLine.startsWith('/*') ||
+      trimmedLine.startsWith('*') ||
+      trimmedLine.startsWith('*/');
+  }
+
+  private collapseEmptyLines(lines: string[], maxEmptyLines: number): string[] {
+    const limit = Math.max(0, maxEmptyLines);
+    const result: string[] = [];
+    let emptyCount = 0;
+
+    for (const line of lines) {
+      if (line.trim() === '') {
+        if (emptyCount < limit) {
+          result.push('');
+        }
+        emptyCount++;
+      } else {
+        emptyCount = 0;
+        result.push(line);
+      }
+    }
+
+    return result;
   }
 
   private getFsPathFromUri(uri?: string): string | undefined {
