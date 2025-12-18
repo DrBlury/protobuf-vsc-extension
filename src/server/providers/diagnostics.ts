@@ -209,8 +209,11 @@ export class DiagnosticsProvider {
         return;
       }
       const dir = segments[segments.length - 2]!;
+      // Normalize directory name: convert hyphens and other non-identifier chars to underscores
+      // since protobuf package names cannot contain hyphens
+      const normalizedDir = dir.replace(/[^a-zA-Z0-9_]/g, '_');
       const pkgSegments = file.package.name.split('.');
-      if (!pkgSegments.includes(dir)) {
+      if (!pkgSegments.includes(dir) && !pkgSegments.includes(normalizedDir)) {
         diagnostics.push({
           severity: DiagnosticSeverity.Hint,
           range: this.toRange(file.package.range),

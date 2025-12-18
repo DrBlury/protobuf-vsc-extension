@@ -808,5 +808,48 @@ message Optionalf {
       expect(formatted).not.toContain('sstring');
       expect(formatted).not.toContain('iint32');
     });
+
+    it('should not corrupt types when repeatedly formatting CRLF file (issue #30 regression)', async () => {
+      formatter.updateSettings({ preset: 'minimal', alignFields: true, renumberOnFormat: false });
+
+      // User's exact scenario: CRLF file with tab indent and trailing comment
+      let text = 'syntax = "proto3";\r\n\r\npackage protobuf_vsc_issue_30;\r\n\r\n//\r\nmessage Test {\r\n\tint32 field = 1; //\r\n}\r\n';
+
+      // First format
+      let result = await formatter.formatDocument(text);
+      let formatted = result[0].newText;
+      expect(formatted).toContain('int32');
+      expect(formatted).not.toContain('iint32');
+
+      // Simulate adding space after // and formatting again (user's scenario)
+      // After first format, add space and format again
+      text = formatted.replace('int32 field = 1; //', 'int32 field = 1; // ');
+      result = await formatter.formatDocument(text);
+      formatted = result[0].newText;
+      expect(formatted).toContain('int32');
+      expect(formatted).not.toContain('iint32');
+
+      // Third format - should still be stable
+      result = await formatter.formatDocument(formatted);
+      formatted = result[0].newText;
+      expect(formatted).toContain('int32');
+      expect(formatted).not.toContain('iint32');
+
+      // Verify output has no stray \r characters
+      expect(formatted).not.toContain('\r');
+    });
+
+    it('should produce output without any \\r characters', async () => {
+      formatter.updateSettings({ preset: 'minimal', alignFields: true });
+
+      // Input with CRLF
+      const text = 'message Test {\r\n  int32 id = 1;\r\n}\r\n';
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      // Output should have no \r characters - VS Code will handle line ending conversion
+      expect(formatted).not.toContain('\r');
+      expect(formatted).toContain('int32 id = 1;');
+    });
   });
 });

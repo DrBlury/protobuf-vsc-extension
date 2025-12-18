@@ -334,6 +334,10 @@ export class ProtoFormatter {
       logger.verbose('Renumbering disabled, skipping field renumbering');
     }
 
+    // Defensive: ensure no stray \r characters in output
+    // This prevents corruption when the output is applied to a CRLF document
+    result = result.replace(/\r/g, '');
+
     return result;
   }
 
@@ -365,7 +369,8 @@ export class ProtoFormatter {
       }
     }
 
-    return formattedLines.join('\n');
+    // Defensive: ensure no stray \r characters in output
+    return formattedLines.join('\n').replace(/\r/g, '');
   }
 
   private getFsPathFromUri(uri?: string): string | undefined {
