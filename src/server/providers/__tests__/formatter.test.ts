@@ -623,6 +623,24 @@ message Optionalf {
       expect(formatted).toMatch(/float value =\n/);
       expect(formatted).toMatch(/bool valid =\n/);
     });
+
+    it('should indent multi-line field options with brackets', async () => {
+      formatter.updateSettings({ indentSize: 4, alignFields: false });
+      const text = `message Test {
+    int32 field = 1 [
+    (tag1) = true,
+    (tag2) = false
+    ];
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      // The field options should be indented one level inside the brackets
+      expect(formatted).toContain('int32 field = 1 [');
+      expect(formatted).toContain('        (tag1) = true,');
+      expect(formatted).toContain('        (tag2) = false');
+      expect(formatted).toContain('    ];');
+    });
   });
 
   describe('field alignment', () => {

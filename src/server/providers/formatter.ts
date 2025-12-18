@@ -189,6 +189,8 @@ export class ProtoFormatter {
     let optionBraceDepth = 0;
     // Track depth inside inline field options [...] containing braces
     let inlineOptionBraceDepth = 0;
+    // Track depth inside multi-line field options [...] without braces
+    let inlineOptionBracketDepth = 0;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
@@ -261,6 +263,27 @@ export class ProtoFormatter {
         continue;
       }
 
+      // Track multi-line field options with brackets only (no braces)
+      if (inlineOptionBracketDepth > 0) {
+        const openBrackets = (trimmedLine.match(/\[/g) || []).length;
+        const closeBrackets = (trimmedLine.match(/\]/g) || []).length;
+
+        // Adjust indent for closing bracket
+        if (trimmedLine.startsWith(']') && indentLevel > 0) {
+          indentLevel--;
+        }
+
+        formattedLines.push(getIndent(indentLevel, this.settings) + trimmedLine);
+
+        // Adjust indent for opening bracket
+        if (openBrackets > closeBrackets) {
+          indentLevel++;
+        }
+
+        inlineOptionBracketDepth += openBrackets - closeBrackets;
+        continue;
+      }
+
       // Check if this line starts an option with an opening brace
       if (trimmedLine.startsWith('option') && trimmedLine.includes('{')) {
         const openBraces = (trimmedLine.match(/\{/g) || []).length;
@@ -285,6 +308,21 @@ export class ProtoFormatter {
         if (openBraces > closeBraces) {
           // Multi-line inline option - preserve and track
           inlineOptionBraceDepth = openBraces - closeBraces;
+          formattedLines.push(getIndent(indentLevel, this.settings) + trimmedLine);
+          indentLevel++;
+          continue;
+        }
+      }
+
+      // Check if this line has multi-line field options with brackets only (no braces inside)
+      // e.g., "int32 field = 1 [" followed by "(tag1) = true," on the next line
+      if (trimmedLine.includes('[') && !trimmedLine.includes('{')) {
+        const openBrackets = (trimmedLine.match(/\[/g) || []).length;
+        const closeBrackets = (trimmedLine.match(/\]/g) || []).length;
+
+        if (openBrackets > closeBrackets) {
+          // Multi-line bracket option - preserve and track
+          inlineOptionBracketDepth = openBrackets - closeBrackets;
           formattedLines.push(getIndent(indentLevel, this.settings) + trimmedLine);
           indentLevel++;
           continue;

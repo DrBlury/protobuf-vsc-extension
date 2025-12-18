@@ -7,8 +7,9 @@ package testmessage;
 message TestMessage
 {                      // just a comment
 	string content = 1; // another comment
-	int32 id = 2; // identifier for the message
+	int32  id      = 2; // identifier for the message
 }
+
 // @brief Optional values that are only defined if the 'valid' flag is true, and undefined otherwise
 message Optionalf
 {
@@ -18,3 +19,10 @@ message Optionalf
 			2;   //!< flag indicating whether the value is defined or not (following value to keep struct
           		 //!< aligned with value alignment requirements)
 }  				 // test 2
+
+message Test {
+	int32 field = 1 [
+		(tag1) = true,
+		(tag2) = false
+	];
+}

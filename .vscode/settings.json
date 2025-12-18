@@ -1,6 +1,6 @@
 {
   "protobuf.includes": ["${workspaceFolder}/examples/buf/.buf-deps"],
-  "protobuf.formatter.alignFields": false,
+  "protobuf.formatter.alignFields": true,
   // Use buf linter instead of protoc
   "protobuf.externalLinter.enabled": true,
   "protobuf.externalLinter.linter": "buf",
@@ -11,7 +11,7 @@
   "protobuf.codegen.tool": "buf",
 
   // Renumber settings
-  "protobuf.renumber.onFormat": false,
+  "protobuf.renumber.onFormat": true,
   "protobuf.renumber.startNumber": 1,
   "protobuf.renumber.increment": 1,
   "protobuf.renumber.preserveReserved": true,
@@ -30,7 +30,7 @@
 
   // Formatter settings
   "protobuf.formatter.enabled": true,
-  "protobuf.formatter.preset": "custom",
+  "protobuf.formatter.preset": "minimal",
   "protobuf.formatter.preserveMultiLineFields": true,
   "protobuf.formatOnSave": true,
   "protobuf.clangFormat.enabled": false,

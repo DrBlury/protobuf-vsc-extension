@@ -364,6 +364,19 @@ export class ProtocCompiler {
     }
 
     const args = this.buildArgs(filePath);
+
+    // Check if any output directive is configured (e.g., --go_out=, --java_out=, etc.)
+    // If not, add a dummy output to allow syntax validation without code generation
+    const hasOutputDirective = args.some(arg => /_out=/.test(arg) || /--descriptor_set_out=/.test(arg));
+    if (!hasOutputDirective) {
+      // Add a dummy output to trigger validation (cross-platform)
+      if (IS_WINDOWS) {
+        args.push('--descriptor_set_out=NUL');
+      } else {
+        args.push('--descriptor_set_out=/dev/null');
+      }
+    }
+
     return this.runProtoc(args, path.dirname(filePath));
   }
 
@@ -388,6 +401,18 @@ export class ProtocCompiler {
 
     // Build args with proper proto_path handling for multiple files
     const args = this.buildArgsForMultipleFiles(protoFiles, searchPath);
+
+    // Check if any output directive is configured (e.g., --go_out=, --java_out=, etc.)
+    // If not, add a dummy output to allow syntax validation without code generation
+    const hasOutputDirective = args.some(arg => /_out=/.test(arg) || /--descriptor_set_out=/.test(arg));
+    if (!hasOutputDirective) {
+      // Add a dummy output to trigger validation (cross-platform)
+      if (IS_WINDOWS) {
+        args.push('--descriptor_set_out=NUL');
+      } else {
+        args.push('--descriptor_set_out=/dev/null');
+      }
+    }
 
     // Check if command line would be too long
     const commandLength = this.estimateCommandLength(args);
