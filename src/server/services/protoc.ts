@@ -97,6 +97,48 @@ function needsShellExecution(commandPath: string): boolean {
   return false;
 }
 
+/**
+ * Quote a path if it contains spaces or special characters.
+ * This is needed for protoc arguments where paths are passed as flag values.
+ * On Windows, paths with spaces need to be quoted even when not using shell.
+ */
+function quotePathIfNeeded(pathValue: string): string {
+  // Quote if path contains spaces, quotes, or other problematic characters
+  if (pathValue.includes(' ') || pathValue.includes('"') || pathValue.includes("'")) {
+    // Use double quotes and escape any existing double quotes
+    return `"${pathValue.replace(/"/g, '\\"')}"`;
+  }
+  return pathValue;
+}
+
+/**
+ * Format a --proto_path argument with proper quoting for paths with spaces.
+ * Protoc expects: --proto_path="path with spaces" or --proto_path=path_without_spaces
+ */
+function formatProtoPathArg(protoPath: string): string {
+  return `--proto_path=${quotePathIfNeeded(protoPath)}`;
+}
+
+/**
+ * Quote a protoc option value if it contains paths with spaces.
+ * Handles options like --go_out=/path/with spaces/output or --plugin=protoc-gen-go=/path/with spaces/bin
+ * The value after the = sign needs to be quoted if it contains spaces.
+ */
+function quoteOptionIfNeeded(option: string): string {
+  // Handle --flag=value format
+  const equalsIndex = option.indexOf('=');
+  if (equalsIndex > 0) {
+    const flag = option.substring(0, equalsIndex + 1); // includes the =
+    const value = option.substring(equalsIndex + 1);
+
+    // Check if the value has spaces and needs quoting
+    if (value.includes(' ') && !value.startsWith('"') && !value.startsWith("'")) {
+      return `${flag}${quotePathIfNeeded(value)}`;
+    }
+  }
+  return option;
+}
+
 export interface ProtocSettings {
   path: string;
   compileOnSave: boolean;
@@ -376,7 +418,7 @@ export class ProtocCompiler {
 
     // Add user-configured proto paths first (for import resolution)
     for (const protoPath of userProtoPaths) {
-      args.push(`--proto_path=${protoPath}`);
+      args.push(formatProtoPathArg(protoPath));
     }
 
     // Add the base path as a proto_path if not already covered by user paths
@@ -388,7 +430,7 @@ export class ProtocCompiler {
       }
     }
     if (!basePathCovered && normalizedBasePath) {
-      args.push(`--proto_path=${normalizedBasePath}`);
+      args.push(formatProtoPathArg(normalizedBasePath));
     }
 
     // Collect unique directories from files outside base path
@@ -421,12 +463,12 @@ export class ProtocCompiler {
 
     // Add additional proto_paths for directories outside coverage
     for (const dir of uniqueDirs) {
-      args.push(`--proto_path=${dir}`);
+      args.push(formatProtoPathArg(dir));
     }
 
     // Add other configured options (output dirs, plugins, etc.)
     for (const option of otherOptions) {
-      args.push(option);
+      args.push(quoteOptionIfNeeded(option));
     }
 
     // Collect all proto paths for relative path calculation
@@ -450,12 +492,13 @@ export class ProtocCompiler {
       }
 
       if (relativePath !== null) {
-        // Use forward slashes for protoc compatibility
-        args.push(relativePath.split(path.sep).join('/'));
+        // Use forward slashes for protoc compatibility and quote if needed
+        const forwardSlashPath = relativePath.split(path.sep).join('/');
+        args.push(quotePathIfNeeded(forwardSlashPath));
       } else if (this.settings.useAbsolutePath) {
-        args.push(resolvedFile);
+        args.push(quotePathIfNeeded(resolvedFile));
       } else {
-        args.push(file);
+        args.push(quotePathIfNeeded(file));
       }
     }
 
@@ -535,7 +578,11 @@ export class ProtocCompiler {
       fs.writeFileSync(responseFilePath, responseContent, 'utf-8');
 
       // Run protoc with the response file
-      const result = await this.runProtoc([`@${responseFilePath}`], cwd);
+      // Quote the response file path if it contains spaces
+      const responseFileArg = responseFilePath.includes(' ')
+        ? `@"${responseFilePath}"`
+        : `@${responseFilePath}`;
+      const result = await this.runProtoc([responseFileArg], cwd);
 
       return result;
     } finally {
@@ -564,7 +611,7 @@ export class ProtocCompiler {
 
     // Add user-configured proto paths first
     for (const protoPath of userProtoPaths) {
-      args.push(`--proto_path=${protoPath}`);
+      args.push(formatProtoPathArg(protoPath));
     }
 
     // Check if file is covered by user proto paths
@@ -582,7 +629,7 @@ export class ProtocCompiler {
     if (!covered) {
       const normalizedDir = this.normalizePath(fileDir);
       if (normalizedDir) {
-        args.push(`--proto_path=${normalizedDir}`);
+        args.push(formatProtoPathArg(normalizedDir));
         coveringPath = normalizedDir;
       }
     }
@@ -590,9 +637,10 @@ export class ProtocCompiler {
     // Add the file with relative path from covering proto_path
     if (coveringPath) {
       const relativePath = path.relative(coveringPath, resolvedFile);
-      args.push(relativePath.split(path.sep).join('/'));
+      const forwardSlashPath = relativePath.split(path.sep).join('/');
+      args.push(quotePathIfNeeded(forwardSlashPath));
     } else {
-      args.push(filePath);
+      args.push(quotePathIfNeeded(filePath));
     }
 
     // Add a dummy output to trigger validation (cross-platform)
@@ -613,7 +661,7 @@ export class ProtocCompiler {
 
     // Add user-configured proto paths first (for import resolution)
     for (const protoPath of userProtoPaths) {
-      args.push(`--proto_path=${protoPath}`);
+      args.push(formatProtoPathArg(protoPath));
     }
 
     // Check if files are covered by user proto paths
@@ -642,12 +690,12 @@ export class ProtocCompiler {
     }
 
     for (const protoPath of fileProtoPaths) {
-      args.push(`--proto_path=${protoPath}`);
+      args.push(formatProtoPathArg(protoPath));
     }
 
     // Add other configured options (output dirs, plugins, etc.)
     for (const option of otherOptions) {
-      args.push(option);
+      args.push(quoteOptionIfNeeded(option));
     }
 
     // Combine all proto paths for file path resolution
@@ -667,12 +715,13 @@ export class ProtocCompiler {
       }
 
       if (relativePath !== null) {
-        // Use forward slashes for protoc compatibility
-        args.push(relativePath.split(path.sep).join('/'));
+        // Use forward slashes for protoc compatibility and quote if needed
+        const forwardSlashPath = relativePath.split(path.sep).join('/');
+        args.push(quotePathIfNeeded(forwardSlashPath));
       } else if (this.settings.useAbsolutePath) {
-        args.push(resolvedFile);
+        args.push(quotePathIfNeeded(resolvedFile));
       } else {
-        args.push(file);
+        args.push(quotePathIfNeeded(file));
       }
     }
 

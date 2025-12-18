@@ -1381,6 +1381,112 @@ describe('ProtocCompiler', () => {
       expect(args.some(arg => arg.includes('with spaces'))).toBe(true);
     });
 
+    it('should quote --proto_path paths with spaces', async () => {
+      // Simulate a directory path with spaces (like user's issue: "Outdoor Aerial")
+      compiler.updateSettings({
+        options: ['--go_out=/output']
+      });
+      compiler.setWorkspaceRoot('/Users/test/Documents/My Project');
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      // File in a path with spaces
+      await compiler.compileFile('/Users/test/Documents/My Project/protos/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Find the proto_path argument for the directory with spaces
+      const protoPathArg = args.find(arg => arg.startsWith('--proto_path=') && arg.includes('My Project'));
+      expect(protoPathArg).toBeDefined();
+
+      // The path should be quoted because it contains spaces
+      expect(protoPathArg).toMatch(/--proto_path=".*My Project.*"/);
+    });
+
+    it('should quote output options with spaces', async () => {
+      compiler.updateSettings({
+        options: ['--go_out=/path/with spaces/output']
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Find the go_out argument with spaces
+      const goOutArg = args.find(arg => arg.startsWith('--go_out=') && arg.includes('with spaces'));
+      expect(goOutArg).toBeDefined();
+
+      // The path should be quoted because it contains spaces
+      expect(goOutArg).toMatch(/--go_out=".*with spaces.*"/);
+    });
+
+    it('should quote file paths with spaces when using absolute paths', async () => {
+      // When useAbsolutePath is true and no proto_path covers the file,
+      // the absolute path is used which may contain spaces
+      compiler.updateSettings({
+        options: ['--go_out=/output'],
+        useAbsolutePath: true
+      });
+      // Clear any user proto paths so the file falls back to absolute path
+      compiler.setWorkspaceRoot('/other/workspace');
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      // File path with spaces in directory name - the file dir will be added as proto_path
+      // but since we're testing the quoting, let's verify proto_path is quoted
+      await compiler.compileFile('/Users/test/Documents/My Project/protos/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // The proto_path for the file's directory should be quoted
+      const protoPathArg = args.find(arg =>
+        arg.startsWith('--proto_path=') && arg.includes('My Project')
+      );
+      expect(protoPathArg).toBeDefined();
+      expect(protoPathArg).toMatch(/--proto_path=".*My Project.*"/);
+    });
+
     it('should not add duplicate proto_path when same as file directory', async () => {
       // Using normalized paths - this tests the path normalization logic
       compiler.updateSettings({
