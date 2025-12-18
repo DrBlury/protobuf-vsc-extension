@@ -1,0 +1,56 @@
+// SYNTAX TEST "source.proto" "Test message patterns from examples/test_message.proto"
+
+syntax = "proto3";
+// <-- keyword.control.syntax.proto
+
+package testmessage;
+// <--- keyword.control.package.proto
+
+/*
+ * This is a description in multiline
+ */
+// <- comment.block.proto
+
+message TestMessage
+// <--- keyword.declaration.message.proto
+//      ^^^^^^^^^^^ entity.name.type.message.proto
+{
+    string content = 1;
+//  ^^^^^^ storage.type.proto
+//         ^^^^^^^ variable.other.field.proto
+//                 ^ keyword.operator.assignment.proto
+//                   ^ constant.numeric.proto
+    int32 id = 2;
+//  ^^^^^ storage.type.proto
+//        ^^ variable.other.field.proto
+}
+
+// Test the multi-line field number pattern from Optionalf message
+message Optionalf
+// <--- keyword.declaration.message.proto
+//      ^^^^^^^^ entity.name.type.message.proto
+{
+    float value =
+//  ^^^^^ storage.type.proto
+//        ^^^^^ variable.other.field.proto
+//              ^ keyword.operator.assignment.proto
+            1;
+//          ^ constant.numeric.proto
+//           ^ punctuation.terminator.proto
+    bool valid =
+//  ^^^^ storage.type.proto
+//       ^^^^^ variable.other.field.proto
+            2;
+//          ^ constant.numeric.proto
+}
+
+// Additional test: field number after inline comment
+message CommentBeforeNumber {
+    string field = // comment before field number
+//  ^^^^^^ storage.type.proto
+//         ^^^^^ variable.other.field.proto
+//               ^ keyword.operator.assignment.proto
+//                 ^^ comment.line.double-slash.proto
+        1;
+//      ^ constant.numeric.proto
+}

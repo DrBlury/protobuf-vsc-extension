@@ -566,10 +566,12 @@ connection.onDocumentLinks((params) => {
 
 // Semantic Tokens
 connection.languages.semanticTokens.on((params) => {
+  const mode = globalSettings.protobuf?.semanticHighlighting?.enabled ?? 'textmate';
   return handleSemanticTokensFull(
     params,
     providers.semanticTokens,
-    (uri) => documents.get(uri)
+    (uri) => documents.get(uri),
+    mode as 'hybrid' | 'semantic' | 'textmate'
   );
 });
 

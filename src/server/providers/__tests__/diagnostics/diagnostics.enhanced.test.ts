@@ -518,4 +518,18 @@ message User {
       expect(syntaxError).toBeUndefined();
     });
   });
+
+  describe('Text format files', () => {
+    it('should skip diagnostics for textproto documents', () => {
+      const content = `person {
+  name: "Test"
+}`;
+      const uri = 'file:///example.textproto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const diags = diagnosticsProvider.validate(uri, file, content);
+      expect(diags).toEqual([]);
+    });
+  });
 });

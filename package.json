@@ -43,7 +43,16 @@
     "proto3",
     "proto2",
     "textproto",
-    "pbtxt"
+    "pbtxt",
+    "buf",
+    "protoc",
+    "protolint",
+    "clang-format",
+    "api",
+    "schema",
+    "serialization",
+    "rpc",
+    "microservices"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -149,6 +158,21 @@
           "type": "boolean",
           "default": false,
           "description": "Preserve multi-line field declarations. When enabled, field declarations split across multiple lines (e.g., 'type name =\\n    1;') are kept as-is instead of being joined to a single line."
+        },
+        "protobuf.semanticHighlighting.enabled": {
+          "type": "string",
+          "enum": [
+            "hybrid",
+            "semantic",
+            "textmate"
+          ],
+          "enumDescriptions": [
+            "Hybrid mode: Semantic tokens for types and names, TextMate for keywords and scalars",
+            "Semantic only: All highlighting from Tree-sitter semantic tokens (overrides TextMate)",
+            "TextMate only (default): All highlighting from TextMate grammar (disables semantic tokens)"
+          ],
+          "default": "textmate",
+          "description": "Choose highlighting mode: 'textmate' (default), 'hybrid' (Tree-sitter types with TextMate keywords), or 'semantic' (Tree-sitter only)"
         },
         "protobuf.includes": {
           "type": "array",
@@ -562,7 +586,8 @@
       "[proto]": {
         "editor.codeActionsOnSave": {
           "source.fixAll": "explicit"
-        }
+        },
+        "editor.semanticHighlighting.enabled": true
       }
     },
     "commands": [

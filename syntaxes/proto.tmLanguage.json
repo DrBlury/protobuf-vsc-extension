@@ -69,7 +69,7 @@
       "match": "\\b(import)\\s+(weak|public)?\\s*(\"[^\"]+\")\\s*(;)",
       "captures": {
         "1": { "name": "keyword.control.import.proto" },
-        "2": { "name": "keyword.other.import.modifier.proto" },
+        "2": { "name": "keyword.control.import.modifier.proto" },
         "3": { "name": "string.quoted.double.proto" },
         "4": { "name": "punctuation.terminator.proto" }
       }
@@ -81,7 +81,7 @@
           "begin": "\\b(option)\\s+(\\(google\\.api\\.http\\))\\s*=\\s*\\{",
           "end": "\\}\\s*;",
           "beginCaptures": {
-            "1": { "name": "keyword.other.option.proto" },
+            "1": { "name": "keyword.control.option.proto" },
             "2": { "name": "variable.other.option.googleapi.proto" }
           },
           "patterns": [{ "include": "#googleApiHttpBody" }]
@@ -91,7 +91,7 @@
           "begin": "\\b(option)\\s+(\\(google\\.api\\.resource\\))\\s*=\\s*\\{",
           "end": "\\}\\s*;",
           "beginCaptures": {
-            "1": { "name": "keyword.other.option.proto" },
+            "1": { "name": "keyword.control.option.proto" },
             "2": { "name": "variable.other.option.googleapi.proto" }
           },
           "patterns": [{ "include": "#googleApiResourceBody" }]
@@ -101,7 +101,7 @@
           "begin": "\\b(option)\\s+(\\([\\w.]+\\)(?:\\.[\\w]+)*)\\s*=\\s*\\{",
           "end": "\\}\\s*;",
           "beginCaptures": {
-            "1": { "name": "keyword.other.option.proto" },
+            "1": { "name": "keyword.control.option.proto" },
             "2": { "name": "variable.other.option.proto" }
           },
           "patterns": [{ "include": "#celOptionBody" }]
@@ -110,7 +110,7 @@
           "begin": "\\b(option)\\s+",
           "end": "(;)",
           "beginCaptures": {
-            "1": { "name": "keyword.other.option.proto" }
+            "1": { "name": "keyword.control.option.proto" }
           },
           "endCaptures": {
             "1": { "name": "punctuation.terminator.proto" }
@@ -468,86 +468,55 @@
       ]
     },
     "message": {
+      "begin": "\\b(message)\\s+(\\w+)\\s*(\\{)?",
+      "end": "\\}",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.message.proto" },
+        "2": { "name": "entity.name.type.message.proto" },
+        "3": { "name": "punctuation.definition.block.proto" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.block.proto" }
+      },
       "patterns": [
+        { "include": "#comments" },
+        { "include": "#option" },
+        { "include": "#message" },
+        { "include": "#enum" },
+        { "include": "#oneof" },
+        { "include": "#map" },
+        { "include": "#reserved" },
+        { "include": "#extensions" },
+        { "include": "#extend" },
+        { "include": "#group" },
+        { "include": "#field" },
         {
-          "comment": "Message with brace on same line",
-          "begin": "\\b(message)\\s+(\\w+)\\s*(\\{)",
-          "end": "\\}",
-          "beginCaptures": {
-            "1": { "name": "keyword.declaration.message.proto" },
-            "2": { "name": "entity.name.type.message.proto" },
-            "3": { "name": "punctuation.definition.block.proto" }
-          },
-          "patterns": [
-            { "include": "#comments" },
-            { "include": "#option" },
-            { "include": "#message" },
-            { "include": "#enum" },
-            { "include": "#oneof" },
-            { "include": "#map" },
-            { "include": "#reserved" },
-            { "include": "#extensions" },
-            { "include": "#extend" },
-            { "include": "#group" },
-            { "include": "#field" }
-          ]
-        },
-        {
-          "comment": "Message with brace on next line (no brace on same line)",
-          "begin": "\\b(message)\\s+(\\w+)(?=\\s*(?://.*)?$)",
-          "end": "\\}",
-          "beginCaptures": {
-            "1": { "name": "keyword.declaration.message.proto" },
-            "2": { "name": "entity.name.type.message.proto" }
-          },
-          "patterns": [
-            { "include": "#comments" },
-            { "include": "#option" },
-            { "include": "#message" },
-            { "include": "#enum" },
-            { "include": "#oneof" },
-            { "include": "#map" },
-            { "include": "#reserved" },
-            { "include": "#extensions" },
-            { "include": "#extend" },
-            { "include": "#group" },
-            { "include": "#field" }
-          ]
+          "comment": "Opening brace on next line",
+          "match": "\\{",
+          "name": "punctuation.definition.block.proto"
         }
       ]
     },
     "enum": {
+      "begin": "\\b(enum)\\s+(\\w+)\\s*(\\{)?",
+      "end": "\\}",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.enum.proto" },
+        "2": { "name": "entity.name.type.enum.proto" },
+        "3": { "name": "punctuation.definition.block.proto" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.block.proto" }
+      },
       "patterns": [
+        { "include": "#comments" },
+        { "include": "#option" },
+        { "include": "#enumValue" },
+        { "include": "#reserved" },
         {
-          "comment": "Enum with brace on same line",
-          "begin": "\\b(enum)\\s+(\\w+)\\s*(\\{)",
-          "end": "\\}",
-          "beginCaptures": {
-            "1": { "name": "keyword.declaration.enum.proto" },
-            "2": { "name": "entity.name.type.enum.proto" },
-            "3": { "name": "punctuation.definition.block.proto" }
-          },
-          "patterns": [
-            { "include": "#comments" },
-            { "include": "#option" },
-            { "include": "#enumValue" },
-            { "include": "#reserved" }
-          ]
-        },
-        {
-          "comment": "Enum with brace on next line",
-          "begin": "\\b(enum)\\s+(\\w+)(?=\\s*(?://.*)?$)",
-          "end": "\\}",
-          "beginCaptures": {
-            "1": { "name": "keyword.declaration.enum.proto" },
-            "2": { "name": "entity.name.type.enum.proto" }
-          },
-          "patterns": [
-            { "include": "#comments" },
-            { "include": "#option" },
-            { "include": "#enumValue" },
-            { "include": "#reserved" }
-          ]
+          "comment": "Opening brace on next line",
+          "match": "\\{",
+          "name": "punctuation.definition.block.proto"
         }
       ]
     },
@@ -565,35 +534,24 @@
       "patterns": [{ "include": "#fieldOptions" }]
     },
     "service": {
+      "begin": "\\b(service)\\s+(\\w+)\\s*(\\{)?",
+      "end": "\\}",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.service.proto" },
+        "2": { "name": "entity.name.type.service.proto" },
+        "3": { "name": "punctuation.definition.block.proto" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.block.proto" }
+      },
       "patterns": [
+        { "include": "#comments" },
+        { "include": "#option" },
+        { "include": "#rpc" },
         {
-          "comment": "Service with brace on same line",
-          "begin": "\\b(service)\\s+(\\w+)\\s*(\\{)",
-          "end": "\\}",
-          "beginCaptures": {
-            "1": { "name": "keyword.declaration.service.proto" },
-            "2": { "name": "entity.name.type.service.proto" },
-            "3": { "name": "punctuation.definition.block.proto" }
-          },
-          "patterns": [
-            { "include": "#comments" },
-            { "include": "#option" },
-            { "include": "#rpc" }
-          ]
-        },
-        {
-          "comment": "Service with brace on next line",
-          "begin": "\\b(service)\\s+(\\w+)(?=\\s*(?://.*)?$)",
-          "end": "\\}",
-          "beginCaptures": {
-            "1": { "name": "keyword.declaration.service.proto" },
-            "2": { "name": "entity.name.type.service.proto" }
-          },
-          "patterns": [
-            { "include": "#comments" },
-            { "include": "#option" },
-            { "include": "#rpc" }
-          ]
+          "comment": "Opening brace on next line",
+          "match": "\\{",
+          "name": "punctuation.definition.block.proto"
         }
       ]
     },
@@ -603,7 +561,7 @@
           "comment": "RPC request type definition",
           "match": "\\(\\s*(stream)?\\s*([\\w.]+)\\s*\\)",
           "captures": {
-            "1": { "name": "keyword.other.stream.proto" },
+            "1": { "name": "keyword.control.stream.proto" },
             "2": { "name": "entity.name.type.proto" }
           }
         },
@@ -628,7 +586,7 @@
           "begin": "(rpc)\\s+(\\w+)",
           "end": "\\}|(;)",
           "beginCaptures": {
-            "1": { "name": "keyword.declaration.rpc.proto" },
+            "1": { "name": "keyword.control.rpc.proto" },
             "2": { "name": "entity.name.function.rpc.proto" }
           },
           "endCaptures": {
@@ -643,78 +601,63 @@
       ]
     },
     "oneof": {
+      "begin": "\\b(oneof)\\s+(\\w+)\\s*(\\{)?",
+      "end": "\\}",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.oneof.proto" },
+        "2": { "name": "variable.other.oneof.proto" },
+        "3": { "name": "punctuation.definition.block.proto" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.block.proto" }
+      },
       "patterns": [
+        { "include": "#comments" },
+        { "include": "#option" },
+        { "include": "#field" },
         {
-          "comment": "Oneof with brace on same line",
-          "begin": "\\b(oneof)\\s+(\\w+)\\s*(\\{)",
-          "end": "\\}",
-          "beginCaptures": {
-            "1": { "name": "keyword.declaration.oneof.proto" },
-            "2": { "name": "variable.other.oneof.proto" },
-            "3": { "name": "punctuation.definition.block.proto" }
-          },
-          "patterns": [
-            { "include": "#comments" },
-            { "include": "#option" },
-            { "include": "#field" }
-          ]
-        },
-        {
-          "comment": "Oneof with brace on next line",
-          "begin": "\\b(oneof)\\s+(\\w+)(?=\\s*(?://.*)?$)",
-          "end": "\\}",
-          "beginCaptures": {
-            "1": { "name": "keyword.declaration.oneof.proto" },
-            "2": { "name": "variable.other.oneof.proto" }
-          },
-          "patterns": [
-            { "include": "#comments" },
-            { "include": "#option" },
-            { "include": "#field" }
-          ]
+          "comment": "Opening brace on next line",
+          "match": "\\{",
+          "name": "punctuation.definition.block.proto"
         }
       ]
     },
     "extend": {
+      "begin": "\\b(extend)\\s+([\\w.]+)\\s*(\\{)?",
+      "end": "\\}",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.extend.proto" },
+        "2": { "name": "entity.name.type.proto" },
+        "3": { "name": "punctuation.definition.block.proto" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.block.proto" }
+      },
       "patterns": [
+        { "include": "#comments" },
+        { "include": "#field" },
         {
-          "comment": "Extend with brace on same line",
-          "begin": "\\b(extend)\\s+([\\w.]+)\\s*(\\{)",
-          "end": "\\}",
-          "beginCaptures": {
-            "1": { "name": "keyword.declaration.extend.proto" },
-            "2": { "name": "entity.name.type.proto" },
-            "3": { "name": "punctuation.definition.block.proto" }
-          },
-          "patterns": [{ "include": "#comments" }, { "include": "#field" }]
-        },
-        {
-          "comment": "Extend with brace on next line",
-          "begin": "\\b(extend)\\s+([\\w.]+)(?=\\s*(?://.*)?$)",
-          "end": "\\}",
-          "beginCaptures": {
-            "1": { "name": "keyword.declaration.extend.proto" },
-            "2": { "name": "entity.name.type.proto" }
-          },
-          "patterns": [{ "include": "#comments" }, { "include": "#field" }]
+          "comment": "Opening brace on next line",
+          "match": "\\{",
+          "name": "punctuation.definition.block.proto"
         }
       ]
     },
     "reserved": {
       "match": "\\b(reserved)\\s+(.+);",
       "captures": {
-        "1": { "name": "keyword.other.reserved.proto" },
+        "1": { "name": "keyword.control.reserved.proto" },
         "2": {
           "patterns": [
             { "include": "#strings" },
             { "include": "#numbers" },
             {
               "match": "\\bto\\b",
-              "name": "keyword.other.to.proto"
+              "name": "keyword.control.to.proto"
             },
             {
               "match": "\\bmax\\b",
-              "name": "keyword.other.max.proto"
+              "name": "keyword.control.max.proto"
             }
           ]
         }
@@ -723,17 +666,17 @@
     "extensions": {
       "match": "\\b(extensions)\\s+(.+);",
       "captures": {
-        "1": { "name": "keyword.other.extensions.proto" },
+        "1": { "name": "keyword.control.extensions.proto" },
         "2": {
           "patterns": [
             { "include": "#numbers" },
             {
               "match": "\\bto\\b",
-              "name": "keyword.other.to.proto"
+              "name": "keyword.control.to.proto"
             },
             {
               "match": "\\bmax\\b",
-              "name": "keyword.other.max.proto"
+              "name": "keyword.control.max.proto"
             }
           ]
         }
@@ -742,7 +685,7 @@
     "map": {
       "begin": "\\b(map)\\s*(<)\\s*(\\w+)\\s*(,)\\s*([\\w.]+)\\s*(>)\\s+(\\w+)\\s*(=)\\s*(0[xX][0-9a-fA-F]+|\\d+)",
       "beginCaptures": {
-        "1": { "name": "keyword.other.map.proto" },
+        "1": { "name": "keyword.control.map.proto" },
         "2": { "name": "punctuation.definition.typeparameters.begin.proto" },
         "3": { "name": "storage.type.proto" },
         "4": { "name": "punctuation.separator.proto" },
@@ -771,8 +714,8 @@
           "begin": "\\b(optional|required|repeated)\\s+(group)\\s+([A-Z]\\w*)\\s*(=)\\s*(\\d+)\\s*(\\{)",
           "end": "\\}",
           "beginCaptures": {
-            "1": { "name": "keyword.other.modifier.proto" },
-            "2": { "name": "keyword.declaration.group.proto" },
+            "1": { "name": "keyword.control.modifier.proto" },
+            "2": { "name": "keyword.control.group.proto" },
             "3": { "name": "entity.name.type.group.proto" },
             "4": { "name": "keyword.operator.assignment.proto" },
             "5": { "name": "constant.numeric.proto" },
@@ -790,7 +733,7 @@
           "begin": "\\b(group)\\s+([A-Z]\\w*)\\s*(=)\\s*(\\d+)\\s*(\\{)",
           "end": "\\}",
           "beginCaptures": {
-            "1": { "name": "keyword.declaration.group.proto" },
+            "1": { "name": "keyword.control.group.proto" },
             "2": { "name": "entity.name.type.group.proto" },
             "3": { "name": "keyword.operator.assignment.proto" },
             "4": { "name": "constant.numeric.proto" },
@@ -812,7 +755,7 @@
           "begin": "\\b(optional|required|repeated)?\\s*([\\w.]+)\\s+(\\w+)\\s*=\\s*(\\d+)\\s*\\[\\s*(\\([\\w.]+\\)(?:\\.[\\w]+)*)\\s*=\\s*\\{",
           "end": "\\}\\s*\\]\\s*;",
           "beginCaptures": {
-            "1": { "name": "keyword.other.modifier.proto" },
+            "1": { "name": "keyword.control.modifier.proto" },
             "2": {
               "patterns": [
                 { "include": "#types" },
@@ -826,49 +769,11 @@
           "patterns": [{ "include": "#celOptionBody" }]
         },
         {
-          "comment": "Multi-line field with modifier: type name = (optional comment, newline) number",
-          "begin": "\\b(optional|required|repeated)\\s+([\\w.]+)\\s+(\\w+)\\s*=\\s*(//.*)?$",
-          "end": "(\\d+)\\s*(?:\\[.*?\\])?\\s*;",
+          "comment": "Multi-line field with modifier - matches 'modifier type name =' and continues to semicolon",
+          "begin": "\\b(optional|required|repeated)\\s+(\\.?[\\w.]+)\\s+(\\w+)\\s*(=)",
+          "end": "(;)",
           "beginCaptures": {
-            "1": { "name": "keyword.other.modifier.proto" },
-            "2": {
-              "patterns": [
-                { "include": "#types" },
-                { "match": "[\\w.]+", "name": "entity.name.type.proto" }
-              ]
-            },
-            "3": { "name": "variable.other.field.proto" },
-            "4": { "name": "comment.line.double-slash.proto" }
-          },
-          "endCaptures": {
-            "1": { "name": "constant.numeric.proto" }
-          },
-          "patterns": [{ "include": "#comments" }]
-        },
-        {
-          "comment": "Multi-line field without modifier: type name = (optional comment, newline) number",
-          "begin": "\\b([\\w.]+)\\s+(\\w+)\\s*=\\s*(//.*)?$",
-          "end": "(\\d+)\\s*(?:\\[.*?\\])?\\s*;",
-          "beginCaptures": {
-            "1": {
-              "patterns": [
-                { "include": "#types" },
-                { "match": "[\\w.]+", "name": "entity.name.type.proto" }
-              ]
-            },
-            "2": { "name": "variable.other.field.proto" },
-            "3": { "name": "comment.line.double-slash.proto" }
-          },
-          "endCaptures": {
-            "1": { "name": "constant.numeric.proto" }
-          },
-          "patterns": [{ "include": "#comments" }]
-        },
-        {
-          "comment": "Field with modifier (single line with optional field options)",
-          "begin": "\\b(optional|required|repeated)\\s+(\\.?[\\w.]+)\\s+(\\w+)\\s*(=)\\s*(0[xX][0-9a-fA-F]+|\\d+)",
-          "beginCaptures": {
-            "1": { "name": "keyword.other.modifier.proto" },
+            "1": { "name": "keyword.control.modifier.proto" },
             "2": {
               "patterns": [
                 { "include": "#types" },
@@ -876,33 +781,47 @@
               ]
             },
             "3": { "name": "variable.other.field.proto" },
-            "4": { "name": "keyword.operator.assignment.proto" },
-            "5": { "name": "constant.numeric.proto" }
+            "4": { "name": "keyword.operator.assignment.proto" }
           },
-          "end": "(;)",
           "endCaptures": {
             "1": { "name": "punctuation.terminator.proto" }
           },
-          "patterns": [{ "include": "#fieldOptions" }]
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#fieldOptions" },
+            {
+              "comment": "Field number (can appear anywhere before semicolon)",
+              "match": "\\b(0[xX][0-9a-fA-F]+|\\d+)\\b",
+              "name": "constant.numeric.proto"
+            }
+          ]
         },
         {
-          "comment": "Field without modifier - absolute qualified type (.pkg.Type)",
-          "begin": "(\\.\\w[\\w.]*)\\s+(\\w+)\\s*(=)\\s*(0[xX][0-9a-fA-F]+|\\d+)",
+          "comment": "Multi-line field without modifier - absolute qualified type (.pkg.Type)",
+          "begin": "(\\.\\w[\\w.]*)\\s+(\\w+)\\s*(=)",
+          "end": "(;)",
           "beginCaptures": {
             "1": { "name": "entity.name.type.proto" },
             "2": { "name": "variable.other.field.proto" },
-            "3": { "name": "keyword.operator.assignment.proto" },
-            "4": { "name": "constant.numeric.proto" }
+            "3": { "name": "keyword.operator.assignment.proto" }
           },
-          "end": "(;)",
           "endCaptures": {
             "1": { "name": "punctuation.terminator.proto" }
           },
-          "patterns": [{ "include": "#fieldOptions" }]
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#fieldOptions" },
+            {
+              "comment": "Field number (can appear anywhere before semicolon)",
+              "match": "\\b(0[xX][0-9a-fA-F]+|\\d+)\\b",
+              "name": "constant.numeric.proto"
+            }
+          ]
         },
         {
-          "comment": "Field without modifier (single line with optional field options)",
-          "begin": "\\b([\\w.]+)\\s+(\\w+)\\s*(=)\\s*(0[xX][0-9a-fA-F]+|\\d+)",
+          "comment": "Multi-line field without modifier - supports whitespace/newlines between tokens",
+          "begin": "\\b([\\w.]+)\\s+(\\w+)\\s*(=)",
+          "end": "(;)",
           "beginCaptures": {
             "1": {
               "patterns": [
@@ -911,14 +830,20 @@
               ]
             },
             "2": { "name": "variable.other.field.proto" },
-            "3": { "name": "keyword.operator.assignment.proto" },
-            "4": { "name": "constant.numeric.proto" }
+            "3": { "name": "keyword.operator.assignment.proto" }
           },
-          "end": "(;)",
           "endCaptures": {
             "1": { "name": "punctuation.terminator.proto" }
           },
-          "patterns": [{ "include": "#fieldOptions" }]
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#fieldOptions" },
+            {
+              "comment": "Field number (can appear anywhere before semicolon)",
+              "match": "\\b(0[xX][0-9a-fA-F]+|\\d+)\\b",
+              "name": "constant.numeric.proto"
+            }
+          ]
         }
       ]
     },

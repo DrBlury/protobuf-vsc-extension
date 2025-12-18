@@ -20,6 +20,9 @@ export interface Settings {
       alignFields?: boolean;
       preserveMultiLineFields?: boolean;
     };
+    semanticHighlighting: {
+      enabled: 'hybrid' | 'semantic' | 'textmate';
+    };
     includes: string[];
     protoSrcsDir: string;
     renumber: {
@@ -113,6 +116,9 @@ export const defaultSettings: Settings = {
       preset: 'minimal',
       alignFields: true,
       preserveMultiLineFields: false
+    },
+    semanticHighlighting: {
+      enabled: 'textmate'
     },
     includes: [],
     protoSrcsDir: '',

@@ -141,8 +141,11 @@ const SCALAR_TYPES = new Set([
   'bool', 'string', 'bytes'
 ]);
 
+export type SemanticHighlightingMode = 'hybrid' | 'semantic';
+
 export class SemanticTokensProvider {
   private analyzer: SemanticAnalyzer;
+  private mode: SemanticHighlightingMode = 'hybrid';
 
   constructor(analyzer: SemanticAnalyzer) {
     this.analyzer = analyzer;
@@ -150,13 +153,15 @@ export class SemanticTokensProvider {
 
   /**
    * Get semantic tokens for a document
+   * @param mode 'hybrid' = types/names only, 'semantic' = all tokens including keywords/scalars
    */
-  getSemanticTokens(uri: string, content: string): { data: number[] } {
+  getSemanticTokens(uri: string, content: string, mode: SemanticHighlightingMode = 'hybrid'): { data: number[] } {
     const file = this.analyzer.getFile(uri);
     if (!file) {
       return { data: [] };
     }
 
+    this.mode = mode;
     const builder = new SemanticTokensBuilder();
 
     // Process the file in order
@@ -180,6 +185,9 @@ export class SemanticTokensProvider {
     // Process edition statement
     if (file.edition) {
       this.addKeywordToken(builder, file.edition.range, 'edition', lines);
+      if (file.edition.edition) {
+        this.addStringToken(builder, file.edition.range, file.edition.edition, lines);
+      }
     }
 
     // Process package statement
@@ -240,8 +248,10 @@ export class SemanticTokensProvider {
       return;
     }
 
-    // 'message' keyword
-    this.addKeywordAtOffset(builder, message.range.start.line, line, 'message', TOKEN_KEYWORD, 0);
+    // 'message' keyword - emit in semantic mode only
+    if (this.mode === 'semantic') {
+      this.addKeywordAtOffset(builder, message.range.start.line, line, 'message', TOKEN_KEYWORD, 0);
+    }
 
     // Message name
     const messageKeywordIdx = line.indexOf('message');
@@ -307,7 +317,7 @@ export class SemanticTokensProvider {
 
     const lineStart = field.range.start.character;
 
-    // Field modifier (optional, repeated, required)
+    // Field modifier (optional, repeated, required) - emit in semantic mode or always for modifiers
     if (field.modifier) {
       this.addKeywordAtOffset(builder, field.range.start.line, line, field.modifier, TOKEN_MODIFIER, lineStart);
     }
@@ -317,15 +327,14 @@ export class SemanticTokensProvider {
     if (typeName) {
       const isScalar = SCALAR_TYPES.has(typeName);
       const isWellKnown = WELL_KNOWN_TYPES.has(typeName) || SIMPLE_WELL_KNOWN_TYPES.has(typeName);
-
       const typeStart = this.findTypeStart(line, typeName, lineStart);
       if (typeStart >= 0) {
-        const modifiers = isWellKnown ? MOD_DEFAULT_LIBRARY : 0;
+        const modifiers = (isScalar || isWellKnown) ? MOD_DEFAULT_LIBRARY : 0;
         this.pushToken(builder,
           field.range.start.line,
           typeStart,
           typeName.length,
-          isScalar ? TOKEN_KEYWORD : TOKEN_TYPE,
+          TOKEN_TYPE,
           modifiers
         );
       }
@@ -346,7 +355,9 @@ export class SemanticTokensProvider {
     // Field number
     if (field.number !== undefined) {
       const numStr = String(field.number);
-      const numStart = line.indexOf(numStr, nameStart > 0 ? nameStart + field.name.length : 0);
+      // Search for field number after the '=' sign to avoid matching numbers in type names like int32
+      const equalsIdx = line.indexOf('=', nameStart >= 0 ? nameStart + field.name.length : lineStart);
+      const numStart = equalsIdx >= 0 ? line.indexOf(numStr, equalsIdx + 1) : -1;
       if (numStart >= 0) {
         this.pushToken(builder,
           field.range.start.line,
@@ -367,12 +378,15 @@ export class SemanticTokensProvider {
 
     const lineStart = mapField.range.start.character;
 
-    // 'map' keyword
-    this.addKeywordAtOffset(builder, mapField.range.start.line, line, 'map', TOKEN_KEYWORD, lineStart);
+    // 'map' keyword - emit in semantic mode only
+    if (this.mode === 'semantic') {
+      this.addKeywordAtOffset(builder, mapField.range.start.line, line, 'map', TOKEN_KEYWORD, lineStart);
+    }
 
-    // Key type
+    // Key type - in semantic mode emit all types, in hybrid skip scalars
     const keyType = mapField.keyType;
     if (keyType) {
+      const isKeyScalar = SCALAR_TYPES.has(keyType);
       const bracketIdx = line.indexOf('<', lineStart);
       const keyStart = bracketIdx >= 0 ? line.indexOf(keyType, bracketIdx + 1) : -1;
       if (keyStart >= 0) {
@@ -380,15 +394,16 @@ export class SemanticTokensProvider {
           mapField.range.start.line,
           keyStart,
           keyType.length,
-          SCALAR_TYPES.has(keyType) ? TOKEN_KEYWORD : TOKEN_TYPE,
-          0
+          TOKEN_TYPE,
+          isKeyScalar ? MOD_DEFAULT_LIBRARY : 0
         );
       }
     }
 
-    // Value type
+    // Value type - in semantic mode emit all types, in hybrid skip scalars
     const valueType = mapField.valueType;
     if (valueType) {
+      const isScalar = SCALAR_TYPES.has(valueType);
       const commaIdx = line.indexOf(',', lineStart);
       const valueStart = commaIdx >= 0 ? line.indexOf(valueType, commaIdx + 1) : -1;
       if (valueStart >= 0) {
@@ -397,8 +412,8 @@ export class SemanticTokensProvider {
           mapField.range.start.line,
           valueStart,
           valueType.length,
-          SCALAR_TYPES.has(valueType) ? TOKEN_KEYWORD : TOKEN_TYPE,
-          isWellKnown ? MOD_DEFAULT_LIBRARY : 0
+          TOKEN_TYPE,
+          (isScalar || isWellKnown) ? MOD_DEFAULT_LIBRARY : 0
         );
       }
     }
@@ -419,7 +434,9 @@ export class SemanticTokensProvider {
     // Field number
     if (mapField.number !== undefined) {
       const numStr = String(mapField.number);
-      const numStart = line.indexOf(numStr, nameStart > 0 ? nameStart + mapField.name.length : 0);
+      // Search for field number after the '=' sign to avoid matching numbers in type names
+      const equalsIdx = line.indexOf('=', nameStart >= 0 ? nameStart + mapField.name.length : lineStart);
+      const numStart = equalsIdx >= 0 ? line.indexOf(numStr, equalsIdx + 1) : -1;
       if (numStart >= 0) {
         this.pushToken(builder,
           mapField.range.start.line,
@@ -440,8 +457,10 @@ export class SemanticTokensProvider {
 
     const lineStart = oneof.range.start.character;
 
-    // 'oneof' keyword
-    this.addKeywordAtOffset(builder, oneof.range.start.line, line, 'oneof', TOKEN_KEYWORD, lineStart);
+    // 'oneof' keyword - emit in semantic mode only
+    if (this.mode === 'semantic') {
+      this.addKeywordAtOffset(builder, oneof.range.start.line, line, 'oneof', TOKEN_KEYWORD, lineStart);
+    }
 
     // Oneof name
     const oneofKeywordIdx = line.indexOf('oneof', lineStart);
@@ -470,8 +489,10 @@ export class SemanticTokensProvider {
       return;
     }
 
-    // 'enum' keyword
-    this.addKeywordAtOffset(builder, enumDef.range.start.line, line, 'enum', TOKEN_KEYWORD, 0);
+    // 'enum' keyword - emit in semantic mode only
+    if (this.mode === 'semantic') {
+      this.addKeywordAtOffset(builder, enumDef.range.start.line, line, 'enum', TOKEN_KEYWORD, 0);
+    }
 
     // Enum name
     const enumKeywordIdx = line.indexOf('enum');
@@ -523,7 +544,9 @@ export class SemanticTokensProvider {
 
     // Enum value number
     const numStr = String(value.number);
-    const numStart = line.indexOf(numStr, nameStart > 0 ? nameStart + value.name.length : lineStart);
+    // Search for enum value number after the '=' sign to avoid matching numbers elsewhere
+    const equalsIdx = line.indexOf('=', nameStart >= 0 ? nameStart + value.name.length : lineStart);
+    const numStart = equalsIdx >= 0 ? line.indexOf(numStr, equalsIdx + 1) : -1;
     if (numStart >= 0) {
       this.pushToken(builder,
         value.range.start.line,
@@ -541,8 +564,10 @@ export class SemanticTokensProvider {
       return;
     }
 
-    // 'service' keyword
-    this.addKeywordAtOffset(builder, service.range.start.line, line, 'service', TOKEN_KEYWORD, 0);
+    // 'service' keyword - emit in semantic mode only
+    if (this.mode === 'semantic') {
+      this.addKeywordAtOffset(builder, service.range.start.line, line, 'service', TOKEN_KEYWORD, 0);
+    }
 
     // Service name
     const serviceKeywordIdx = line.indexOf('service');
@@ -580,8 +605,10 @@ export class SemanticTokensProvider {
 
     const lineStart = rpc.range.start.character;
 
-    // 'rpc' keyword
-    this.addKeywordAtOffset(builder, rpc.range.start.line, line, 'rpc', TOKEN_KEYWORD, lineStart);
+    // 'rpc' keyword - emit in semantic mode only
+    if (this.mode === 'semantic') {
+      this.addKeywordAtOffset(builder, rpc.range.start.line, line, 'rpc', TOKEN_KEYWORD, lineStart);
+    }
 
     // RPC name
     const rpcKeywordIdx = line.indexOf('rpc', lineStart);
@@ -663,8 +690,8 @@ export class SemanticTokensProvider {
 
     const lineStart = option.range.start.character;
 
-    // 'option' keyword (only for standalone options)
-    if (line.includes('option')) {
+    // 'option' keyword - emit in semantic mode only
+    if (this.mode === 'semantic') {
       this.addKeywordAtOffset(builder, option.range.start.line, line, 'option', TOKEN_KEYWORD, lineStart);
     }
 

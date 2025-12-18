@@ -1,0 +1,264 @@
+// SYNTAX TEST "source.proto" "Unusual syntax patterns and edge cases"
+
+syntax = "proto3";
+// <-- keyword.control.syntax.proto
+
+package unusual;
+
+// =============================================================================
+// EMPTY CONSTRUCTS - Valid but minimal
+// =============================================================================
+
+message EmptyMessage {}
+// <--- keyword.declaration.message.proto
+//      ^^^^^^^^^^^^ entity.name.type.message.proto
+
+message EmptyWithSpace { }
+// <--- keyword.declaration.message.proto
+
+enum EmptyEnum {
+// <-keyword.declaration.enum.proto
+    EMPTY_UNSPECIFIED = 0;
+//  ^^^^^^^^^^^^^^^^^ variable.other.enummember.proto
+}
+
+service EmptyService {}
+// <--- keyword.declaration.service.proto
+
+// =============================================================================
+// SINGLE-LINE CONSTRUCTS
+// =============================================================================
+
+message SingleLine { string name = 1; }
+// <--- keyword.declaration.message.proto
+//                   ^^^^^^ storage.type.proto
+
+message TwoFields { string a = 1; int32 b = 2; }
+// <--- keyword.declaration.message.proto
+//                  ^^^^^^ storage.type.proto
+//                                ^^^^^ storage.type.proto
+
+
+// =============================================================================
+// DEEPLY NESTED MESSAGES (4 levels)
+// =============================================================================
+
+message Level1 {
+// <--- keyword.declaration.message.proto
+    message Level2 {
+//  ^^^^^^^ keyword.declaration.message.proto
+        message Level3 {
+//      ^^^^^^^ keyword.declaration.message.proto
+            message Level4 {
+//          ^^^^^^^ keyword.declaration.message.proto
+                string deep_value = 1;
+//              ^^^^^^ storage.type.proto
+            }
+            Level4 l4 = 1;
+//          ^^^^^^ entity.name.type.proto
+        }
+        Level3 l3 = 1;
+//      ^^^^^^ entity.name.type.proto
+    }
+    Level2 l2 = 1;
+//  ^^^^^^ entity.name.type.proto
+}
+
+
+// =============================================================================
+// MESSAGE USING DEEPLY QUALIFIED TYPES
+// =============================================================================
+
+message UsesDeepTypes {
+    Level1.Level2.Level3.Level4 deep_field = 1;
+//  ^^^^^^^^^^^^^^^^^^^^^^^^^^^ entity.name.type.proto
+//                              ^^^^^^^^^^ variable.other.field.proto
+}
+
+
+// =============================================================================
+// ONEOF WITH SINGLE FIELD
+// =============================================================================
+
+message OneofSingle {
+    oneof single_choice {
+//  ^^^^^ keyword.declaration.oneof.proto
+//        ^^^^^^^^^^^^^ variable.other.oneof.proto
+        string only_option = 1;
+//      ^^^^^^ storage.type.proto
+    }
+}
+
+
+// =============================================================================
+// ONEOF WITH MANY FIELDS
+// =============================================================================
+
+message OneofMany {
+    oneof many_choices {
+//  ^^^^^ keyword.declaration.oneof.proto
+        string str_val = 1;
+//      ^^^^^^ storage.type.proto
+        int32 int_val = 2;
+//      ^^^^^ storage.type.proto
+        bool bool_val = 3;
+//      ^^^^ storage.type.proto
+        bytes bytes_val = 4;
+//      ^^^^^ storage.type.proto
+        double double_val = 5;
+//      ^^^^^^ storage.type.proto
+        float float_val = 6;
+//      ^^^^^ storage.type.proto
+        fixed64 fixed_val = 7;
+//      ^^^^^^^ storage.type.proto
+        EmptyMessage msg_val = 8;
+//      ^^^^^^^^^^^^ entity.name.type.proto
+    }
+}
+
+
+// =============================================================================
+// VERY LONG FIELD NAME
+// =============================================================================
+
+message LongFieldName {
+    string this_is_a_very_long_field_name_that_might_cause_issues = 1;
+//  ^^^^^^ storage.type.proto
+//         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ variable.other.field.proto
+}
+
+
+// =============================================================================
+// UNICODE IN COMMENTS (should remain comments)
+// =============================================================================
+
+// Unicode: 你好 مرحبا שלום 🎉 emoji
+// Greek: αβγδ
+// Math: ∑∏∫∂
+
+message AfterUnicode {
+// <--- keyword.declaration.message.proto
+    string field = 1;
+//  ^^^^^^ storage.type.proto
+}
+
+
+// =============================================================================
+// CONSECUTIVE COMMENTS
+// =============================================================================
+
+// Comment 1
+// Comment 2
+// Comment 3
+/* Block 1 */
+/* Block 2 */
+/* Block 3 */
+
+message AfterConsecutiveComments {
+// <--- keyword.declaration.message.proto
+    int32 id = 1;
+//  ^^^^^ storage.type.proto
+}
+
+
+// =============================================================================
+// FIELD NUMBERS AT BOUNDARIES
+// =============================================================================
+
+message FieldNumberBoundaries {
+    string field_1 = 1;
+//                   ^ constant.numeric.proto
+    string field_max = 536870911;
+//                     ^^^^^^^^^ constant.numeric.proto
+    string field_hex_max = 0x1FFFFFFF;
+//                         ^^^^^^^^^^ constant.numeric.proto
+}
+
+
+// =============================================================================
+// MIXED TABS AND SPACES (valid, though not recommended)
+// =============================================================================
+
+message MixedIndentation {
+    string tab_indented = 1;
+//  ^^^^^^ storage.type.proto
+    string space_indented = 2;
+//  ^^^^^^ storage.type.proto
+}
+
+
+// =============================================================================
+// TRAILING WHITESPACE (should not affect highlighting)
+// =============================================================================
+
+message TrailingWhitespace {
+// <--- keyword.declaration.message.proto
+    string field = 1;
+//  ^^^^^^ storage.type.proto
+}
+
+
+// =============================================================================
+// KEYWORDS AS FIELD NAMES (valid - keywords are contextual)
+// =============================================================================
+
+message KeywordsAsNames {
+    string message = 1;
+//  ^^^^^^ storage.type.proto
+//         ^^^^^^^ variable.other.field.proto
+    string enum = 2;
+//         ^^^^ variable.other.field.proto
+    string service = 3;
+//         ^^^^^^^ variable.other.field.proto
+    string rpc = 4;
+//         ^^^ variable.other.field.proto
+    string syntax = 5;
+//         ^^^^^^ variable.other.field.proto
+    string import = 6;
+//         ^^^^^^ variable.other.field.proto
+    string package = 7;
+//         ^^^^^^^ variable.other.field.proto
+    string option = 8;
+//         ^^^^^^ variable.other.field.proto
+    string repeated = 9;
+//         ^^^^^^^^ variable.other.field.proto
+    string optional = 10;
+//         ^^^^^^^^ variable.other.field.proto
+}
+
+
+// =============================================================================
+// SERVICE WITH EMPTY RPC BODY
+// =============================================================================
+
+message Request {}
+message Response {}
+
+service ServiceWithEmptyBody {
+// <--- keyword.declaration.service.proto
+    rpc Method(Request) returns (Response) {}
+//  ^^^ keyword.declaration.rpc.proto
+//      ^^^^^^ entity.name.function.rpc.proto
+}
+
+
+// =============================================================================
+// FINAL MESSAGE TO VERIFY STATE IS CLEAN
+// =============================================================================
+
+message FinalVerification {
+// <--- keyword.declaration.message.proto
+    string first = 1;
+//  ^^^^^^ storage.type.proto
+    int32 second = 2;
+//  ^^^^^ storage.type.proto
+    bool third = 3;
+//  ^^^^ storage.type.proto
+    repeated double fourth = 4;
+//  ^^^^^^^^ keyword.other.modifier.proto
+//           ^^^^^^ storage.type.proto
+    map<string, int32> fifth = 5;
+//  ^^^ keyword.other.map.proto
+//      ^^^^^^ storage.type.proto
+//              ^^^^^ storage.type.proto
+}

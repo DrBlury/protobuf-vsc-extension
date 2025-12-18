@@ -28,6 +28,12 @@ export class DefinitionProvider {
       return null;
     }
 
+    // If the cursor is already on a symbol's declaration, return that location immediately
+    const localSymbol = this.findSymbolAtPosition(uri, position);
+    if (localSymbol) {
+      return localSymbol.location;
+    }
+
     // Check if this is an import statement - navigate to the imported file
     const importMatch = lineText.match(/import\s+(weak|public)?\s*"([^"]+)"/);
     if (importMatch) {
@@ -88,7 +94,7 @@ export class DefinitionProvider {
     }
 
     // 4. Try to resolve by searching all accessible symbols
-    const allSymbols = this.analyzer.getAllSymbols();
+    const allSymbols = this.analyzer.getAccessibleSymbols(uri);
 
     // Try simple name match
     for (const sym of allSymbols) {
@@ -112,6 +118,16 @@ export class DefinitionProvider {
       }
     }
 
+    return undefined;
+  }
+
+  private findSymbolAtPosition(uri: string, position: Position) {
+    const symbolsInFile = this.analyzer.getSymbolsInFile(uri);
+    for (const symbol of symbolsInFile) {
+      if (symbol.location?.range && this.isPositionInRange(position, symbol.location.range)) {
+        return symbol;
+      }
+    }
     return undefined;
   }
 

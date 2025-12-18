@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package demo;
+
+import "google/protobuf/timestamp.proto";
+
+// A user in the system
+message User {
+	int32 id = 1;
+	string name = 2;
+	string email = 3;
+	UserStatus status = 4;
+	google.protobuf.Timestamp created_at = 5;
+	repeated Address addresses = 6;
+}
+
+enum UserStatus {
+	USER_STATUS_UNSPECIFIED = 0;
+	USER_STATUS_ACTIVE = 1;
+	USER_STATUS_INACTIVE = 2;
+	USER_STATUS_BANNED = 3;
+}
+
+message Address {
+	string street = 1;
+	string city = 2;
+	string country = 3;
+	string zip_code = 4;
+}
+
+// Request to get a user by ID
+message GetUserRequest {
+	int32 user_id = 1;
+}
+
+// Response containing the user
+message GetUserResponse {
+	User user = 1;
+}
+
+// User service for managing users
+service UserService {
+  // Get a single user by ID
+	rpc GetUser(GetUserRequest) returns (GetUserResponse);
+
+  // List all users
+	rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+}
+
+message ListUsersRequest {
+	int32 page_size = 1;
+	string page_token = 2;
+}
+
+message ListUsersResponse {
+	repeated User users = 1;
+	string next_page_token = 2;
+}

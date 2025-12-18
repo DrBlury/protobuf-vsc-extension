@@ -1,0 +1,37 @@
+// SYNTAX TEST "source.proto" "Blank lines before message blocks"
+
+syntax = "proto3";
+// <--- keyword.control.syntax.proto
+
+package demo;
+// <--- keyword.control.package.proto
+
+import "google/protobuf/timestamp.proto";
+// <-- keyword.control.import.proto
+
+
+
+
+message User {
+// <--- keyword.declaration.message.proto
+//      ^^^^ entity.name.type.message.proto
+    int32 id = 1;
+//  ^^^^^ storage.type.proto
+//        ^^ variable.other.field.proto
+//           ^ keyword.operator.assignment.proto
+//             ^ constant.numeric.proto
+    string name = 2;
+//  ^^^^^^ storage.type.proto
+//         ^^^^ variable.other.field.proto
+}
+
+
+
+
+message Address {
+// <--- keyword.declaration.message.proto
+//      ^^^^^^^ entity.name.type.message.proto
+    string street = 1;
+//  ^^^^^^ storage.type.proto
+//         ^^^^^^ variable.other.field.proto
+}

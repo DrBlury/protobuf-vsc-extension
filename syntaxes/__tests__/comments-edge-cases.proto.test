@@ -1,0 +1,190 @@
+// SYNTAX TEST "source.proto" "Comments and code in comments should not be highlighted"
+
+syntax = "proto3";
+// <-- keyword.control.syntax.proto
+
+package comments;
+// <--- keyword.control.package.proto
+
+// =============================================================================
+// SINGLE LINE COMMENTS - Proto code after // should not be highlighted
+// =============================================================================
+
+// message ShouldNotHighlight { string field = 1; }
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ comment.line.double-slash.proto
+
+// enum NotHighlighted { VALUE = 0; }
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ comment.line.double-slash.proto
+
+// service FakeService { rpc Method(Req) returns (Resp); }
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ comment.line.double-slash.proto
+
+// int32 repeated optional required string bytes
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ comment.line.double-slash.proto
+
+
+// =============================================================================
+// BLOCK COMMENTS - All content inside /* */ should be comment, not code
+// =============================================================================
+
+/* message InBlockComment {
+    string field = 1;
+    int32 another = 2;
+}
+*/
+// <- comment.block.proto
+
+/*
+ * multi-line block comment with proto-like content
+ * message Foo { string bar = 1; }
+ * enum Status { OK = 0; ERROR = 1; }
+ * service MyService { rpc Call(Req) returns (Resp); }
+ */
+// <- comment.block.proto
+
+/* Single line block comment with message Foo { } inside */
+// <-------------------------------------------------------- comment.block.proto
+
+
+// =============================================================================
+// REAL MESSAGE AFTER COMMENTS - Should be highlighted correctly
+// =============================================================================
+
+message RealMessage {
+// <--- keyword.declaration.message.proto
+//      ^^^^^^^^^^^ entity.name.type.message.proto
+    string name = 1;
+//  ^^^^^^ storage.type.proto
+//         ^^^^ variable.other.field.proto
+//              ^ keyword.operator.assignment.proto
+//                ^ constant.numeric.proto
+    int32 count = 2;
+//  ^^^^^ storage.type.proto
+}
+
+
+// =============================================================================
+// COMMENTS INSIDE MESSAGE BODIES
+// =============================================================================
+
+message WithInlineComments {
+    // This is a comment inside message
+//  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ comment.line.double-slash.proto
+    string field1 = 1; // trailing comment
+//  ^^^^^^ storage.type.proto
+//                     ^^^^^^^^^^^^^^^^^^ comment.line.double-slash.proto
+
+    /* block comment inside */
+//  ^^^^^^^^^^^^^^^^^^^^^^^^^^ comment.block.proto
+    int32 field2 = 2;
+//  ^^^^^ storage.type.proto
+
+    /* multi
+       line
+       comment */
+//  <- comment.block.proto
+    bool field3 = 3;
+//  ^^^^ storage.type.proto
+}
+
+
+// =============================================================================
+// COMMENTS IN ENUM
+// =============================================================================
+
+enum StatusWithComments {
+// <-keyword.declaration.enum.proto
+    // Comment inside enum
+//  ^^^^^^^^^^^^^^^^^^^^^^^ comment.line.double-slash.proto
+    STATUS_UNSPECIFIED = 0; // enum value comment
+//  ^^^^^^^^^^^^^^^^^^ variable.other.enummember.proto
+//                          ^^^^^^^^^^^^^^^^^^^^^ comment.line.double-slash.proto
+
+    /* block comment */ STATUS_OK = 1;
+//  ^^^^^^^^^^^^^^^^^^^ comment.block.proto
+//                      ^^^^^^^^^ variable.other.enummember.proto
+}
+
+
+// =============================================================================
+// COMMENTS IN SERVICE
+// =============================================================================
+
+message Request {}
+message Response {}
+
+service ServiceWithComments {
+// <--- keyword.declaration.service.proto
+    // Comment before RPC
+//  ^^^^^^^^^^^^^^^^^^^^^^ comment.line.double-slash.proto
+    rpc GetItem(Request) returns (Response); // trailing
+//  ^^^ keyword.declaration.rpc.proto
+//      ^^^^^^^ entity.name.function.rpc.proto
+//                                           ^^^^^^^^^^ comment.line.double-slash.proto
+
+    /* block comment before RPC */
+//  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ comment.block.proto
+    rpc ListItems(Request) returns (Response);
+//  ^^^ keyword.declaration.rpc.proto
+}
+
+
+// =============================================================================
+// NESTED COMMENTS (block comments cannot nest in proto)
+// =============================================================================
+
+/* outer /* this is still part of outer */ back outside */
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ comment.block.proto
+
+message AfterNestedComment {
+// <--- keyword.declaration.message.proto
+    string valid = 1;
+//  ^^^^^^ storage.type.proto
+}
+
+
+// =============================================================================
+// COMMENT-LIKE CONTENT IN STRINGS (should be strings, not comments)
+// =============================================================================
+
+message StringsWithCommentLikeContent {
+    string with_slashes = 1;  // This comment is real
+//  ^^^^^^ storage.type.proto
+//                            ^^^^^^^^^^^^^^^^^^^^^^^ comment.line.double-slash.proto
+}
+
+
+// =============================================================================
+// EMPTY COMMENTS
+// =============================================================================
+
+//
+/**/
+/* */
+
+message AfterEmptyComments {
+// <--- keyword.declaration.message.proto
+    int32 still_works = 1;
+//  ^^^^^ storage.type.proto
+}
+
+
+// =============================================================================
+// COMMENTS WITH SPECIAL CHARACTERS
+// =============================================================================
+
+// @brief Documentation comment with @param and @return
+// TODO: Fix this later
+// FIXME: Important bug
+// NOTE: Remember to update
+// WARNING: Deprecated
+// HACK: Temporary workaround
+// XXX: Needs review
+
+/* Special chars: < > & " ' / \ | @ # $ % ^ * ( ) [ ] { } */
+
+message FinalMessage {
+// <--- keyword.declaration.message.proto
+    string last_field = 1;
+//  ^^^^^^ storage.type.proto
+}

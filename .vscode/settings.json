@@ -26,7 +26,7 @@
   "protobuf.diagnostics.importChecks": true,
   "protobuf.diagnostics.useBuiltIn": true,
   // Parser selection
-  "protobuf.parser": "tree-sitter",
+  // "protobuf.parser": "tree-sitter",
 
   // Formatter settings
   "protobuf.formatter.enabled": true,
@@ -47,5 +47,14 @@
   "search.exclude": {
     "out": true
   },
-  "typescript.tsc.autoDetect": "off"
+  "typescript.tsc.autoDetect": "off",
+  "protobuf.protoc.path": "/opt/homebrew/bin/protoc",
+  "protobuf.buf.path": "/opt/homebrew/bin/buf",
+  "protobuf.externalLinter.bufPath": "/opt/homebrew/bin/buf"
+  // "protobuf.semanticHighlighting.enabled": "textmate"
+  // "editor.semanticTokenColorCustomizations": {
+  //   "[*]": {
+  //     "enabled": true
+  //   }
+  // }
 }

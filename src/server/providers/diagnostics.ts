@@ -27,7 +27,7 @@ import {
   RESERVED_RANGE_END
 } from '../core/ast';
 import { SemanticAnalyzer } from '../core/analyzer';
-import { ERROR_CODES, DIAGNOSTIC_SOURCE } from '../utils/constants';
+import { ERROR_CODES, DIAGNOSTIC_SOURCE, FILE_EXTENSIONS } from '../utils/constants';
 import { logger } from '../utils/logger';
 import { bufConfigProvider } from '../services/bufConfig';
 import {
@@ -40,6 +40,15 @@ import {
   isSnakeCase,
   isScreamingSnakeCase
 } from './diagnostics/index';
+
+const TEXT_FORMAT_EXTENSIONS = [
+  FILE_EXTENSIONS.TEXTPROTO,
+  FILE_EXTENSIONS.PBTXT,
+  FILE_EXTENSIONS.PROTOTXT,
+  FILE_EXTENSIONS.TXTPB,
+  FILE_EXTENSIONS.TEXTPB,
+  FILE_EXTENSIONS.PB_TXT
+];
 
 // Re-export for external consumers
 export { DiagnosticsSettings } from './diagnostics/index';
@@ -58,6 +67,15 @@ export class DiagnosticsProvider {
     this.settings = { ...this.settings, ...settings };
   }
 
+  private shouldSkipDiagnostics(uri: string): boolean {
+    if (!uri) {
+      return false;
+    }
+
+    const normalized = uri.toLowerCase();
+    return TEXT_FORMAT_EXTENSIONS.some(ext => normalized.endsWith(ext));
+  }
+
   /**
    * Check if the current file is proto3 syntax
    */
@@ -69,6 +87,11 @@ export class DiagnosticsProvider {
     // Skip validation for external dependency files (e.g., .buf-deps, vendor directories)
     // These are generated/exported files that should be validated by their source tools
     if (isExternalDependencyFile(uri)) {
+      return [];
+    }
+
+    if (this.shouldSkipDiagnostics(uri)) {
+      logger.verbose(`Skipping diagnostics for text-format proto file: ${uri}`);
       return [];
     }
 

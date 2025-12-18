@@ -418,13 +418,23 @@ export class TreeSitterProtoParser {
         fieldRegex.lastIndex = matchEnd + text.slice(matchEnd).indexOf(optionsStr) + optionsStr.length;
       }
 
+      const matchText = match[0] ?? '';
+      const matchIndex = match.index ?? 0;
+      const typeOffsetInMatch = matchText.indexOf(fieldType);
+      const nameOffsetInMatch = matchText.indexOf(name, typeOffsetInMatch + fieldType.length);
+      const typeOffset = typeOffsetInMatch >= 0 ? matchIndex + typeOffsetInMatch : matchIndex;
+      const nameOffset = nameOffsetInMatch >= 0 ? matchIndex + nameOffsetInMatch : matchIndex;
+
+      const fieldTypeRange = this.rangeFromOffsets(node, text, typeOffset, fieldType.length);
+      const nameRange = this.rangeFromOffsets(node, text, nameOffset, name.length);
+
       fields.push({
         type: 'field',
         modifier,
         fieldType,
-        fieldTypeRange: nodeToRange(node),
+        fieldTypeRange,
         name,
-        nameRange: nodeToRange(node),
+        nameRange,
         number,
         options,
         range: nodeToRange(node)
@@ -495,16 +505,45 @@ export class TreeSitterProtoParser {
     // Parse field options if present
     const options = optionsStr ? this.parseFieldOptionsFromString(optionsStr, optionsBaseRange) : undefined;
 
+    const matchText = match[0] ?? '';
+    const matchIndex = match.index ?? 0;
+    const typeOffsetInMatch = matchText.indexOf(fieldType);
+    const nameOffsetInMatch = matchText.indexOf(name, typeOffsetInMatch + fieldType.length);
+    const typeOffset = typeOffsetInMatch >= 0 ? matchIndex + typeOffsetInMatch : matchIndex;
+    const nameOffset = nameOffsetInMatch >= 0 ? matchIndex + nameOffsetInMatch : matchIndex;
+
     return {
       type: 'field',
       modifier,
       fieldType,
-      fieldTypeRange: nodeToRange(node),
+      fieldTypeRange: this.rangeFromOffsets(node, text, typeOffset, fieldType.length),
       name,
-      nameRange: nodeToRange(node),
+      nameRange: this.rangeFromOffsets(node, text, nameOffset, name.length),
       number,
       options,
       range: nodeToRange(node)
+    };
+  }
+
+  private rangeFromOffsets(node: Node, text: string, startOffset: number, length: number): Range {
+    const start = this.offsetToPosition(node, text, startOffset);
+    const end = this.offsetToPosition(node, text, startOffset + length);
+    return { start, end };
+  }
+
+  private offsetToPosition(node: Node, text: string, offset: number): Position {
+    const clampedOffset = Math.max(0, Math.min(offset, text.length));
+    const before = text.slice(0, clampedOffset);
+    const newlineMatches = before.match(/\n/g);
+    const lineDelta = newlineMatches ? newlineMatches.length : 0;
+    const lastNewline = before.lastIndexOf('\n');
+    const character = lineDelta === 0
+      ? node.startPosition.column + clampedOffset
+      : clampedOffset - (lastNewline + 1);
+
+    return {
+      line: node.startPosition.row + lineDelta,
+      character
     };
   }
 
