@@ -1246,6 +1246,35 @@ describe('ProtocCompiler', () => {
       expect(protoPathArgs.length).toBeGreaterThanOrEqual(1);
     });
 
+    it('should handle --proto-path (hyphen) as well as --proto_path (underscore)', async () => {
+      compiler.updateSettings({
+        options: ['--proto-path=/workspace/common']
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/src/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      const args = spawnCall[1] as string[];
+
+      // Should recognize --proto-path and include it in proto paths
+      const protoPathArgs = args.filter(arg => arg.startsWith('--proto_path='));
+      expect(protoPathArgs.some(arg => arg.includes('common'))).toBe(true);
+    });
+
     it('should handle -I without equals sign', async () => {
       compiler.updateSettings({
         options: ['-I/workspace/common']

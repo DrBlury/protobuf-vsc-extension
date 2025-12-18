@@ -641,6 +641,25 @@ message Optionalf {
       expect(formatted).toContain('        (tag2) = false');
       expect(formatted).toContain('    ];');
     });
+
+    it('should reset indent after inline option brackets close on the same line', async () => {
+      formatter.updateSettings({ alignFields: false, renumberOnFormat: false });
+      const text = `syntax = "proto3";
+
+message Test {
+  int32 field = 1 [
+    (tag2) = false];
+
+  int32 field2 = 2;
+}`;
+      const result = await formatter.formatDocument(text);
+      const lines = result[0].newText.split('\n');
+
+      expect(lines).toContain('  int32 field = 1 [');
+      expect(lines).toContain('    (tag2) = false];');
+      expect(lines).toContain('  int32 field2 = 2;');
+      expect(lines).toContain('}');
+    });
   });
 
   describe('field alignment', () => {

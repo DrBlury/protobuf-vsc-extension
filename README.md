@@ -25,15 +25,22 @@ Full Protocol Buffers language support for VS Code: navigation, IntelliSense, di
 2) Open a `.proto` or `.textproto` file; IntelliSense, diagnostics, and formatting are on (proto2 + proto3 supported).
 3) Use the Command Palette (`Cmd/Ctrl+Shift+P`) and run `Protobuf: Compile This Proto` or `Protobuf: Show Schema Graph`.
 4) Install `protoc` (and optional tools below) if you need compilation/linting.
-5) Add a minimal config if you want compilation output:
+5) Add a minimal config if you want import resolution and compilation output:
 
 ```jsonc
 // .vscode/settings.json
 {
+  // Import paths for IntelliSense and diagnostics (recommended)
+  "protobuf.includes": [
+    "${workspaceFolder}/path/to/protos"
+  ],
+  // Protoc compilation settings
   "protobuf.protoc.path": "protoc",
   "protobuf.protoc.options": ["--proto_path=${workspaceFolder}", "--go_out=${workspaceFolder}/gen/go"]
 }
 ```
+
+> **Note:** Use `protobuf.includes` for configuring import paths. The extension also extracts `--proto_path` from `protobuf.protoc.options` as a fallback, but `protobuf.includes` is preferred for better IntelliSense and diagnostics support.
 
 ---
 

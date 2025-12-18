@@ -54,6 +54,9 @@ export class SemanticAnalyzer {
       const normalized = importPath.replace(/\\/g, '/');
       this.protoRoots.add(normalized);
     }
+    // Clear import resolution cache when paths change to force re-resolution
+    // This ensures diagnostics are updated when protobuf.includes or --proto_path changes
+    this.clearImportResolutionCache();
   }
 
   /**

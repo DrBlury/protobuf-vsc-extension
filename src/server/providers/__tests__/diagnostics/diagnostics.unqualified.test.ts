@@ -435,4 +435,119 @@ message MessageA {
     const unknownTypeDiag = diags.find(d => d.message.includes("Unknown type 'Int32Value'"));
     expect(unknownTypeDiag).toBeUndefined();
   });
+
+  it('should not report error when referencing type from parent package (nested packages)', () => {
+    // foo/types.proto - defines type in parent package "foo"
+    const fooTypesContent = `syntax = "proto3";
+
+package foo;
+
+message SharedType {
+  string value = 1;
+}
+`;
+    const fooTypesUri = 'file:///workspace/foo/types.proto';
+    const fooTypesFile = parser.parse(fooTypesContent, fooTypesUri);
+    analyzer.updateFile(fooTypesUri, fooTypesFile);
+
+    // foo/bar/service.proto - nested package "foo.bar" imports from parent "foo"
+    const fooBarServiceContent = `syntax = "proto3";
+
+package foo.bar;
+
+import "foo/types.proto";
+
+message MyMessage {
+  SharedType shared = 1;
+}`;
+    const fooBarServiceUri = 'file:///workspace/foo/bar/service.proto';
+    const fooBarServiceFile = parser.parse(fooBarServiceContent, fooBarServiceUri);
+    analyzer.updateFile(fooBarServiceUri, fooBarServiceFile);
+
+    diagnosticsProvider.updateSettings({ referenceChecks: true });
+    const diags = diagnosticsProvider.validate(fooBarServiceUri, fooBarServiceFile, fooBarServiceContent);
+
+    // Should NOT report "must be fully qualified" for types from parent package
+    const unqualifiedDiag = diags.find(d => d.message.includes('must be fully qualified'));
+    expect(unqualifiedDiag).toBeUndefined();
+
+    // Should NOT report "Unknown type" either
+    const unknownTypeDiag = diags.find(d => d.message.includes("Unknown type 'SharedType'"));
+    expect(unknownTypeDiag).toBeUndefined();
+  });
+
+  it('should not report error for deeply nested packages referencing ancestor packages', () => {
+    // company/types.proto - defines type in top-level package
+    const companyTypesContent = `syntax = "proto3";
+
+package company;
+
+message BaseEntity {
+  string id = 1;
+}
+`;
+    const companyTypesUri = 'file:///workspace/company/types.proto';
+    const companyTypesFile = parser.parse(companyTypesContent, companyTypesUri);
+    analyzer.updateFile(companyTypesUri, companyTypesFile);
+
+    // company/product/api/v1/service.proto - deeply nested package
+    const deeplyNestedContent = `syntax = "proto3";
+
+package company.product.api.v1;
+
+import "company/types.proto";
+
+message ProductRequest {
+  BaseEntity entity = 1;
+}`;
+    const deeplyNestedUri = 'file:///workspace/company/product/api/v1/service.proto';
+    const deeplyNestedFile = parser.parse(deeplyNestedContent, deeplyNestedUri);
+    analyzer.updateFile(deeplyNestedUri, deeplyNestedFile);
+
+    diagnosticsProvider.updateSettings({ referenceChecks: true });
+    const diags = diagnosticsProvider.validate(deeplyNestedUri, deeplyNestedFile, deeplyNestedContent);
+
+    // Should NOT report "must be fully qualified" for types from ancestor package
+    const unqualifiedDiag = diags.find(d => d.message.includes('must be fully qualified'));
+    expect(unqualifiedDiag).toBeUndefined();
+  });
+
+  it('should still report error for sibling packages (not in parent-child relationship)', () => {
+    // foo/bar/types.proto - sibling package "foo.bar"
+    const fooBarContent = `syntax = "proto3";
+
+package foo.bar;
+
+message BarType {
+  string value = 1;
+}
+`;
+    const fooBarUri = 'file:///workspace/foo/bar/types.proto';
+    const fooBarFile = parser.parse(fooBarContent, fooBarUri);
+    analyzer.updateFile(fooBarUri, fooBarFile);
+
+    // foo/baz/service.proto - sibling package "foo.baz"
+    const fooBazContent = `syntax = "proto3";
+
+package foo.baz;
+
+import "foo/bar/types.proto";
+
+message MyMessage {
+  BarType bar = 1;
+}`;
+    const fooBazUri = 'file:///workspace/foo/baz/service.proto';
+    const fooBazFile = parser.parse(fooBazContent, fooBazUri);
+    analyzer.updateFile(fooBazUri, fooBazFile);
+
+    diagnosticsProvider.updateSettings({ referenceChecks: true });
+    const diags = diagnosticsProvider.validate(fooBazUri, fooBazFile, fooBazContent);
+
+    // SHOULD report "must be fully qualified" for types from sibling package
+    const unqualifiedDiag = diags.find(d =>
+      d.message.includes('must be fully qualified') &&
+      d.message.includes('foo.bar.BarType')
+    );
+    expect(unqualifiedDiag).toBeDefined();
+  });
 });

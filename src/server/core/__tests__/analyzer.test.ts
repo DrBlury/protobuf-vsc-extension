@@ -517,4 +517,36 @@ describe('SemanticAnalyzer', () => {
       expect(names).toContain('Timestamp');
     });
   });
+
+  describe('setImportPaths', () => {
+    it('should clear import resolution cache when paths change', () => {
+      // This test ensures that when import paths are updated (e.g., via settings change),
+      // the cached import resolutions are cleared so imports are re-resolved with new paths
+      const mainFile = parser.parse(`
+        syntax = "proto3";
+        import "types.proto";
+        message Event {}
+      `, 'file:///main.proto');
+
+      analyzer.updateFile('file:///main.proto', mainFile);
+
+      // First resolution attempt - should fail (no import paths configured)
+      const beforeUri = analyzer.resolveImportToUri('file:///main.proto', 'types.proto');
+      expect(beforeUri).toBeUndefined();
+
+      // Now add the types.proto file (simulating it being found after import path is configured)
+      const typesFile = parser.parse(`
+        syntax = "proto3";
+        message Timestamp {}
+      `, 'file:///protos/types.proto');
+      analyzer.updateFile('file:///protos/types.proto', typesFile);
+
+      // Update import paths - this should clear the cache
+      analyzer.setImportPaths(['/protos']);
+
+      // Now resolution should work because cache was cleared and we have the file
+      const afterUri = analyzer.resolveImportToUri('file:///main.proto', 'types.proto');
+      expect(afterUri).toBe('file:///protos/types.proto');
+    });
+  });
 });

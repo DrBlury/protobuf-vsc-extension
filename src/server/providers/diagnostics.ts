@@ -1387,7 +1387,15 @@ export class DiagnosticsProvider {
       return;
     }
 
-    // If they're in different packages, the type must be fully qualified
+    // Check if the current package is a nested/child package of the symbol's package.
+    // In protobuf, type resolution searches up the package hierarchy, so if we're
+    // in package "foo.bar" and the symbol is in package "foo", we can use the short name.
+    // This is because protobuf resolves types by walking up the scope chain.
+    if (currentPackage.startsWith(symbolPackage + '.')) {
+      return;
+    }
+
+    // If they're in different packages (not in parent-child relationship), the type must be fully qualified
     diagnostics.push({
       severity: DiagnosticSeverity.Error,
       range: this.toRange(range),

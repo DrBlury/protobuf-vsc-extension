@@ -246,17 +246,23 @@ export class ProtoFormatter {
       if (inlineOptionBraceDepth > 0) {
         const openBraces = (trimmedLine.match(/\{/g) || []).length;
         const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+        let remainingClose = Math.max(0, closeBraces - openBraces);
 
         // Adjust indent for closing brace
-        if (trimmedLine.startsWith('}') && indentLevel > 0) {
-          indentLevel--;
+        if (remainingClose > 0 && trimmedLine.startsWith('}') && indentLevel > 0) {
+          const adjust = Math.min(remainingClose, indentLevel);
+          indentLevel -= adjust;
+          remainingClose -= adjust;
         }
 
         formattedLines.push(getIndent(indentLevel, this.settings) + trimmedLine);
 
         // Adjust indent for opening brace
         if (openBraces > closeBraces) {
-          indentLevel++;
+          indentLevel += openBraces - closeBraces;
+        } else if (remainingClose > 0 && indentLevel > 0) {
+          // Closing brace not at line start - reduce indent for subsequent lines
+          indentLevel = Math.max(0, indentLevel - remainingClose);
         }
 
         inlineOptionBraceDepth += openBraces - closeBraces;
@@ -267,17 +273,23 @@ export class ProtoFormatter {
       if (inlineOptionBracketDepth > 0) {
         const openBrackets = (trimmedLine.match(/\[/g) || []).length;
         const closeBrackets = (trimmedLine.match(/\]/g) || []).length;
+        let remainingClose = Math.max(0, closeBrackets - openBrackets);
 
         // Adjust indent for closing bracket
-        if (trimmedLine.startsWith(']') && indentLevel > 0) {
-          indentLevel--;
+        if (remainingClose > 0 && trimmedLine.startsWith(']') && indentLevel > 0) {
+          const adjust = Math.min(remainingClose, indentLevel);
+          indentLevel -= adjust;
+          remainingClose -= adjust;
         }
 
         formattedLines.push(getIndent(indentLevel, this.settings) + trimmedLine);
 
         // Adjust indent for opening bracket
         if (openBrackets > closeBrackets) {
-          indentLevel++;
+          indentLevel += openBrackets - closeBrackets;
+        } else if (remainingClose > 0 && indentLevel > 0) {
+          // Closing bracket not at line start - reduce indent for subsequent lines
+          indentLevel = Math.max(0, indentLevel - remainingClose);
         }
 
         inlineOptionBracketDepth += openBrackets - closeBrackets;

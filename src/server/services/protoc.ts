@@ -543,8 +543,10 @@ export class ProtocCompiler {
         continue;
       }
       const expanded = this.expandVariables(option);
-      if (expanded.startsWith('--proto_path=')) {
-        const protoPath = this.normalizePath(expanded.substring('--proto_path='.length));
+      // Support both --proto_path (correct) and --proto-path (common typo)
+      if (expanded.startsWith('--proto_path=') || expanded.startsWith('--proto-path=')) {
+        const prefix = expanded.startsWith('--proto_path=') ? '--proto_path=' : '--proto-path=';
+        const protoPath = this.normalizePath(expanded.substring(prefix.length));
         if (protoPath) {
           protoPaths.add(protoPath);
         }
