@@ -877,7 +877,7 @@
     "@vscode/vsce": "^3.7.1",
     "eslint": "^9.39.2",
     "jest": "^30.2.0",
-    "tree-sitter-cli": "^0.24.6",
+    "tree-sitter-cli": "^0.26.3",
     "ts-jest": "^29.4.6",
     "typescript": "^5.3.2",
     "vscode-tmgrammar-test": "^0.1.3"
