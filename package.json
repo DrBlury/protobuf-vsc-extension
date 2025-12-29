@@ -872,7 +872,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^25.0.3",
     "@types/vscode": "^1.85.0",
-    "@typescript-eslint/eslint-plugin": "^8.50.0",
+    "@typescript-eslint/eslint-plugin": "^8.50.1",
     "@typescript-eslint/parser": "^8.48.1",
     "@vscode/vsce": "^3.7.1",
     "eslint": "^9.39.2",
