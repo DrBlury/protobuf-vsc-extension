@@ -190,8 +190,10 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
       const currentContext = contextStack[contextStack.length - 1];
 
       // Skip reserved, option, rpc lines
+      // Note: use 'option ' or 'option(' to avoid matching 'optional' field modifier
       if (trimmedLine.startsWith('reserved') ||
-          trimmedLine.startsWith('option') ||
+          trimmedLine.startsWith('option ') ||
+          trimmedLine.startsWith('option(') ||
           trimmedLine.startsWith('rpc') ||
           trimmedLine.startsWith('//') ||
           trimmedLine.startsWith('/*')) {
@@ -203,7 +205,8 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
       if (currentContext!.type === 'enum') {
         const enumMatch = line.match(/^(.+=\s*)(-?\d+)(.*)$/);
 
-        if (enumMatch && !trimmedLine.startsWith('option')) {
+        // Skip option statements (option followed by space or parenthesis)
+        if (enumMatch && !trimmedLine.startsWith('option ') && !trimmedLine.startsWith('option(')) {
           const [, beforeNumber, firstNumber, rest] = enumMatch;
 
           // Remove any additional "= <number>" sequences after the first number
