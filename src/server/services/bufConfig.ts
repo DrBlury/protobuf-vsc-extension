@@ -192,15 +192,22 @@ export class BufConfigProvider {
     return null;
   }
 
-  private findBufConfigPath(filePath: string): string | null {
+  /**
+   * Find the path to buf.yaml in the directory hierarchy
+   * @param filePath Path to a file to start searching from
+   * @returns Path to buf.yaml or null if not found
+   */
+  findBufConfigPath(filePath: string): string | null {
     const dir = path.dirname(filePath);
     let currentDir = path.normalize(dir);
     const root = path.parse(currentDir).root;
 
     while (currentDir !== root) {
-      const configPath = path.join(currentDir, 'buf.yaml');
-      if (fs.existsSync(configPath)) {
-        return configPath;
+      for (const configName of ['buf.yaml', 'buf.yml']) {
+        const configPath = path.join(currentDir, configName);
+        if (fs.existsSync(configPath)) {
+          return configPath;
+        }
       }
 
       const parent = path.dirname(currentDir);

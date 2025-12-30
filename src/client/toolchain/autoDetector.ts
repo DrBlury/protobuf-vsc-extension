@@ -84,11 +84,13 @@ export function needsShellExecution(commandPath: string): boolean {
 export interface DetectionResult {
   buf?: DetectedTool;
   protolint?: DetectedTool;
+  apiLinter?: DetectedTool;
   protoc?: DetectedTool;
   clangFormat?: DetectedTool;
   bufYamlFound: boolean;
   bufWorkYamlFound: boolean;
   protolintConfigFound: boolean;
+  apiLinterConfigFound: boolean;
   clangFormatConfigFound: boolean;
 }
 
@@ -163,9 +165,10 @@ export class AutoDetector {
   public async detectTools(): Promise<DetectionResult> {
     this.outputChannel.appendLine('Auto-detecting protobuf tools...');
 
-    const [buf, protolint, protoc, clangFormat] = await Promise.all([
+    const [buf, protolint, apiLinter, protoc, clangFormat] = await Promise.all([
       this.detectTool('buf', '--version'),
       this.detectTool('protolint', '--version'),
+      this.detectTool('api-linter', '--version'),
       this.detectTool('protoc', '--version'),
       this.detectTool('clang-format', '--version'),
     ]);
@@ -175,6 +178,7 @@ export class AutoDetector {
     let bufYamlFound = false;
     let bufWorkYamlFound = false;
     let protolintConfigFound = false;
+    let apiLinterConfigFound = false;
     let clangFormatConfigFound = false;
 
     if (workspaceFolders) {
@@ -202,6 +206,15 @@ export class AutoDetector {
           protolintConfigFound = true;
         }
 
+        if (!apiLinterConfigFound && (
+          fs.existsSync(path.join(rootPath, 'api-linter.yaml')) ||
+          fs.existsSync(path.join(rootPath, 'api-linter.yml')) ||
+          fs.existsSync(path.join(rootPath, '.api-linter.yaml')) ||
+          fs.existsSync(path.join(rootPath, '.api-linter.yml'))
+        )) {
+          apiLinterConfigFound = true;
+        }
+
         if (!clangFormatConfigFound && (
           fs.existsSync(path.join(rootPath, '.clang-format')) ||
           fs.existsSync(path.join(rootPath, '_clang-format'))
@@ -214,22 +227,26 @@ export class AutoDetector {
     const result: DetectionResult = {
       buf,
       protolint,
+      apiLinter,
       protoc,
       clangFormat,
       bufYamlFound,
       bufWorkYamlFound,
       protolintConfigFound,
+      apiLinterConfigFound,
       clangFormatConfigFound,
     };
 
     this.outputChannel.appendLine(`Detection results:`);
     this.outputChannel.appendLine(`  buf: ${buf ? `${buf.version} at ${buf.path}` : 'not found'}`);
     this.outputChannel.appendLine(`  protolint: ${protolint ? `${protolint.version} at ${protolint.path}` : 'not found'}`);
+    this.outputChannel.appendLine(`  api-linter: ${apiLinter ? `${apiLinter.version} at ${apiLinter.path}` : 'not found'}`);
     this.outputChannel.appendLine(`  protoc: ${protoc ? `${protoc.version} at ${protoc.path}` : 'not found'}`);
     this.outputChannel.appendLine(`  clang-format: ${clangFormat ? `${clangFormat.version} at ${clangFormat.path}` : 'not found'}`);
     this.outputChannel.appendLine(`  buf.yaml: ${bufYamlFound}`);
     this.outputChannel.appendLine(`  buf.work.yaml: ${bufWorkYamlFound}`);
     this.outputChannel.appendLine(`  .protolint.yaml: ${protolintConfigFound}`);
+    this.outputChannel.appendLine(`  api-linter.yaml: ${apiLinterConfigFound}`);
     this.outputChannel.appendLine(`  .clang-format: ${clangFormatConfigFound}`);
 
     return result;
@@ -329,7 +346,7 @@ export class AutoDetector {
     const config = vscode.workspace.getConfiguration('protobuf');
     const suggestions: string[] = [];
 
-    // Check if external linter is not configured but buf or protolint is available
+    // Check if external linter is not configured but buf, protolint, or api-linter is available
     const currentLinter = config.get<string>('externalLinter.linter', 'none');
     const linterEnabled = config.get<boolean>('externalLinter.enabled', false);
 
@@ -339,10 +356,14 @@ export class AutoDetector {
         suggestions.push('buf-linter');
       } else if (result.protolint && result.protolintConfigFound) {
         suggestions.push('protolint-linter');
+      } else if (result.apiLinter && result.apiLinterConfigFound) {
+        suggestions.push('api-linter');
       } else if (result.buf) {
         suggestions.push('buf-linter');
       } else if (result.protolint) {
         suggestions.push('protolint-linter');
+      } else if (result.apiLinter) {
+        suggestions.push('api-linter');
       }
     }
 
@@ -377,6 +398,7 @@ export class AutoDetector {
     const toolsDetected: string[] = [];
     if (result.buf) {toolsDetected.push(`buf (${result.buf.version})`);}
     if (result.protolint) {toolsDetected.push(`protolint (${result.protolint.version})`);}
+    if (result.apiLinter) {toolsDetected.push(`api-linter (${result.apiLinter.version})`);}
     if (result.clangFormat) {toolsDetected.push(`clang-format`);}
 
     const message = `Protobuf tools detected: ${toolsDetected.join(', ')}. Configure settings?`;
@@ -413,6 +435,15 @@ export class AutoDetector {
         description: `Use protolint for proto validation`,
         detail: `Detected: ${result.protolint.version} at ${result.protolint.path}`,
         picked: !suggestions.includes('buf-linter'), // Don't pick if buf is available
+      });
+    }
+
+    if (suggestions.includes('api-linter') && result.apiLinter) {
+      items.push({
+        label: '$(check) Enable Google API Linter',
+        description: `Use api-linter for Google API style validation`,
+        detail: `Detected: ${result.apiLinter.version} at ${result.apiLinter.path}`,
+        picked: !suggestions.includes('buf-linter') && !suggestions.includes('protolint-linter'),
       });
     }
 
@@ -483,6 +514,13 @@ export class AutoDetector {
         await config.update('externalLinter.linter', 'protolint', scope.target);
         await config.update('externalLinter.protolintPath', result.protolint.path, scope.target);
         applied.push('Protolint');
+      }
+
+      if (item.label.includes('Google API Linter') && result.apiLinter) {
+        await config.update('externalLinter.enabled', true, scope.target);
+        await config.update('externalLinter.linter', 'api-linter', scope.target);
+        await config.update('externalLinter.apiLinterPath', result.apiLinter.path, scope.target);
+        applied.push('Google API Linter');
       }
 
       if (item.label.includes('clang-format') && result.clangFormat) {

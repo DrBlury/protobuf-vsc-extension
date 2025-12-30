@@ -317,15 +317,19 @@ export function updateProvidersWithSettings(
   const linterSettings = settings.protobuf.externalLinter;
   const expandedLinterBufPath = expandPathSetting(linterSettings.bufPath, workspaceFolders);
   const expandedProtolintPath = expandPathSetting(linterSettings.protolintPath, workspaceFolders);
+  const expandedApiLinterPath = expandPathSetting(linterSettings.apiLinterPath, workspaceFolders);
   const expandedBufConfigPath = expandPathSetting(linterSettings.bufConfigPath, workspaceFolders);
   const expandedProtolintConfigPath = expandPathSetting(linterSettings.protolintConfigPath, workspaceFolders);
+  const expandedApiLinterConfigPath = expandPathSetting(linterSettings.apiLinterConfigPath, workspaceFolders);
   externalLinter.updateSettings({
     enabled: linterSettings.enabled,
-    linter: linterSettings.linter as 'buf' | 'protolint' | 'none',
+    linter: linterSettings.linter as 'buf' | 'protolint' | 'api-linter' | 'none',
     bufPath: expandedLinterBufPath || linterSettings.bufPath,
     protolintPath: expandedProtolintPath || linterSettings.protolintPath,
+    apiLinterPath: expandedApiLinterPath || linterSettings.apiLinterPath,
     bufConfigPath: expandedBufConfigPath || linterSettings.bufConfigPath,
     protolintConfigPath: expandedProtolintConfigPath || linterSettings.protolintConfigPath,
+    apiLinterConfigPath: expandedApiLinterConfigPath || linterSettings.apiLinterConfigPath,
     runOnSave: linterSettings.runOnSave
   });
 
@@ -415,6 +419,8 @@ export function updateProvidersWithSettings(
   logger.info(`  externalLinter.bufConfigPath: ${expandedBufConfigPath || linterSettings.bufConfigPath || 'not configured'}`);
   logger.info(`  externalLinter.protolintPath: ${expandedProtolintPath || linterSettings.protolintPath || 'not configured'}`);
   logger.info(`  externalLinter.protolintConfigPath: ${expandedProtolintConfigPath || linterSettings.protolintConfigPath || 'not configured'}`);
+  logger.info(`  externalLinter.apiLinterPath: ${expandedApiLinterPath || linterSettings.apiLinterPath || 'not configured'}`);
+  logger.info(`  externalLinter.apiLinterConfigPath: ${expandedApiLinterConfigPath || linterSettings.apiLinterConfigPath || 'not configured'}`);
   logger.info(`  clangFormat.path: ${resolvedClangPath} (enabled=${clangSettings.enabled})`);
   logger.info(`  includePaths: ${includePaths.join(', ') || '(none)'}`);
   logger.info(`  protoSrcsDir: ${protoSrcsDir || '(workspace root)'}`);

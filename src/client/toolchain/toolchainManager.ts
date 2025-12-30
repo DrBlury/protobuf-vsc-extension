@@ -90,6 +90,8 @@ export class ToolchainManager {
     // Initialize tools
     this.tools.set('protoc', { name: 'protoc', status: ToolStatus.Unknown });
     this.tools.set('buf', { name: 'buf', status: ToolStatus.Unknown });
+    this.tools.set('protolint', { name: 'protolint', status: ToolStatus.Unknown });
+    this.tools.set('api-linter', { name: 'api-linter', status: ToolStatus.Unknown });
 
     // Initial check
     this.checkTools();
@@ -112,8 +114,10 @@ export class ToolchainManager {
    * This handles GUI apps not inheriting shell PATH on all platforms.
    */
   private findToolPath(name: string): string {
-    const config = vscode.workspace.getConfiguration(`protobuf.${name}`);
-    const configuredPathValue = config.get<string>('path');
+    // Map tool names to their configuration paths
+    const configPath = this.getToolConfigPath(name);
+    const config = vscode.workspace.getConfiguration(configPath.section);
+    const configuredPathValue = config.get<string>(configPath.key);
     const configuredPath = this.resolveConfiguredPath(configuredPathValue);
     const ext = os.platform() === 'win32' ? '.exe' : '';
     const binaryName = name + ext;
@@ -134,12 +138,13 @@ export class ToolchainManager {
       }
       this.outputChannel.appendLine(`  ✗ Configured path not found: ${configuredPath}`);
       // Show user-visible warning for configured but missing tool path
+      const settingsKey = `${configPath.section}.${configPath.key}`;
       vscode.window.showWarningMessage(
         `Protobuf: Configured ${name} path not found: ${configuredPath}. Falling back to auto-detection.`,
         'Open Settings'
       ).then(selection => {
         if (selection === 'Open Settings') {
-          vscode.commands.executeCommand('workbench.action.openSettings', `protobuf.${name}.path`);
+          vscode.commands.executeCommand('workbench.action.openSettings', settingsKey);
         }
       });
     }
@@ -186,6 +191,21 @@ export class ToolchainManager {
       toolInfo.path = undefined;
       toolInfo.version = undefined;
       this.outputChannel.appendLine(`✗ Could not find ${name}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  /**
+   * Get the configuration section and key for a tool's path setting.
+   * Maps tool names to their correct VS Code settings locations.
+   */
+  private getToolConfigPath(name: string): { section: string; key: string } {
+    switch (name) {
+      case 'protolint':
+        return { section: 'protobuf.externalLinter', key: 'protolintPath' };
+      case 'api-linter':
+        return { section: 'protobuf.externalLinter', key: 'apiLinterPath' };
+      default:
+        return { section: `protobuf.${name}`, key: 'path' };
     }
   }
 

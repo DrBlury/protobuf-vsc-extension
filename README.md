@@ -118,7 +118,7 @@ Search for "protobuf" in VS Code settings. Common options:
 | `protobuf.protoc.compileOnSave` | Compile on save | `false` |
 | `protobuf.breaking.enabled` | Turn on breaking-change checks | `false` |
 | `protobuf.breaking.againstGitRef` | Git ref baseline | `"HEAD~1"` |
-| `protobuf.externalLinter.linter` | `buf` or `protolint` | `"none"` |
+| `protobuf.externalLinter.linter` | `buf`, `protolint`, `api-linter` | `"none"` |
 | `protobuf.clangFormat.enabled` | Use `clang-format` | `false` |
 | `protobuf.clangFormat.style` | `clang-format` style (`"file"` reads `.clang-format`) | `"file"` |
 
@@ -186,6 +186,7 @@ See the [Documentation Index](./docs/README.md) for the complete list.
 - `protoc` for compilation: `brew install protobuf` (macOS) or download from releases.
 - Buf: `brew install bufbuild/buf/buf` or `npm install -g @bufbuild/buf`.
 - Protolint: `brew install protolint` or `go install github.com/yoheimuta/protolint/cmd/protolint@latest`.
+- Google API Linter: `go install github.com/googleapis/api-linter/cmd/api-linter@latest` (for AIP compliance).
 - `clang-format`: `brew install clang-format` (or via LLVM on Windows/Linux).
 
 ---

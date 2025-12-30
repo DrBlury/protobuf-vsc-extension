@@ -500,37 +500,52 @@ These sources now populate the analyzer automatically, so most projects no longe
 
 - **Type**: `boolean`
 - **Default**: `false`
-- **Description**: Enable external linter integration
+- **Description**: Enable external linter integration (buf, protolint, or api-linter)
 
 #### `protobuf.externalLinter.linter`
 
-- **Type**: `"buf" | "protolint" | "none"`
+- **Type**: `"buf" | "protolint" | "api-linter" | "none"`
 - **Default**: `"none"`
-- **Description**: External linter to use
+- **Description**: External linter to use. Each linter has different focuses:
+  - **buf**: General-purpose linting with configurable rules via `buf.yaml`
+  - **protolint**: Style and convention checking with many built-in rules
+  - **api-linter**: Google API style guide enforcement (AIP compliance)
 
 #### `protobuf.externalLinter.bufPath`
 
 - **Type**: `string`
 - **Default**: `"buf"`
-- **Description**: Path to the buf CLI
+- **Description**: Path to the buf CLI. Supports `${workspaceFolder}` variables.
 
 #### `protobuf.externalLinter.protolintPath`
 
 - **Type**: `string`
 - **Default**: `"protolint"`
-- **Description**: Path to the protolint CLI
+- **Description**: Path to the protolint CLI. Supports `${workspaceFolder}` variables.
+
+#### `protobuf.externalLinter.apiLinterPath`
+
+- **Type**: `string`
+- **Default**: `"api-linter"`
+- **Description**: Path to the Google api-linter CLI. Supports `${workspaceFolder}` variables.
 
 #### `protobuf.externalLinter.bufConfigPath`
 
 - **Type**: `string`
 - **Default**: `""`
-- **Description**: Path to buf.yaml configuration file
+- **Description**: Path to buf.yaml configuration file. When set, this takes priority over auto-detected buf.yaml files. Supports `${workspaceFolder}` variables.
 
 #### `protobuf.externalLinter.protolintConfigPath`
 
 - **Type**: `string`
 - **Default**: `""`
-- **Description**: Path to .protolint.yaml configuration file
+- **Description**: Path to .protolint.yaml configuration file. Supports `${workspaceFolder}` variables.
+
+#### `protobuf.externalLinter.apiLinterConfigPath`
+
+- **Type**: `string`
+- **Default**: `""`
+- **Description**: Path to api-linter configuration file. Supports `${workspaceFolder}` variables.
 
 #### `protobuf.externalLinter.runOnSave`
 

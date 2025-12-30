@@ -11,7 +11,8 @@ The extension automatically detects installed protobuf tools and suggests config
 The extension automatically detects the following tools:
 
 - **buf** - Buf CLI for linting, formatting, and code generation
-- **protolint** - Protocol Buffer linter
+- **protolint** - Protocol Buffer linter for style and convention checking
+- **api-linter** - Google API Linter for AIP compliance checking
 - **protoc** - Protocol Buffer compiler
 - **clang-format** - C/C++ formatter (also works with proto files)
 
@@ -31,7 +32,7 @@ On first activation, the extension scans for installed tools in:
 When tools are detected, the extension offers to configure settings:
 
 ```text
-Protobuf tools detected: buf (1.28.1), protolint (0.45.0). Configure settings?
+Protobuf tools detected: buf (1.28.1), protolint (0.45.0), api-linter (1.67.0). Configure settings?
 [Configure Now] [Later] [Don't Ask Again]
 ```
 
@@ -39,6 +40,7 @@ Selecting "Configure Now" opens a quick pick with options:
 
 - ✓ **Enable Buf Linting** - Set up buf lint integration
 - ✓ **Enable Protolint** - Set up protolint integration
+- ✓ **Enable Google API Linter** - Set up api-linter for AIP compliance
 - $(symbol-color) **Enable clang-format** - Use clang-format for formatting
 - $(gear) **Set buf path** - Configure explicit path to buf
 - $(gear) **Set protoc path** - Configure explicit path to protoc

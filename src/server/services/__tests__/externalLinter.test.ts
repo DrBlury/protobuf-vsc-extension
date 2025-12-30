@@ -100,6 +100,23 @@ describe('ExternalLinterProvider', () => {
       const result = await provider.isAvailable();
       expect(result).toBe(true);
     });
+
+    it('should check api-linter when configured', async () => {
+      provider.updateSettings({ enabled: true, linter: 'api-linter' });
+      const mockProcess = {
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const result = await provider.isAvailable();
+      expect(result).toBe(true);
+    });
   });
 
   describe('lint', () => {
@@ -190,6 +207,71 @@ describe('ExternalLinterProvider', () => {
 
       const result = await provider.lint('/workspace/test.proto');
       expect(result).toEqual([]);
+    });
+
+    it('should run api-linter and return diagnostics', async () => {
+      provider.updateSettings({ enabled: true, linter: 'api-linter' });
+      provider.setWorkspaceRoot('/workspace');
+
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('[]')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const result = await provider.lint('/workspace/test.proto');
+      expect(result).toEqual([]);
+    });
+
+    it('should use api-linter config when configured', async () => {
+      provider.updateSettings({
+        enabled: true,
+        linter: 'api-linter',
+        apiLinterConfigPath: '/workspace/api-linter.yaml'
+      });
+      provider.setWorkspaceRoot('/workspace');
+
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('[]')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await provider.lint('/workspace/test.proto');
+
+      // Verify api-linter was called with config flag
+      expect(mockSpawn).toHaveBeenCalled();
+      const callArgs = mockSpawn.mock.calls[0];
+      expect(callArgs[0]).toBe('api-linter');
+      expect(callArgs[1]).toContain('--config');
     });
   });
 

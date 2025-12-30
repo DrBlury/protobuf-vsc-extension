@@ -90,8 +90,10 @@ export interface Settings {
       linter: string;
       bufPath: string;
       protolintPath: string;
+      apiLinterPath: string;
       bufConfigPath: string;
       protolintConfigPath: string;
+      apiLinterConfigPath: string;
       runOnSave: boolean;
     };
     clangFormat: {
@@ -193,8 +195,10 @@ export const defaultSettings: Settings = {
       linter: 'none',
       bufPath: DEFAULT_CONFIG.BUF_PATH,
       protolintPath: DEFAULT_CONFIG.PROTOLINT_PATH,
+      apiLinterPath: DEFAULT_CONFIG.API_LINTER_PATH,
       bufConfigPath: '',
       protolintConfigPath: '',
+      apiLinterConfigPath: '',
       runOnSave: true
     },
     clangFormat: {

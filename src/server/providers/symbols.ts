@@ -34,8 +34,8 @@ export class SymbolProvider {
 
     const symbols: DocumentSymbol[] = [];
 
-    // Package
-    if (file.package) {
+    // Package - only include if name is non-empty
+    if (file.package && file.package.name) {
       symbols.push({
         name: file.package.name,
         kind: VSCodeSymbolKind.Namespace,
@@ -44,19 +44,25 @@ export class SymbolProvider {
       });
     }
 
-    // Messages
+    // Messages - skip messages with empty names
     for (const message of file.messages) {
-      symbols.push(this.messageToSymbol(message));
+      if (message.name) {
+        symbols.push(this.messageToSymbol(message));
+      }
     }
 
-    // Enums
+    // Enums - skip enums with empty names
     for (const enumDef of file.enums) {
-      symbols.push(this.enumToSymbol(enumDef));
+      if (enumDef.name) {
+        symbols.push(this.enumToSymbol(enumDef));
+      }
     }
 
-    // Services
+    // Services - skip services with empty names
     for (const service of file.services) {
-      symbols.push(this.serviceToSymbol(service));
+      if (service.name) {
+        symbols.push(this.serviceToSymbol(service));
+      }
     }
 
     return symbols;
@@ -202,8 +208,9 @@ export class SymbolProvider {
   private messageToSymbol(message: MessageDefinition): DocumentSymbol {
     const children: DocumentSymbol[] = [];
 
-    // Fields
+    // Fields - skip fields with empty names
     for (const field of message.fields) {
+      if (!field.name) continue;
       const fieldRange = this.toRange(field.range);
       const fieldSelectionRange = this.toRange(field.nameRange);
       children.push({
@@ -215,8 +222,9 @@ export class SymbolProvider {
       });
     }
 
-    // Map fields
+    // Map fields - skip fields with empty names
     for (const mapField of message.maps) {
+      if (!mapField.name) continue;
       const mapRange = this.toRange(mapField.range);
       const mapSelectionRange = this.toRange(mapField.nameRange);
       children.push({
@@ -228,19 +236,22 @@ export class SymbolProvider {
       });
     }
 
-    // Oneofs
+    // Oneofs - skip oneofs with empty names
     for (const oneof of message.oneofs) {
-      const oneofChildren = oneof.fields.map(f => {
-        const fRange = this.toRange(f.range);
-        const fSelectionRange = this.toRange(f.nameRange);
-        return {
-          name: f.name,
-          detail: `${f.fieldType} = ${f.number}`,
-          kind: VSCodeSymbolKind.Field,
-          range: fRange,
-          selectionRange: this.safeSelectionRange(fRange, fSelectionRange)
-        };
-      });
+      if (!oneof.name) continue;
+      const oneofChildren = oneof.fields
+        .filter(f => f.name) // Filter out fields with empty names
+        .map(f => {
+          const fRange = this.toRange(f.range);
+          const fSelectionRange = this.toRange(f.nameRange);
+          return {
+            name: f.name,
+            detail: `${f.fieldType} = ${f.number}`,
+            kind: VSCodeSymbolKind.Field,
+            range: fRange,
+            selectionRange: this.safeSelectionRange(fRange, fSelectionRange)
+          };
+        });
 
       const oneofRange = this.toRange(oneof.range);
       const oneofSelectionRange = this.toRange(oneof.nameRange);
@@ -275,17 +286,19 @@ export class SymbolProvider {
   }
 
   private enumToSymbol(enumDef: EnumDefinition): DocumentSymbol {
-    const children = enumDef.values.map(value => {
-      const valueRange = this.toRange(value.range);
-      const valueSelectionRange = this.toRange(value.nameRange);
-      return {
-        name: value.name,
-        detail: `= ${value.number}`,
-        kind: VSCodeSymbolKind.EnumMember,
-        range: valueRange,
-        selectionRange: this.safeSelectionRange(valueRange, valueSelectionRange)
-      };
-    });
+    const children = enumDef.values
+      .filter(value => value.name) // Filter out values with empty names
+      .map(value => {
+        const valueRange = this.toRange(value.range);
+        const valueSelectionRange = this.toRange(value.nameRange);
+        return {
+          name: value.name,
+          detail: `= ${value.number}`,
+          kind: VSCodeSymbolKind.EnumMember,
+          range: valueRange,
+          selectionRange: this.safeSelectionRange(valueRange, valueSelectionRange)
+        };
+      });
 
     const enumRange = this.toRange(enumDef.range);
     const enumSelectionRange = this.toRange(enumDef.nameRange);
@@ -299,20 +312,22 @@ export class SymbolProvider {
   }
 
   private serviceToSymbol(service: ServiceDefinition): DocumentSymbol {
-    const children = service.rpcs.map(rpc => {
-      const inputDesc = rpc.inputStream ? `stream ${rpc.inputType}` : rpc.inputType;
-      const outputDesc = rpc.outputStream ? `stream ${rpc.outputType}` : rpc.outputType;
-      const rpcRange = this.toRange(rpc.range);
-      const rpcSelectionRange = this.toRange(rpc.nameRange);
+    const children = service.rpcs
+      .filter(rpc => rpc.name) // Filter out RPCs with empty names
+      .map(rpc => {
+        const inputDesc = rpc.inputStream ? `stream ${rpc.inputType}` : rpc.inputType;
+        const outputDesc = rpc.outputStream ? `stream ${rpc.outputType}` : rpc.outputType;
+        const rpcRange = this.toRange(rpc.range);
+        const rpcSelectionRange = this.toRange(rpc.nameRange);
 
-      return {
-        name: rpc.name,
-        detail: `(${inputDesc}) returns (${outputDesc})`,
-        kind: VSCodeSymbolKind.Method,
-        range: rpcRange,
-        selectionRange: this.safeSelectionRange(rpcRange, rpcSelectionRange)
-      };
-    });
+        return {
+          name: rpc.name,
+          detail: `(${inputDesc}) returns (${outputDesc})`,
+          kind: VSCodeSymbolKind.Method,
+          range: rpcRange,
+          selectionRange: this.safeSelectionRange(rpcRange, rpcSelectionRange)
+        };
+      });
 
     const serviceRange = this.toRange(service.range);
     const serviceSelectionRange = this.toRange(service.nameRange);

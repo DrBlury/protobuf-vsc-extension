@@ -490,13 +490,14 @@
         "protobuf.externalLinter.enabled": {
           "type": "boolean",
           "default": false,
-          "description": "Enable external linter integration (buf or protolint)"
+          "description": "Enable external linter integration (buf, protolint, or api-linter)"
         },
         "protobuf.externalLinter.linter": {
           "type": "string",
           "enum": [
             "buf",
             "protolint",
+            "api-linter",
             "none"
           ],
           "default": "none",
@@ -512,6 +513,11 @@
           "default": "protolint",
           "description": "Path to the protolint CLI"
         },
+        "protobuf.externalLinter.apiLinterPath": {
+          "type": "string",
+          "default": "api-linter",
+          "description": "Path to the api-linter CLI (Google API Linter)"
+        },
         "protobuf.externalLinter.bufConfigPath": {
           "type": "string",
           "default": "",
@@ -521,6 +527,11 @@
           "type": "string",
           "default": "",
           "description": "Path to .protolint.yaml configuration file"
+        },
+        "protobuf.externalLinter.apiLinterConfigPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to api-linter configuration file"
         },
         "protobuf.externalLinter.runOnSave": {
           "type": "boolean",

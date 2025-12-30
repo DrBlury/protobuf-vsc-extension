@@ -76,7 +76,7 @@ async function showLinterError(
 
 /**
  * Registers the run external linter command
- * Runs buf or protolint on the current proto file
+ * Runs buf, protolint, or api-linter on the current proto file
  * @param context - The VS Code extension context
  * @param client - The language client instance
  * @returns A disposable for the registered command
@@ -102,7 +102,7 @@ function registerRunExternalLinterCommand(
       if (!availability.available) {
         const configureAction = 'Configure Linter';
         const selection = await vscode.window.showWarningMessage(
-          `No external linter is configured or available. Configure buf or protolint to enable linting.`,
+          `No external linter is configured or available. Configure buf, protolint, or api-linter to enable linting.`,
           configureAction,
           'Learn More'
         );

@@ -40,6 +40,8 @@ export const DEFAULT_CONFIG = {
   BUF_PATH: 'buf',
   /** Default protolint path */
   PROTOLINT_PATH: 'protolint',
+  /** Default api-linter path */
+  API_LINTER_PATH: 'api-linter',
   /** Default clang-format path */
   CLANG_FORMAT_PATH: 'clang-format',
   /** Default clang-format style */
