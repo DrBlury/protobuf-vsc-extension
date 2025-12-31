@@ -2,7 +2,8 @@
  * Built-in types and keyword descriptions for hover
  */
 
-import { Hover, MarkupContent, MarkupKind } from 'vscode-languageserver/node';
+import type { Hover, MarkupContent} from 'vscode-languageserver/node';
+import { MarkupKind } from 'vscode-languageserver/node';
 
 /**
  * Descriptions for built-in protobuf scalar types

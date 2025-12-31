@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/DrBlury/protobuf-vsc-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/DrBlury/protobuf-vsc-extension/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-79%25-yellow)](https://github.com/DrBlury/protobuf-vsc-extension)
+[![Coverage Target](https://img.shields.io/badge/coverage_target-80%25-green)]
 [![VS Code Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/DrBlury.protobuf-vsc?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=DrBlury.protobuf-vsc)
 [![Open VSX Version](https://img.shields.io/open-vsx/v/DrBlury/protobuf-vsc?label=Open%20VSX)](https://open-vsx.org/extension/DrBlury/protobuf-vsc)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/DrBlury.protobuf-vsc)](https://marketplace.visualstudio.com/items?itemName=DrBlury.protobuf-vsc)
@@ -193,11 +194,14 @@ See the [Documentation Index](./docs/README.md) for the complete list.
 
 ## Development
 
-Requirements: Node.js 18+, npm 9+, VS Code 1.85+.
+Requirements: Node.js 20+, npm 9+, VS Code 1.85+.
 
 - Install deps: `npm install`
+- Lint: `npm run lint`
+- Type-check: `npm run type-check`
 - Build: `npm run compile`
 - Test: `npm run test`
+- Pre-commit hooks: `pre-commit run --all-files` (requires `pip install pre-commit`)
 - Debug: open in VS Code and press `F5` to launch the Extension Development Host.
 
 If you want to explore, see `examples/` for sample protos and `resources/google-protos/` for well-known types used in tests.
@@ -225,7 +229,7 @@ If you like the extension, please star the repo or rate it on the Marketplace.
 
 ## Contributing
 
-Pull requests and issue reports are welcome. Please run `npm run compile` and `npm run test` before submitting.
+Pull requests and issue reports are welcome. Please run `npm run lint`, `npm run type-check`, and `npm run test` before submitting. Pre-commit hooks are configured to run lint and tests on commit.
 
 ---
 

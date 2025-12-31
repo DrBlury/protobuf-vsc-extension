@@ -6,8 +6,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
 
-import { IProtoParser } from '../core/parserFactory';
-import { SemanticAnalyzer } from '../core/analyzer';
+import type { IProtoParser } from '../core/parserFactory';
+import type { SemanticAnalyzer } from '../core/analyzer';
 import { logger } from '../utils/logger';
 import { PROTOC_INCLUDE_PATHS, GOOGLE_WELL_KNOWN_TEST_FILE } from '../utils/constants';
 import { GOOGLE_WELL_KNOWN_FILES, GOOGLE_WELL_KNOWN_PROTOS } from '../utils/googleWellKnown';

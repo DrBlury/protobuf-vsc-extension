@@ -3,10 +3,10 @@
  * Handles LSP hover requests
  */
 
-import { HoverParams } from 'vscode-languageserver/node';
-import { TextDocument } from 'vscode-languageserver-textdocument';
-import { TextDocuments } from 'vscode-languageserver/node';
-import { HoverProvider } from '../providers/hover';
+import type { HoverParams } from 'vscode-languageserver/node';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
+import type { TextDocuments } from 'vscode-languageserver/node';
+import type { HoverProvider } from '../providers/hover';
 
 /**
  * Handle hover request

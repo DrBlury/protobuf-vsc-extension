@@ -19,6 +19,14 @@ module.exports = {
     "!src/server/**/__tests__/**", // Exclude test files from coverage
   ],
   coverageDirectory: "coverage",
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+  },
   verbose: true,
   setupFiles: ["<rootDir>/jest.setup.js"],
 };

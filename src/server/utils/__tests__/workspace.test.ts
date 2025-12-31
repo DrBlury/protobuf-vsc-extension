@@ -2,7 +2,7 @@
  * Tests for workspace utilities
  */
 
-import { findProtoFiles, scanWorkspaceForProtoFiles } from '../workspace';
+import { findProtoFiles, scanWorkspaceForProtoFiles, scanImportPaths } from '../workspace';
 import { ProtoParser } from '../../core/parser';
 import { SemanticAnalyzer } from '../../core/analyzer';
 import { logger } from '../logger';
@@ -268,6 +268,140 @@ describe('Workspace utilities', () => {
       expect(updateFileSpy).toHaveBeenCalled();
       // But should log the path traversal warning
       expect(logger.verbose).toHaveBeenCalledWith(expect.stringContaining('outside workspace'));
+    });
+  });
+
+  describe('scanImportPaths', () => {
+    let parser: ProtoParser;
+    let analyzer: SemanticAnalyzer;
+
+    beforeEach(() => {
+      parser = new ProtoParser();
+      analyzer = new SemanticAnalyzer();
+    });
+
+    it('should return early for empty import paths', () => {
+      scanImportPaths([], parser, analyzer);
+      expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('Scanning'));
+    });
+
+    it('should scan import paths and parse proto files', () => {
+      const protoContent = 'syntax = "proto3"; message Test {}';
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockReturnValue([
+        { name: 'test.proto', isDirectory: () => false, isFile: () => true }
+      ] as any);
+      mockFs.readFileSync.mockReturnValue(protoContent);
+
+      const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
+      const detectProtoRootsSpy = jest.spyOn(analyzer, 'detectProtoRoots');
+
+      scanImportPaths(['/import-path'], parser, analyzer);
+
+      expect(updateFileSpy).toHaveBeenCalled();
+      expect(detectProtoRootsSpy).toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Scanning'));
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Import path scan complete'));
+    });
+
+    it('should skip non-existent import paths', () => {
+      mockFs.existsSync.mockReturnValue(false);
+
+      const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
+
+      scanImportPaths(['/non-existent-path'], parser, analyzer);
+
+      expect(updateFileSpy).not.toHaveBeenCalled();
+      expect(logger.verbose).toHaveBeenCalledWith(expect.stringContaining('does not exist'));
+    });
+
+    it('should handle multiple import paths', () => {
+      const protoContent = 'syntax = "proto3"; message Test {}';
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockReturnValue([
+        { name: 'test.proto', isDirectory: () => false, isFile: () => true }
+      ] as any);
+      mockFs.readFileSync.mockReturnValue(protoContent);
+
+      scanImportPaths(['/path1', '/path2'], parser, analyzer);
+
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('2 import path'));
+    });
+
+    it('should handle parse errors gracefully', () => {
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockReturnValue([
+        { name: 'invalid.proto', isDirectory: () => false, isFile: () => true }
+      ] as any);
+      mockFs.readFileSync.mockReturnValue('invalid proto content');
+
+      const parseSpy = jest.spyOn(parser, 'parse').mockImplementation(() => {
+        throw new Error('Parse error');
+      });
+
+      scanImportPaths(['/import-path'], parser, analyzer);
+
+      expect(logger.verbose).toHaveBeenCalled();
+      const calls = (logger.verbose as jest.Mock).mock.calls;
+      const parseErrorCall = calls.find((call: any[]) =>
+        call[0] && call[0].includes('Failed to parse')
+      );
+      expect(parseErrorCall).toBeDefined();
+      parseSpy.mockRestore();
+    });
+
+    it('should handle scan errors gracefully', () => {
+      mockFs.existsSync.mockImplementation(() => {
+        throw new Error('Scan error');
+      });
+
+      scanImportPaths(['/import-path'], parser, analyzer);
+
+      expect(logger.verbose).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to scan import path'),
+        expect.any(String)
+      );
+    });
+
+    it('should include hidden directories for import paths', () => {
+      const protoContent = 'syntax = "proto3"; message Test {}';
+      mockFs.existsSync.mockReturnValue(true);
+      // First call returns hidden directory .buf-deps
+      let callCount = 0;
+      mockFs.readdirSync.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return [
+            { name: '.buf-deps', isDirectory: () => true, isFile: () => false }
+          ] as any;
+        } else {
+          return [
+            { name: 'dep.proto', isDirectory: () => false, isFile: () => true }
+          ] as any;
+        }
+      });
+      mockFs.readFileSync.mockReturnValue(protoContent);
+
+      const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
+
+      scanImportPaths(['/import-path'], parser, analyzer);
+
+      // Should have found and parsed the proto file in .buf-deps
+      expect(updateFileSpy).toHaveBeenCalled();
+    });
+
+    it('should not refresh proto roots when no files are found', () => {
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockReturnValue([]);
+
+      const detectProtoRootsSpy = jest.spyOn(analyzer, 'detectProtoRoots');
+
+      scanImportPaths(['/import-path'], parser, analyzer);
+
+      // detectProtoRoots should not be called when no files are found
+      expect(detectProtoRootsSpy).not.toHaveBeenCalled();
+      // Completion message should not be logged when totalFiles is 0
+      expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('Import path scan complete'));
     });
   });
 });

@@ -4,9 +4,10 @@
  * Supports both standard protobuf and buf-style imports
  */
 
-import { Location, Position, Range } from 'vscode-languageserver/node';
-import { ProtoFile, BUILTIN_TYPES, PROTOBUF_KEYWORDS, MessageDefinition } from '../core/ast';
-import { SemanticAnalyzer } from '../core/analyzer';
+import type { Location, Position, Range } from 'vscode-languageserver/node';
+import type { ProtoFile, MessageDefinition } from '../core/ast';
+import { BUILTIN_TYPES, PROTOBUF_KEYWORDS } from '../core/ast';
+import type { SemanticAnalyzer } from '../core/analyzer';
 import * as path from 'path';
 
 export class DefinitionProvider {

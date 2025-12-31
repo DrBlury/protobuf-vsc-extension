@@ -3,8 +3,9 @@
  * Uses clang-format for code formatting when available
  */
 
-import { spawn, SpawnOptions } from 'child_process';
-import { TextEdit, Range } from 'vscode-languageserver/node';
+import type { SpawnOptions } from 'child_process';
+import { spawn } from 'child_process';
+import type { TextEdit, Range } from 'vscode-languageserver/node';
 import * as path from 'path';
 import { logger } from '../utils/logger';
 

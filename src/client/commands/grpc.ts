@@ -3,7 +3,7 @@
  */
 
 import * as vscode from 'vscode';
-import { LanguageClient } from 'vscode-languageclient/node';
+import type { LanguageClient } from 'vscode-languageclient/node';
 import { REQUEST_METHODS } from '../../server/utils/constants';
 
 interface GrpcService {

@@ -2,7 +2,8 @@
  * Hover information for Protobuf Edition Features
  */
 
-import { Hover, MarkupKind } from 'vscode-languageserver/node';
+import type { Hover} from 'vscode-languageserver/node';
+import { MarkupKind } from 'vscode-languageserver/node';
 
 /**
  * Feature documentation from the Protocol Buffers Editions specification

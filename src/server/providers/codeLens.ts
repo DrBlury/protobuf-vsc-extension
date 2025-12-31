@@ -3,11 +3,11 @@
  * Shows reference counts and other metadata above symbols
  */
 
-import {
+import type {
   CodeLens
 } from 'vscode-languageserver/node';
-import { ProtoFile, MessageDefinition, EnumDefinition, ServiceDefinition } from '../core/ast';
-import { SemanticAnalyzer } from '../core/analyzer';
+import type { ProtoFile, MessageDefinition, EnumDefinition, ServiceDefinition } from '../core/ast';
+import type { SemanticAnalyzer } from '../core/analyzer';
 
 export class CodeLensProvider {
   private analyzer: SemanticAnalyzer;

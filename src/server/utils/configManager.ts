@@ -7,15 +7,18 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { LogLevel } from './logger';
 import { logger } from './logger';
-import { Settings } from './types';
-import { DiagnosticsProvider } from '../providers/diagnostics';
-import { ProtoFormatter } from '../providers/formatter';
-import { RenumberProvider } from '../providers/renumber';
-import { SemanticAnalyzer } from '../core/analyzer';
-import { ProtocCompiler } from '../services/protoc';
-import { BreakingChangeDetector } from '../services/breaking';
-import { ExternalLinterProvider } from '../services/externalLinter';
-import { ClangFormatProvider } from '../services/clangFormat';
+import type { Settings } from './types';
+import type { DiagnosticsProvider } from '../providers/diagnostics';
+import type { ProtoFormatter } from '../providers/formatter';
+import type { RenumberProvider } from '../providers/renumber';
+import type { SemanticAnalyzer } from '../core/analyzer';
+import type { ProtocCompiler } from '../services/protoc';
+import type { BreakingChangeDetector } from '../services/breaking';
+import type { ExternalLinterProvider } from '../services/externalLinter';
+import type { ClangFormatProvider } from '../services/clangFormat';
+
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports -- dynamic import avoids circular dependency
+type CodeActionsProvider = import('../providers/codeActions').CodeActionsProvider;
 import { bufConfigProvider } from '../services/bufConfig';
 import { GOOGLE_WELL_KNOWN_TEST_FILE } from './constants';
 
@@ -171,7 +174,7 @@ export function updateProvidersWithSettings(
   wellKnownIncludePath: string | undefined,
   wellKnownCacheDir: string | undefined,
   workspaceFolders: string[] = [],
-  codeActionsProvider?: import('../providers/codeActions').CodeActionsProvider
+  codeActionsProvider?: CodeActionsProvider
 ): { includePaths: string[]; protoSrcsDir: string } {
   // Update diagnostics settings
   const diag = settings.protobuf.diagnostics;

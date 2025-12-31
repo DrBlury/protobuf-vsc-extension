@@ -2,7 +2,8 @@
  * Google API hover support for google.api.* annotations
  */
 
-import { createMarkdownHover, HoverHandler } from './types';
+import type { HoverHandler } from './types';
+import { createMarkdownHover } from './types';
 
 /**
  * Google API field behavior values

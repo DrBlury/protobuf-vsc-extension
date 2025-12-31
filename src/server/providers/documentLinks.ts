@@ -3,11 +3,11 @@
  * Makes import paths clickable
  */
 
-import {
+import type {
   DocumentLink
 } from 'vscode-languageserver/node';
-import { ProtoFile } from '../core/ast';
-import { SemanticAnalyzer } from '../core/analyzer';
+import type { ProtoFile } from '../core/ast';
+import type { SemanticAnalyzer } from '../core/analyzer';
 import * as path from 'path';
 import * as fs from 'fs';
 import { URI } from 'vscode-uri';

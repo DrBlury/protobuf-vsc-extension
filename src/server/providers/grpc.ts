@@ -3,9 +3,9 @@
  * Provides gRPC-specific analysis and utilities
  */
 
-import { SemanticAnalyzer } from '../core/analyzer';
-import { RpcDefinition } from '../core/ast';
-import { Range } from '../core/ast';
+import type { SemanticAnalyzer } from '../core/analyzer';
+import type { RpcDefinition } from '../core/ast';
+import type { Range } from '../core/ast';
 
 export interface GrpcServiceInfo {
   name: string;

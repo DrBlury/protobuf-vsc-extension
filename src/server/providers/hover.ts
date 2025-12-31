@@ -2,10 +2,9 @@
  * Hover Provider for Protocol Buffers
  */
 
-import { Hover, MarkupContent, MarkupKind, Position } from 'vscode-languageserver/node';
-import {
-  BUILTIN_TYPES,
-  SymbolKind,
+import type { Hover, MarkupContent, Position } from 'vscode-languageserver/node';
+import { MarkupKind } from 'vscode-languageserver/node';
+import type {
   SymbolInfo,
   MessageDefinition,
   EnumDefinition,
@@ -17,7 +16,11 @@ import {
   ServiceDefinition,
   Range
 } from '../core/ast';
-import { SemanticAnalyzer } from '../core/analyzer';
+import {
+  BUILTIN_TYPES,
+  SymbolKind
+} from '../core/ast';
+import type { SemanticAnalyzer } from '../core/analyzer';
 import { getBuiltinTypeHover, getKeywordHover } from './hover/builtinHover';
 import { getCelHover } from './hover/celHover';
 import { getGoogleApiHover } from './hover/googleApiHover';

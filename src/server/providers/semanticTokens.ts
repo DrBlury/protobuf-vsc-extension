@@ -3,15 +3,16 @@
  * Provides context-aware syntax highlighting using Tree-sitter AST
  */
 
+import type {
+  SemanticTokensLegend} from 'vscode-languageserver/node';
 import {
-  SemanticTokensLegend,
   SemanticTokenTypes,
   SemanticTokenModifiers
 } from 'vscode-languageserver/node';
 
 import { SemanticTokensBuilder } from 'vscode-languageserver/node';
 
-import {
+import type {
   ProtoFile,
   MessageDefinition,
   EnumDefinition,
@@ -24,7 +25,7 @@ import {
   OptionStatement,
   Range as AstRange
 } from '../core/ast';
-import { SemanticAnalyzer } from '../core/analyzer';
+import type { SemanticAnalyzer } from '../core/analyzer';
 
 /**
  * Token types for Protocol Buffers semantic tokens

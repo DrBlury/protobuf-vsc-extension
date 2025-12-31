@@ -3,9 +3,10 @@
  * Finds all references to a symbol
  */
 
-import { Location, Position, Range } from 'vscode-languageserver/node';
-import { BUILTIN_TYPES, PROTOBUF_KEYWORDS, MessageDefinition, ProtoFile } from '../core/ast';
-import { SemanticAnalyzer } from '../core/analyzer';
+import type { Location, Position, Range } from 'vscode-languageserver/node';
+import type { MessageDefinition, ProtoFile } from '../core/ast';
+import { BUILTIN_TYPES, PROTOBUF_KEYWORDS } from '../core/ast';
+import type { SemanticAnalyzer } from '../core/analyzer';
 
 export class ReferencesProvider {
   private analyzer: SemanticAnalyzer;

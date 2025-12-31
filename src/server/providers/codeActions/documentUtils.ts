@@ -3,7 +3,7 @@
  * Helpers for navigating and analyzing protobuf document structure
  */
 
-import { Range } from 'vscode-languageserver/node';
+import type { Range } from 'vscode-languageserver/node';
 import { splitLines } from './types';
 
 /**

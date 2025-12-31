@@ -3,10 +3,7 @@
  * Main server implementation
  */
 
-import {
-  createConnection,
-  TextDocuments,
-  ProposedFeatures,
+import type {
   InitializeParams,
   InitializeResult,
   CompletionItem,
@@ -20,16 +17,21 @@ import {
   WorkspaceSymbolParams,
   FoldingRangeParams,
   FoldingRange,
-  FoldingRangeKind,
-  DidChangeConfigurationNotification,
   Diagnostic,
-  DiagnosticSeverity,
   DidChangeWatchedFilesParams,
-  FileChangeType,
   RenameParams,
   PrepareRenameParams,
   CodeActionParams,
   CodeAction
+} from 'vscode-languageserver/node';
+import {
+  createConnection,
+  TextDocuments,
+  ProposedFeatures,
+  FoldingRangeKind,
+  DidChangeConfigurationNotification,
+  DiagnosticSeverity,
+  FileChangeType
 } from 'vscode-languageserver/node';
 
 import * as fs from 'fs';
@@ -38,7 +40,7 @@ import { URI } from 'vscode-uri';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
 // Core functionality
-import {
+import type {
   MessageDefinition,
   EnumDefinition,
   ProtoFile,
@@ -61,7 +63,8 @@ import {
   DEFAULT_POSITIONS
 } from './utils/constants';
 import { normalizePath, getErrorMessage } from './utils/utils';
-import { Settings, defaultSettings } from './utils/types';
+import type { Settings} from './utils/types';
+import { defaultSettings } from './utils/types';
 import { scanWorkspaceForProtoFiles, scanImportPaths } from './utils/workspace';
 import { updateProvidersWithSettings } from './utils/configManager';
 import { debounce } from './utils/debounce';
@@ -92,7 +95,7 @@ import { discoverWellKnownIncludePath, preloadGoogleWellKnownProtos } from './in
 import { getServerCapabilities } from './initialization';
 
 // Shared types
-import { SchemaGraphRequest } from '../shared/schemaGraph';
+import type { SchemaGraphRequest } from '../shared/schemaGraph';
 
 // Create connection and document manager
 const connection = createConnection(ProposedFeatures.all);
@@ -277,7 +280,7 @@ connection.onRequest('protobuf/initTreeSitter', async (params: { wasmPath: strin
 
 
 // Handle file changes from workspace file watcher
-connection.onDidChangeWatchedFiles((params: DidChangeWatchedFilesParams) => {
+connection.onDidChangeWatchedFiles(async (params: DidChangeWatchedFilesParams) => {
   let needsRevalidation = false;
   let hasFileRenameOrDelete = false;
   let hasBufConfigChange = false;

@@ -3,12 +3,13 @@
  * Provides functions to refresh document and import state in the analyzer
  */
 
-import { TextDocument } from 'vscode-languageserver-textdocument';
-import { TextDocuments } from 'vscode-languageserver/node';
-import { ProtoFile } from '../core/ast';
-import { IProtoParser } from '../core/parserFactory';
-import { SemanticAnalyzer } from '../core/analyzer';
-import { ContentHashCache, simpleHash } from './cache';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
+import type { TextDocuments } from 'vscode-languageserver/node';
+import type { ProtoFile } from '../core/ast';
+import type { IProtoParser } from '../core/parserFactory';
+import type { SemanticAnalyzer } from '../core/analyzer';
+import type { ContentHashCache} from './cache';
+import { simpleHash } from './cache';
 import { logger } from './logger';
 import { getErrorMessage } from './utils';
 

@@ -4,7 +4,7 @@
  */
 
 import * as vscode from 'vscode';
-import { LanguageClient } from 'vscode-languageclient/node';
+import type { LanguageClient } from 'vscode-languageclient/node';
 import { registerFormatCommand } from './format';
 import { registerGoToDefinitionCommand } from './definition';
 import { registerRenumberCommands } from './renumber';

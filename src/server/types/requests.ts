@@ -3,9 +3,9 @@
  * Centralized type definitions for all custom LSP requests
  */
 
-import { Position, Range } from 'vscode-languageserver/node';
-import { SchemaGraphRequest } from '../../shared/schemaGraph';
-export { SchemaGraphRequest };
+import type { Position, Range } from 'vscode-languageserver/node';
+import type { SchemaGraphRequest } from '../../shared/schemaGraph';
+export type { SchemaGraphRequest };
 
 /**
  * Renumber document request parameters

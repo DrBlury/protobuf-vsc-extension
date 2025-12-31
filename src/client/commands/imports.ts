@@ -3,7 +3,7 @@
  */
 
 import * as vscode from 'vscode';
-import { LanguageClient } from 'vscode-languageclient/node';
+import type { LanguageClient } from 'vscode-languageclient/node';
 import { CodeActionKind } from 'vscode-languageclient/node';
 import { REQUEST_METHODS, VALIDATION_MESSAGES, ERROR_MESSAGES } from '../../server/utils/constants';
 

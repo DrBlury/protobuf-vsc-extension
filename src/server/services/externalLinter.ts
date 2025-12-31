@@ -4,7 +4,8 @@
  */
 
 import { spawn } from 'child_process';
-import { Diagnostic, DiagnosticSeverity, Range } from 'vscode-languageserver/node';
+import type { Diagnostic, Range } from 'vscode-languageserver/node';
+import { DiagnosticSeverity } from 'vscode-languageserver/node';
 import * as path from 'path';
 import { bufConfigProvider } from './bufConfig';
 import { logger } from '../utils/logger';

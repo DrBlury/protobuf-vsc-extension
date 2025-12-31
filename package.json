@@ -861,11 +861,12 @@
       ]
     }
   },
-  "scripts": {
+   "scripts": {
     "pretest": "node -e \"require('fs').mkdirSync('.vscode-test',{recursive:true});\"",
     "vscode:prepublish": "npm run compile && npm run build:tree-sitter",
     "compile": "tsc -b",
     "watch": "tsc -b -w",
+    "type-check": "tsc --noEmit",
     "lint": "eslint ./src",
     "test": "node ./node_modules/jest/bin/jest.js",
     "test:watch": "node ./node_modules/jest/bin/jest.js --watch",
@@ -882,21 +883,21 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "^25.0.3",
-    "@types/vscode": "^1.85.0",
-    "@typescript-eslint/eslint-plugin": "^8.50.1",
-    "@typescript-eslint/parser": "^8.48.1",
+    "@types/vscode": "^1.107.0",
+    "@typescript-eslint/eslint-plugin": "^8.51.0",
+    "@typescript-eslint/parser": "^8.51.0",
     "@vscode/vsce": "^3.7.1",
     "eslint": "^9.39.2",
     "jest": "^30.2.0",
     "tree-sitter-cli": "^0.26.3",
     "ts-jest": "^29.4.6",
-    "typescript": "^5.3.2",
+    "typescript": "^5.9.3",
     "vscode-tmgrammar-test": "^0.1.3"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1",
     "vscode-languageserver": "^9.0.1",
-    "vscode-languageserver-textdocument": "^1.0.11",
+    "vscode-languageserver-textdocument": "^1.0.12",
     "vscode-uri": "^3.1.0",
     "web-tree-sitter": "^0.26.3"
   }

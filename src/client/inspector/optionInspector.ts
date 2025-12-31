@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { LanguageClient } from 'vscode-languageclient/node';
+import type { LanguageClient } from 'vscode-languageclient/node';
 
 export class OptionInspectorProvider implements vscode.TreeDataProvider<OptionItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<OptionItem | undefined | null | void> = new vscode.EventEmitter<OptionItem | undefined | null | void>();

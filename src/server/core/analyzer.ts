@@ -4,14 +4,15 @@
  * Supports both standard protobuf and buf-style imports
  */
 
-import {
+import type {
   ProtoFile,
   MessageDefinition,
   EnumDefinition,
   ServiceDefinition,
   SymbolInfo,
+  Location} from '../core/ast';
+import {
   SymbolKind,
-  Location,
   BUILTIN_TYPES
 } from '../core/ast';
 import * as path from 'path';

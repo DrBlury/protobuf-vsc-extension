@@ -609,5 +609,224 @@ describe('GrpcProvider', () => {
 
       expect(grpcProvider.getAllServices()).toHaveLength(0);
     });
+
+    it('should handle nested message types in service', () => {
+      parseAndUpdate('file:///test.proto', `
+        syntax = "proto3";
+        service Test {
+          rpc Method(Request) returns (Response);
+        }
+        message Request {
+          message Inner {
+            string value = 1;
+          }
+          Inner inner = 1;
+        }
+        message Response {
+          enum Status {
+            UNKNOWN = 0;
+            OK = 1;
+          }
+          Status status = 1;
+        }
+      `);
+
+      const services = grpcProvider.getAllServices();
+      expect(services).toHaveLength(1);
+      expect(services[0]!.rpcs).toHaveLength(1);
+    });
+
+    it('should handle extend declarations in service files', () => {
+      parseAndUpdate('file:///test.proto', `
+        syntax = "proto3";
+        import "google/protobuf/descriptor.proto";
+        service Test {
+          rpc Method(Request) returns (Response);
+        }
+        extend google.protobuf.MessageOptions {
+          optional string custom_option = 50000;
+        }
+        message Request {}
+        message Response {}
+      `);
+
+      const services = grpcProvider.getAllServices();
+      expect(services).toHaveLength(1);
+    });
+
+    it('should handle options on services', () => {
+      parseAndUpdate('file:///test.proto', `
+        syntax = "proto3";
+        option java_package = "com.example";
+        service Test {
+          option deprecated = true;
+          rpc Method(Request) returns (Response);
+        }
+        message Request {}
+        message Response {}
+      `);
+
+      const services = grpcProvider.getAllServices();
+      expect(services).toHaveLength(1);
+      expect(services[0]!.name).toBe('Test');
+    });
+
+    it('should handle streaming RPCs', () => {
+      parseAndUpdate('file:///test.proto', `
+        syntax = "proto3";
+        service Test {
+          rpc ClientStream (stream Request) returns (Response);
+          rpc ServerStream (Request) returns (stream Response);
+          rpc BidiStream (stream Request) returns (stream Response);
+        }
+        message Request {}
+        message Response {}
+      `);
+
+      const services = grpcProvider.getAllServices();
+      expect(services).toHaveLength(1);
+      const rpcs = services[0]!.rpcs;
+      expect(rpcs).toHaveLength(3);
+    });
+
+    it('should handle deeply nested packages', () => {
+      parseAndUpdate('file:///test.proto', `
+        syntax = "proto3";
+        package com.example.api.v1;
+        service Test {
+          rpc Method(Request) returns (Response);
+        }
+        message Request {}
+        message Response {}
+      `);
+
+      const services = grpcProvider.getAllServices();
+      expect(services).toHaveLength(1);
+      expect(services[0]!.fullName).toBe('com.example.api.v1.Test');
+      expect(services[0]!.package).toBe('com.example.api.v1');
+    });
+
+    it('should handle services with no package and no RPCs', () => {
+      parseAndUpdate('file:///test.proto', `
+        syntax = "proto3";
+        service EmptyService {
+        }
+      `);
+
+      const services = grpcProvider.getAllServices();
+      expect(services).toHaveLength(1);
+      expect(services[0]!.rpcs).toHaveLength(0);
+    });
+
+    it('should handle RPCs with options', () => {
+      parseAndUpdate('file:///test.proto', `
+        syntax = "proto3";
+        service Test {
+          rpc Method(Request) returns (Response) {
+            option deprecated = true;
+          }
+        }
+        message Request {}
+        message Response {}
+      `);
+
+      const services = grpcProvider.getAllServices();
+      expect(services).toHaveLength(1);
+      expect(services[0]!.rpcs[0]).toBeDefined();
+    });
+
+    it('should handle multiple packages in different files', () => {
+      parseAndUpdate('file:///user.proto', `
+        syntax = "proto3";
+        package user;
+        service UserService {
+          rpc GetUser(Request) returns (Response);
+        }
+        message Request {}
+        message Response {}
+      `);
+
+      parseAndUpdate('file:///order.proto', `
+        syntax = "proto3";
+        package order;
+        service OrderService {
+          rpc GetOrder(Request) returns (Response);
+        }
+        message Request {}
+        message Response {}
+      `);
+
+      parseAndUpdate('file:///payment.proto', `
+        syntax = "proto3";
+        package payment;
+        service PaymentService {
+          rpc ProcessPayment(Request) returns (Response);
+        }
+        message Request {}
+        message Response {}
+      `);
+
+      const services = grpcProvider.getAllServices();
+      expect(services).toHaveLength(3);
+      const packages = services.map(s => s.package).sort();
+      expect(packages).toEqual(['order', 'payment', 'user']);
+    });
+
+    it('should handle reserved fields in messages', () => {
+      parseAndUpdate('file:///test.proto', `
+        syntax = "proto3";
+        service Test {
+          rpc Method(Request) returns (Response);
+        }
+        message Request {
+          reserved 10, 20 to 30;
+          reserved "deprecated_field";
+          string name = 1;
+        }
+        message Response {}
+      `);
+
+      const services = grpcProvider.getAllServices();
+      expect(services).toHaveLength(1);
+    });
+
+    it('should handle map fields in messages', () => {
+      parseAndUpdate('file:///test.proto', `
+        syntax = "proto3";
+        service Test {
+          rpc Method(Request) returns (Response);
+        }
+        message Request {
+          map<string, int32> scores = 1;
+          map<string, User> users = 2;
+        }
+        message User {
+          string name = 1;
+        }
+        message Response {}
+      `);
+
+      const services = grpcProvider.getAllServices();
+      expect(services).toHaveLength(1);
+    });
+
+    it('should handle oneof fields in messages', () => {
+      parseAndUpdate('file:///test.proto', `
+        syntax = "proto3";
+        service Test {
+          rpc Method(Request) returns (Response);
+        }
+        message Request {
+          oneof status {
+            string text = 1;
+            int32 code = 2;
+          }
+        }
+        message Response {}
+      `);
+
+      const services = grpcProvider.getAllServices();
+      expect(services).toHaveLength(1);
+    });
   });
 });

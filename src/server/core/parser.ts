@@ -3,7 +3,7 @@
  * Parses .proto files into an AST
  */
 
-import {
+import type {
   ProtoFile,
   SyntaxStatement,
   EditionStatement,
@@ -27,6 +27,8 @@ import {
   FieldOption,
   ProtoNode
 } from '../core/ast';
+
+import { logger } from '../utils/logger';
 
 /**
  * Parse a number string that may be in decimal, hexadecimal (0x), or octal (0) format.
@@ -124,10 +126,10 @@ export class ProtoParser {
       } catch (error) {
         // Log parse error for debugging
         if (error instanceof Error) {
-          console.error(`Parse error at position ${this.pos}: ${error.message}`);
+          logger.error(`Parse error at position ${this.pos}: ${error.message}`);
           const token = this.peek();
           if (token) {
-            console.error(`  Current token: ${token.type} = "${token.value}" at line ${token.range.start.line}`);
+            logger.error(`  Current token: ${token.type} = "${token.value}" at line ${token.range.start.line}`);
           }
         }
         // Skip to next statement on error

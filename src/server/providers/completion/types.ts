@@ -2,7 +2,7 @@
  * Types and interfaces for completion providers
  */
 
-import { Position, Range } from 'vscode-languageserver/node';
+import type { Position, Range } from 'vscode-languageserver/node';
 
 /**
  * Represents a prefix being typed with optional package qualifier

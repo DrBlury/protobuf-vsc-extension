@@ -3,16 +3,19 @@
  * Provides automatic field number adjustment
  */
 
-import {
+import type {
   TextEdit,
   Range,
   CodeAction,
-  CodeActionKind,
   Position
 } from 'vscode-languageserver/node';
+import {
+  CodeActionKind
+} from 'vscode-languageserver/node';
 
-import { ProtoFile, MessageDefinition, EnumDefinition, FieldDefinition, MapFieldDefinition, EnumValue, Range as AstRange, MAX_FIELD_NUMBER } from '../core/ast';
-import { IProtoParser } from '../core/parserFactory';
+import type { ProtoFile, MessageDefinition, EnumDefinition, FieldDefinition, MapFieldDefinition, EnumValue, Range as AstRange} from '../core/ast';
+import { MAX_FIELD_NUMBER } from '../core/ast';
+import type { IProtoParser } from '../core/parserFactory';
 import { FIELD_NUMBER } from '../utils/constants';
 
 export interface RenumberSettings {

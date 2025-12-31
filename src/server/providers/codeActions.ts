@@ -3,22 +3,25 @@
  * Provides quick fixes and refactoring actions
  */
 
-import {
+import type {
   CodeAction,
-  CodeActionKind,
   Diagnostic,
   Range,
   TextEdit,
   Position
 } from 'vscode-languageserver/node';
-import { ProtoFile } from '../core/ast';
-import { SemanticAnalyzer } from '../core/analyzer';
-import { RenumberProvider } from './renumber';
+import {
+  CodeActionKind
+} from 'vscode-languageserver/node';
+import type { ProtoFile } from '../core/ast';
+import type { SemanticAnalyzer } from '../core/analyzer';
+import type { RenumberProvider } from './renumber';
 import { FIELD_NUMBER } from '../utils/constants';
 import { logger } from '../utils/logger';
-import {
+import type {
   CodeActionContext,
-  CodeActionsSettings,
+  CodeActionsSettings} from './codeActions/index';
+import {
   DEFAULT_CODE_ACTIONS_SETTINGS,
   splitLines
 } from './codeActions/index';
@@ -29,7 +32,7 @@ import {
 } from './codeActions/index';
 
 // Re-export types for external consumers
-export { CodeActionContext, CodeActionsSettings } from './codeActions/index';
+export type { CodeActionContext, CodeActionsSettings } from './codeActions/index';
 
 export class CodeActionsProvider {
   private analyzer: SemanticAnalyzer;

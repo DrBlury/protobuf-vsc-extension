@@ -5,7 +5,8 @@
 
 import { ProtoParser } from './parser';
 import { TreeSitterProtoParser, isTreeSitterInitialized } from './treeSitterParser';
-import { ProtoFile } from './ast';
+import type { ProtoFile } from './ast';
+import { logger } from '../utils/logger';
 
 /**
  * Interface that both parsers must implement
@@ -35,7 +36,7 @@ export class ParserFactory {
   setUseTreeSitter(use: boolean): void {
     this.useTreeSitter = use && isTreeSitterInitialized();
     if (use && !isTreeSitterInitialized()) {
-      console.warn('Tree-sitter parser requested but not initialized. Falling back to custom parser.');
+      logger.warn('Tree-sitter parser requested but not initialized. Falling back to custom parser.');
     }
   }
 
@@ -64,7 +65,7 @@ export class ParserFactory {
         return this.treeSitterParser.parse(text, uri);
       }
     } catch (error) {
-      console.error('Tree-sitter parser failed, falling back to custom parser:', error);
+      logger.error('Tree-sitter parser failed, falling back to custom parser:', error);
     }
     
     // Fall back to custom parser

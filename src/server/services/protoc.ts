@@ -3,7 +3,8 @@
  * Provides compilation and code generation capabilities
  */
 
-import { spawn, SpawnOptions } from 'child_process';
+import type { SpawnOptions } from 'child_process';
+import { spawn } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -845,12 +846,13 @@ export class ProtocCompiler {
       let timedOut = false;
 
       // Set up timeout
+      let forceKillTimeout: NodeJS.Timeout | undefined;
       const timeoutId = setTimeout(() => {
         timedOut = true;
         try {
           proc.kill('SIGTERM');
           // Give it a moment, then force kill if needed
-          setTimeout(() => {
+          forceKillTimeout = setTimeout(() => {
             try {
               proc.kill('SIGKILL');
             } catch {
@@ -884,6 +886,9 @@ export class ProtocCompiler {
 
       const cleanup = () => {
         clearTimeout(timeoutId);
+        if (forceKillTimeout) {
+          clearTimeout(forceKillTimeout);
+        }
         this.activeProcesses.delete(proc);
       };
 

@@ -727,6 +727,502 @@ describe('ConfigManager', () => {
     expect(result.protoSrcsDir).toBe('/workspace/src/protos');
   });
 
+  describe('proto path extraction edge cases', () => {
+    it('should handle --proto_path with space-separated value', () => {
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          protoc: {
+            ...defaultSettings.protobuf.protoc,
+            options: ['--proto_path', '/path/with/space']
+          }
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined
+      );
+
+      const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+      expect(importPaths).toContain('/path/with/space');
+    });
+
+    it('should handle --proto-path with space-separated value', () => {
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          protoc: {
+            ...defaultSettings.protobuf.protoc,
+            options: ['--proto-path', '/path/hyphen/space']
+          }
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined
+      );
+
+      const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+      expect(importPaths).toContain('/path/hyphen/space');
+    });
+
+    it('should handle -I with space-separated value', () => {
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          protoc: {
+            ...defaultSettings.protobuf.protoc,
+            options: ['-I', '/path/after/dash/I']
+          }
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined
+      );
+
+      const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+      expect(importPaths).toContain('/path/after/dash/I');
+    });
+
+    it('should handle missing next value after --proto_path', () => {
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          protoc: {
+            ...defaultSettings.protobuf.protoc,
+            options: ['--proto_path'] // No value after
+          }
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined
+      );
+
+      // Should not throw
+      expect(analyzer.setImportPaths).toHaveBeenCalled();
+    });
+
+    it('should handle empty options array', () => {
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          protoc: {
+            ...defaultSettings.protobuf.protoc,
+            options: []
+          }
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined
+      );
+
+      expect(analyzer.setImportPaths).toHaveBeenCalled();
+    });
+
+    it('should handle null options in array', () => {
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          protoc: {
+            ...defaultSettings.protobuf.protoc,
+            options: [null as any, undefined as any, '--proto_path=/valid']
+          }
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined
+      );
+
+      const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+      expect(importPaths).toContain('/valid');
+    });
+  });
+
+  describe('variable expansion edge cases', () => {
+    it('should expand ${workspaceRoot} variable', () => {
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          includes: ['${workspaceRoot}/protos']
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined,
+        ['/workspace']
+      );
+
+      const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+      expect(importPaths).toContain('/workspace/protos');
+    });
+
+    it('should expand ${workspaceFolderBasename} variable', () => {
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          includes: ['/${workspaceFolderBasename}/protos']
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined,
+        ['/path/to/myproject']
+      );
+
+      const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+      expect(importPaths).toContain('/myproject/protos');
+    });
+
+    it('should expand ${env:VAR} variables', () => {
+      process.env.MY_TEST_VAR = '/from/env';
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          includes: ['${env:MY_TEST_VAR}/protos']
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined
+      );
+
+      const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+      expect(importPaths).toContain('/from/env/protos');
+      delete process.env.MY_TEST_VAR;
+    });
+
+    it('should expand ${env.VAR} variables (dot syntax)', () => {
+      process.env.MY_DOT_VAR = '/dot/env';
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          includes: ['${env.MY_DOT_VAR}/protos']
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined
+      );
+
+      const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+      expect(importPaths).toContain('/dot/env/protos');
+      delete process.env.MY_DOT_VAR;
+    });
+
+    it('should handle missing env variables', () => {
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          includes: ['${env:NONEXISTENT_VAR}/protos']
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined
+      );
+
+      const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+      // Should replace with empty string
+      expect(importPaths).toContain('/protos');
+    });
+
+    it('should handle empty workspace folders', () => {
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          includes: ['${workspaceFolder}/protos']
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined,
+        [] // Empty workspace folders
+      );
+
+      const importPaths = (analyzer.setImportPaths as jest.Mock).mock.calls[0][0];
+      // Should replace with empty string
+      expect(importPaths).toContain('/protos');
+    });
+
+    it('should handle whitespace-only path setting', () => {
+      const settings: Settings = {
+        ...defaultSettings,
+        protobuf: {
+          ...defaultSettings.protobuf,
+          includes: ['   '] // Just whitespace
+        }
+      };
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined
+      );
+
+      expect(analyzer.setImportPaths).toHaveBeenCalled();
+    });
+  });
+
+  describe('buf workspace config collection', () => {
+    it('should collect paths from buf.yaml in workspace folders', () => {
+      const workspaceFolder = '/workspace';
+      const bufConfigPath = path.join(workspaceFolder, 'buf.yaml');
+
+      (fs.existsSync as jest.Mock).mockImplementation((p: string) => {
+        return p === bufConfigPath;
+      });
+
+      // Mock bufConfigProvider (we need to access it differently since it's imported)
+      jest.doMock('../../services/bufConfig', () => ({
+        bufConfigProvider: {
+          getProtoRoots: jest.fn().mockReturnValue(['/workspace/proto1', '/workspace/proto2']),
+          getWorkDirectories: jest.fn().mockReturnValue([])
+        }
+      }));
+
+      const settings: Settings = defaultSettings;
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined,
+        [workspaceFolder]
+      );
+
+      expect(analyzer.setImportPaths).toHaveBeenCalled();
+    });
+
+    it('should handle empty workspace folder in array', () => {
+      const settings: Settings = defaultSettings;
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined,
+        ['', '/workspace', ''] // Has empty strings
+      );
+
+      expect(analyzer.setImportPaths).toHaveBeenCalled();
+    });
+  });
+
+  describe('codeActionsProvider update', () => {
+    it('should update codeActionsProvider when provided', () => {
+      const codeActionsProvider = {
+        updateSettings: jest.fn()
+      } as any;
+
+      const settings: Settings = defaultSettings;
+
+      updateProvidersWithSettings(
+        settings,
+        diagnosticsProvider,
+        formatter,
+        renumberProvider,
+        analyzer,
+        protocCompiler,
+        breakingChangeDetector,
+        externalLinter,
+        clangFormat,
+        undefined,
+        undefined,
+        [],
+        codeActionsProvider
+      );
+
+      expect(codeActionsProvider.updateSettings).toHaveBeenCalledWith({
+        renumberOnFormat: settings.protobuf.renumber.onFormat,
+        formatterEnabled: settings.protobuf.formatter?.enabled ?? true,
+        organizeImports: {
+          enabled: settings.protobuf.organizeImports?.enabled ?? true,
+          groupByCategory: settings.protobuf.organizeImports?.groupByCategory ?? true
+        }
+      });
+    });
+
+    it('should not throw when codeActionsProvider is undefined', () => {
+      const settings: Settings = defaultSettings;
+
+      expect(() => {
+        updateProvidersWithSettings(
+          settings,
+          diagnosticsProvider,
+          formatter,
+          renumberProvider,
+          analyzer,
+          protocCompiler,
+          breakingChangeDetector,
+          externalLinter,
+          clangFormat,
+          undefined,
+          undefined,
+          [],
+          undefined // No codeActionsProvider
+        );
+      }).not.toThrow();
+    });
+  });
+
   describe('google protos deduplication - nanopb scenario', () => {
     /**
      * These tests cover GitHub issue #38 where users with nanopb had duplicate

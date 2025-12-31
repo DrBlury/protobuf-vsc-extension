@@ -3,13 +3,14 @@
  * Shows inline hints for field numbers and type information
  */
 
+import type {
+  InlayHint} from 'vscode-languageserver/node';
 import {
-  InlayHint,
   InlayHintKind,
   Position
 } from 'vscode-languageserver/node';
 
-import { ProtoFile, FieldDefinition, MapFieldDefinition, EnumValue } from '../core/ast';
+import type { ProtoFile, FieldDefinition, MapFieldDefinition, EnumValue } from '../core/ast';
 
 /**
  * Inlay hint settings

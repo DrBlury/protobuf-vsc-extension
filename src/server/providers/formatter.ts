@@ -2,15 +2,17 @@
  * Code Formatter for Protocol Buffers
  */
 
-import { TextEdit, Range } from 'vscode-languageserver/node';
+import type { TextEdit} from 'vscode-languageserver/node';
+import { Range } from 'vscode-languageserver/node';
 import { URI } from 'vscode-uri';
-import { ClangFormatProvider } from '../services/clangFormat';
-import { BufFormatProvider } from '../services/bufFormat';
+import type { ClangFormatProvider } from '../services/clangFormat';
+import type { BufFormatProvider } from '../services/bufFormat';
 import { logger } from '../utils/logger';
 import { splitLines } from '../../shared/textUtils';
-import {
+import type {
   FormatterSettings,
-  AlignmentData,
+  AlignmentData} from './formatter/types';
+import {
   DEFAULT_SETTINGS
 } from './formatter/types';
 import { calculateAlignmentInfo } from './formatter/alignment';

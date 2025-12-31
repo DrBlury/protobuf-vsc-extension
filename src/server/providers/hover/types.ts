@@ -2,7 +2,8 @@
  * Types and interfaces for hover provider
  */
 
-import { MarkupKind, MarkupContent } from 'vscode-languageserver/node';
+import type { MarkupContent } from 'vscode-languageserver/node';
+import { MarkupKind } from 'vscode-languageserver/node';
 
 /**
  * Standard hover content factory for markdown

@@ -3,8 +3,9 @@
  * Compares proto files against a baseline to detect breaking API changes
  */
 
-import { Diagnostic, DiagnosticSeverity, Range } from 'vscode-languageserver/node';
-import { ProtoFile, MessageDefinition, EnumDefinition, ServiceDefinition, FieldDefinition, RpcDefinition } from '../core/ast';
+import type { Diagnostic, Range } from 'vscode-languageserver/node';
+import { DiagnosticSeverity } from 'vscode-languageserver/node';
+import type { ProtoFile, MessageDefinition, EnumDefinition, ServiceDefinition, FieldDefinition, RpcDefinition } from '../core/ast';
 import { spawn } from 'child_process';
 import * as path from 'path';
 

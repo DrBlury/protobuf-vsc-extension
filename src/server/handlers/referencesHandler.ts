@@ -3,15 +3,15 @@
  * Handles find-references requests
  */
 
-import {
+import type {
   ReferenceParams,
   Location
 } from 'vscode-languageserver/node';
 
-import { TextDocuments } from 'vscode-languageserver/node';
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { TextDocuments } from 'vscode-languageserver/node';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
 
-import { ReferencesProvider } from '../providers/references';
+import type { ReferencesProvider } from '../providers/references';
 
 /**
  * Handle references request

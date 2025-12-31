@@ -2,8 +2,8 @@
  * Context detection utilities for completion
  */
 
-import { Position } from 'vscode-languageserver/node';
-import { TypePrefix, ContainerBounds, ContainerInfo } from './types';
+import type { Position } from 'vscode-languageserver/node';
+import type { TypePrefix, ContainerBounds, ContainerInfo } from './types';
 
 /**
  * Check if the cursor is in a type context (expecting a type name)

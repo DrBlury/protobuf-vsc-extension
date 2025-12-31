@@ -3,20 +3,20 @@
  * Handles go-to-definition requests
  */
 
-import {
+import type {
   DefinitionParams,
   Location,
   LocationLink
 } from 'vscode-languageserver/node';
 
-import { TextDocuments } from 'vscode-languageserver/node';
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { TextDocuments } from 'vscode-languageserver/node';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
 
-import { DefinitionProvider } from '../providers/definition';
-import { IProtoParser } from '../core/parserFactory';
-import { SemanticAnalyzer } from '../core/analyzer';
-import { ProtoFile } from '../core/ast';
-import { ContentHashCache } from '../utils/cache';
+import type { DefinitionProvider } from '../providers/definition';
+import type { IProtoParser } from '../core/parserFactory';
+import type { SemanticAnalyzer } from '../core/analyzer';
+import type { ProtoFile } from '../core/ast';
+import type { ContentHashCache } from '../utils/cache';
 import { refreshDocumentAndImports } from '../utils/documentRefresh';
 import { logger } from '../utils/logger';
 

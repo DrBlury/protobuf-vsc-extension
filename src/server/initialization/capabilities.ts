@@ -2,10 +2,12 @@
  * Server capabilities configuration
  */
 
-import {
+import type {
   InitializeResult,
-  TextDocumentSyncKind,
   SemanticTokensOptions
+} from 'vscode-languageserver/node';
+import {
+  TextDocumentSyncKind
 } from 'vscode-languageserver/node';
 
 import { semanticTokensLegend } from '../providers/semanticTokens';

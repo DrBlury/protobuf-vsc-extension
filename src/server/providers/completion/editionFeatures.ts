@@ -2,7 +2,8 @@
  * Completion items for Protobuf Edition Features
  */
 
-import { CompletionItem, CompletionItemKind, InsertTextFormat } from 'vscode-languageserver/node';
+import type { CompletionItem} from 'vscode-languageserver/node';
+import { CompletionItemKind, InsertTextFormat } from 'vscode-languageserver/node';
 
 /**
  * Feature definitions with their possible values

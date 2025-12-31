@@ -3,15 +3,15 @@
  * Handles code action requests
  */
 
-import {
+import type {
   CodeActionParams,
   CodeAction
 } from 'vscode-languageserver/node';
 
-import { TextDocuments } from 'vscode-languageserver/node';
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { TextDocuments } from 'vscode-languageserver/node';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
 
-import { CodeActionsProvider } from '../providers/codeActions';
+import type { CodeActionsProvider } from '../providers/codeActions';
 
 /**
  * Handle code action request

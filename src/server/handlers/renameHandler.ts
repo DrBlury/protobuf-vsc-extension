@@ -3,7 +3,7 @@
  * Handles prepare rename and rename requests
  */
 
-import {
+import type {
   PrepareRenameParams,
   RenameParams,
   Range,
@@ -11,10 +11,10 @@ import {
   TextEdit
 } from 'vscode-languageserver/node';
 
-import { TextDocuments } from 'vscode-languageserver/node';
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { TextDocuments } from 'vscode-languageserver/node';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
 
-import { RenameProvider } from '../providers/rename';
+import type { RenameProvider } from '../providers/rename';
 
 interface PrepareRenameResult {
   range: Range;

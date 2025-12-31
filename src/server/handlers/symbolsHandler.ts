@@ -3,14 +3,14 @@
  * Handles document and workspace symbol requests
  */
 
-import {
+import type {
   DocumentSymbolParams,
   WorkspaceSymbolParams,
   DocumentSymbol,
   SymbolInformation
 } from 'vscode-languageserver/node';
 
-import { SymbolProvider } from '../providers/symbols';
+import type { SymbolProvider } from '../providers/symbols';
 
 /**
  * Handle document symbol request

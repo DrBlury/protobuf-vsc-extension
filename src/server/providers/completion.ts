@@ -2,18 +2,23 @@
  * Completion Provider for Protocol Buffers
  */
 
-import {
+import type {
   CompletionItem,
+  Position,
+  Range} from 'vscode-languageserver/node';
+import {
   CompletionItemKind,
   InsertTextFormat,
-  Position,
-  Range,
   TextEdit
 } from 'vscode-languageserver/node';
 
-import { BUILTIN_TYPES, SymbolKind, SymbolInfo } from '../core/ast';
-import { SemanticAnalyzer } from '../core/analyzer';
+import type { MessageDefinition, SymbolInfo } from '../core/ast';
+import { BUILTIN_TYPES, SymbolKind } from '../core/ast';
+import type { SemanticAnalyzer } from '../core/analyzer';
 import { FIELD_NUMBER } from '../utils/constants';
+import type {
+  TypePrefix
+} from './completion/index';
 import {
   isTypeContext,
   getTypePrefix,
@@ -22,8 +27,7 @@ import {
   getContainerInfo,
   isFieldAssignmentContext,
   isEnumValueContext,
-  isFieldNameContext,
-  TypePrefix
+  isFieldNameContext
 } from './completion/index';
 import {
   getEditionFeatureNameCompletions,
@@ -1376,9 +1380,9 @@ export class CompletionProvider {
 
     // Find the message definition
     const findMessage = (
-      messages: import('../core/ast').MessageDefinition[],
+      messages: MessageDefinition[],
       name: string
-    ): import('../core/ast').MessageDefinition | undefined => {
+    ): MessageDefinition | undefined => {
       for (const msg of messages) {
         if (msg.name === name) {
           return msg;

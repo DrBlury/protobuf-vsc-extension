@@ -21,7 +21,7 @@ interface Node {
   childForFieldName(name: string): Node | null;
 }
 
-import {
+import type {
   ProtoFile,
   SyntaxStatement,
   EditionStatement,
@@ -33,6 +33,7 @@ import {
   ServiceDefinition,
   ExtendDefinition,
   FieldDefinition,
+  FieldOption,
   MapFieldDefinition,
   GroupFieldDefinition,
   OneofDefinition,
@@ -43,6 +44,8 @@ import {
   Range,
   Position,
 } from './ast';
+
+import { logger } from '../utils/logger';
 
 let parserInstance: Parser | null = null;
 let initPromise: Promise<void> | null = null;
@@ -62,9 +65,9 @@ export async function initTreeSitterParser(wasmPath: string): Promise<void> {
       parserInstance = new TreeSitterParser();
       const Proto = await TreeSitter.Language.load(wasmPath) as Language;
       parserInstance.setLanguage(Proto);
-      console.log('Tree-sitter parser initialized successfully');
+      logger.info('Tree-sitter parser initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize Tree-sitter parser:', error);
+      logger.error('Failed to initialize Tree-sitter parser:', error);
       throw error;
     }
   })();
@@ -198,7 +201,7 @@ export class TreeSitterProtoParser {
         }
       } catch (error) {
         // Log but continue parsing - Tree-sitter provides error recovery
-        console.error(`Error parsing ${child.type} at line ${child.startPosition.row}:`, error);
+        logger.error(`Error parsing ${child.type} at line ${child.startPosition.row}:`, error);
       }
     }
 
@@ -353,7 +356,7 @@ export class TreeSitterProtoParser {
               break;
           }
         } catch (error) {
-          console.error(`Error parsing message child ${child.type}:`, error);
+          logger.error(`Error parsing message child ${child.type}:`, error);
         }
       }
     }
@@ -626,8 +629,8 @@ export class TreeSitterProtoParser {
    * @param optionsStr The options string including brackets
    * @param baseRange Optional base range to calculate option positions from
    */
-  private parseFieldOptionsFromString(optionsStr: string, baseRange?: Range): import('./ast').FieldOption[] {
-    const options: import('./ast').FieldOption[] = [];
+  private parseFieldOptionsFromString(optionsStr: string, baseRange?: Range): FieldOption[] {
+    const options: FieldOption[] = [];
 
     // Remove surrounding brackets
     const inner = optionsStr.slice(1, -1).trim();
@@ -1019,7 +1022,7 @@ export class TreeSitterProtoParser {
               break;
           }
         } catch (error) {
-          console.error(`Error parsing enum child ${child.type}:`, error);
+          logger.error(`Error parsing enum child ${child.type}:`, error);
         }
       }
     }
@@ -1100,7 +1103,7 @@ export class TreeSitterProtoParser {
       try {
         service.rpcs.push(this.parseRpc(rpcNode));
       } catch (error) {
-        console.error('Error parsing RPC:', error);
+        logger.error('Error parsing RPC:', error);
       }
     }
 

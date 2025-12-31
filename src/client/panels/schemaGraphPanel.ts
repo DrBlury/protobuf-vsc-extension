@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { LanguageClient } from 'vscode-languageclient/node';
-import { SchemaGraph, SchemaGraphRequest, SchemaGraphScope } from '../../shared/schemaGraph';
+import type { LanguageClient } from 'vscode-languageclient/node';
+import type { SchemaGraph, SchemaGraphRequest, SchemaGraphScope } from '../../shared/schemaGraph';
 
 /**
  * Webview panel that renders the protobuf schema graph.

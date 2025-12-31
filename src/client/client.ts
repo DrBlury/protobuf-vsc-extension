@@ -3,10 +3,11 @@
  */
 
 import * as path from 'path';
+import type {
+  LanguageClientOptions,
+  ServerOptions} from 'vscode-languageclient/node';
 import {
   LanguageClient,
-  LanguageClientOptions,
-  ServerOptions,
   TransportKind
 } from 'vscode-languageclient/node';
 import { DEBUG_PORT } from '../server/utils/constants';

@@ -3,16 +3,16 @@
  * Handles code lens requests
  */
 
-import {
+import type {
   CodeLensParams,
   CodeLens
 } from 'vscode-languageserver/node';
 
-import { TextDocuments } from 'vscode-languageserver/node';
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { TextDocuments } from 'vscode-languageserver/node';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
 
-import { CodeLensProvider } from '../providers/codeLens';
-import { IProtoParser } from '../core/parserFactory';
+import type { CodeLensProvider } from '../providers/codeLens';
+import type { IProtoParser } from '../core/parserFactory';
 
 /**
  * Handle code lens request

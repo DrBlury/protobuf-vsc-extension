@@ -1,5 +1,5 @@
-import { TextEdit } from 'vscode-languageserver/node';
-import { ProtoFile, FieldDefinition } from '../core/ast';
+import type { TextEdit } from 'vscode-languageserver/node';
+import type { ProtoFile, FieldDefinition } from '../core/ast';
 
 interface NodeWithFields {
     fields?: FieldDefinition[];

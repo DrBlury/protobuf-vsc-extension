@@ -3,21 +3,25 @@
  * Provides document and workspace symbols
  */
 
-import {
+import type {
   DocumentSymbol,
   SymbolInformation,
-  SymbolKind as VSCodeSymbolKind,
   Range
 } from 'vscode-languageserver/node';
-
 import {
+  SymbolKind as VSCodeSymbolKind
+} from 'vscode-languageserver/node';
+
+import type {
   MessageDefinition,
   EnumDefinition,
   ServiceDefinition,
-  SymbolKind,
   Range as AstRange
 } from '../core/ast';
-import { SemanticAnalyzer } from '../core/analyzer';
+import {
+  SymbolKind
+} from '../core/ast';
+import type { SemanticAnalyzer } from '../core/analyzer';
 
 export class SymbolProvider {
   private analyzer: SemanticAnalyzer;
@@ -210,7 +214,9 @@ export class SymbolProvider {
 
     // Fields - skip fields with empty names
     for (const field of message.fields) {
-      if (!field.name) continue;
+      if (!field.name) {
+        continue;
+      }
       const fieldRange = this.toRange(field.range);
       const fieldSelectionRange = this.toRange(field.nameRange);
       children.push({
@@ -224,7 +230,9 @@ export class SymbolProvider {
 
     // Map fields - skip fields with empty names
     for (const mapField of message.maps) {
-      if (!mapField.name) continue;
+      if (!mapField.name) {
+        continue;
+      }
       const mapRange = this.toRange(mapField.range);
       const mapSelectionRange = this.toRange(mapField.nameRange);
       children.push({
@@ -238,7 +246,9 @@ export class SymbolProvider {
 
     // Oneofs - skip oneofs with empty names
     for (const oneof of message.oneofs) {
-      if (!oneof.name) continue;
+      if (!oneof.name) {
+        continue;
+      }
       const oneofChildren = oneof.fields
         .filter(f => f.name) // Filter out fields with empty names
         .map(f => {

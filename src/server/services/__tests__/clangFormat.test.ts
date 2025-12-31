@@ -147,6 +147,31 @@ describe('ClangFormatProvider', () => {
     });
   });
 
+  describe('getStylePresets', () => {
+    it('should return all style presets', () => {
+      const presets = provider.getStylePresets();
+      expect(presets).toContain('LLVM');
+      expect(presets).toContain('Google');
+      expect(presets).toContain('Chromium');
+      expect(presets).toContain('Mozilla');
+      expect(presets).toContain('WebKit');
+      expect(presets).toContain('Microsoft');
+      expect(presets).toContain('GNU');
+      expect(presets).toContain('file');
+      expect(presets).toHaveLength(8);
+    });
+  });
+
+  describe('getSampleConfig', () => {
+    it('should return valid clang-format config', () => {
+      const config = provider.getSampleConfig();
+      expect(config).toContain('Language: Proto');
+      expect(config).toContain('BasedOnStyle: Google');
+      expect(config).toContain('IndentWidth: 2');
+      expect(config).toContain('ColumnLimit: 100');
+    });
+  });
+
   describe('formatDocument', () => {
     it('should return empty array when disabled', async () => {
       provider.updateSettings({ enabled: false });

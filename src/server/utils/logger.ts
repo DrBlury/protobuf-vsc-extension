@@ -3,7 +3,7 @@
  * Provides consistent logging interface across the codebase
  */
 
-import { Connection } from 'vscode-languageserver/node';
+import type { Connection } from 'vscode-languageserver/node';
 
 /**
  * Log levels

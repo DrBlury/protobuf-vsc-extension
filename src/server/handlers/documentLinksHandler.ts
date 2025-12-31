@@ -3,16 +3,16 @@
  * Handles document links requests
  */
 
-import {
+import type {
   DocumentLinkParams,
   DocumentLink
 } from 'vscode-languageserver/node';
 
-import { TextDocuments } from 'vscode-languageserver/node';
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { TextDocuments } from 'vscode-languageserver/node';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
 
-import { DocumentLinksProvider } from '../providers/documentLinks';
-import { IProtoParser } from '../core/parserFactory';
+import type { DocumentLinksProvider } from '../providers/documentLinks';
+import type { IProtoParser } from '../core/parserFactory';
 
 /**
  * Handle document links request

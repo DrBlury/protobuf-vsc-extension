@@ -4,7 +4,7 @@
  */
 
 import * as vscode from 'vscode';
-import { TextEdit } from 'vscode-languageserver/node';
+import type { TextEdit } from 'vscode-languageserver/node';
 
 /**
  * Converts a LSP TextEdit to a VS Code Range

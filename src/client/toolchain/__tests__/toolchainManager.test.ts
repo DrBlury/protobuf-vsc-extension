@@ -42,7 +42,7 @@ const mockOutputChannel = {
 const mockConfiguration = new Map<string, unknown>();
 
 jest.mock('vscode', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   const pathModule = require('path');
   const testWorkspace = pathModule.join(pathModule.sep, 'test', 'workspace');
   return {

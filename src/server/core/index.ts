@@ -5,7 +5,8 @@
 
 export { ProtoParser } from './parser';
 export { TreeSitterProtoParser, initTreeSitterParser, isTreeSitterInitialized } from './treeSitterParser';
-export { ParserFactory, IProtoParser } from './parserFactory';
+export type { IProtoParser } from './parserFactory';
+export { ParserFactory } from './parserFactory';
 export { SemanticAnalyzer } from './analyzer';
 export { TemplateProvider } from './templates';
 

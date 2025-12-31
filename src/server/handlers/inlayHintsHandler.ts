@@ -2,15 +2,16 @@
  * Handler for textDocument/inlayHint requests
  */
 
-import {
+import type {
   InlayHint,
   InlayHintParams,
   TextDocuments
 } from 'vscode-languageserver/node';
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
 
-import { InlayHintsProvider, InlayHintsSettings } from '../providers/inlayHints';
-import { ParserFactory } from '../core/parserFactory';
+import type { InlayHintsSettings } from '../providers/inlayHints';
+import { InlayHintsProvider } from '../providers/inlayHints';
+import type { ParserFactory } from '../core/parserFactory';
 
 let provider: InlayHintsProvider | null = null;
 

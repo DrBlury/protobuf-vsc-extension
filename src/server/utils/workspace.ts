@@ -6,8 +6,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { URI } from 'vscode-uri';
-import { IProtoParser } from '../core/parserFactory';
-import { SemanticAnalyzer } from '../core/analyzer';
+import type { IProtoParser } from '../core/parserFactory';
+import type { SemanticAnalyzer } from '../core/analyzer';
 import { logger } from './logger';
 import { getErrorMessage } from './utils';
 

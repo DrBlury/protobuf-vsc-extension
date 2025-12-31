@@ -8,6 +8,7 @@ import { TreeSitterProtoParser, initTreeSitterParser, isTreeSitterInitialized } 
 import { ProtoFile, MessageDefinition, EnumDefinition, FieldDefinition, ServiceDefinition, RpcDefinition } from '../ast';
 import * as path from 'path';
 import * as fs from 'fs';
+import { logger } from '../../utils/logger';
 
 describe('Parser Comparison: Built-in vs Tree-sitter', () => {
   let builtInParser: ProtoParser;
@@ -25,10 +26,10 @@ describe('Parser Comparison: Built-in vs Tree-sitter', () => {
           treeSitterParser = new TreeSitterProtoParser();
         }
       } catch (e) {
-        console.warn('Tree-sitter initialization failed:', e);
+        logger.warn('Tree-sitter initialization failed:', e);
       }
     } else {
-      console.warn(`Tree-sitter WASM not found at ${wasmPath}`);
+      logger.warn(`Tree-sitter WASM not found at ${wasmPath}`);
     }
   });
 
@@ -117,7 +118,7 @@ describe('Parser Comparison: Built-in vs Tree-sitter', () => {
     const builtInNormalized = normalizeForComparison(builtInResult);
 
     if (!treeSitterParser) {
-      console.warn(`[${testName}] Tree-sitter not available, skipping comparison`);
+      logger.warn(`[${testName}] Tree-sitter not available, skipping comparison`);
       return { match: true, builtIn: builtInNormalized, treeSitter: null };
     }
 
@@ -127,9 +128,9 @@ describe('Parser Comparison: Built-in vs Tree-sitter', () => {
     const match = JSON.stringify(builtInNormalized) === JSON.stringify(treeSitterNormalized);
 
     if (!match) {
-      console.log(`\n[${testName}] AST DIFFERENCE DETECTED:`);
-      console.log('Built-in:', JSON.stringify(builtInNormalized, null, 2));
-      console.log('Tree-sitter:', JSON.stringify(treeSitterNormalized, null, 2));
+      logger.debug(`\n[${testName}] AST DIFFERENCE DETECTED:`);
+      logger.debug('Built-in:', JSON.stringify(builtInNormalized, null, 2));
+      logger.debug('Tree-sitter:', JSON.stringify(treeSitterNormalized, null, 2));
     }
 
     return { match, builtIn: builtInNormalized, treeSitter: treeSitterNormalized };

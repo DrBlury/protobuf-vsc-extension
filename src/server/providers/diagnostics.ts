@@ -3,13 +3,15 @@
  * Provides real-time validation and error checking
  */
 
-import {
+import type {
   Diagnostic,
-  DiagnosticSeverity,
   Range
 } from 'vscode-languageserver/node';
-
 import {
+  DiagnosticSeverity
+} from 'vscode-languageserver/node';
+
+import type {
   ProtoFile,
   MessageDefinition,
   EnumDefinition,
@@ -18,7 +20,8 @@ import {
   FieldDefinition,
   FieldOption,
   GroupFieldDefinition,
-  OptionStatement,
+  OptionStatement} from '../core/ast';
+import {
   BUILTIN_TYPES,
   MAP_KEY_TYPES,
   MIN_FIELD_NUMBER,
@@ -26,12 +29,13 @@ import {
   RESERVED_RANGE_START,
   RESERVED_RANGE_END
 } from '../core/ast';
-import { SemanticAnalyzer } from '../core/analyzer';
+import type { SemanticAnalyzer } from '../core/analyzer';
 import { ERROR_CODES, DIAGNOSTIC_SOURCE, FILE_EXTENSIONS } from '../utils/constants';
 import { logger } from '../utils/logger';
 import { bufConfigProvider } from '../services/bufConfig';
+import type {
+  DiagnosticsSettings} from './diagnostics/index';
 import {
-  DiagnosticsSettings,
   DEFAULT_DIAGNOSTICS_SETTINGS,
   isExternalDependencyFile
 } from './diagnostics/index';
@@ -51,7 +55,7 @@ const TEXT_FORMAT_EXTENSIONS = [
 ];
 
 // Re-export for external consumers
-export { DiagnosticsSettings } from './diagnostics/index';
+export type { DiagnosticsSettings } from './diagnostics/index';
 
 export class DiagnosticsProvider {
   private analyzer: SemanticAnalyzer;

@@ -3,13 +3,13 @@
  * Handles semantic tokens requests
  */
 
-import {
+import type {
   SemanticTokensParams,
   SemanticTokens
 } from 'vscode-languageserver/node';
 
-import { TextDocument } from 'vscode-languageserver-textdocument';
-import { SemanticTokensProvider } from '../providers/semanticTokens';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
+import type { SemanticTokensProvider } from '../providers/semanticTokens';
 
 export type SemanticHighlightingMode = 'hybrid' | 'semantic' | 'textmate';
 

@@ -3,17 +3,17 @@
  * Handles document formatting requests
  */
 
-import {
+import type {
   DocumentFormattingParams,
   DocumentRangeFormattingParams,
   TextEdit
 } from 'vscode-languageserver/node';
 
-import { TextDocuments } from 'vscode-languageserver/node';
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { TextDocuments } from 'vscode-languageserver/node';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
 
-import { ProtoFormatter } from '../providers/formatter';
-import { Settings } from '../utils/types';
+import type { ProtoFormatter } from '../providers/formatter';
+import type { Settings } from '../utils/types';
 
 /**
  * Handle document formatting request

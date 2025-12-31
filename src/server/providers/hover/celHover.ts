@@ -2,7 +2,8 @@
  * CEL (Common Expression Language) hover support for protovalidate expressions
  */
 
-import { createMarkdownHover, HoverHandler } from './types';
+import type { HoverHandler } from './types';
+import { createMarkdownHover } from './types';
 
 /**
  * CEL function definitions with signatures, descriptions, and examples

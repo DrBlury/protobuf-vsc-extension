@@ -2,7 +2,7 @@
  * Line formatting utilities for formatter
  */
 
-import { AlignmentData, FormatterSettings } from './types';
+import type { AlignmentData, FormatterSettings } from './types';
 import { parseMapTypes } from './alignment';
 
 /**

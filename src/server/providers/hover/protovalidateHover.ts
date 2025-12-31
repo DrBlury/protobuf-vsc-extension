@@ -2,7 +2,8 @@
  * Protovalidate/buf.validate hover support
  */
 
-import { createMarkdownHover, HoverHandler } from './types';
+import type { HoverHandler } from './types';
+import { createMarkdownHover } from './types';
 
 /**
  * buf.validate constraint types

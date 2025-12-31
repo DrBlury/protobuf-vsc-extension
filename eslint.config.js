@@ -26,6 +26,7 @@ module.exports = [
         Thenable: "readonly",
         setTimeout: "readonly",
         clearTimeout: "readonly",
+        NodeJS: "readonly",
       },
     },
     plugins: {
@@ -47,6 +48,8 @@ module.exports = [
           varsIgnorePattern: "^_",
         },
       ],
+      "@typescript-eslint/consistent-type-imports": "warn",
+      "@typescript-eslint/consistent-type-exports": "warn",
       curly: "warn",
       eqeqeq: "warn",
       "no-throw-literal": "warn",
@@ -96,6 +99,8 @@ module.exports = [
           varsIgnorePattern: "^_",
         },
       ],
+      // Allow require() in tests for jest.isolateModules and dynamic imports
+      "@typescript-eslint/no-require-imports": "off",
       curly: "warn",
       eqeqeq: "warn",
       "no-throw-literal": "warn",

@@ -3,7 +3,8 @@
  */
 
 import { FIELD_NUMBER } from '../../utils/constants';
-import { FormatterSettings, splitLines } from './types';
+import type { FormatterSettings} from './types';
+import { splitLines } from './types';
 
 /**
  * Context stack entry for tracking message/enum/oneof blocks

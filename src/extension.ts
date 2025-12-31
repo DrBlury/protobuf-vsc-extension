@@ -5,10 +5,11 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import type {
+  LanguageClientOptions,
+  ServerOptions} from 'vscode-languageclient/node';
 import {
   LanguageClient,
-  LanguageClientOptions,
-  ServerOptions,
   TransportKind,
   Trace,
   RevealOutputChannelOn

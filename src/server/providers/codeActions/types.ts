@@ -2,7 +2,7 @@
  * Types and interfaces for code actions provider
  */
 
-import { CodeActionKind, Diagnostic } from 'vscode-languageserver/node';
+import type { CodeActionKind, Diagnostic } from 'vscode-languageserver/node';
 
 // Re-export text utilities from shared for backwards compatibility
 export {

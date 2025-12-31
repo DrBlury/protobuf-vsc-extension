@@ -93,7 +93,7 @@ message WithInlineComments {
 // =============================================================================
 
 enum StatusWithComments {
-// <-keyword.declaration.enum.proto
+// <-- keyword.declaration.enum.proto
     // Comment inside enum
 //  ^^^^^^^^^^^^^^^^^^^^^^^ comment.line.double-slash.proto
     STATUS_UNSPECIFIED = 0; // enum value comment

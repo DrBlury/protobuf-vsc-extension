@@ -1,13 +1,14 @@
 import { URI } from 'vscode-uri';
-import {
+import type {
   EnumDefinition,
   MapFieldDefinition,
   MessageDefinition,
-  ProtoFile,
+  ProtoFile} from '../core/ast';
+import {
   SymbolKind
 } from '../core/ast';
-import { SemanticAnalyzer } from '../core/analyzer';
-import { SchemaGraph, SchemaGraphEdge, SchemaGraphNode, SchemaGraphRequest, SchemaGraphScope, SchemaGraphField } from '../../shared/schemaGraph';
+import type { SemanticAnalyzer } from '../core/analyzer';
+import type { SchemaGraph, SchemaGraphEdge, SchemaGraphNode, SchemaGraphRequest, SchemaGraphScope, SchemaGraphField } from '../../shared/schemaGraph';
 
 export class SchemaGraphProvider {
   constructor(private readonly analyzer: SemanticAnalyzer) {}

@@ -6,7 +6,7 @@
  * independent alignment context.
  */
 
-import { AlignmentData } from './types';
+import type { AlignmentData } from './types';
 
 /**
  * Parse map<K, V> types handling nested angle brackets

@@ -4,5 +4,5 @@
 
 export * from './textUtils';
 export * from './namingUtils';
-export * from './schemaGraph';
+export type * from './schemaGraph';
 export * from './responses';

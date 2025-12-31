@@ -3,13 +3,14 @@
  * Provides rename refactoring across files
  */
 
-import {
+import type {
   Range,
   Position,
   TextEdit
 } from 'vscode-languageserver/node';
-import { ProtoFile, BUILTIN_TYPES, PROTOBUF_KEYWORDS, MessageDefinition } from '../core/ast';
-import { SemanticAnalyzer } from '../core/analyzer';
+import type { ProtoFile, MessageDefinition } from '../core/ast';
+import { BUILTIN_TYPES, PROTOBUF_KEYWORDS } from '../core/ast';
+import type { SemanticAnalyzer } from '../core/analyzer';
 
 export interface RenameResult {
   changes: Map<string, TextEdit[]>;

@@ -5,6 +5,10 @@
 import { DocumentLinksProvider } from '../documentLinks';
 import { ProtoParser } from '../../core/parser';
 import { SemanticAnalyzer } from '../../core/analyzer';
+import * as fs from 'fs';
+
+jest.mock('fs');
+const mockFs = fs as jest.Mocked<typeof fs>;
 
 describe('DocumentLinksProvider', () => {
   let parser: ProtoParser;
@@ -12,9 +16,12 @@ describe('DocumentLinksProvider', () => {
   let documentLinksProvider: DocumentLinksProvider;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     parser = new ProtoParser();
     analyzer = new SemanticAnalyzer();
     documentLinksProvider = new DocumentLinksProvider(analyzer);
+    // Default mock - file doesn't exist
+    mockFs.existsSync.mockReturnValue(false);
   });
 
   it('should create document links for resolved imports', () => {
@@ -159,5 +166,173 @@ message User {
     const importLink = links.find(l => l.target === uri1);
     expect(importLink).toBeDefined();
     expect(importLink?.tooltip).toBe('Open domain/v1/entity.proto');
+  });
+
+  describe('guessImportPath strategies', () => {
+    it('should find file in configured import paths', () => {
+      const content = `syntax = "proto3";
+import "common/types.proto";
+message Test {}`;
+      const uri = 'file:///workspace/test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      // Setup: import paths configured, file exists there
+      analyzer.setImportPaths(['/lib/protos']);
+      mockFs.existsSync.mockImplementation((p: fs.PathLike) => {
+        return String(p).includes('/lib/protos/common/types.proto');
+      });
+
+      const links = documentLinksProvider.getDocumentLinks(uri, file);
+
+      expect(links.length).toBeGreaterThan(0);
+      expect(links[0].target).toContain('lib/protos/common/types.proto');
+    });
+
+    it('should find file in proto roots', () => {
+      const content = `syntax = "proto3";
+import "shared/message.proto";
+message Test {}`;
+      const uri = 'file:///workspace/test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      // Setup: proto roots configured, file exists there
+      analyzer.addProtoRoot('/proto-src');
+      mockFs.existsSync.mockImplementation((p: fs.PathLike) => {
+        return String(p).includes('/proto-src/shared/message.proto');
+      });
+
+      const links = documentLinksProvider.getDocumentLinks(uri, file);
+
+      expect(links.length).toBeGreaterThan(0);
+      expect(links[0].target).toContain('proto-src/shared/message.proto');
+    });
+
+    it('should find file in workspace roots', () => {
+      const content = `syntax = "proto3";
+import "models/user.proto";
+message Test {}`;
+      const uri = 'file:///workspace/test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      // Setup: workspace roots configured, file exists there
+      analyzer.setWorkspaceRoots(['/workspace']);
+      mockFs.existsSync.mockImplementation((p: fs.PathLike) => {
+        return String(p).includes('/workspace/models/user.proto');
+      });
+
+      const links = documentLinksProvider.getDocumentLinks(uri, file);
+
+      expect(links.length).toBeGreaterThan(0);
+      expect(links[0].target).toContain('workspace/models/user.proto');
+    });
+
+    it('should find file relative to current file', () => {
+      const content = `syntax = "proto3";
+import "sibling.proto";
+message Test {}`;
+      const uri = 'file:///workspace/proto/test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      // Setup: file exists relative to current
+      mockFs.existsSync.mockImplementation((p: fs.PathLike) => {
+        return String(p).includes('/workspace/proto/sibling.proto');
+      });
+
+      const links = documentLinksProvider.getDocumentLinks(uri, file);
+
+      expect(links.length).toBeGreaterThan(0);
+      expect(links[0].target).toContain('workspace/proto/sibling.proto');
+    });
+
+    it('should create guess link using first import path when file not found', () => {
+      const content = `syntax = "proto3";
+import "missing/file.proto";
+message Test {}`;
+      const uri = 'file:///workspace/test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      // Setup: import paths configured, file doesn't exist anywhere
+      analyzer.setImportPaths(['/lib/protos', '/other/protos']);
+      mockFs.existsSync.mockReturnValue(false);
+
+      const links = documentLinksProvider.getDocumentLinks(uri, file);
+
+      expect(links.length).toBeGreaterThan(0);
+      // Should use first import path for the guess
+      expect(links[0].target).toContain('lib/protos/missing/file.proto');
+      expect(links[0].tooltip).toContain('unresolved');
+    });
+
+    it('should fall back to relative path when no import paths configured', () => {
+      const content = `syntax = "proto3";
+import "other.proto";
+message Test {}`;
+      const uri = 'file:///workspace/test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      // Setup: no import paths, file doesn't exist
+      mockFs.existsSync.mockReturnValue(false);
+
+      const links = documentLinksProvider.getDocumentLinks(uri, file);
+
+      expect(links.length).toBeGreaterThan(0);
+      expect(links[0].target).toContain('workspace/other.proto');
+    });
+
+    it('should handle non-.proto imports', () => {
+      const content = `syntax = "proto3";
+import "some/path";
+message Test {}`;
+      const uri = 'file:///workspace/test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      mockFs.existsSync.mockReturnValue(false);
+
+      const links = documentLinksProvider.getDocumentLinks(uri, file);
+
+      // Should not create a link for non-.proto import (returns undefined)
+      expect(links.length).toBe(0);
+    });
+
+    it('should handle backslash normalization in import paths', () => {
+      const content = `syntax = "proto3";
+import "folder\\file.proto";
+message Test {}`;
+      const uri = 'file:///workspace/test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      analyzer.setImportPaths(['/protos']);
+      mockFs.existsSync.mockImplementation((p: fs.PathLike) => {
+        // Normalized path should use forward slashes
+        return String(p).includes('folder/file.proto');
+      });
+
+      const links = documentLinksProvider.getDocumentLinks(uri, file);
+
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    it('should return undefined when all strategies fail and import is not .proto', () => {
+      const content = `syntax = "proto3";
+import "no_extension";
+message Test {}`;
+      const uri = 'file:///workspace/test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      mockFs.existsSync.mockReturnValue(false);
+
+      const links = documentLinksProvider.getDocumentLinks(uri, file);
+
+      expect(links.length).toBe(0);
+    });
   });
 });

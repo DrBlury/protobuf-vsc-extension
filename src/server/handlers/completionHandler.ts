@@ -3,13 +3,13 @@
  * Handles LSP completion requests
  */
 
-import {
+import type {
   CompletionItem,
   TextDocumentPositionParams
 } from 'vscode-languageserver/node';
-import { TextDocument } from 'vscode-languageserver-textdocument';
-import { TextDocuments } from 'vscode-languageserver/node';
-import { CompletionProvider } from '../providers/completion';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
+import type { TextDocuments } from 'vscode-languageserver/node';
+import type { CompletionProvider } from '../providers/completion';
 
 /**
  * Handle completion request
