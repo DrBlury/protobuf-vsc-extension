@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/DrBlury/protobuf-vsc-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/DrBlury/protobuf-vsc-extension/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-79%25-yellow)](https://github.com/DrBlury/protobuf-vsc-extension)
-[![Coverage Target](https://img.shields.io/badge/coverage_target-80%25-green)]
+![Coverage Target](https://img.shields.io/badge/coverage_target-80%25-green)
 [![VS Code Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/DrBlury.protobuf-vsc?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=DrBlury.protobuf-vsc)
 [![Open VSX Version](https://img.shields.io/open-vsx/v/DrBlury/protobuf-vsc?label=Open%20VSX)](https://open-vsx.org/extension/DrBlury/protobuf-vsc)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/DrBlury.protobuf-vsc)](https://marketplace.visualstudio.com/items?itemName=DrBlury.protobuf-vsc)
