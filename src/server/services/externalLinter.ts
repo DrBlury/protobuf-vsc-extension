@@ -9,6 +9,7 @@ import { DiagnosticSeverity } from 'vscode-languageserver/node';
 import * as path from 'path';
 import { bufConfigProvider } from './bufConfig';
 import { logger } from '../utils/logger';
+import { pathToUri } from '../utils/utils';
 
 export type ExternalLinter = 'buf' | 'protolint' | 'api-linter' | 'none';
 
@@ -563,10 +564,10 @@ export class ExternalLinterProvider {
   }
 
   private resolveFileUri(filePath: string): string {
-    if (path.isAbsolute(filePath)) {
-      return 'file://' + filePath;
-    }
-    return 'file://' + path.join(this.workspaceRoot, filePath);
+    const absolutePath = path.isAbsolute(filePath)
+      ? filePath
+      : path.join(this.workspaceRoot, filePath);
+    return pathToUri(absolutePath);
   }
 
   /**

@@ -4,6 +4,7 @@
 
 import { ExternalLinterProvider } from '../externalLinter';
 import { spawn } from 'child_process';
+import { pathToUri } from '../../utils/utils';
 
 jest.mock('child_process');
 
@@ -474,19 +475,19 @@ describe('ExternalLinterProvider', () => {
     it('should return file URI for absolute path', () => {
       provider.setWorkspaceRoot('/workspace');
       const result = (provider as any).resolveFileUri('/workspace/test.proto');
-      expect(result).toBe('file:///workspace/test.proto');
+      expect(result).toBe(pathToUri('/workspace/test.proto'));
     });
 
     it('should join relative path with workspace root', () => {
       provider.setWorkspaceRoot('/workspace');
       const result = (provider as any).resolveFileUri('test.proto');
-      expect(result).toBe('file:///workspace/test.proto');
+      expect(result).toBe(pathToUri('/workspace/test.proto'));
     });
 
     it('should handle nested relative paths', () => {
       provider.setWorkspaceRoot('/workspace');
       const result = (provider as any).resolveFileUri('proto/test.proto');
-      expect(result).toBe('file:///workspace/proto/test.proto');
+      expect(result).toBe(pathToUri('/workspace/proto/test.proto'));
     });
   });
 
@@ -1256,8 +1257,8 @@ describe('ExternalLinterProvider', () => {
 
       const result = await provider.lintWorkspace();
       expect(result.size).toBe(2);
-      expect(result.get('file:///workspace/a.proto')).toHaveLength(2);
-      expect(result.get('file:///workspace/b.proto')).toHaveLength(1);
+      expect(result.get(pathToUri('/workspace/a.proto'))).toHaveLength(2);
+      expect(result.get(pathToUri('/workspace/b.proto'))).toHaveLength(1);
     });
 
     it('should run protolint workspace lint', async () => {
