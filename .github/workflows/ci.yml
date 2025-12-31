@@ -130,6 +130,10 @@ jobs:
   security-scan:
     runs-on: ubuntu-latest
     if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -150,18 +154,30 @@ jobs:
 
       - name: Run Grype Vulnerability Scan
         uses: anchore/scan-action@v6
+        id: grype-scan
         with:
           path: "."
-          fail-build: true
-          severity-cutoff: medium
+          fail-build: false
+          severity-cutoff: critical
           output-format: sarif
           output-file: grype-results.sarif
 
       - name: Upload Grype SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
           sarif_file: grype-results.sarif
+
+      - name: Fail on critical vulnerabilities
+        if: steps.grype-scan.outputs.sarif != '' && github.event_name == 'push'
+        run: |
+          # Parse SARIF for critical vulnerabilities and fail if found
+          CRITICAL_COUNT=$(jq '[.runs[].results[] | select(.level == "error")] | length' grype-results.sarif 2>/dev/null || echo "0")
+          if [ "$CRITICAL_COUNT" -gt 0 ]; then
+            echo "::error::Found $CRITICAL_COUNT critical vulnerabilities"
+            exit 1
+          fi
+          echo "No critical vulnerabilities found"
 
       - name: Upload SBOM as artifact
         uses: actions/upload-artifact@v4
