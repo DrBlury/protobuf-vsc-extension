@@ -236,7 +236,33 @@ export class Logger {
   }
 
   /**
-   * Log an error with context
+   * Sanitize error messages to remove sensitive information
+   */
+  private sanitizeErrorMessage(error: unknown): string {
+    let message = error instanceof Error ? error.message : String(error);
+    
+    // Remove internal paths that could expose system information
+    message = message.replace(/\/[^\s]+/g, '/[REDACTED_PATH]/');
+    message = message.replace(/[A-Za-z]:[/\\][^\\s]*[/\\]/g, '[REDACTED_PATH]');
+    
+    // Remove potential environment variable exposures
+    message = message.replace(/[A-Z_][A-Z_]*[A-Z]*=/g, '[REDACTED_ENV]');
+    
+    // Remove user home directory paths
+    message = message.replace(/\/(home|Users)\/[^/\s]+/g, '/[REDACTED_HOME]/');
+    
+    // Remove potential internal server details
+    message = message.replace(/localhost:\d+/g, 'localhost:[PORT]');
+    message = message.replace(/127\.0\.0\.1:\d+/g, '127.0.0.1:[PORT]');
+    
+    // Remove potentially sensitive file extensions
+    message = message.replace(/\.(key|pem|p12|pfx)/g, '.[REDACTED_EXT]');
+    
+    return message;
+  }
+
+  /**
+   * Log an error with context and sanitized message
    */
   errorWithContext(
     message: string,
@@ -250,7 +276,9 @@ export class Logger {
     const parts: string[] = [message];
 
     if (context.uri) {
-      parts.push(`URI: ${context.uri}`);
+      // Sanitize URI to remove sensitive path information
+      const sanitizedUri = context.uri.replace(/\/[^\s]+/g, '/[REDACTED_PATH]/');
+      parts.push(`URI: ${sanitizedUri}`);
     }
 
     if (context.position) {
@@ -262,14 +290,8 @@ export class Logger {
     }
 
     if (context.error) {
-      const errorMessage = context.error instanceof Error
-        ? context.error.message
-        : String(context.error);
-      const errorStack = context.error instanceof Error ? context.error.stack : undefined;
-      parts.push(`Error: ${errorMessage}`);
-      if (errorStack) {
-        parts.push(`Stack: ${errorStack}`);
-      }
+      const sanitizedError = this.sanitizeErrorMessage(context.error);
+      parts.push(`Error: ${sanitizedError}`);
     }
 
     this.error(parts.join(' | '));

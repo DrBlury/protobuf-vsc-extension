@@ -469,6 +469,55 @@ describe('ProtocCompiler Branch Coverage', () => {
       await compiler.compileFile('/workspace/test.proto');
       expect(mockSpawn).toHaveBeenCalled();
     });
+
+    it('should allow parent traversal in output paths', async () => {
+      compiler.updateSettings({
+        options: ['--go_out=../gen']
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        }),
+        kill: jest.fn()
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/test.proto');
+      expect(mockSpawn).toHaveBeenCalled();
+    });
+
+    it('should allow paths with parentheses', async () => {
+      compiler.updateSettings({
+        options: ['--go_out=/path/Program Files (x86)/out']
+      });
+
+      const mockProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        }),
+        kill: jest.fn()
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await compiler.compileFile('/workspace/test.proto');
+      const args = mockSpawn.mock.calls[0][1] as string[];
+      const goOutArg = args.find(arg => arg.startsWith('--go_out='));
+      expect(goOutArg).toBeDefined();
+      expect(goOutArg).toMatch(/--go_out=".*Program Files \(x86\).*"/);
+    });
   });
 
   describe('compileAll edge cases', () => {

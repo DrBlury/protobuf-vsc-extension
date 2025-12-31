@@ -1355,6 +1355,42 @@ describe('ExternalLinterProvider', () => {
       expect(callArgs[1]).toContain('/custom/buf.yaml');
     });
 
+    it('should allow relative buf config paths with parent traversal', async () => {
+      provider.updateSettings({
+        enabled: true,
+        linter: 'buf',
+        bufConfigPath: '../configs/buf.yaml'
+      });
+      provider.setWorkspaceRoot('/workspace/project');
+
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(Buffer.from('[]')), 0);
+            }
+            return mockProcess.stdout;
+          })
+        },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        })
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      await provider.lint('/workspace/project/test.proto');
+
+      expect(mockSpawn).toHaveBeenCalled();
+      const callArgs = mockSpawn.mock.calls[0];
+      expect(callArgs[1]).toContain('--config');
+      expect(callArgs[1]).toContain('../configs/buf.yaml');
+    });
+
     it('should use protolint config path when configured', async () => {
       provider.updateSettings({
         enabled: true,

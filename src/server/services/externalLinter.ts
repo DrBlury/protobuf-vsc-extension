@@ -11,6 +11,31 @@ import { bufConfigProvider } from './bufConfig';
 import { logger } from '../utils/logger';
 import { pathToUri } from '../utils/utils';
 
+/**
+ * Basic validation for linter command arguments.
+ * Shell-specific safety is handled only when we actually fall back to shell execution.
+ */
+function validateLinterArgs(args: string[], useShell = false): void {
+  const basePatterns = [
+    /\0/,
+    /\r?\n/,
+  ];
+  const shellPatterns = [
+    /[;&|`]/,
+    /^\s*[|&]/,
+    /[|&]\s*$/,
+    /\$\(/,
+  ];
+  const patterns = useShell ? basePatterns.concat(shellPatterns) : basePatterns;
+
+  for (const arg of args) {
+    if (patterns.some(pattern => pattern.test(arg))) {
+      const context = useShell ? 'shell ' : '';
+      throw new Error(`Dangerous characters detected in ${context}linter argument: ${arg}`);
+    }
+  }
+}
+
 export type ExternalLinter = 'buf' | 'protolint' | 'api-linter' | 'none';
 
 export interface ExternalLinterSettings {
@@ -178,14 +203,23 @@ export class ExternalLinterProvider {
     return new Promise((resolve) => {
       const args = ['lint', '--error-format=json'];
 
-      // Determine the working directory for buf lint
+      // Validate arguments before execution
+      validateLinterArgs(args);
+
+      // Determine working directory for buf lint
       // buf needs to run from the directory containing buf.yaml to properly detect the module
       let cwd = this.workspaceRoot;
 
       // If user explicitly configured a config path, use it and its directory
       // This respects the user's preference over auto-detection
       if (this.settings.bufConfigPath) {
-        args.push('--config', this.settings.bufConfigPath);
+        const configArg = '--config';
+        const configPath = this.settings.bufConfigPath;
+        args.push(configArg, configPath);
+        
+        // Validate the config path as well
+        validateLinterArgs([configArg, configPath]);
+        
         // Use the config file's directory as cwd for consistent behavior
         cwd = path.dirname(path.resolve(this.workspaceRoot, this.settings.bufConfigPath));
         logger.debug(`Using user-configured buf config: ${this.settings.bufConfigPath}`);
@@ -228,6 +262,14 @@ export class ExternalLinterProvider {
 
       proc.on('error', (err) => {
         logger.debug(`buf spawn failed, trying with shell: ${err.message}`);
+        try {
+          validateLinterArgs(args, true);
+        } catch (validationError) {
+          const message = validationError instanceof Error ? validationError.message : String(validationError);
+          logger.warn(`buf lint shell fallback blocked: ${message}. Configure an explicit buf path to avoid shell fallback.`);
+          resolve([]);
+          return;
+        }
         // Fallback with shell for PATH resolution
         const procWithShell = spawn(this.settings.bufPath, args, {
           cwd,
@@ -285,6 +327,14 @@ export class ExternalLinterProvider {
 
       proc.on('error', (err) => {
         logger.debug(`protolint spawn failed, trying with shell: ${err.message}`);
+        try {
+          validateLinterArgs(args, true);
+        } catch (validationError) {
+          const message = validationError instanceof Error ? validationError.message : String(validationError);
+          logger.warn(`protolint shell fallback blocked: ${message}. Configure an explicit protolint path to avoid shell fallback.`);
+          resolve([]);
+          return;
+        }
         // Fallback with shell for PATH resolution
         const procWithShell = spawn(this.settings.protolintPath, args, {
           cwd: this.workspaceRoot,
@@ -350,6 +400,14 @@ export class ExternalLinterProvider {
       proc.on('error', (err) => {
         // Fallback with shell for PATH resolution
         logger.debug(`api-linter spawn failed (${err.message}), retrying with shell`);
+        try {
+          validateLinterArgs(args, true);
+        } catch (validationError) {
+          const message = validationError instanceof Error ? validationError.message : String(validationError);
+          logger.warn(`api-linter shell fallback blocked: ${message}. Configure an explicit api-linter path to avoid shell fallback.`);
+          resolve([]);
+          return;
+        }
         const procWithShell = spawn(this.settings.apiLinterPath, args, {
           cwd: this.workspaceRoot,
           shell: true

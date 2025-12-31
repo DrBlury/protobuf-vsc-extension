@@ -8,6 +8,7 @@ import { spawn } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import * as crypto from 'crypto';
 
 /**
  * Maximum command line length to stay safely below OS limits.
@@ -98,12 +99,25 @@ function needsShellExecution(commandPath: string): boolean {
   return false;
 }
 
+function validateShellArgument(arg: string): boolean {
+  const invalidPatterns = [
+    /\0/,
+    /\r?\n/,
+  ];
+
+  return !invalidPatterns.some(pattern => pattern.test(arg));
+}
+
 /**
  * Quote a path if it contains spaces or special characters.
  * This is needed for protoc arguments where paths are passed as flag values.
  * On Windows, paths with spaces need to be quoted even when not using shell.
  */
 function quotePathIfNeeded(pathValue: string): string {
+  if (!validateShellArgument(pathValue)) {
+    throw new Error(`Invalid path argument detected: ${pathValue}`);
+  }
+
   // Quote if path contains spaces, quotes, or other problematic characters
   if (pathValue.includes(' ') || pathValue.includes('"') || pathValue.includes("'")) {
     // Use double quotes and escape any existing double quotes
@@ -588,9 +602,10 @@ export class ProtocCompiler {
    * The response file contains all arguments, one per line.
    */
   private async runProtocWithResponseFile(args: string[], cwd: string): Promise<CompilationResult> {
-    // Create a temporary response file
+    // Create a temporary response file with cryptographically secure random name
     const tempDir = os.tmpdir();
-    const responseFilePath = path.join(tempDir, `protoc-args-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`);
+    const randomName = crypto.randomBytes(16).toString('hex');
+    const responseFilePath = path.join(tempDir, `protoc-${randomName}.txt`);
 
     try {
       // Write arguments to the response file, one per line
@@ -605,6 +620,9 @@ export class ProtocCompiler {
 
       fs.writeFileSync(responseFilePath, responseContent, 'utf-8');
 
+      // Set secure file permissions (owner read/write only)
+      fs.chmodSync(responseFilePath, 0o600);
+
       // Run protoc with the response file
       // Quote the response file path if it contains spaces
       const responseFileArg = responseFilePath.includes(' ')
@@ -614,7 +632,7 @@ export class ProtocCompiler {
 
       return result;
     } finally {
-      // Clean up the response file
+      // Secure cleanup of response file
       try {
         if (fs.existsSync(responseFilePath)) {
           fs.unlinkSync(responseFilePath);

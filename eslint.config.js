@@ -6,7 +6,7 @@ module.exports = [
   eslint.configs.recommended,
   {
     files: ["src/**/*.ts"],
-    ignores: ["**/*.test.ts"],
+    ignores: ["**/*.test.ts", "**/__tests__/**/*.ts"],
     languageOptions: {
       parser: tsparser,
       parserOptions: {
@@ -58,7 +58,7 @@ module.exports = [
   },
   // Test files without project reference
   {
-    files: ["**/*.test.ts"],
+    files: ["**/*.test.ts", "**/__tests__/**/*.ts"],
     languageOptions: {
       parser: tsparser,
       parserOptions: {

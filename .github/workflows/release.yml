@@ -45,6 +45,30 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Generate SBOM for Release
+        run: |
+          npm install -g @cyclonedx/cyclonedx-npm
+          cyclonedx-npm --output-file release-sbom.json --output-format json
+
+      - name: Run Grype Security Scan
+        uses: anchore/scan-action@v6
+        with:
+          path: "."
+          fail-build: false
+          severity-cutoff: high
+          output-format: sarif
+          output-file: release-grype.sarif
+
+      - name: Upload Release SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-sbom
+          path: release-sbom.json
+          retention-days: 90
+
+      - name: Dependency Audit
+        run: npm audit --audit-level=moderate
+
       - name: Install vsce
         run: npm install -g @vscode/vsce
 

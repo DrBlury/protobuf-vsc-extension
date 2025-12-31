@@ -260,10 +260,10 @@ describe('Logger', () => {
       expect(mockConnection.console?.error).toHaveBeenCalled();
     });
 
-    it('should log error with stack trace', () => {
+    it('should log error with sanitized message (no stack trace for security)', () => {
       const error = new Error('Test error');
       logger.errorWithContext('Error', { error });
-      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('Stack:'));
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('Error:'));
     });
 
     it('should handle non-Error objects', () => {

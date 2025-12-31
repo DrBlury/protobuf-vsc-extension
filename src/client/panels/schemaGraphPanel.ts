@@ -3,7 +3,15 @@ import type { LanguageClient } from 'vscode-languageclient/node';
 import type { SchemaGraph, SchemaGraphRequest, SchemaGraphScope } from '../../shared/schemaGraph';
 
 /**
- * Webview panel that renders the protobuf schema graph.
+ * Webview panel that renders the protobuf schema graph with enhanced features:
+ * - Export to PNG, SVG, PDF
+ * - Search and filter nodes
+ * - Path highlighting between nodes
+ * - Layout options (horizontal, vertical, compact)
+ * - Package grouping
+ * - Double-click navigation
+ * - Context menu
+ * - Orphan node detection
  */
 export class SchemaGraphPanel {
   private static currentPanel: SchemaGraphPanel | undefined;
@@ -62,8 +70,11 @@ export class SchemaGraphPanel {
         if (typeof message.uri === 'string') {
           this.sourceUri = message.uri;
         }
-        // Force full re-render when scope changes to ensure fields are properly displayed
         await this.loadGraph(scopeChanged);
+      } else if (message?.type === 'export') {
+        await this.handleExport(message.format, message.data);
+      } else if (message?.type === 'navigate') {
+        await this.handleNavigate(message.file, message.symbolName);
       }
     });
 
@@ -97,15 +108,71 @@ export class SchemaGraphPanel {
     }
   }
 
+  private async handleExport(format: 'svg' | 'png' | 'pdf', data: string): Promise<void> {
+    const filterNames: Record<string, string> = {
+      svg: 'SVG Files',
+      png: 'PNG Files',
+      pdf: 'PDF Files'
+    };
+    const extensions: Record<string, string[]> = {
+      svg: ['svg'],
+      png: ['png'],
+      pdf: ['pdf']
+    };
+
+    const filterName: string = filterNames[format] || 'Files';
+    const filterExtensions: string[] = extensions[format] || [format];
+    const saveFilters: { [key: string]: string[] } = {};
+    saveFilters[filterName] = filterExtensions;
+
+    const uri = await vscode.window.showSaveDialog({
+      filters: saveFilters,
+      defaultUri: vscode.Uri.file(`schema-graph.${format}`)
+    });
+
+    if (!uri) {return;}
+
+    try {
+      const buffer = Buffer.from(data, format === 'svg' ? 'utf8' : 'base64');
+      await vscode.workspace.fs.writeFile(uri, buffer);
+      void vscode.window.showInformationMessage(`Schema graph exported to ${uri.fsPath}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      void vscode.window.showErrorMessage(`Failed to export: ${msg}`);
+    }
+  }
+
+  private async handleNavigate(file: string, symbolName: string): Promise<void> {
+    if (!file) {return;}
+
+    try {
+      const doc = await vscode.workspace.openTextDocument(file);
+      const editor = await vscode.window.showTextDocument(doc, { viewColumn: vscode.ViewColumn.One });
+
+      const text = doc.getText();
+      const regex = new RegExp(`(message|enum)\\s+${symbolName}\\s*\\{`);
+      const match = regex.exec(text);
+
+      if (match) {
+        const pos = doc.positionAt(match.index);
+        editor.selection = new vscode.Selection(pos, pos);
+        editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      void vscode.window.showErrorMessage(`Failed to navigate: ${msg}`);
+    }
+  }
+
   private renderHtml(graph: SchemaGraph): string {
     const webview = this.panel.webview;
     const nonce = getNonce();
     const csp = [
       "default-src 'none'",
-      `img-src ${webview.cspSource} https:`,
+      `img-src ${webview.cspSource} https: data:`,
       `style-src ${webview.cspSource} 'unsafe-inline' https://fonts.googleapis.com`,
       `font-src ${webview.cspSource} https://fonts.gstatic.com`,
-      `script-src 'nonce-${nonce}' https://cdn.jsdelivr.net`
+      `script-src 'nonce-${nonce}' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com`
     ].join('; ');
 
     const initialData = JSON.stringify(graph);
@@ -184,6 +251,115 @@ export class SchemaGraphPanel {
 
       button.refresh { background: linear-gradient(120deg, rgba(125, 211, 252, 0.18), rgba(251, 191, 36, 0.18)); }
 
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 8px 16px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(13, 19, 36, 0.5);
+      }
+
+      .toolbar-group {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .toolbar-group label {
+        font-size: 11px;
+        color: var(--muted);
+        margin-right: 4px;
+      }
+
+      #search-box {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 12px;
+        width: 180px;
+      }
+
+      #search-box:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+      .toggle-btn {
+        min-width: 70px;
+      }
+
+      .toggle-btn.active {
+        background: rgba(125, 211, 252, 0.25);
+        border-color: var(--accent);
+      }
+
+      .export-btn { background: rgba(34, 197, 94, 0.15); }
+      .export-btn:hover { border-color: #22c55e; }
+
+      .node-dimmed { opacity: 0.25; }
+      .node-highlighted { opacity: 1; }
+      .node-search-match .node-box { stroke: var(--accent) !important; stroke-width: 2.5px !important; }
+
+      .node-path-source .node-box { stroke: #22c55e !important; stroke-width: 3px !important; }
+      .node-path-target .node-box { stroke: #ef4444 !important; stroke-width: 3px !important; }
+      .node-path-intermediate .node-box { stroke: #f97316 !important; stroke-width: 2.5px !important; }
+
+      .edge-path-highlight { stroke: #f97316 !important; stroke-width: 2.5px !important; }
+
+      .node-orphan .node-box {
+        stroke: #f97316 !important;
+        stroke-width: 2px !important;
+        stroke-dasharray: 5 3 !important;
+      }
+
+      .package-group rect.package-bg {
+        fill: rgba(125, 211, 252, 0.05);
+        stroke: rgba(125, 211, 252, 0.2);
+        stroke-dasharray: 4 2;
+        rx: 8;
+        ry: 8;
+      }
+
+      .package-group text.package-label {
+        fill: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      #context-menu {
+        position: fixed;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 4px 0;
+        min-width: 160px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        z-index: 1000;
+        display: none;
+      }
+
+      #context-menu.visible { display: block; }
+
+      .context-menu-item {
+        padding: 8px 12px;
+        font-size: 12px;
+        cursor: pointer;
+        color: var(--text);
+      }
+
+      .context-menu-item:hover {
+        background: var(--surface);
+      }
+
+      .context-menu-divider {
+        height: 1px;
+        background: var(--border);
+        margin: 4px 0;
+      }
+
       #graph-container {
         position: relative;
         flex: 1;
@@ -243,17 +419,64 @@ export class SchemaGraphPanel {
         <button class="refresh" id="refresh">Refresh</button>
       </div>
     </header>
+    <div class="toolbar">
+      <div class="toolbar-group">
+        <input type="text" id="search-box" placeholder="Search types... (Ctrl+F)" />
+      </div>
+      <div class="toolbar-group">
+        <label>Package:</label>
+        <select id="filter-package"><option value="">All</option></select>
+      </div>
+      <div class="toolbar-group">
+        <label>File:</label>
+        <select id="filter-file"><option value="">All</option></select>
+      </div>
+      <div class="toolbar-group">
+        <label>Layout:</label>
+        <select id="layout-select">
+          <option value="horizontal">Horizontal</option>
+          <option value="vertical">Vertical</option>
+          <option value="compact">Compact</option>
+        </select>
+      </div>
+      <div class="toolbar-group">
+        <button id="toggle-enums" class="toggle-btn active">Enums</button>
+        <button id="toggle-orphans" class="toggle-btn">Orphans</button>
+        <button id="toggle-group" class="toggle-btn">Group</button>
+      </div>
+      <div class="toolbar-group">
+        <button id="path-mode" class="toggle-btn">Path</button>
+        <button id="clear-path">Clear</button>
+      </div>
+      <div class="toolbar-group">
+        <button id="export-svg" class="export-btn">SVG</button>
+        <button id="export-png" class="export-btn">PNG</button>
+        <button id="export-pdf" class="export-btn">PDF</button>
+      </div>
+    </div>
     <div id="status"></div>
     <div id="graph-container">
       <svg id="graph"></svg>
       <div class="legend">
         <div class="legend-row"><span class="swatch message-swatch"></span><span>Message</span></div>
         <div class="legend-row"><span class="swatch enum-swatch"></span><span>Enum</span></div>
+        <div class="legend-row"><span class="swatch" style="background:#22c55e"></span><span>Path Source</span></div>
+        <div class="legend-row"><span class="swatch" style="background:#ef4444"></span><span>Path Target</span></div>
+        <div class="legend-row"><span class="swatch" style="background:#f97316"></span><span>Path / Orphan</span></div>
       </div>
+    </div>
+    <div id="context-menu">
+      <div class="context-menu-item" data-action="goto">Go to Definition</div>
+      <div class="context-menu-item" data-action="copy-name">Copy Name</div>
+      <div class="context-menu-item" data-action="copy-full">Copy Full Name</div>
+      <div class="context-menu-divider"></div>
+      <div class="context-menu-item" data-action="path-from">Find Paths From Here</div>
+      <div class="context-menu-item" data-action="path-to">Find Paths To Here</div>
     </div>
 
     <script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
     <script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/elkjs@0.9.0/lib/elk.bundled.js"></script>
+    <script nonce="${nonce}" src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script nonce="${nonce}">
       const vscode = acquireVsCodeApi();
       let sourceUri = ${JSON.stringify(graph.sourceUri || '')};
@@ -261,6 +484,33 @@ export class SchemaGraphPanel {
       const refreshBtn = document.getElementById('refresh');
       const status = document.getElementById('status');
       let graphData = ${initialData};
+
+      const searchBox = document.getElementById('search-box');
+      const filterPackage = document.getElementById('filter-package');
+      const filterFile = document.getElementById('filter-file');
+      const layoutSelect = document.getElementById('layout-select');
+      const toggleEnums = document.getElementById('toggle-enums');
+      const toggleOrphans = document.getElementById('toggle-orphans');
+      const toggleGroup = document.getElementById('toggle-group');
+      const pathModeBtn = document.getElementById('path-mode');
+      const clearPathBtn = document.getElementById('clear-path');
+      const exportSvgBtn = document.getElementById('export-svg');
+      const exportPngBtn = document.getElementById('export-png');
+      const exportPdfBtn = document.getElementById('export-pdf');
+      const contextMenu = document.getElementById('context-menu');
+
+      let showEnums = true;
+      let showOrphansOnly = false;
+      let groupByPackage = false;
+      let pathMode = false;
+      let pathSource = null;
+      let pathTarget = null;
+      let pathNodes = new Set();
+      let currentLayout = 'horizontal';
+      let searchTerm = '';
+      let selectedPackage = '';
+      let selectedFile = '';
+      let contextNode = null;
 
       if (typeof d3 === 'undefined') {
         setStatus('Failed to load d3 – check CSP or network.', true);
@@ -276,6 +526,270 @@ export class SchemaGraphPanel {
       refreshBtn.addEventListener('click', () => {
         vscode.postMessage({ type: 'refresh', scope: scopeSelect.value, uri: sourceUri });
       });
+
+      let searchTimeout;
+      searchBox.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          searchTerm = searchBox.value.toLowerCase();
+          applyFiltersAndRender();
+        }, 150);
+      });
+
+      filterPackage.addEventListener('change', () => {
+        selectedPackage = filterPackage.value;
+        applyFiltersAndRender();
+      });
+
+      filterFile.addEventListener('change', () => {
+        selectedFile = filterFile.value;
+        applyFiltersAndRender();
+      });
+
+      layoutSelect.addEventListener('change', () => {
+        currentLayout = layoutSelect.value;
+        applyFiltersAndRender();
+      });
+
+      toggleEnums.addEventListener('click', () => {
+        showEnums = !showEnums;
+        toggleEnums.classList.toggle('active', showEnums);
+        applyFiltersAndRender();
+      });
+
+      toggleOrphans.addEventListener('click', () => {
+        showOrphansOnly = !showOrphansOnly;
+        toggleOrphans.classList.toggle('active', showOrphansOnly);
+        applyFiltersAndRender();
+      });
+
+      toggleGroup.addEventListener('click', () => {
+        groupByPackage = !groupByPackage;
+        toggleGroup.classList.toggle('active', groupByPackage);
+        applyFiltersAndRender();
+      });
+
+      pathModeBtn.addEventListener('click', () => {
+        pathMode = !pathMode;
+        pathModeBtn.classList.toggle('active', pathMode);
+        if (!pathMode) {
+          clearPath();
+        }
+        setStatus(pathMode ? 'Path mode: click source node, then target node' : 'Path mode disabled');
+      });
+
+      clearPathBtn.addEventListener('click', clearPath);
+
+      function clearPath() {
+        pathSource = null;
+        pathTarget = null;
+        pathNodes.clear();
+        d3.selectAll('.node').classed('node-path-source node-path-target node-path-intermediate', false);
+        d3.selectAll('path').classed('edge-path-highlight', false);
+      }
+
+      exportSvgBtn.addEventListener('click', () => exportGraph('svg'));
+      exportPngBtn.addEventListener('click', () => exportGraph('png'));
+      exportPdfBtn.addEventListener('click', () => exportGraph('pdf'));
+
+      function exportGraph(format) {
+        const svgEl = document.getElementById('graph');
+        const svgClone = svgEl.cloneNode(true);
+        svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        
+        const styles = document.createElement('style');
+        styles.textContent = \`
+          .node-box { fill: #0d1628; stroke: rgba(226, 232, 240, 0.22); }
+          .node-header { fill: rgba(125, 211, 252, 0.25); }
+          text { font-family: 'Sora', sans-serif; fill: #e2e8f0; }
+        \`;
+        svgClone.insertBefore(styles, svgClone.firstChild);
+        
+        const serializer = new XMLSerializer();
+        const svgString = serializer.serializeToString(svgClone);
+
+        if (format === 'svg') {
+          vscode.postMessage({ type: 'export', format: 'svg', data: svgString });
+        } else if (format === 'png') {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
+          const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          
+          img.onload = () => {
+            canvas.width = img.width * 2;
+            canvas.height = img.height * 2;
+            ctx.scale(2, 2);
+            ctx.fillStyle = '#0c1021';
+            ctx.fillRect(0, 0, img.width, img.height);
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(url);
+            const dataUrl = canvas.toDataURL('image/png');
+            const base64 = dataUrl.split(',')[1];
+            vscode.postMessage({ type: 'export', format: 'png', data: base64 });
+          };
+          img.src = url;
+        } else if (format === 'pdf') {
+          if (typeof jspdf === 'undefined') {
+            setStatus('jsPDF not loaded', true);
+            return;
+          }
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
+          const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          
+          img.onload = () => {
+            canvas.width = img.width * 2;
+            canvas.height = img.height * 2;
+            ctx.scale(2, 2);
+            ctx.fillStyle = '#0c1021';
+            ctx.fillRect(0, 0, img.width, img.height);
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(url);
+            
+            const { jsPDF } = jspdf;
+            const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
+            const pdf = new jsPDF({ orientation, unit: 'px', format: [canvas.width / 2, canvas.height / 2] });
+            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
+            const pdfBase64 = pdf.output('datauristring').split(',')[1];
+            vscode.postMessage({ type: 'export', format: 'pdf', data: pdfBase64 });
+          };
+          img.src = url;
+        }
+      }
+
+      document.addEventListener('click', () => {
+        contextMenu.classList.remove('visible');
+      });
+
+      contextMenu.addEventListener('click', (e) => {
+        const action = e.target.dataset.action;
+        if (!action || !contextNode) return;
+
+        if (action === 'goto') {
+          vscode.postMessage({ type: 'navigate', file: contextNode.file, symbolName: contextNode.label });
+        } else if (action === 'copy-name') {
+          navigator.clipboard.writeText(contextNode.label);
+        } else if (action === 'copy-full') {
+          const fullName = contextNode.package ? contextNode.package + '.' + contextNode.label : contextNode.label;
+          navigator.clipboard.writeText(fullName);
+        } else if (action === 'path-from') {
+          pathMode = true;
+          pathModeBtn.classList.add('active');
+          pathSource = contextNode.id;
+          setStatus('Path mode: now click the target node');
+        } else if (action === 'path-to') {
+          if (pathSource) {
+            pathTarget = contextNode.id;
+            highlightPath();
+          } else {
+            pathMode = true;
+            pathModeBtn.classList.add('active');
+            pathTarget = contextNode.id;
+            setStatus('Path mode: now click the source node');
+          }
+        }
+        contextMenu.classList.remove('visible');
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+          e.preventDefault();
+          searchBox.focus();
+        } else if (e.key === 'Escape') {
+          searchBox.value = '';
+          searchTerm = '';
+          clearPath();
+          applyFiltersAndRender();
+        }
+      });
+
+      function populateFilters(data) {
+        const packages = [...new Set((data.nodes || []).map(n => n.package).filter(Boolean))].sort();
+        const files = [...new Set((data.nodes || []).map(n => {
+          if (!n.file) return null;
+          const parts = n.file.split(/[\\/]/);
+          return parts[parts.length - 1];
+        }).filter(Boolean))].sort();
+
+        filterPackage.innerHTML = '<option value="">All Packages</option>' + 
+          packages.map(p => '<option value="' + p + '">' + p + '</option>').join('');
+        filterFile.innerHTML = '<option value="">All Files</option>' + 
+          files.map(f => '<option value="' + f + '">' + f + '</option>').join('');
+      }
+
+      function getOrphanIds(nodes, edges) {
+        const hasIncoming = new Set();
+        edges.forEach(e => {
+          if (e.kind !== 'nested') hasIncoming.add(e.to);
+        });
+        return new Set(nodes.filter(n => !hasIncoming.has(n.id)).map(n => n.id));
+      }
+
+      function bfs(start, end, adjacency) {
+        if (start === end) return [start];
+        const queue = [[start]];
+        const visited = new Set([start]);
+        
+        while (queue.length > 0) {
+          const path = queue.shift();
+          const node = path[path.length - 1];
+          
+          for (const neighbor of (adjacency.get(node) || [])) {
+            if (visited.has(neighbor)) continue;
+            const newPath = [...path, neighbor];
+            if (neighbor === end) return newPath;
+            visited.add(neighbor);
+            queue.push(newPath);
+          }
+        }
+        return [];
+      }
+
+      function highlightPath() {
+        if (!pathSource || !pathTarget) return;
+        
+        const adjacency = new Map();
+        graphData.edges.forEach(e => {
+          if (!adjacency.has(e.from)) adjacency.set(e.from, []);
+          adjacency.get(e.from).push(e.to);
+        });
+
+        const path = bfs(pathSource, pathTarget, adjacency);
+        
+        if (path.length === 0) {
+          setStatus('No path found between selected nodes');
+          return;
+        }
+
+        pathNodes = new Set(path);
+        
+        d3.selectAll('.node').each(function(d) {
+          const nodeId = d.id;
+          const el = d3.select(this);
+          el.classed('node-path-source', nodeId === pathSource);
+          el.classed('node-path-target', nodeId === pathTarget);
+          el.classed('node-path-intermediate', pathNodes.has(nodeId) && nodeId !== pathSource && nodeId !== pathTarget);
+        });
+
+        const pathEdges = new Set();
+        for (let i = 0; i < path.length - 1; i++) {
+          pathEdges.add(path[i] + '->' + path[i + 1]);
+        }
+
+        d3.selectAll('path').classed('edge-path-highlight', function(d) {
+          return d && pathEdges.has(d.from + '->' + d.to);
+        });
+
+        setStatus('Path: ' + path.length + ' nodes');
+      }
+
+      function applyFiltersAndRender() {
+        render(graphData);
+      }
 
       window.addEventListener('message', event => {
         const { type, payload, message } = event.data || {};
@@ -318,17 +832,74 @@ export class SchemaGraphPanel {
 
       const elk = new ELK();
 
+      function buildNodeChild(n, rowHeight) {
+        const ports = [];
+        const fields = Array.isArray(n.fields) ? n.fields : [];
+        fields.forEach((f, i) => {
+          ports.push({
+            id: n.id + ':field:' + i,
+            x: n._w,
+            y: 32 + i * rowHeight + rowHeight / 2,
+            properties: { 'elk.port.side': 'E', fieldName: f.name, fieldIndex: String(i) }
+          });
+        });
+        ports.push({
+          id: n.id + ':in',
+          x: 0,
+          y: n._h / 2,
+          properties: { 'elk.port.side': 'W' }
+        });
+        return {
+          id: n.id,
+          width: n._w,
+          height: n._h,
+          ports,
+          layoutOptions: { 'elk.portConstraints': 'FIXED_POS' }
+        };
+      }
+
+      function buildGroupedChildren(nodes, rowHeight) {
+        const groups = new Map();
+        nodes.forEach(n => {
+          const pkg = n.package || '(default)';
+          if (!groups.has(pkg)) groups.set(pkg, []);
+          groups.get(pkg).push(n);
+        });
+
+        return Array.from(groups.entries()).map(([pkg, pkgNodes]) => ({
+          id: 'pkg:' + pkg,
+          layoutOptions: {
+            'elk.padding': '[top=30,left=10,bottom=10,right=10]'
+          },
+          labels: [{ text: pkg }],
+          children: pkgNodes.map(n => buildNodeChild(n, rowHeight))
+        }));
+      }
+
       async function render(data) {
-        const nodes = (data.nodes || [])
+        populateFilters(data);
+        
+        const orphanIds = getOrphanIds(data.nodes || [], data.edges || []);
+        
+        let filteredNodes = (data.nodes || [])
           .filter(n => n && n.id)
-          .map(n => ({ ...n, _w: 0, _h: 0 }));
+          .filter(n => showEnums || n.kind !== 'enum')
+          .filter(n => !selectedPackage || n.package === selectedPackage)
+          .filter(n => {
+            if (!selectedFile) return true;
+            if (!n.file) return false;
+            const parts = n.file.split(/[\\/]/);
+            return parts[parts.length - 1] === selectedFile;
+          })
+          .filter(n => !showOrphansOnly || orphanIds.has(n.id));
+
+        const nodes = filteredNodes.map(n => ({ ...n, _w: 0, _h: 0, _isOrphan: orphanIds.has(n.id) }));
         const nodeMap = new Map(nodes.map(n => [n.id, n]));
 
         const nodeIds = new Set(nodes.map(n => n.id));
 
         const links = (data.edges || [])
           .filter(e => e && e.from && e.to)
-          // Normalize link objects so forceLink always has source/target ids
           .map(e => ({ ...e, source: e.from, target: e.to }))
           .filter(e => nodeIds.has(e.from) && nodeIds.has(e.to));
 
@@ -365,47 +936,22 @@ export class SchemaGraphPanel {
           n._h = height;
         });
 
+        const layoutDirection = currentLayout === 'vertical' ? 'DOWN' : 'RIGHT';
+        const layoutAlgorithm = currentLayout === 'compact' ? 'box' : 'layered';
+
         const elkGraph = {
           id: 'root',
           layoutOptions: {
-            'elk.algorithm': 'layered',
-            'elk.direction': 'RIGHT',
+            'elk.algorithm': layoutAlgorithm,
+            'elk.direction': layoutDirection,
             'elk.edgeRouting': 'ORTHOGONAL',
             'elk.layered.spacing.nodeNodeBetweenLayers': '80',
             'elk.spacing.nodeNode': '40',
             'elk.spacing.edgeEdge': '18',
-            'elk.portConstraints': 'FIXED_POS'
+            'elk.portConstraints': 'FIXED_POS',
+            'elk.hierarchyHandling': groupByPackage ? 'INCLUDE_CHILDREN' : 'SEPARATE_CHILDREN'
           },
-          children: nodes.map(n => {
-            const ports = [];
-            const fields = Array.isArray(n.fields) ? n.fields : [];
-            fields.forEach((f, i) => {
-              ports.push({
-                id: n.id + ':field:' + i,
-                x: n._w,
-                y: 32 + i * rowHeight + rowHeight / 2,
-                properties: {
-                  'elk.port.side': 'E',
-                  fieldName: f.name,
-                  fieldIndex: String(i)
-                }
-              });
-            });
-            // default inbound port on the left
-            ports.push({
-              id: n.id + ':in',
-              x: 0,
-              y: n._h / 2,
-              properties: { 'elk.port.side': 'W' }
-            });
-            return {
-              id: n.id,
-              width: n._w,
-              height: n._h,
-              ports,
-              layoutOptions: { 'elk.portConstraints': 'FIXED_POS' }
-            };
-          }),
+          children: groupByPackage ? buildGroupedChildren(nodes, rowHeight) : nodes.map(n => buildNodeChild(n, rowHeight)),
           edges: links.map((e, idx) => {
             const srcMap = fieldIndex.get(e.from);
             const srcIdx = srcMap && (srcMap.get(e.label) ?? srcMap.get((e.label || '').split('.').pop()));
@@ -488,7 +1034,35 @@ export class SchemaGraphPanel {
 
         const node = nodeGroup.selectAll('g').data(layout.children || [], d => d.id);
         node.exit().remove();
-        const nodeEnter = node.enter().append('g').attr('class', 'node');
+        const nodeEnter = node.enter().append('g').attr('class', 'node')
+          .on('dblclick', function(event, d) {
+            const original = nodeMap.get(d.id);
+            if (original && original.file) {
+              vscode.postMessage({ type: 'navigate', file: original.file, symbolName: original.label });
+            }
+          })
+          .on('contextmenu', function(event, d) {
+            event.preventDefault();
+            const original = nodeMap.get(d.id);
+            if (original) {
+              contextNode = original;
+              contextMenu.style.left = event.clientX + 'px';
+              contextMenu.style.top = event.clientY + 'px';
+              contextMenu.classList.add('visible');
+            }
+          })
+          .on('click', function(event, d) {
+            if (!pathMode) return;
+            if (!pathSource) {
+              pathSource = d.id;
+              d3.select(this).classed('node-path-source', true);
+              setStatus('Path mode: now click the target node');
+            } else if (!pathTarget) {
+              pathTarget = d.id;
+              d3.select(this).classed('node-path-target', true);
+              highlightPath();
+            }
+          });
 
         nodeEnter.append('rect')
           .attr('class', 'node-box')
@@ -520,6 +1094,19 @@ export class SchemaGraphPanel {
         nodeEnter.append('g').attr('class', 'fields');
 
         const nodeMerged = nodeEnter.merge(node);
+
+        nodeMerged.each(function(d) {
+          const original = nodeMap.get(d.id);
+          const el = d3.select(this);
+          const isOrphan = original && original._isOrphan;
+          const matchesSearch = searchTerm && original && original.label.toLowerCase().includes(searchTerm);
+          const dimmed = searchTerm && !matchesSearch;
+          
+          el.classed('node-orphan', isOrphan);
+          el.classed('node-search-match', matchesSearch);
+          el.classed('node-dimmed', dimmed);
+          el.classed('node-highlighted', !dimmed);
+        });
 
         nodeMerged.select('rect')
           .attr('width', d => d.width)

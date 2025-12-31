@@ -875,6 +875,7 @@
     "test:parsers": "npx ts-node scripts/compare-parsers.ts --ci",
     "test:parsers:all": "npx ts-node scripts/compare-parsers.ts --all",
     "test:all": "npm run test && npm run test:grammar && npm run test:parsers",
+    "test:security": "node test-security.js",
     "build:tree-sitter": "cd tree-sitter-proto && npx tree-sitter build --wasm && mkdir -p ../out/tree-sitter && cp tree-sitter-proto.wasm ../out/tree-sitter/",
     "test:tree-sitter": "cd tree-sitter-proto && npx tree-sitter test",
     "package": "npm run compile && npm run build:tree-sitter && npx vsce package",
