@@ -595,11 +595,13 @@ export class ToolchainManager {
       const url = `https://github.com/protocolbuffers/protobuf/releases/download/v${version}/${assetName}`;
       const zipPath = path.join(this.globalStoragePath, assetName);
 
-      // TODO: Fetch real SHA256 hashes from GitHub releases
+      // SHA256 values computed from the official release artifacts (update when version changes).
       const protocHashes: Record<string, string> = {
-        'protoc-25.1-win64.zip': '2c8a8d4f7d5b4c7a8c0f6e9e1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9',
-        'protoc-25.1-osx-x86_64.zip': '1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4b5c6d7e8f9a0',
-        'protoc-25.1-linux-x86_64.zip': '3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5b6c7d8e9f0a1b'
+        'protoc-25.1-win64.zip': 'b55901fc748d1679f3a803bdc2a920e1897eb02433c501b5a589ea08c4623844',
+        'protoc-25.1-osx-aarch_64.zip': '320308ce18c359564948754f51748de41cf02a4e7edf0cf47a805b9d38610f16',
+        'protoc-25.1-osx-x86_64.zip': '72c6d6b2bc855ff8688c3b7fb31288ccafd0ab55256ff8382d5711ecfcc11f4f',
+        'protoc-25.1-linux-aarch_64.zip': '99975a8c11b83cd65c3e1151ae1714bf959abc0521acb659bf720524276ab0c8',
+        'protoc-25.1-linux-x86_64.zip': 'ed8fca87a11c888fed329d6a59c34c7d436165f662a2c875246ddb1ac2b6dd50'
       };
 
       this.outputChannel.appendLine(`Downloading protoc from: ${url}`);
@@ -663,13 +665,13 @@ export class ToolchainManager {
       const url = `https://github.com/bufbuild/buf/releases/download/v${version}/${assetName}`;
       const destPath = this.getManagedToolPath('buf');
 
-      // TODO: Fetch real SHA256 hashes from GitHub releases
+      // SHA256 values from the release sha256.txt (update when version changes).
       const bufHashes: Record<string, string> = {
-        'buf-Windows-x86_64.exe': '4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1',
-        'buf-Darwin-x86_64': '1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9',
-        'buf-Darwin-arm64': '2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e7f8a9b0c1d2e3f4b5c6d7e8f9a0',
-        'buf-Linux-x86_64': '3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e7f8a9b0c1d2e3f4b5c6d7e8f9a1b',
-        'buf-Linux-aarch64': '1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1'
+        'buf-Windows-x86_64.exe': 'ed53ec73f52d98e78dcc99b068a139b51f6842a5be4b73b029aa0c5e5270056f',
+        'buf-Darwin-x86_64': '9f464e4178db03d07fb455997d9fdb579c2c67a353ff4e133e0b248aebf1446e',
+        'buf-Darwin-arm64': '72bcb6c7ffd46ff3d47ca78e77b55223d71e35675d7fe5b4ab5c6b41c9814165',
+        'buf-Linux-x86_64': '855a055c8615a03ee93219f287bd7f652586c6b6b8d2b01079782cba54ee6033',
+        'buf-Linux-aarch64': '1c3bc4a1aad5be3a30d20d999cb123eca8ab4861ce0db9aa3ee2c9a4dfe2d78c'
       };
 
       this.outputChannel.appendLine(`Downloading buf from: ${url}`);
