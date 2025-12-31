@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { createMockVscode, createMockTextEditor, createMockChildProcess } from '../../__tests__/testUtils';
 
 const mockVscode = createMockVscode();
@@ -132,14 +133,15 @@ describe('SchemaDiffManager', () => {
 
       await new Promise(resolve => setTimeout(resolve, 20));
 
+      const expectedTmpPath = path.join('/tmp', 'schema.proto.main.proto');
       expect(fs.writeFileSync).toHaveBeenCalledWith(
-        '/tmp/schema.proto.main.proto',
+        expectedTmpPath,
         oldContent
       );
 
       expect(mockVscode.commands.executeCommand).toHaveBeenCalledWith(
         'vscode.diff',
-        expect.objectContaining({ fsPath: '/tmp/schema.proto.main.proto' }),
+        expect.objectContaining({ fsPath: expectedTmpPath }),
         uri,
         'schema.proto (main) ↔ Current'
       );
@@ -159,8 +161,9 @@ describe('SchemaDiffManager', () => {
 
       await new Promise(resolve => setTimeout(resolve, 20));
 
+      const expectedTmpPath = path.join('/tmp', 'schema.proto.origin_main.proto');
       expect(fs.writeFileSync).toHaveBeenCalledWith(
-        '/tmp/schema.proto.origin_main.proto',
+        expectedTmpPath,
         'content'
       );
     });

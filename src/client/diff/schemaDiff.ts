@@ -55,9 +55,10 @@ export class SchemaDiffManager {
       const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
       const cwd = workspaceFolder ? workspaceFolder.uri.fsPath : path.dirname(filePath);
       const relPath = workspaceFolder ? path.relative(cwd, filePath) : path.basename(filePath);
+      const gitPath = relPath.replace(/\\/g, '/');
 
       return new Promise((resolve, reject) => {
-          const proc = spawn('git', ['show', `${ref}:${relPath}`], { cwd });
+          const proc = spawn('git', ['show', `${ref}:${gitPath}`], { cwd });
           let stdout = '';
           let stderr = '';
 

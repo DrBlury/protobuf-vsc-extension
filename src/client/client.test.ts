@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { createMockVscode } from './__tests__/testUtils';
 
 const mockVscode = createMockVscode();
@@ -61,8 +62,9 @@ describe('client', () => {
       createLanguageClient(context);
 
       const serverOptions = mockLanguageClient.mock.calls[0][2];
-      expect(serverOptions.run.module).toBe('/my/extension/path/out/server/server.js');
-      expect(serverOptions.debug.module).toBe('/my/extension/path/out/server/server.js');
+      const expectedPath = path.join('/my/extension/path', 'out', 'server', 'server.js');
+      expect(serverOptions.run.module).toBe(expectedPath);
+      expect(serverOptions.debug.module).toBe(expectedPath);
     });
 
     it('should configure debug options with inspect port', () => {
