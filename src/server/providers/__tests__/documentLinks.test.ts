@@ -6,6 +6,8 @@ import { DocumentLinksProvider } from '../documentLinks';
 import { ProtoParser } from '../../core/parser';
 import { SemanticAnalyzer } from '../../core/analyzer';
 import * as fs from 'fs';
+import * as path from 'path';
+import { URI } from 'vscode-uri';
 
 jest.mock('fs');
 const mockFs = fs as jest.Mocked<typeof fs>;
@@ -198,15 +200,19 @@ message Test {}`;
       analyzer.updateFile(uri, file);
 
       // Setup: proto roots configured, file exists there
-      analyzer.addProtoRoot('/proto-src');
+      const protoRoot = path.resolve('/proto-src');
+      analyzer.addProtoRoot(protoRoot);
+      const expectedPath = path.join(protoRoot, 'shared/message.proto');
       mockFs.existsSync.mockImplementation((p: fs.PathLike) => {
-        return String(p).includes('/proto-src/shared/message.proto');
+        return path.normalize(String(p)) === path.normalize(expectedPath);
       });
 
       const links = documentLinksProvider.getDocumentLinks(uri, file);
 
       expect(links.length).toBeGreaterThan(0);
-      expect(links[0].target).toContain('proto-src/shared/message.proto');
+      // Check that the target URI contains the expected path (platform-agnostic)
+      const expectedUri = URI.file(expectedPath).toString();
+      expect(links[0].target).toBe(expectedUri);
     });
 
     it('should find file in workspace roots', () => {

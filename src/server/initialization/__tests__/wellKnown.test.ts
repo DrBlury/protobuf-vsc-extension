@@ -45,8 +45,10 @@ describe('wellKnown', () => {
     });
 
     it('should return path when file exists in first candidate', () => {
+      const testBase = '/usr/local/include';
+      const testFile = path.join(testBase, 'google/protobuf/timestamp.proto');
       mockedFs.existsSync.mockImplementation((p: any) => {
-        return String(p) === '/usr/local/include/google/protobuf/timestamp.proto';
+        return path.normalize(String(p)) === path.normalize(testFile);
       });
 
       let result: string | undefined;
@@ -55,16 +57,18 @@ describe('wellKnown', () => {
         result = discoverWellKnownIncludePath();
       });
 
-      expect(result).toBe('/usr/local/include');
+      expect(result).toBe(testBase);
     });
 
     it('should check PROTOC_INCLUDE env variable first', () => {
-      process.env.PROTOC_INCLUDE = '/custom/path';
+      const customBase = '/custom/path';
+      process.env.PROTOC_INCLUDE = customBase;
 
+      const testFile = path.join(customBase, 'google/protobuf/timestamp.proto');
       mockedFs.existsSync.mockImplementation((p: any) => {
         const pathStr = String(p);
         // Only return true for the custom path from env variable
-        return pathStr === '/custom/path/google/protobuf/timestamp.proto';
+        return path.normalize(pathStr) === path.normalize(testFile);
       });
 
       let result: string | undefined;
@@ -73,16 +77,19 @@ describe('wellKnown', () => {
         result = discoverWellKnownIncludePath();
       });
 
-      expect(result).toBe('/custom/path');
+      expect(result).toBe(customBase);
     });
 
     it('should check multiple PROTOC_INCLUDE paths separated by path delimiter', () => {
-      process.env.PROTOC_INCLUDE = `/first/path${path.delimiter}/second/path`;
+      const firstBase = '/first/path';
+      const secondBase = '/second/path';
+      process.env.PROTOC_INCLUDE = `${firstBase}${path.delimiter}${secondBase}`;
 
+      const secondTestFile = path.join(secondBase, 'google/protobuf/timestamp.proto');
       mockedFs.existsSync.mockImplementation((p: any) => {
         const pathStr = String(p);
         // Only the second path exists
-        return pathStr === '/second/path/google/protobuf/timestamp.proto';
+        return path.normalize(pathStr) === path.normalize(secondTestFile);
       });
 
       let result: string | undefined;
@@ -91,7 +98,7 @@ describe('wellKnown', () => {
         result = discoverWellKnownIncludePath();
       });
 
-      expect(result).toBe('/second/path');
+      expect(result).toBe(secondBase);
     });
 
     it('should skip empty path entries', () => {
@@ -111,10 +118,12 @@ describe('wellKnown', () => {
     it('should fall back to PROTOC_INCLUDE_PATHS when env var path does not exist', () => {
       process.env.PROTOC_INCLUDE = '/nonexistent/path';
 
+      const fallbackBase = '/usr/local/include';
+      const fallbackTestFile = path.join(fallbackBase, 'google/protobuf/timestamp.proto');
       mockedFs.existsSync.mockImplementation((p: any) => {
         const pathStr = String(p);
         // Only usr/local/include exists
-        return pathStr === '/usr/local/include/google/protobuf/timestamp.proto';
+        return path.normalize(pathStr) === path.normalize(fallbackTestFile);
       });
 
       let result: string | undefined;
@@ -123,7 +132,7 @@ describe('wellKnown', () => {
         result = discoverWellKnownIncludePath();
       });
 
-      expect(result).toBe('/usr/local/include');
+      expect(result).toBe(fallbackBase);
     });
   });
 
@@ -149,10 +158,12 @@ describe('wellKnown', () => {
     });
 
     it('should use discovered include path when available', () => {
+      const discoveredBase = '/discovered';
       // Mock existsSync to return true for discovered paths
       mockedFs.existsSync.mockImplementation((p: any) => {
         const pathStr = String(p);
-        return pathStr.startsWith('/discovered/');
+        const normalizedDiscovered = path.normalize(path.join(discoveredBase, 'google'));
+        return path.normalize(pathStr).startsWith(normalizedDiscovered);
       });
 
       const parser = { parse: jest.fn().mockReturnValue({}) };
@@ -160,13 +171,16 @@ describe('wellKnown', () => {
 
       jest.isolateModules(() => {
         const { preloadGoogleWellKnownProtos } = require('../wellKnown');
-        preloadGoogleWellKnownProtos('/discovered', parser, analyzer);
+        preloadGoogleWellKnownProtos(discoveredBase, parser, analyzer);
       });
 
       // Verify readFileSync was called with discovered path
       expect(mockedFs.readFileSync).toHaveBeenCalled();
       const readCalls = mockedFs.readFileSync.mock.calls;
-      const hasDiscoveredPath = readCalls.some(call => String(call[0]).startsWith('/discovered/'));
+      const normalizedDiscovered = path.normalize(discoveredBase);
+      const hasDiscoveredPath = readCalls.some(call => 
+        path.normalize(String(call[0])).startsWith(normalizedDiscovered)
+      );
       expect(hasDiscoveredPath).toBe(true);
     });
 
@@ -244,10 +258,12 @@ describe('wellKnown', () => {
     });
 
     it('should use file URI for existing files', () => {
+      const discoveredBase = '/discovered';
       // Return true for discovered paths
       mockedFs.existsSync.mockImplementation((p: any) => {
         const pathStr = String(p);
-        return pathStr.startsWith('/discovered/');
+        const normalizedDiscovered = path.normalize(path.join(discoveredBase, 'google'));
+        return path.normalize(pathStr).startsWith(normalizedDiscovered);
       });
 
       const parser = { parse: jest.fn().mockReturnValue({}) };
@@ -255,7 +271,7 @@ describe('wellKnown', () => {
 
       jest.isolateModules(() => {
         const { preloadGoogleWellKnownProtos } = require('../wellKnown');
-        preloadGoogleWellKnownProtos('/discovered', parser, analyzer);
+        preloadGoogleWellKnownProtos(discoveredBase, parser, analyzer);
       });
 
       // Verify parser was called with file:// URI
@@ -282,10 +298,15 @@ describe('wellKnown', () => {
     });
 
     it('should not write to cache when file already exists', () => {
-      // File exists in discovered path
+      const discoveredBase = '/discovered';
+      const cacheDir = '/cache/dir';
+      // File exists in discovered path OR cache path
       mockedFs.existsSync.mockImplementation((p: any) => {
         const pathStr = String(p);
-        return pathStr.startsWith('/discovered/');
+        const normalizedDiscovered = path.normalize(path.join(discoveredBase, 'google'));
+        const normalizedCache = path.normalize(path.join(cacheDir, 'google'));
+        const normalizedPath = path.normalize(pathStr);
+        return normalizedPath.startsWith(normalizedDiscovered) || normalizedPath.startsWith(normalizedCache);
       });
 
       const parser = { parse: jest.fn().mockReturnValue({}) };
@@ -293,7 +314,7 @@ describe('wellKnown', () => {
 
       jest.isolateModules(() => {
         const { preloadGoogleWellKnownProtos } = require('../wellKnown');
-        preloadGoogleWellKnownProtos('/discovered', parser, analyzer, '/cache/dir');
+        preloadGoogleWellKnownProtos(discoveredBase, parser, analyzer, cacheDir);
       });
 
       // mkdirSync and writeFileSync should NOT be called because files exist

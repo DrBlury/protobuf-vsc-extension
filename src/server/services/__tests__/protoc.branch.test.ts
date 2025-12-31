@@ -6,6 +6,7 @@
 import { ProtocCompiler } from '../protoc';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
+import * as path from 'path';
 
 jest.mock('child_process');
 jest.mock('fs');
@@ -762,8 +763,9 @@ describe('ProtocCompiler Branch Coverage', () => {
     });
 
     it('should use user proto paths in validation', async () => {
+      const testPath = path.resolve('/usr/local/include');
       compiler.updateSettings({
-        options: ['--proto_path=/usr/local/include']
+        options: [`--proto_path=${testPath}`]
       });
 
       const mockProcess = {
@@ -784,12 +786,14 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       const args = mockSpawn.mock.calls[0][1] as string[];
       const protoPathArgs = args.filter(arg => arg.startsWith('--proto_path='));
-      expect(protoPathArgs.some(arg => arg.includes('/usr/local/include'))).toBe(true);
+      expect(protoPathArgs.some(arg => arg.includes(testPath))).toBe(true);
     });
 
     it('should add file directory when not covered by user paths', async () => {
+      const otherPath = path.resolve('/other/path');
+      const workspaceProtosPath = path.resolve('/workspace/protos');
       compiler.updateSettings({
-        options: ['--proto_path=/other/path']
+        options: [`--proto_path=${otherPath}`]
       });
 
       const mockProcess = {
@@ -811,8 +815,8 @@ describe('ProtocCompiler Branch Coverage', () => {
       const args = mockSpawn.mock.calls[0][1] as string[];
       const protoPathArgs = args.filter(arg => arg.startsWith('--proto_path='));
       // Should have both user path and file directory
-      expect(protoPathArgs.some(arg => arg.includes('/other/path'))).toBe(true);
-      expect(protoPathArgs.some(arg => arg.includes('/workspace/protos'))).toBe(true);
+      expect(protoPathArgs.some(arg => arg.includes(otherPath))).toBe(true);
+      expect(protoPathArgs.some(arg => arg.includes(workspaceProtosPath))).toBe(true);
     });
   });
 
@@ -1024,7 +1028,8 @@ describe('ProtocCompiler Branch Coverage', () => {
   describe('expandVariables', () => {
     it('should expand env variables', async () => {
       const originalEnv = process.env.MY_PROTO_PATH;
-      process.env.MY_PROTO_PATH = '/my/custom/path';
+      const customPath = path.resolve('/my/custom/path');
+      process.env.MY_PROTO_PATH = customPath;
 
       compiler.updateSettings({
         options: ['--proto_path=${env.MY_PROTO_PATH}']
@@ -1047,7 +1052,7 @@ describe('ProtocCompiler Branch Coverage', () => {
       await compiler.compileFile('/workspace/test.proto');
 
       const args = mockSpawn.mock.calls[0][1] as string[];
-      expect(args.some(arg => arg.includes('/my/custom/path'))).toBe(true);
+      expect(args.some(arg => arg.includes(customPath))).toBe(true);
 
       // Restore
       if (originalEnv === undefined) {
