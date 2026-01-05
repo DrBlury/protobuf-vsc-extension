@@ -127,7 +127,7 @@ export class ProtoParser {
       try {
         this.parseTopLevel(file);
       } catch (error) {
-        const errorToken = this.lastToken;
+        const errorToken = this.tokens[this.pos > 0 ? this.pos - 1 : 0];
         if (error instanceof Error && errorToken) {
             if (!file.syntaxErrors) {
                 file.syntaxErrors = [];
@@ -141,8 +141,9 @@ export class ProtoParser {
         // Log parse error for debugging
         if (error instanceof Error) {
           logger.error(`Parse error at position ${this.pos}: ${error.message}`);
-          if (errorToken) {
-            logger.error(`  Error token: ${errorToken.type} = "${errorToken.value}" at line ${errorToken.range.start.line}`);
+          const token = this.peek();
+          if (token) {
+            logger.error(`  Current token: ${token.type} = "${token.value}" at line ${token.range.start.line}`);
           }
         }
         // Skip to next statement on error
