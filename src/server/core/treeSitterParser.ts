@@ -19,6 +19,8 @@ interface Node {
   childCount: number;
   child(index: number): Node | null;
   childForFieldName(name: string): Node | null;
+  isMissing(): boolean;
+  parent: Node | null;
 }
 
 import type {
@@ -43,6 +45,7 @@ import type {
   ExtensionsStatement,
   Range,
   Position,
+  SyntaxError,
 } from './ast';
 
 import { logger } from '../utils/logger';
@@ -162,8 +165,11 @@ export class TreeSitterProtoParser {
       messages: [],
       enums: [],
       services: [],
-      extends: []
+      extends: [],
+      syntaxErrors: [],
     };
+
+    this.collectSyntaxErrors(root, file);
 
     for (let i = 0; i < root.childCount; i++) {
       const child = root.child(i);
@@ -206,6 +212,40 @@ export class TreeSitterProtoParser {
     }
 
     return file;
+  }
+
+  private findErrorNodes(node: Node, errors: Node[] = []): Node[] {
+    if (node.type === 'ERROR' || node.isMissing()) {
+      errors.push(node);
+    }
+    for (let i = 0; i < node.childCount; i++) {
+      const child = node.child(i);
+      if (child) {
+        this.findErrorNodes(child, errors);
+      }
+    }
+    return errors;
+  }
+
+  private collectSyntaxErrors(root: Node, file: ProtoFile): void {
+    const errorNodes = this.findErrorNodes(root);
+    for (const errorNode of errorNodes) {
+        if (errorNode.isMissing()) {
+            const parent = errorNode.parent;
+            const message = parent
+                ? `Syntax error: missing '${errorNode.type}' in ${parent.type}`
+                : `Syntax error: missing '${errorNode.type}'`;
+            file.syntaxErrors?.push({
+                range: nodeToRange(errorNode),
+                message,
+            });
+        } else {
+            file.syntaxErrors?.push({
+                range: nodeToRange(errorNode),
+                message: `Syntax error: unexpected "${errorNode.text}"`,
+            });
+        }
+    }
   }
 
   private parseSyntax(node: Node): SyntaxStatement {

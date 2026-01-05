@@ -103,6 +103,20 @@ export class DiagnosticsProvider {
     this.currentDocumentText = documentText;
     this.currentFile = file;
     const diagnostics: Diagnostic[] = [];
+
+    // Consume syntax errors from parser
+    if (file.syntaxErrors) {
+        for (const err of file.syntaxErrors) {
+            diagnostics.push({
+                severity: DiagnosticSeverity.Error,
+                range: this.toRange(err.range),
+                message: err.message,
+                source: DIAGNOSTIC_SOURCE,
+                code: ERROR_CODES.PARSE_ERROR
+            });
+        }
+    }
+    
     const packageName = file.package?.name || '';
 
     this.validateSyntaxOrEdition(uri, file, diagnostics);

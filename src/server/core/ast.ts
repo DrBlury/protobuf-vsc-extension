@@ -24,6 +24,11 @@ export interface ProtoNode {
   comments?: string;
 }
 
+export interface SyntaxError {
+  range: Range;
+  message: string;
+}
+
 export interface ProtoFile extends ProtoNode {
   type: 'file';
   syntax?: SyntaxStatement;
@@ -35,6 +40,7 @@ export interface ProtoFile extends ProtoNode {
   enums: EnumDefinition[];
   services: ServiceDefinition[];
   extends: ExtendDefinition[];
+  syntaxErrors?: SyntaxError[];
 }
 
 export interface SyntaxStatement extends ProtoNode {
