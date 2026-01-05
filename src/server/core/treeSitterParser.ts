@@ -45,7 +45,6 @@ import type {
   ExtensionsStatement,
   Range,
   Position,
-  SyntaxError,
 } from './ast';
 
 import { logger } from '../utils/logger';

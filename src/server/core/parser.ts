@@ -99,14 +99,12 @@ export class ProtoParser {
   private pos = 0;
   private lines: string[] = [];
   private lastComment: string | undefined;
-  private lastToken: Token | null = null;
 
   parse(text: string, _uri: string): ProtoFile {
     this.lines = text.split('\n');
     this.tokens = this.tokenize(text);
     this.pos = 0;
     this.lastComment = undefined;
-    this.lastToken = null;
 
     const file: ProtoFile = {
       type: 'file',
@@ -354,7 +352,6 @@ export class ProtoParser {
   private advance(): Token | null {
     const token = this.pos < this.tokens.length ? this.tokens[this.pos++]! : null;
     if (token) {
-      this.lastToken = token;
       if (token.comment) {
         this.lastComment = token.comment;
       }

@@ -17,6 +17,8 @@ interface MockNode {
   fieldChildren: Record<string, MockNode>;
   child(index: number): MockNode | null;
   childForFieldName(name: string): MockNode | null;
+  isMissing(): boolean;
+  parent: MockNode | null;
 }
 
 function createMockNode(
@@ -38,7 +40,9 @@ function createMockNode(
     children,
     fieldChildren,
     child: (index: number) => children[index] || null,
-    childForFieldName: (name: string) => fieldChildren[name] || null
+    childForFieldName: (name: string) => fieldChildren[name] || null,
+    isMissing: () => false,
+    parent: null
   };
   return node;
 }
@@ -60,10 +64,10 @@ jest.mock('web-tree-sitter', () => {
     parse = mockParse;
     setLanguage = mockSetLanguage;
   }
-  
+
   // Add static init method to the class
   (MockParser as any).init = mockParserInit;
-  
+
   return {
     Parser: MockParser,
     Language: {
@@ -96,7 +100,7 @@ describe('treeSitterParser', () => {
     it('should initialize the parser successfully', async () => {
       const { initTreeSitterParser } = require('../treeSitterParser');
       await initTreeSitterParser('/path/to/wasm');
-      
+
       expect(mockLanguageLoad).toHaveBeenCalledWith('/path/to/wasm');
       expect(mockParserInit).toHaveBeenCalled();
     });
@@ -105,14 +109,14 @@ describe('treeSitterParser', () => {
       const { initTreeSitterParser } = require('../treeSitterParser');
       await initTreeSitterParser('/path/to/wasm');
       await initTreeSitterParser('/path/to/wasm');
-      
+
       // Should only be called once
       expect(mockLanguageLoad).toHaveBeenCalledTimes(1);
     });
 
     it('should throw error on initialization failure', async () => {
       mockLanguageLoad.mockRejectedValueOnce(new Error('Failed to load'));
-      
+
       const { initTreeSitterParser } = require('../treeSitterParser');
       await expect(initTreeSitterParser('/path/to/wasm')).rejects.toThrow('Failed to load');
     });
@@ -129,7 +133,7 @@ describe('treeSitterParser', () => {
       jest.resetModules();
       const { initTreeSitterParser, isTreeSitterInitialized } = require('../treeSitterParser');
       await initTreeSitterParser('/path/to/wasm');
-      
+
       expect(isTreeSitterInitialized()).toBe(true);
     });
   });
@@ -145,10 +149,10 @@ describe('treeSitterParser', () => {
       it('should parse empty proto file', async () => {
         const emptyRoot = createMockNode('source_file', '', []);
         mockParse.mockReturnValue({ rootNode: emptyRoot });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('', 'test.proto');
-        
+
         expect(result.type).toBe('file');
         expect(result.imports).toEqual([]);
         expect(result.messages).toEqual([]);
@@ -158,7 +162,7 @@ describe('treeSitterParser', () => {
 
       it('should throw error if parse returns null', async () => {
         mockParse.mockReturnValue(null);
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         expect(() => treeSitterParser.parse('syntax = "proto3";', 'test.proto')).toThrow('Failed to parse proto file');
       });
@@ -167,10 +171,10 @@ describe('treeSitterParser', () => {
         const syntaxNode = createMockNode('syntax', 'syntax = "proto3";');
         const root = createMockNode('source_file', 'syntax = "proto3";', [syntaxNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('syntax = "proto3";', 'test.proto');
-        
+
         expect(result.syntax).toBeDefined();
         expect(result.syntax?.version).toBe('proto3');
       });
@@ -179,10 +183,10 @@ describe('treeSitterParser', () => {
         const syntaxNode = createMockNode('syntax', 'syntax = "proto2";');
         const root = createMockNode('source_file', 'syntax = "proto2";', [syntaxNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('syntax = "proto2";', 'test.proto');
-        
+
         expect(result.syntax).toBeDefined();
         expect(result.syntax?.version).toBe('proto2');
       });
@@ -191,10 +195,10 @@ describe('treeSitterParser', () => {
         const editionNode = createMockNode('edition', 'edition = "2023";');
         const root = createMockNode('source_file', 'edition = "2023";', [editionNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('edition = "2023";', 'test.proto');
-        
+
         expect(result.edition).toBeDefined();
         expect(result.edition?.edition).toBe('2023');
       });
@@ -204,10 +208,10 @@ describe('treeSitterParser', () => {
         const packageNode = createMockNode('package', 'package mypackage;', [], { name: nameNode });
         const root = createMockNode('source_file', 'package mypackage;', [packageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('package mypackage;', 'test.proto');
-        
+
         expect(result.package).toBeDefined();
         expect(result.package?.name).toBe('mypackage');
       });
@@ -216,10 +220,10 @@ describe('treeSitterParser', () => {
         const importNode = createMockNode('import', 'import "other.proto";');
         const root = createMockNode('source_file', 'import "other.proto";', [importNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('import "other.proto";', 'test.proto');
-        
+
         expect(result.imports).toHaveLength(1);
         expect(result.imports[0].path).toBe('other.proto');
         expect(result.imports[0].modifier).toBeUndefined();
@@ -229,10 +233,10 @@ describe('treeSitterParser', () => {
         const importNode = createMockNode('import', 'import public "other.proto";');
         const root = createMockNode('source_file', 'import public "other.proto";', [importNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('import public "other.proto";', 'test.proto');
-        
+
         expect(result.imports[0].modifier).toBe('public');
       });
 
@@ -240,10 +244,10 @@ describe('treeSitterParser', () => {
         const importNode = createMockNode('import', 'import weak "other.proto";');
         const root = createMockNode('source_file', 'import weak "other.proto";', [importNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('import weak "other.proto";', 'test.proto');
-        
+
         expect(result.imports[0].modifier).toBe('weak');
       });
 
@@ -251,10 +255,10 @@ describe('treeSitterParser', () => {
         const optionNode = createMockNode('option', 'option java_package = "com.example";');
         const root = createMockNode('source_file', 'option java_package = "com.example";', [optionNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('option java_package = "com.example";', 'test.proto');
-        
+
         expect(result.options).toHaveLength(1);
         expect(result.options[0].name).toBe('java_package');
         expect(result.options[0].value).toBe('com.example');
@@ -264,10 +268,10 @@ describe('treeSitterParser', () => {
         const optionNode = createMockNode('option', 'option deprecated = true;');
         const root = createMockNode('source_file', 'option deprecated = true;', [optionNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('option deprecated = true;', 'test.proto');
-        
+
         expect(result.options[0].value).toBe(true);
       });
 
@@ -275,10 +279,10 @@ describe('treeSitterParser', () => {
         const optionNode = createMockNode('option', 'option max_size = 100;');
         const root = createMockNode('source_file', 'option max_size = 100;', [optionNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('option max_size = 100;', 'test.proto');
-        
+
         expect(result.options[0].value).toBe(100);
       });
 
@@ -286,10 +290,10 @@ describe('treeSitterParser', () => {
         const optionNode = createMockNode('option', 'option rate = 3.14;');
         const root = createMockNode('source_file', 'option rate = 3.14;', [optionNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('option rate = 3.14;', 'test.proto');
-        
+
         expect(result.options[0].value).toBe(3.14);
       });
 
@@ -304,10 +308,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage {}', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage {}', 'test.proto');
-        
+
         expect(result.messages).toHaveLength(1);
         expect(result.messages[0].name).toBe('TestMessage');
       });
@@ -324,10 +328,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { string name = 1; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { string name = 1; }', 'test.proto');
-        
+
         expect(result.messages[0].fields).toHaveLength(1);
         expect(result.messages[0].fields[0].name).toBe('name');
         expect(result.messages[0].fields[0].fieldType).toBe('string');
@@ -346,10 +350,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { repeated string tags = 1; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { repeated string tags = 1; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].modifier).toBe('repeated');
       });
 
@@ -365,10 +369,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { optional string name = 1; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { optional string name = 1; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].modifier).toBe('optional');
       });
 
@@ -384,10 +388,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { string name = 0x10; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { string name = 0x10; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].number).toBe(16);
       });
 
@@ -403,10 +407,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { map<string, int32> values = 1; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { map<string, int32> values = 1; }', 'test.proto');
-        
+
         expect(result.messages[0].maps).toHaveLength(1);
         expect(result.messages[0].maps[0].keyType).toBe('string');
         expect(result.messages[0].maps[0].valueType).toBe('int32');
@@ -432,10 +436,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { oneof choice { string name = 1; } }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { oneof choice { string name = 1; } }', 'test.proto');
-        
+
         expect(result.messages[0].oneofs).toHaveLength(1);
         expect(result.messages[0].oneofs[0].name).toBe('choice');
       });
@@ -452,10 +456,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'enum Status { UNKNOWN = 0; }', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('enum Status { UNKNOWN = 0; }', 'test.proto');
-        
+
         expect(result.enums).toHaveLength(1);
         expect(result.enums[0].name).toBe('Status');
         expect(result.enums[0].values).toHaveLength(1);
@@ -475,10 +479,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'enum TestEnum { NEG = -1; }', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('enum TestEnum { NEG = -1; }', 'test.proto');
-        
+
         expect(result.enums[0].values[0].number).toBe(-1);
       });
 
@@ -494,10 +498,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'enum TestEnum { HEX_VAL = 0xFF; }', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('enum TestEnum { HEX_VAL = 0xFF; }', 'test.proto');
-        
+
         expect(result.enums[0].values[0].number).toBe(255);
       });
 
@@ -512,10 +516,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'service MyService { rpc GetData(Request) returns (Response); }', [serviceNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('service MyService { rpc GetData(Request) returns (Response); }', 'test.proto');
-        
+
         expect(result.services).toHaveLength(1);
         expect(result.services[0].name).toBe('MyService');
         expect(result.services[0].rpcs).toHaveLength(1);
@@ -535,10 +539,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'service MyService { rpc StreamData(stream Request) returns (stream Response); }', [serviceNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('service MyService { rpc StreamData(stream Request) returns (stream Response); }', 'test.proto');
-        
+
         expect(result.services[0].rpcs[0].requestStreaming).toBe(true);
         expect(result.services[0].rpcs[0].responseStreaming).toBe(true);
       });
@@ -547,10 +551,10 @@ describe('treeSitterParser', () => {
         const extendNode = createMockNode('extend', 'extend google.protobuf.MessageOptions { }');
         const root = createMockNode('source_file', 'extend google.protobuf.MessageOptions { }', [extendNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('extend google.protobuf.MessageOptions { }', 'test.proto');
-        
+
         expect(result.extends).toHaveLength(1);
         expect(result.extends[0].extendType).toBe('google.protobuf.MessageOptions');
       });
@@ -567,10 +571,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { reserved 1, 2, 5 to 10; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { reserved 1, 2, 5 to 10; }', 'test.proto');
-        
+
         expect(result.messages[0].reserved).toHaveLength(1);
         expect(result.messages[0].reserved[0].ranges).toContainEqual({ start: 1, end: 1 });
         expect(result.messages[0].reserved[0].ranges).toContainEqual({ start: 2, end: 2 });
@@ -589,10 +593,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { reserved "foo", "bar"; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { reserved "foo", "bar"; }', 'test.proto');
-        
+
         expect(result.messages[0].reserved[0].names).toContain('foo');
         expect(result.messages[0].reserved[0].names).toContain('bar');
       });
@@ -609,10 +613,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { extensions 100 to 200; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { extensions 100 to 200; }', 'test.proto');
-        
+
         expect(result.messages[0].extensions).toHaveLength(1);
         expect(result.messages[0].extensions[0].ranges).toContainEqual({ start: 100, end: 200 });
       });
@@ -629,10 +633,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { extensions 100 to max; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { extensions 100 to max; }', 'test.proto');
-        
+
         expect(result.messages[0].extensions[0].ranges).toContainEqual({ start: 100, end: 536870911 });
       });
 
@@ -648,10 +652,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { string name = 1 [deprecated = true]; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { string name = 1 [deprecated = true]; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].options).toBeDefined();
         expect(result.messages[0].fields[0].options).toHaveLength(1);
         expect(result.messages[0].fields[0].options![0].name).toBe('deprecated');
@@ -677,10 +681,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message Outer { message Inner {} }', [outerMessageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message Outer { message Inner {} }', 'test.proto');
-        
+
         expect(result.messages[0].nestedMessages).toHaveLength(1);
         expect(result.messages[0].nestedMessages[0].name).toBe('Inner');
       });
@@ -704,10 +708,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { enum Status { UNKNOWN = 0; } }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { enum Status { UNKNOWN = 0; } }', 'test.proto');
-        
+
         expect(result.messages[0].nestedEnums).toHaveLength(1);
         expect(result.messages[0].nestedEnums[0].name).toBe('Status');
       });
@@ -724,10 +728,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { optional group MyGroup = 1 { } }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { optional group MyGroup = 1 { } }', 'test.proto');
-        
+
         expect(result.messages[0].groups).toHaveLength(1);
         expect(result.messages[0].groups[0].name).toBe('MyGroup');
         expect(result.messages[0].groups[0].modifier).toBe('optional');
@@ -738,10 +742,10 @@ describe('treeSitterParser', () => {
         const optionNode = createMockNode('option', 'option;');  // Malformed
         const root = createMockNode('source_file', 'option;', [optionNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('option;', 'test.proto');
-        
+
         expect(result.options[0].name).toBe('');
         expect(result.options[0].value).toBe('');
       });
@@ -758,10 +762,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { invalid field }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { invalid field }', 'test.proto');
-        
+
         // Should handle gracefully without crashing
         expect(result.messages).toHaveLength(1);
       });
@@ -778,10 +782,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { google.protobuf.Any data = 1; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { google.protobuf.Any data = 1; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].fieldType).toBe('google.protobuf.Any');
       });
 
@@ -797,10 +801,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { .google.protobuf.Any data = 1; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { .google.protobuf.Any data = 1; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].fieldType).toBe('.google.protobuf.Any');
       });
 
@@ -808,10 +812,10 @@ describe('treeSitterParser', () => {
         const optionNode = createMockNode('option', 'option deprecated = false;');
         const root = createMockNode('source_file', 'option deprecated = false;', [optionNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('option deprecated = false;', 'test.proto');
-        
+
         expect(result.options[0].value).toBe(false);
       });
 
@@ -819,10 +823,10 @@ describe('treeSitterParser', () => {
         const optionNode = createMockNode('option', "option name = 'test';");
         const root = createMockNode('source_file', "option name = 'test';", [optionNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse("option name = 'test';", 'test.proto');
-        
+
         expect(result.options[0].value).toBe('test');
       });
 
@@ -830,10 +834,10 @@ describe('treeSitterParser', () => {
         const editionNode = createMockNode('edition', 'edition;'); // Malformed
         const root = createMockNode('source_file', 'edition;', [editionNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('edition;', 'test.proto');
-        
+
         expect(result.edition?.edition).toBe('2023');
       });
 
@@ -841,10 +845,10 @@ describe('treeSitterParser', () => {
         const packageNode = createMockNode('package', 'package;', [], {}); // No name field
         const root = createMockNode('source_file', 'package;', [packageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('package;', 'test.proto');
-        
+
         expect(result.package?.name).toBe('');
       });
 
@@ -852,10 +856,10 @@ describe('treeSitterParser', () => {
         const importNode = createMockNode('import', 'import;'); // No path
         const root = createMockNode('source_file', 'import;', [importNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('import;', 'test.proto');
-        
+
         expect(result.imports[0].path).toBe('');
       });
 
@@ -871,10 +875,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { map invalid; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { map invalid; }', 'test.proto');
-        
+
         expect(result.messages[0].maps).toHaveLength(1);
         expect(result.messages[0].maps[0].keyType).toBe('string');
         expect(result.messages[0].maps[0].valueType).toBe('string');
@@ -893,10 +897,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { oneof { } }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { oneof { } }', 'test.proto');
-        
+
         expect(result.messages[0].oneofs).toHaveLength(1);
         expect(result.messages[0].oneofs[0].name).toBe('');
       });
@@ -913,10 +917,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { group; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { group; }', 'test.proto');
-        
+
         expect(result.messages[0].groups).toHaveLength(1);
         expect(result.messages[0].groups[0].name).toBe('');
         expect(result.messages[0].groups[0].number).toBe(0);
@@ -934,10 +938,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'enum TestEnum { INVALID; }', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('enum TestEnum { INVALID; }', 'test.proto');
-        
+
         expect(result.enums[0].values[0].name).toBe('');
         expect(result.enums[0].values[0].number).toBe(0);
       });
@@ -953,10 +957,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'service MyService { rpc; }', [serviceNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('service MyService { rpc; }', 'test.proto');
-        
+
         expect(result.services[0].rpcs).toHaveLength(1);
         expect(result.services[0].rpcs[0].name).toBe('');
         expect(result.services[0].rpcs[0].requestType).toBe('');
@@ -966,10 +970,10 @@ describe('treeSitterParser', () => {
         const extendNode = createMockNode('extend', 'extend;'); // No match
         const root = createMockNode('source_file', 'extend;', [extendNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('extend;', 'test.proto');
-        
+
         expect(result.extends[0].extendType).toBe('');
       });
 
@@ -986,10 +990,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'enum TestEnum { option allow_alias = true; UNKNOWN = 0; }', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('enum TestEnum { option allow_alias = true; UNKNOWN = 0; }', 'test.proto');
-        
+
         expect(result.enums[0].options).toHaveLength(1);
         expect(result.enums[0].options[0].name).toBe('allow_alias');
       });
@@ -1007,10 +1011,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'enum TestEnum { reserved 1, 2; UNKNOWN = 0; }', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('enum TestEnum { reserved 1, 2; UNKNOWN = 0; }', 'test.proto');
-        
+
         expect(result.enums[0].reserved).toHaveLength(1);
       });
 
@@ -1026,10 +1030,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { option deprecated = true; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { option deprecated = true; }', 'test.proto');
-        
+
         expect(result.messages[0].options).toHaveLength(1);
       });
 
@@ -1045,10 +1049,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { string name = 1 [deprecated = true, json_name = "the_name"]; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { string name = 1 [deprecated = true, json_name = "the_name"]; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].options).toHaveLength(2);
         expect(result.messages[0].fields[0].options![0].name).toBe('deprecated');
         expect(result.messages[0].fields[0].options![1].name).toBe('json_name');
@@ -1066,10 +1070,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = inf]; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { double val = 1 [default = inf]; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].options![0].value).toBe(Infinity);
       });
 
@@ -1085,10 +1089,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = -inf]; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { double val = 1 [default = -inf]; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].options![0].value).toBe(-Infinity);
       });
 
@@ -1104,10 +1108,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = nan]; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { double val = 1 [default = nan]; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].options![0].value).toBeNaN();
       });
 
@@ -1123,10 +1127,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = +inf]; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { double val = 1 [default = +inf]; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].options![0].value).toBe(Infinity);
       });
 
@@ -1142,10 +1146,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { int32 val = 1 [default = -10]; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { int32 val = 1 [default = -10]; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].options![0].value).toBe(-10);
       });
 
@@ -1161,10 +1165,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = 3.14]; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { double val = 1 [default = 3.14]; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].options![0].value).toBe(3.14);
       });
 
@@ -1180,10 +1184,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { string val = 1 [(custom.option).path = "value"]; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { string val = 1 [(custom.option).path = "value"]; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].options![0].name).toBe('(custom.option).path');
       });
 
@@ -1199,10 +1203,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'enum TestEnum { VALUE = 1 [deprecated = true]; }', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('enum TestEnum { VALUE = 1 [deprecated = true]; }', 'test.proto');
-        
+
         expect(result.enums[0].values[0].options).toBeDefined();
         expect(result.enums[0].values[0].options![0].name).toBe('deprecated');
       });
@@ -1219,10 +1223,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { reserved 100 to max; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { reserved 100 to max; }', 'test.proto');
-        
+
         expect(result.messages[0].reserved[0].ranges).toContainEqual({ start: 100, end: 536870911 });
       });
 
@@ -1238,10 +1242,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { extensions 100; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { extensions 100; }', 'test.proto');
-        
+
         expect(result.messages[0].extensions[0].ranges).toContainEqual({ start: 100, end: 100 });
       });
 
@@ -1255,10 +1259,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message EmptyMessage', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message EmptyMessage', 'test.proto');
-        
+
         expect(result.messages).toHaveLength(1);
         expect(result.messages[0].name).toBe('EmptyMessage');
         expect(result.messages[0].fields).toEqual([]);
@@ -1274,10 +1278,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'enum EmptyEnum', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('enum EmptyEnum', 'test.proto');
-        
+
         expect(result.enums).toHaveLength(1);
         expect(result.enums[0].name).toBe('EmptyEnum');
         expect(result.enums[0].values).toEqual([]);
@@ -1293,10 +1297,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message {}', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message {}', 'test.proto');
-        
+
         expect(result.messages[0].name).toBe('');
       });
 
@@ -1310,10 +1314,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'enum {}', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('enum {}', 'test.proto');
-        
+
         expect(result.enums[0].name).toBe('');
       });
 
@@ -1326,10 +1330,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'service {}', [serviceNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('service {}', 'test.proto');
-        
+
         expect(result.services[0].name).toBe('');
       });
 
@@ -1345,10 +1349,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { map<string, int32> values = 0x10; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { map<string, int32> values = 0x10; }', 'test.proto');
-        
+
         expect(result.messages[0].maps[0].number).toBe(16);
       });
 
@@ -1363,13 +1367,15 @@ describe('treeSitterParser', () => {
           children: [],
           fieldChildren: {},
           child: () => null, // Always returns null
-          childForFieldName: () => null
+          childForFieldName: () => null,
+          isMissing: () => false,
+          parent: null
         };
         mockParse.mockReturnValue({ rootNode: rootWithNullChild });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('', 'test.proto');
-        
+
         expect(result.type).toBe('file');
       });
 
@@ -1386,10 +1392,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { something }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { something }', 'test.proto');
-        
+
         // Should parse message without crashing
         expect(result.messages).toHaveLength(1);
       });
@@ -1406,10 +1412,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { required string name = 1; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { required string name = 1; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].modifier).toBe('required');
       });
 
@@ -1425,10 +1431,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { string name = 0XFF; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { string name = 0XFF; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].number).toBe(255);
       });
 
@@ -1444,10 +1450,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', "message TestMessage { string name = 1 [json_name = \"foo\" \"bar\"]; }", [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse("message TestMessage { string name = 1 [json_name = \"foo\" \"bar\"]; }", 'test.proto');
-        
+
         expect(result.messages[0].fields[0].options![0].value).toBe('foobar');
       });
 
@@ -1463,10 +1469,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { string name = 1 [(custom) = {field: "value"}]; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { string name = 1 [(custom) = {field: "value"}]; }', 'test.proto');
-        
+
         // Should not crash on nested brackets
         expect(result.messages[0].fields[0].options).toBeDefined();
       });
@@ -1483,10 +1489,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { string name = 1; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { string name = 1; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].options).toBeUndefined();
       });
 
@@ -1502,10 +1508,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { repeated group Items = 1 { } }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { repeated group Items = 1 { } }', 'test.proto');
-        
+
         expect(result.messages[0].groups[0].modifier).toBe('repeated');
       });
 
@@ -1521,10 +1527,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { required group Items = 1 { } }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { required group Items = 1 { } }', 'test.proto');
-        
+
         expect(result.messages[0].groups[0].modifier).toBe('required');
       });
 
@@ -1539,10 +1545,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'service MyService { rpc Send(stream Request) returns (Response); }', [serviceNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('service MyService { rpc Send(stream Request) returns (Response); }', 'test.proto');
-        
+
         expect(result.services[0].rpcs[0].requestStreaming).toBe(true);
         expect(result.services[0].rpcs[0].responseStreaming).toBe(false);
       });
@@ -1558,10 +1564,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'service MyService { rpc Receive(Request) returns (stream Response); }', [serviceNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('service MyService { rpc Receive(Request) returns (stream Response); }', 'test.proto');
-        
+
         expect(result.services[0].rpcs[0].requestStreaming).toBe(false);
         expect(result.services[0].rpcs[0].responseStreaming).toBe(true);
       });
@@ -1578,10 +1584,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = .5]; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { double val = 1 [default = .5]; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].options![0].value).toBe(0.5);
       });
 
@@ -1597,10 +1603,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = 1.5e10]; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message TestMessage { double val = 1 [default = 1.5e10]; }', 'test.proto');
-        
+
         expect(result.messages[0].fields[0].options![0].value).toBe(1.5e10);
       });
 
@@ -1616,10 +1622,10 @@ describe('treeSitterParser', () => {
         );
         const root = createMockNode('source_file', 'enum TestEnum { NEG_HEX = -0x10; }', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
-        
+
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('enum TestEnum { NEG_HEX = -0x10; }', 'test.proto');
-        
+
         expect(result.enums[0].values[0].number).toBe(-16);
       });
     });
