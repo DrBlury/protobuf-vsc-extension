@@ -153,7 +153,7 @@ jobs:
           cyclonedx-npm --output-file sbom.json --output-format json
 
       - name: Run Grype Vulnerability Scan
-        uses: anchore/scan-action@v6
+        uses: anchore/scan-action@v7
         id: grype-scan
         with:
           path: "."
