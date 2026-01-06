@@ -172,6 +172,52 @@ describe('DocumentationProvider', () => {
       expect(message.fields![1]!.comments).toContain("user's display name");
     });
 
+    it('should extract trailing comments on same line', () => {
+      parseAndUpdate('file:///test.proto', `
+        syntax = "proto3";
+
+        // A date representation
+        message Date {
+          int32 year  = 1; // the year value
+          int32 month = 2; // the month value
+          int32 day   = 3; // the day value
+        }
+      `);
+
+      const doc = docProvider.getDocumentation('file:///test.proto');
+      const message = doc!.messages[0]!;
+
+      expect(message.comments).toContain('A date representation');
+      expect(message.fields![0]!.name).toBe('year');
+      expect(message.fields![0]!.comments).toContain('the year value');
+      expect(message.fields![1]!.name).toBe('month');
+      expect(message.fields![1]!.comments).toContain('the month value');
+      expect(message.fields![2]!.name).toBe('day');
+      expect(message.fields![2]!.comments).toContain('the day value');
+    });
+
+    it('should extract trailing comments on enum values', () => {
+      parseAndUpdate('file:///test.proto', `
+        syntax = "proto3";
+
+        enum Status {
+          UNKNOWN = 0;  // unknown status
+          ACTIVE = 1;   // active status
+          INACTIVE = 2; // inactive status
+        }
+      `);
+
+      const doc = docProvider.getDocumentation('file:///test.proto');
+      const enumDef = doc!.enums[0]!;
+
+      expect(enumDef.values![0]!.name).toBe('UNKNOWN');
+      expect(enumDef.values![0]!.comments).toContain('unknown status');
+      expect(enumDef.values![1]!.name).toBe('ACTIVE');
+      expect(enumDef.values![1]!.comments).toContain('active status');
+      expect(enumDef.values![2]!.name).toBe('INACTIVE');
+      expect(enumDef.values![2]!.comments).toContain('inactive status');
+    });
+
     it('should detect deprecated fields', () => {
       parseAndUpdate('file:///test.proto', `
         syntax = "proto3";
