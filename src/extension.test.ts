@@ -57,6 +57,7 @@ const mockVscode = {
     onDidChangeActiveTextEditor: jest.fn().mockReturnValue({ dispose: jest.fn() }),
     createTreeView: jest.fn().mockReturnValue({ dispose: jest.fn() }),
     registerTreeDataProvider: jest.fn().mockReturnValue({ dispose: jest.fn() }),
+    registerCustomEditorProvider: jest.fn().mockReturnValue({ dispose: jest.fn() }),
     createStatusBarItem: jest.fn().mockReturnValue({
       text: '',
       tooltip: '',

@@ -19,7 +19,7 @@ interface Node {
   childCount: number;
   child(index: number): Node | null;
   childForFieldName(name: string): Node | null;
-  isMissing(): boolean;
+  isMissing: boolean;
   parent: Node | null;
 }
 
@@ -214,7 +214,7 @@ export class TreeSitterProtoParser {
   }
 
   private findErrorNodes(node: Node, errors: Node[] = []): Node[] {
-    if (node.type === 'ERROR' || node.isMissing()) {
+    if (node.type === 'ERROR' || node.isMissing) {
       errors.push(node);
     }
     for (let i = 0; i < node.childCount; i++) {
@@ -229,7 +229,7 @@ export class TreeSitterProtoParser {
   private collectSyntaxErrors(root: Node, file: ProtoFile): void {
     const errorNodes = this.findErrorNodes(root);
     for (const errorNode of errorNodes) {
-        if (errorNode.isMissing()) {
+        if (errorNode.isMissing) {
             const parent = errorNode.parent;
             const message = parent
                 ? `Syntax error: missing '${errorNode.type}' in ${parent.type}`

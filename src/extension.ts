@@ -25,6 +25,7 @@ import { PlaygroundManager } from './client/playground/playgroundManager';
 import { OptionInspectorProvider } from './client/inspector/optionInspector';
 import { RegistryManager } from './client/registry/registryManager';
 import { SaveStateTracker } from './client/formatting/saveState';
+import { BinaryDecoderProvider } from './client/binary-decoder/binaryDecoder';
 
 let client: LanguageClient;
 let outputChannel: vscode.OutputChannel;
@@ -225,6 +226,9 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand('protobuf.addBufDependency', () => {
     registryManager.addDependency();
   }));
+
+  // Register Binary Decoder Provider
+  context.subscriptions.push(BinaryDecoderProvider.register(context, outputChannel));
 
   // Register quick add dependency command (used by code actions)
   context.subscriptions.push(vscode.commands.registerCommand('protobuf.addBufDependencyQuick', async (moduleName: string, _importPath: string) => {
