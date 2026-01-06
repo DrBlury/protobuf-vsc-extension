@@ -27,6 +27,7 @@ import { RegistryManager } from './client/registry/registryManager';
 import { SaveStateTracker } from './client/formatting/saveState';
 import { BinaryDecoderProvider } from './client/binary-decoder/binaryDecoder';
 import { fileExists, readFile, writeFile } from './client/utils/fsUtils';
+import { BinaryDecoderProvider } from './client/binary-decoder/binaryDecoder';
 
 let client: LanguageClient;
 let outputChannel: vscode.OutputChannel;

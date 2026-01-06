@@ -809,6 +809,21 @@
         "priority": "default"
       }
     ],
+    "customEditors": [
+      {
+        "viewType": "protobuf.binaryInspector",
+        "displayName": "Protobuf Binary Inspector",
+        "selector": [
+          {
+            "filenamePattern": "*.pb"
+          },
+          {
+            "filenamePattern": "*.bin"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
     "menus": {
       "editor/context": [
         {
