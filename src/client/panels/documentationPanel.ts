@@ -672,12 +672,33 @@ export class DocumentationPanel {
         border-collapse: collapse;
         margin: 8px 0;
         font-size: 13px;
+        table-layout: fixed;
       }
+
+      .fields-table th:nth-child(1),
+      .fields-table td:nth-child(1) { width: 40px; }
+      .fields-table th:nth-child(2),
+      .fields-table td:nth-child(2) { width: 25%; }
+      .fields-table th:nth-child(3),
+      .fields-table td:nth-child(3) { width: 25%; }
+      .fields-table th:nth-child(4),
+      .fields-table td:nth-child(4) { width: auto; }
+
+      .enum-values-table th:nth-child(1),
+      .enum-values-table td:nth-child(1) { width: 35%; }
+      .enum-values-table th:nth-child(2),
+      .enum-values-table td:nth-child(2) { width: 60px; }
+      .enum-values-table th:nth-child(3),
+      .enum-values-table td:nth-child(3) { width: auto; }
 
       th, td {
         padding: 8px 12px;
         text-align: left;
         border-bottom: 1px solid var(--border);
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: break-word;
+        hyphens: auto;
       }
 
       th {
@@ -707,11 +728,17 @@ export class DocumentationPanel {
       .field-number, .enum-value-number {
         color: var(--number);
         font-family: 'SFMono-Regular', Consolas, monospace;
-        width: 50px;
       }
 
       .field-name, .enum-value-name {
         font-weight: 500;
+        overflow-wrap: break-word;
+        word-break: break-all;
+      }
+
+      .field-type {
+        overflow-wrap: break-word;
+        word-break: break-all;
       }
 
       .field-type code, .rpc-signature code {
@@ -720,6 +747,10 @@ export class DocumentationPanel {
         padding: 2px 6px;
         border-radius: 3px;
         font-size: 12px;
+        display: inline-block;
+        max-width: 100%;
+        overflow-wrap: break-word;
+        word-break: break-all;
       }
 
       .modifier {
@@ -764,6 +795,8 @@ export class DocumentationPanel {
       .rpc-signature {
         font-family: 'SFMono-Regular', Consolas, monospace;
         font-size: 13px;
+        overflow-wrap: break-word;
+        word-break: break-word;
       }
 
       .rpc-name {
