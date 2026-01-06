@@ -1,10 +1,13 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
 import * as os from 'os';
 import * as https from 'https';
 import { spawn } from 'child_process';
 import * as crypto from 'crypto';
+// Note: We still need Node.js fs for streaming downloads and chmod operations
+// which VS Code's abstract filesystem doesn't support
+import * as fs from 'fs';
+import { fileExists, createDirectory, readDirectory } from '../utils/fsUtils';
 
 export enum ToolStatus {
   NotInstalled,
@@ -85,19 +88,24 @@ export class ToolchainManager {
     this.statusBarItem.command = 'protobuf.toolchain.manage';
     context.subscriptions.push(this.statusBarItem);
 
-    // Ensure bin directory exists
-    if (!fs.existsSync(this.binPath)) {
-      fs.mkdirSync(this.binPath, { recursive: true });
-    }
-
     // Initialize tools
     this.tools.set('protoc', { name: 'protoc', status: ToolStatus.Unknown });
     this.tools.set('buf', { name: 'buf', status: ToolStatus.Unknown });
     this.tools.set('protolint', { name: 'protolint', status: ToolStatus.Unknown });
     this.tools.set('api-linter', { name: 'api-linter', status: ToolStatus.Unknown });
 
+    // Initialize asynchronously (ensure bin directory exists and check tools)
+    this.initialize();
+  }
+
+  private async initialize(): Promise<void> {
+    // Ensure bin directory exists
+    if (!(await fileExists(this.binPath))) {
+      await createDirectory(this.binPath);
+    }
+
     // Initial check
-    this.checkTools();
+    await this.checkTools();
   }
 
   public async checkTools(): Promise<void> {
@@ -116,7 +124,7 @@ export class ToolchainManager {
    * Priority: explicit config > system PATH > managed (fallback)
    * This handles GUI apps not inheriting shell PATH on all platforms.
    */
-  private findToolPath(name: string): string {
+  private async findToolPath(name: string): Promise<string> {
     // Map tool names to their configuration paths
     const configPath = this.getToolConfigPath(name);
     const config = vscode.workspace.getConfiguration(configPath.section);
@@ -135,7 +143,7 @@ export class ToolchainManager {
 
     // 1. Check if user has configured a specific full path
     if (configuredPath && configuredPath !== name) {
-      if (fs.existsSync(configuredPath)) {
+      if (await fileExists(configuredPath)) {
         this.outputChannel.appendLine(`  ✓ Using configured path: ${configuredPath}`);
         return configuredPath;
       }
@@ -158,7 +166,7 @@ export class ToolchainManager {
       const commonPaths = getCommonPaths();
       for (const dir of commonPaths) {
         const fullPath = path.join(dir, binaryName);
-        if (fs.existsSync(fullPath)) {
+        if (await fileExists(fullPath)) {
           this.outputChannel.appendLine(`  ✓ Found in common path: ${fullPath}`);
           return fullPath;
         }
@@ -167,7 +175,7 @@ export class ToolchainManager {
 
     // 3. Check managed version (installed by extension) as fallback
     this.outputChannel.appendLine(`  Checking managed path: ${managedPath}`);
-    if (fs.existsSync(managedPath)) {
+    if (await fileExists(managedPath)) {
       this.outputChannel.appendLine(`  ✓ Found managed ${name}: ${managedPath}`);
       return managedPath;
     }
@@ -179,7 +187,7 @@ export class ToolchainManager {
   }
 
   private async checkTool(name: string, versionFlag: string): Promise<void> {
-    const toolCmd = this.findToolPath(name);
+    const toolCmd = await this.findToolPath(name);
 
     try {
       const version = await this.getToolVersion(toolCmd, versionFlag);
@@ -305,7 +313,7 @@ export class ToolchainManager {
     for (const [name, info] of this.tools.entries()) {
       const isInstalled = info.status === ToolStatus.Installed;
       const isManaged = info.path?.startsWith(this.binPath);
-      const hasManagedVersion = fs.existsSync(this.getManagedToolPath(name));
+      const hasManagedVersion = await fileExists(this.getManagedToolPath(name));
 
       items.push({
         label: name,
@@ -407,7 +415,7 @@ export class ToolchainManager {
       // Check common paths first (system tools)
       for (const dir of commonPaths) {
         const fullPath = path.join(dir, binaryName);
-        if (fs.existsSync(fullPath)) {
+        if (await fileExists(fullPath)) {
           foundPath = fullPath;
           source = 'system';
           break;
@@ -417,7 +425,7 @@ export class ToolchainManager {
       // Fallback to managed
       if (!foundPath) {
         const managedPath = this.getManagedToolPath(toolName);
-        if (fs.existsSync(managedPath)) {
+        if (await fileExists(managedPath)) {
           foundPath = managedPath;
           source = 'managed';
         }
@@ -504,7 +512,7 @@ export class ToolchainManager {
   private async useManagedTool(toolName: string): Promise<void> {
     const managedPath = this.getManagedToolPath(toolName);
 
-    if (!fs.existsSync(managedPath)) {
+    if (!(await fileExists(managedPath))) {
       const install = await vscode.window.showWarningMessage(
         `Managed ${toolName} not found. Would you like to install it?`,
         'Install', 'Cancel'
@@ -627,7 +635,7 @@ export class ToolchainManager {
       const binaryPath = path.join(this.binPath, 'protoc' + ext);
       this.outputChannel.appendLine(`Expected binary path: ${binaryPath}`);
 
-      if (fs.existsSync(binaryPath)) {
+      if (await fileExists(binaryPath)) {
           if (platform !== 'win32') {
               fs.chmodSync(binaryPath, 0o755);
           }
@@ -635,13 +643,13 @@ export class ToolchainManager {
       } else {
           // List what was extracted to help debug
           this.outputChannel.appendLine(`✗ Binary not found at expected path. Checking extracted contents...`);
-          if (fs.existsSync(this.binPath)) {
-              const files = fs.readdirSync(this.binPath);
-              this.outputChannel.appendLine(`  Contents of bin/: ${files.join(', ')}`);
+          if (await fileExists(this.binPath)) {
+              const files = await readDirectory(this.binPath);
+              this.outputChannel.appendLine(`  Contents of bin/: ${files.map(([name]) => name).join(', ')}`);
           } else {
               this.outputChannel.appendLine(`  bin/ directory does not exist`);
-              const contents = fs.readdirSync(this.globalStoragePath);
-              this.outputChannel.appendLine(`  Contents of storage: ${contents.join(', ')}`);
+              const contents = await readDirectory(this.globalStoragePath);
+              this.outputChannel.appendLine(`  Contents of storage: ${contents.map(([name]) => name).join(', ')}`);
           }
           throw new Error(`protoc binary not found after extraction`);
       }
@@ -690,7 +698,7 @@ export class ToolchainManager {
           fs.chmodSync(destPath, 0o755);
       }
 
-      if (fs.existsSync(destPath)) {
+      if (await fileExists(destPath)) {
           this.outputChannel.appendLine(`✓ buf installed successfully at: ${destPath}`);
       } else {
           throw new Error(`buf binary not found after download`);

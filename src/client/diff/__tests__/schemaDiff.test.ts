@@ -5,10 +5,11 @@ const mockVscode = createMockVscode();
 
 jest.mock('vscode', () => mockVscode, { virtual: true });
 
-jest.mock('fs', () => ({
-  writeFileSync: jest.fn(),
-  existsSync: jest.fn(),
-  readFileSync: jest.fn(),
+const mockWriteFile = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../utils/fsUtils', () => ({
+  writeFile: mockWriteFile,
+  fileExists: jest.fn().mockResolvedValue(true),
+  readFile: jest.fn().mockResolvedValue(''),
 }));
 
 jest.mock('os', () => ({
@@ -21,7 +22,6 @@ jest.mock('child_process', () => ({
 }));
 
 import { SchemaDiffManager } from '../schemaDiff';
-import * as fs from 'fs';
 
 describe('SchemaDiffManager', () => {
   let manager: SchemaDiffManager;
@@ -29,6 +29,7 @@ describe('SchemaDiffManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockWriteFile.mockClear();
     mockOutputChannel = mockVscode.window.createOutputChannel();
     mockVscode.window.activeTextEditor = undefined;
     mockVscode.workspace.getWorkspaceFolder = jest.fn();
@@ -134,7 +135,7 @@ describe('SchemaDiffManager', () => {
       await new Promise(resolve => setTimeout(resolve, 20));
 
       const expectedTmpPath = path.join('/tmp', 'schema.proto.main.proto');
-      expect(fs.writeFileSync).toHaveBeenCalledWith(
+      expect(mockWriteFile).toHaveBeenCalledWith(
         expectedTmpPath,
         oldContent
       );
@@ -162,7 +163,7 @@ describe('SchemaDiffManager', () => {
       await new Promise(resolve => setTimeout(resolve, 20));
 
       const expectedTmpPath = path.join('/tmp', 'schema.proto.origin_main.proto');
-      expect(fs.writeFileSync).toHaveBeenCalledWith(
+      expect(mockWriteFile).toHaveBeenCalledWith(
         expectedTmpPath,
         'content'
       );

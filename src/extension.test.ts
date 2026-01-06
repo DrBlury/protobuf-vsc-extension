@@ -197,6 +197,18 @@ jest.doMock('vscode-languageclient/node', () => ({
 jest.doMock('child_process', () => mockChildProcess, { virtual: true });
 jest.doMock('fs', () => mockFs, { virtual: true });
 
+// Mock fsUtils for async filesystem operations
+const mockFsUtils = {
+  fileExists: jest.fn().mockResolvedValue(false),
+  readFile: jest.fn().mockResolvedValue(''),
+  writeFile: jest.fn().mockResolvedValue(undefined),
+  createDirectory: jest.fn().mockResolvedValue(undefined),
+  readDirectory: jest.fn().mockResolvedValue([]),
+  deleteFile: jest.fn().mockResolvedValue(undefined),
+  isDirectory: jest.fn().mockResolvedValue(false),
+};
+jest.doMock('./client/utils/fsUtils', () => mockFsUtils, { virtual: true });
+
 // Now import the extension after mocking dependencies
 const { activate, deactivate } = require('./extension');
 

@@ -5,8 +5,8 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
 import { spawn } from 'child_process';
+import { fileExists, readFile, writeFile } from '../utils/fsUtils';
 
 // Map of common import patterns to their Buf Schema Registry modules
 export const KNOWN_BSR_MODULES: { [pattern: string]: { module: string; description: string } } = {
@@ -175,10 +175,10 @@ export class DependencySuggestionProvider {
       const bufYamlPath = path.join(currentDir, 'buf.yaml');
       const bufYmlPath = path.join(currentDir, 'buf.yml');
 
-      if (fs.existsSync(bufYamlPath)) {
+      if (await fileExists(bufYamlPath)) {
         return bufYamlPath;
       }
-      if (fs.existsSync(bufYmlPath)) {
+      if (await fileExists(bufYmlPath)) {
         return bufYmlPath;
       }
 
@@ -195,7 +195,7 @@ export class DependencySuggestionProvider {
    */
   private async getExistingDeps(bufYamlPath: string): Promise<string[]> {
     try {
-      const content = fs.readFileSync(bufYamlPath, 'utf-8');
+      const content = await readFile(bufYamlPath);
       const deps: string[] = [];
 
       // Simple regex-based parsing for deps array
@@ -221,7 +221,7 @@ export class DependencySuggestionProvider {
    */
   private async addDependencies(bufYamlPath: string, suggestions: DependencySuggestion[]): Promise<void> {
     try {
-      let content = fs.readFileSync(bufYamlPath, 'utf-8');
+      let content = await readFile(bufYamlPath);
       const modulesToAdd = suggestions.map(s => s.module);
 
       // Check if deps section exists
@@ -238,7 +238,7 @@ export class DependencySuggestionProvider {
         content += depsSection;
       }
 
-      fs.writeFileSync(bufYamlPath, content);
+      await writeFile(bufYamlPath, content);
       this.outputChannel.appendLine(`Added ${modulesToAdd.length} dependencies to ${bufYamlPath}`);
 
       // Run buf dep update
@@ -294,7 +294,7 @@ breaking:
 `;
 
     try {
-      fs.writeFileSync(bufYamlPath, content);
+      await writeFile(bufYamlPath, content);
       this.outputChannel.appendLine(`Created ${bufYamlPath}`);
 
       // Run buf dep update
@@ -409,12 +409,12 @@ breaking:
     for (const [filePath, fileErrors] of errorsByFile) {
       try {
         // Check if file exists
-        if (!fs.existsSync(filePath)) {
+        if (!(await fileExists(filePath))) {
           this.outputChannel.appendLine(`  ERROR: File not found: ${filePath}`);
           throw new Error(`File not found: ${filePath}`);
         }
 
-        let content = fs.readFileSync(filePath, 'utf-8');
+        let content = await readFile(filePath);
         const originalContent = content;
         const lines = content.split('\n');
         this.outputChannel.appendLine(`  Reading ${filePath} (${lines.length} lines)`);
@@ -456,7 +456,7 @@ breaking:
         if (fixCount > 0) {
           content = lines.join('\n');
           if (content !== originalContent) {
-            fs.writeFileSync(filePath, content, 'utf-8');
+            await writeFile(filePath, content);
             this.outputChannel.appendLine(`  Saved: ${filePath} (${fixCount} fixes applied)`);
           } else {
             this.outputChannel.appendLine(`  WARNING: No changes detected in ${filePath}`);
