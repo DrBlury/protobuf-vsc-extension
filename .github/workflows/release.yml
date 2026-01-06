@@ -51,7 +51,7 @@ jobs:
           cyclonedx-npm --output-file release-sbom.json --output-format json
 
       - name: Run Grype Security Scan
-        uses: anchore/scan-action@v6
+        uses: anchore/scan-action@v7
         with:
           path: "."
           fail-build: false
@@ -60,7 +60,7 @@ jobs:
           output-file: release-grype.sarif
 
       - name: Upload Release SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-sbom
           path: release-sbom.json

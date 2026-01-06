@@ -84,6 +84,7 @@ module.exports = [
         jest: "readonly",
         setTimeout: "readonly",
         clearTimeout: "readonly",
+        setImmediate: "readonly",
       },
     },
     plugins: {

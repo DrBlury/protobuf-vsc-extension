@@ -235,7 +235,7 @@ message Event {
       // Hover on Timestamp
       const position: Position = { line: 3, character: 20 };
       const lineText = '  google.protobuf.Timestamp created_at = 1;';
-      const hover = provider.getHover(uri, position, lineText);
+      const _hover = provider.getHover(uri, position, lineText);
 
       // May or may not work depending on import resolution
       // The test validates that the code path is exercised
@@ -362,7 +362,7 @@ message Test {
 
       const position: Position = { line: 5, character: 20 };
       const lineText = "    expression: \"this.matches('^[a-z]+@[a-z]+\\\\.[a-z]+$')\"";
-      const hover = provider.getHover(uri, position, lineText);
+      const _hover = provider.getHover(uri, position, lineText);
 
       // Validates the CEL hover code path is exercised
     });
@@ -382,7 +382,7 @@ enum Status {
 
       const position: Position = { line: 3, character: 3 };
       const lineText = '  ACTIVE = 1;';
-      const hover = provider.getHover(uri, position, lineText);
+      const _hover = provider.getHover(uri, position, lineText);
 
       // Validates the enum value hover code path
     });

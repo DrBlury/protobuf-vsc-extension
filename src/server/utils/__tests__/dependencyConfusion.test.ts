@@ -4,7 +4,6 @@
 
 import { DependencyConfusionValidator, DependencyValidationResult } from '../dependencyConfusion';
 import * as fs from 'fs';
-import * as path from 'path';
 import * as https from 'https';
 import * as http from 'http';
 import { EventEmitter } from 'events';
@@ -16,7 +15,7 @@ jest.mock('http');
 
 const mockFs = fs as jest.Mocked<typeof fs>;
 const mockHttps = https as jest.Mocked<typeof https>;
-const mockHttp = http as jest.Mocked<typeof http>;
+const _mockHttp = http as jest.Mocked<typeof http>;
 
 // Helper to create mock response
 function createMockResponse(statusCode: number): EventEmitter & { statusCode: number } {

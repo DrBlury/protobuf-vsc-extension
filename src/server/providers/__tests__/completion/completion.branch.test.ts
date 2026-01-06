@@ -5,7 +5,7 @@
 import { CompletionProvider } from '../../completion';
 import { SemanticAnalyzer } from '../../../core/analyzer';
 import { ProtoParser } from '../../../core/parser';
-import { Position, CompletionItem } from 'vscode-languageserver/node';
+import { Position } from 'vscode-languageserver/node';
 
 describe('CompletionProvider Branch Coverage', () => {
   let provider: CompletionProvider;

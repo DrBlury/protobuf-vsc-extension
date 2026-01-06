@@ -9,7 +9,7 @@ import {
   HTTP_FIELDS,
   RESOURCE_FIELDS
 } from '../googleApiHover';
-import type { Hover, MarkupContent } from 'vscode-languageserver';
+import type { MarkupContent } from 'vscode-languageserver';
 
 describe('Google API Hover', () => {
   describe('FIELD_BEHAVIORS constant', () => {
