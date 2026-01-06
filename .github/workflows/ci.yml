@@ -145,7 +145,7 @@ jobs:
       - name: Generate SBOM
         run: |
           npm install -g @cyclonedx/cyclonedx-npm
-          cyclonedx-npm --output-file sbom.json --output-format json
+          cyclonedx-npm --output-file sbom.json --output-format json --omit dev
 
       - name: Run Grype Vulnerability Scan
         uses: anchore/scan-action@v7
