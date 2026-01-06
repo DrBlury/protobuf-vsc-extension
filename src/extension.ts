@@ -25,6 +25,7 @@ import { PlaygroundManager } from './client/playground/playgroundManager';
 import { OptionInspectorProvider } from './client/inspector/optionInspector';
 import { RegistryManager } from './client/registry/registryManager';
 import { SaveStateTracker } from './client/formatting/saveState';
+import { fileExists, readFile, writeFile } from './client/utils/fsUtils';
 
 let client: LanguageClient;
 let outputChannel: vscode.OutputChannel;
@@ -241,27 +242,24 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     // Find buf.yaml (or buf.yml) starting from document directory
-    const fs = await import('fs');
-    const pathModule = await import('path');
-
-    const documentDir = editor ? pathModule.dirname(editor.document.uri.fsPath) : workspaceFolders[0]!.uri.fsPath;
+    const documentDir = editor ? path.dirname(editor.document.uri.fsPath) : workspaceFolders[0]!.uri.fsPath;
     let searchDir = documentDir;
     let bufYamlPath: string | null = null;
 
     // Search up the directory tree for buf.yaml or buf.yml
-    while (searchDir !== pathModule.dirname(searchDir)) {
-      const yamlCandidate = pathModule.join(searchDir, 'buf.yaml');
-      const ymlCandidate = pathModule.join(searchDir, 'buf.yml');
+    while (searchDir !== path.dirname(searchDir)) {
+      const yamlCandidate = path.join(searchDir, 'buf.yaml');
+      const ymlCandidate = path.join(searchDir, 'buf.yml');
 
-      if (fs.existsSync(yamlCandidate)) {
+      if (await fileExists(yamlCandidate)) {
         bufYamlPath = yamlCandidate;
         break;
       }
-      if (fs.existsSync(ymlCandidate)) {
+      if (await fileExists(ymlCandidate)) {
         bufYamlPath = ymlCandidate;
         break;
       }
-      searchDir = pathModule.dirname(searchDir);
+      searchDir = path.dirname(searchDir);
     }
 
     if (!bufYamlPath) {
@@ -271,14 +269,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
       // If there's a buf.work.yaml nearby, find the appropriate module directory
       let workSearchDir = documentDir;
-      while (workSearchDir !== pathModule.dirname(workSearchDir)) {
-        if (fs.existsSync(pathModule.join(workSearchDir, 'buf.work.yaml'))) {
+      while (workSearchDir !== path.dirname(workSearchDir)) {
+        if (await fileExists(path.join(workSearchDir, 'buf.work.yaml'))) {
           // Found a buf workspace - suggest creating buf.yaml in the document's module directory
           // which is typically one level below the workspace
           createDir = documentDir;
           break;
         }
-        workSearchDir = pathModule.dirname(workSearchDir);
+        workSearchDir = path.dirname(workSearchDir);
       }
 
       const create = await vscode.window.showInformationMessage(
@@ -287,7 +285,7 @@ export async function activate(context: vscode.ExtensionContext) {
       );
 
       if (create === 'Create') {
-        bufYamlPath = pathModule.join(createDir, 'buf.yaml');
+        bufYamlPath = path.join(createDir, 'buf.yaml');
       } else if (create === 'Choose Location') {
         const selected = await vscode.window.showOpenDialog({
           canSelectFiles: false,
@@ -297,7 +295,7 @@ export async function activate(context: vscode.ExtensionContext) {
           title: 'Select folder for buf.yaml'
         });
         if (selected && selected[0]) {
-          bufYamlPath = pathModule.join(selected[0].fsPath, 'buf.yaml');
+          bufYamlPath = path.join(selected[0].fsPath, 'buf.yaml');
         } else {
           return;
         }
@@ -315,11 +313,11 @@ breaking:
   use:
     - FILE
 `;
-      fs.writeFileSync(bufYamlPath, content);
+      await writeFile(bufYamlPath, content);
       outputChannel.appendLine(`Created ${bufYamlPath} with dependency ${moduleName}`);
     } else {
       // Add dependency to existing buf.yaml
-      let content = fs.readFileSync(bufYamlPath, 'utf-8');
+      let content = await readFile(bufYamlPath);
 
       if (content.includes(moduleName)) {
         vscode.window.showInformationMessage(`Dependency '${moduleName}' already exists in buf.yaml`);
@@ -332,14 +330,14 @@ breaking:
         content += `\ndeps:\n  - ${moduleName}\n`;
       }
 
-      fs.writeFileSync(bufYamlPath, content);
+      await writeFile(bufYamlPath, content);
       outputChannel.appendLine(`Added ${moduleName} to ${bufYamlPath}`);
     }
 
     // Run buf dep update with auto-fix for editions issues
     const config = vscode.workspace.getConfiguration('protobuf');
     const bufPath = config.get<string>('buf.path') || config.get<string>('externalLinter.bufPath') || 'buf';
-    const bufYamlDir = pathModule.dirname(bufYamlPath);
+    const bufYamlDir = path.dirname(bufYamlPath);
 
     const { spawn } = await import('child_process');
 
@@ -431,17 +429,15 @@ breaking:
     }
 
     // Try to find buf.yaml in the file's directory hierarchy
-    const fs = await import('fs');
-    const pathModule = await import('path');
-    let currentDir = pathModule.dirname(editor.document.uri.fsPath);
+    let currentDir = path.dirname(editor.document.uri.fsPath);
     let bufYamlDir: string | null = null;
 
-    while (currentDir !== pathModule.dirname(currentDir)) {
-      if (fs.existsSync(pathModule.join(currentDir, 'buf.yaml'))) {
+    while (currentDir !== path.dirname(currentDir)) {
+      if (await fileExists(path.join(currentDir, 'buf.yaml'))) {
         bufYamlDir = currentDir;
         break;
       }
-      currentDir = pathModule.dirname(currentDir);
+      currentDir = path.dirname(currentDir);
     }
 
     if (!bufYamlDir) {
@@ -450,8 +446,8 @@ breaking:
     }
 
     // Parse buf.yaml to get dependencies
-    const bufYamlPath = pathModule.join(bufYamlDir, 'buf.yaml');
-    const bufYamlContent = fs.readFileSync(bufYamlPath, 'utf-8');
+    const bufYamlPath = path.join(bufYamlDir, 'buf.yaml');
+    const bufYamlContent = await readFile(bufYamlPath);
 
     // Simple YAML parsing for deps array
     const depsMatch = bufYamlContent.match(/^deps:\s*\n((?:\s+-\s+.+\n?)+)/m);
@@ -481,7 +477,7 @@ breaking:
     terminal.sendText(`cd "${bufYamlDir}" && rm -rf ${outputDir} && ${exportCommands}`);
 
     // Check if the path is already in protobuf.includes
-    const absoluteOutputPath = pathModule.join(bufYamlDir, outputDir);
+    const absoluteOutputPath = path.join(bufYamlDir, outputDir);
     const workspaceFolderPath = workspaceFolder.uri.fsPath;
     const currentIncludes: string[] = vscode.workspace.getConfiguration('protobuf').get('includes') || [];
 
@@ -747,19 +743,16 @@ breaking:
  * Run buf generate for a proto file
  */
 async function runBufGenerate(uri: vscode.Uri, outputChannel: vscode.OutputChannel): Promise<void> {
-  const fs = await import('fs');
-  const pathModule = await import('path');
-
   // Find buf.yaml in the file's directory hierarchy
-  let currentDir = pathModule.dirname(uri.fsPath);
+  let currentDir = path.dirname(uri.fsPath);
   let bufYamlDir: string | null = null;
 
-  while (currentDir !== pathModule.dirname(currentDir)) {
-    if (fs.existsSync(pathModule.join(currentDir, 'buf.yaml'))) {
+  while (currentDir !== path.dirname(currentDir)) {
+    if (await fileExists(path.join(currentDir, 'buf.yaml'))) {
       bufYamlDir = currentDir;
       break;
     }
-    currentDir = pathModule.dirname(currentDir);
+    currentDir = path.dirname(currentDir);
   }
 
   if (!bufYamlDir) {
@@ -768,8 +761,8 @@ async function runBufGenerate(uri: vscode.Uri, outputChannel: vscode.OutputChann
   }
 
   // Check if buf.gen.yaml exists
-  const bufGenPath = pathModule.join(bufYamlDir, 'buf.gen.yaml');
-  if (!fs.existsSync(bufGenPath)) {
+  const bufGenPath = path.join(bufYamlDir, 'buf.gen.yaml');
+  if (!(await fileExists(bufGenPath))) {
     outputChannel.appendLine('No buf.gen.yaml found, skipping buf generate');
     return;
   }
@@ -848,8 +841,6 @@ async function fixEditionsErrors(
   errors: Array<{filePath: string; line: number; fieldName: string; label: 'optional' | 'required'}>,
   outputChannel: vscode.OutputChannel
 ): Promise<void> {
-  const fs = await import('fs');
-
   // Group errors by file
   const errorsByFile = new Map<string, Array<{line: number; fieldName: string; label: 'optional' | 'required'}>>();
 
@@ -862,12 +853,12 @@ async function fixEditionsErrors(
   for (const [filePath, fileErrors] of errorsByFile) {
     try {
       // Check if file exists
-      if (!fs.existsSync(filePath)) {
+      if (!(await fileExists(filePath))) {
         outputChannel.appendLine(`  ERROR: File not found: ${filePath}`);
         throw new Error(`File not found: ${filePath}`);
       }
 
-      let content = fs.readFileSync(filePath, 'utf-8');
+      let content = await readFile(filePath);
       const originalContent = content;
       const lines = content.split('\n');
       outputChannel.appendLine(`  Reading ${filePath} (${lines.length} lines)`);
@@ -909,7 +900,7 @@ async function fixEditionsErrors(
       if (fixCount > 0) {
         content = lines.join('\n');
         if (content !== originalContent) {
-          fs.writeFileSync(filePath, content, 'utf-8');
+          await writeFile(filePath, content);
           outputChannel.appendLine(`  Saved: ${filePath} (${fixCount} fixes applied)`);
         } else {
           outputChannel.appendLine(`  WARNING: No changes detected in ${filePath}`);

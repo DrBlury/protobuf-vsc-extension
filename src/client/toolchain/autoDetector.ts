@@ -5,9 +5,12 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
 import * as os from 'os';
 import { spawn } from 'child_process';
+import { fileExists } from '../utils/fsUtils';
+// Note: We still need Node.js fs for low-level shebang reading (only reads first 256 bytes)
+// which VS Code's abstract filesystem doesn't support efficiently
+import * as fs from 'fs';
 
 export interface DetectedTool {
   name: string;
@@ -186,38 +189,38 @@ export class AutoDetector {
         const rootPath = folder.uri.fsPath;
 
         if (!bufYamlFound && (
-          fs.existsSync(path.join(rootPath, 'buf.yaml')) ||
-          fs.existsSync(path.join(rootPath, 'buf.yml'))
+          await fileExists(path.join(rootPath, 'buf.yaml')) ||
+          await fileExists(path.join(rootPath, 'buf.yml'))
         )) {
           bufYamlFound = true;
         }
 
         if (!bufWorkYamlFound && (
-          fs.existsSync(path.join(rootPath, 'buf.work.yaml')) ||
-          fs.existsSync(path.join(rootPath, 'buf.work.yml'))
+          await fileExists(path.join(rootPath, 'buf.work.yaml')) ||
+          await fileExists(path.join(rootPath, 'buf.work.yml'))
         )) {
           bufWorkYamlFound = true;
         }
 
         if (!protolintConfigFound && (
-          fs.existsSync(path.join(rootPath, '.protolint.yaml')) ||
-          fs.existsSync(path.join(rootPath, '.protolint.yml'))
+          await fileExists(path.join(rootPath, '.protolint.yaml')) ||
+          await fileExists(path.join(rootPath, '.protolint.yml'))
         )) {
           protolintConfigFound = true;
         }
 
         if (!apiLinterConfigFound && (
-          fs.existsSync(path.join(rootPath, 'api-linter.yaml')) ||
-          fs.existsSync(path.join(rootPath, 'api-linter.yml')) ||
-          fs.existsSync(path.join(rootPath, '.api-linter.yaml')) ||
-          fs.existsSync(path.join(rootPath, '.api-linter.yml'))
+          await fileExists(path.join(rootPath, 'api-linter.yaml')) ||
+          await fileExists(path.join(rootPath, 'api-linter.yml')) ||
+          await fileExists(path.join(rootPath, '.api-linter.yaml')) ||
+          await fileExists(path.join(rootPath, '.api-linter.yml'))
         )) {
           apiLinterConfigFound = true;
         }
 
         if (!clangFormatConfigFound && (
-          fs.existsSync(path.join(rootPath, '.clang-format')) ||
-          fs.existsSync(path.join(rootPath, '_clang-format'))
+          await fileExists(path.join(rootPath, '.clang-format')) ||
+          await fileExists(path.join(rootPath, '_clang-format'))
         )) {
           clangFormatConfigFound = true;
         }
@@ -261,7 +264,7 @@ export class AutoDetector {
 
     // 1. Check managed version (installed by extension)
     const managedPath = path.join(this.globalStoragePath, 'bin', binaryName);
-    if (fs.existsSync(managedPath)) {
+    if (await fileExists(managedPath)) {
       const version = await this.getVersion(managedPath, versionFlag);
       if (version) {
         return { name, path: managedPath, version };
@@ -271,7 +274,7 @@ export class AutoDetector {
     // 2. Check common installation paths
     for (const dir of getCommonPaths()) {
       const fullPath = path.join(dir, binaryName);
-      if (fs.existsSync(fullPath)) {
+      if (await fileExists(fullPath)) {
         const version = await this.getVersion(fullPath, versionFlag);
         if (version) {
           return { name, path: fullPath, version };

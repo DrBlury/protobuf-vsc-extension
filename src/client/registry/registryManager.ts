@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
 import { spawn } from 'child_process';
+import { fileExists, readFile, writeFile } from '../utils/fsUtils';
 
 export class RegistryManager {
   private outputChannel: vscode.OutputChannel;
@@ -29,7 +29,7 @@ export class RegistryManager {
     const rootPath = workspaceFolders[0]!.uri.fsPath;
     const bufYamlPath = path.join(rootPath, 'buf.yaml');
 
-    if (!fs.existsSync(bufYamlPath)) {
+    if (!(await fileExists(bufYamlPath))) {
       const create = await vscode.window.showInformationMessage(
         'buf.yaml not found. Create one?',
         'Yes', 'No'
@@ -45,7 +45,7 @@ export class RegistryManager {
     // We can try `buf dep update` but that updates deps, doesn't add them.
     // We need to edit buf.yaml.
     try {
-        const content = fs.readFileSync(bufYamlPath, 'utf-8');
+        const content = await readFile(bufYamlPath);
         // Simple regex-based insertion if we don't want to depend on a yaml parser library
         // Look for 'deps:'
         let newContent = content;
@@ -67,7 +67,7 @@ export class RegistryManager {
             newContent = content + `\ndeps:\n  - ${moduleName}\n`;
         }
 
-        fs.writeFileSync(bufYamlPath, newContent);
+        await writeFile(bufYamlPath, newContent);
         this.outputChannel.appendLine(`Added ${moduleName} to buf.yaml`);
 
         // Run update

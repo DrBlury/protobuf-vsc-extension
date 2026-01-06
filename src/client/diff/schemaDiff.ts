@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
 import * as os from 'os';
 import { spawn } from 'child_process';
+import { writeFile } from '../utils/fsUtils';
 
 export class SchemaDiffManager {
   constructor(_outputChannel: vscode.OutputChannel) {
@@ -38,7 +38,7 @@ export class SchemaDiffManager {
         // Create a temp file for the old content
         const tmpDir = os.tmpdir();
         const tmpPath = path.join(tmpDir, `${path.basename(targetUri.fsPath)}.${gitRef.replace(/\//g, '_')}.proto`);
-        fs.writeFileSync(tmpPath, fileContent);
+        await writeFile(tmpPath, fileContent);
 
         // Open VS Code diff view
         const tmpUri = vscode.Uri.file(tmpPath);

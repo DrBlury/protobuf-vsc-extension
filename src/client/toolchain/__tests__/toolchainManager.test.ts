@@ -85,7 +85,17 @@ jest.mock('vscode', () => {
   };
 }, { virtual: true });
 
-// Mock fs
+// Mock fsUtils for async operations
+const mockFileExists = jest.fn();
+const mockCreateDirectory = jest.fn();
+const mockReadDirectory = jest.fn();
+jest.mock('../../utils/fsUtils', () => ({
+  fileExists: (...args: unknown[]) => mockFileExists(...args),
+  createDirectory: (...args: unknown[]) => mockCreateDirectory(...args),
+  readDirectory: (...args: unknown[]) => mockReadDirectory(...args),
+}));
+
+// Mock fs for streaming downloads and chmod (still needed for Node.js operations)
 const mockFsExistsSync = jest.fn();
 const mockFsMkdirSync = jest.fn();
 jest.mock('fs', () => ({
@@ -93,6 +103,7 @@ jest.mock('fs', () => ({
   mkdirSync: (...args: unknown[]) => mockFsMkdirSync(...args),
   readdirSync: jest.fn(() => []),
   unlinkSync: jest.fn(),
+  unlink: jest.fn(),
   chmodSync: jest.fn(),
   createWriteStream: jest.fn(() => ({
     on: jest.fn(),
@@ -129,7 +140,11 @@ describe('ToolchainManager', () => {
       subscriptions: { push: jest.fn() },
     };
 
-    // Default: bin directory doesn't exist yet
+    // Default: bin directory doesn't exist yet (for async fsUtils)
+    mockFileExists.mockResolvedValue(false);
+    mockCreateDirectory.mockResolvedValue(undefined);
+    mockReadDirectory.mockResolvedValue([]);
+    // Default: bin directory doesn't exist yet (for sync fs)
     mockFsExistsSync.mockReturnValue(false);
   });
 
@@ -137,7 +152,7 @@ describe('ToolchainManager', () => {
     it('should detect protoc in common macOS paths', async () => {
       // Simulate protoc exists at /opt/homebrew/bin/protoc
       const homebrewProtocPath = path.join(getHomebrewBin(), 'protoc');
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         if (p === homebrewProtocPath) {
           return true;
         }
@@ -162,7 +177,7 @@ describe('ToolchainManager', () => {
 
     it('should detect protoc via shell PATH fallback', async () => {
       // Simulate no file exists at common paths
-      mockFsExistsSync.mockReturnValue(false);
+      mockFileExists.mockResolvedValue(false);
 
       // First spawn fails (ENOENT), second with shell succeeds
       const failProcess = createMockProcess('', '', 1, new Error('ENOENT'));
@@ -187,7 +202,7 @@ describe('ToolchainManager', () => {
       const managedBinPath = path.join(getTestGlobalStorage(), 'bin');
       const managedProtocPath = path.join(managedBinPath, getExeName('protoc'));
 
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         if (p === managedProtocPath) {
           return true;
         }
@@ -205,11 +220,11 @@ describe('ToolchainManager', () => {
 
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      expect(mockFsExistsSync).toHaveBeenCalledWith(managedProtocPath);
+      expect(mockFileExists).toHaveBeenCalledWith(managedProtocPath);
     });
 
     it('should handle tool not found gracefully', async () => {
-      mockFsExistsSync.mockReturnValue(false);
+      mockFileExists.mockResolvedValue(false);
 
       // Spawn always fails
       const failProcess = createMockProcess('', 'command not found', 127, new Error('ENOENT'));
@@ -230,7 +245,7 @@ describe('ToolchainManager', () => {
       const homebrewProtocPath = path.join(getHomebrewBin(), 'protoc');
       const homebrewBufPath = path.join(getHomebrewBin(), 'buf');
 
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         if (p === homebrewProtocPath) {
           return true;
         }
@@ -259,7 +274,7 @@ describe('ToolchainManager', () => {
     });
 
     it('should show info icon when no tools detected', async () => {
-      mockFsExistsSync.mockReturnValue(false);
+      mockFileExists.mockResolvedValue(false);
       const failProcess = createMockProcess('', '', 1, new Error('ENOENT'));
       mockSpawn.mockReturnValue(failProcess);
 
@@ -275,7 +290,7 @@ describe('ToolchainManager', () => {
     it('should not show warning for "missing" optional tools', async () => {
       // Even if tools are not detected, no warning should appear
       // because tools are optional
-      mockFsExistsSync.mockReturnValue(false);
+      mockFileExists.mockResolvedValue(false);
       const failProcess = createMockProcess('', '', 1, new Error('ENOENT'));
       mockSpawn.mockReturnValue(failProcess);
 
@@ -292,7 +307,7 @@ describe('ToolchainManager', () => {
   describe('Manage Toolchain Menu', () => {
     it('should show "Install" option for each tool when not detected', async () => {
       const vscode = await import('vscode');
-      mockFsExistsSync.mockReturnValue(false);
+      mockFileExists.mockResolvedValue(false);
       const failProcess = createMockProcess('', '', 1, new Error('ENOENT'));
       mockSpawn.mockReturnValue(failProcess);
 
@@ -324,7 +339,7 @@ describe('ToolchainManager', () => {
       const homebrewProtocPath = path.join(getHomebrewBin(), 'protoc');
       const homebrewBufPath = path.join(getHomebrewBin(), 'buf');
 
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         if (p === homebrewProtocPath) {
           return true;
         }
@@ -366,7 +381,7 @@ describe('ToolchainManager', () => {
       const homebrewBufPath = path.join(getHomebrewBin(), 'buf');
 
       // System tools exist AND managed tools exist
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         // Managed tools exist
         if (p === path.join(managedPath, 'protoc')) {
           return true;
@@ -412,7 +427,7 @@ describe('ToolchainManager', () => {
       const vscode = await import('vscode');
       const managedPath = path.join(getTestGlobalStorage(), 'bin');
 
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         // Only managed tools exist
         if (p === path.join(managedPath, getExeName('protoc'))) {
           return true;
@@ -454,7 +469,7 @@ describe('ToolchainManager', () => {
     it('should always show "Re-detect Tools" option', async () => {
       const vscode = await import('vscode');
 
-      mockFsExistsSync.mockReturnValue(false);
+      mockFileExists.mockResolvedValue(false);
       const failProcess = createMockProcess('', '', 1, new Error('ENOENT'));
       mockSpawn.mockReturnValue(failProcess);
 
@@ -481,7 +496,7 @@ describe('ToolchainManager', () => {
       const _vscode = await import('vscode');
       const https = await import('https');
 
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         if (p.includes('global-storage/bin')) {
           return true;
         }
