@@ -787,6 +787,11 @@
         "command": "protobuf.suggestDependencies",
         "title": "Suggest Dependencies for Unresolved Imports",
         "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.showDocumentation",
+        "title": "Show Documentation Preview",
+        "category": "Protobuf"
       }
     ],
     "customEditors": [
@@ -864,6 +869,10 @@
         },
         {
           "command": "protobuf.showAvailableLintRules"
+        },
+        {
+          "command": "protobuf.showDocumentation",
+          "when": "resourceLangId == proto"
         }
       ]
     },

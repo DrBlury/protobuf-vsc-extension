@@ -92,6 +92,7 @@ interface Token {
   value: string;
   range: Range;
   comment?: string;
+  trailingComment?: string;
 }
 
 export class ProtoParser {
@@ -158,8 +159,11 @@ export class ProtoParser {
     let character = 0;
     let i = 0;
 
-    // Comment buffer for attaching to next token
+    // Comment buffer for attaching to next token (leading comments)
     let pendingComment: string[] = [];
+    // Track the last token on the current line for trailing comments
+    let lastTokenOnLine: number = -1;
+    let lastTokenLine: number = -1;
 
     while (i < text.length) {
       const startLine = line;
@@ -170,6 +174,8 @@ export class ProtoParser {
         if (text[i]! === '\n') {
           line++;
           character = 0;
+          // Reset line tracking on newline
+          lastTokenOnLine = -1;
         } else {
           character++;
         }
@@ -186,7 +192,20 @@ export class ProtoParser {
         }
         // Capture comment content
         const commentContent = text.slice(start + 2, i).trim();
-        pendingComment.push(commentContent);
+
+        // Check if this is a trailing comment (token exists on same line before this comment)
+        if (lastTokenOnLine >= 0 && lastTokenLine === startLine && tokens[lastTokenOnLine]) {
+          // This is a trailing comment - attach to the previous token
+          const prevToken = tokens[lastTokenOnLine]!;
+          if (prevToken.trailingComment) {
+            prevToken.trailingComment += '\n' + commentContent;
+          } else {
+            prevToken.trailingComment = commentContent;
+          }
+        } else {
+          // This is a leading comment for the next token
+          pendingComment.push(commentContent);
+        }
         continue;
       }
 
@@ -211,7 +230,18 @@ export class ProtoParser {
             .map(l => l.replace(/^\s*\*\s?/, '').trim())
             .join('\n')
             .trim();
-        pendingComment.push(commentContent);
+
+        // Check if this is a trailing comment (same logic as single-line)
+        if (lastTokenOnLine >= 0 && lastTokenLine === startLine && tokens[lastTokenOnLine]) {
+          const prevToken = tokens[lastTokenOnLine]!;
+          if (prevToken.trailingComment) {
+            prevToken.trailingComment += '\n' + commentContent;
+          } else {
+            prevToken.trailingComment = commentContent;
+          }
+        } else {
+          pendingComment.push(commentContent);
+        }
 
         i += 2;
         character += 2;
@@ -253,6 +283,8 @@ export class ProtoParser {
           range: { start: { line: startLine, character: startChar }, end: { line, character } },
           comment
         });
+        lastTokenOnLine = tokens.length - 1;
+        lastTokenLine = line;
         continue;
       }
 
@@ -299,6 +331,8 @@ export class ProtoParser {
           range: { start: { line: startLine, character: startChar }, end: { line, character } },
           comment
         });
+        lastTokenOnLine = tokens.length - 1;
+        lastTokenLine = line;
         continue;
       }
 
@@ -316,6 +350,8 @@ export class ProtoParser {
           range: { start: { line: startLine, character: startChar }, end: { line, character } },
           comment
         });
+        lastTokenOnLine = tokens.length - 1;
+        lastTokenLine = line;
         continue;
       }
 
@@ -328,6 +364,8 @@ export class ProtoParser {
           range: { start: { line: startLine, character: startChar }, end: { line, character: character + 1 } },
           comment // Attaching comment to punctuation is rare but possible if it's the only thing left
         });
+        lastTokenOnLine = tokens.length - 1;
+        lastTokenLine = line;
         i++;
         character++;
         continue;
@@ -422,6 +460,9 @@ export class ProtoParser {
   private attachComment(node: ProtoNode, token: Token) {
       if (token.comment) {
           node.comments = token.comment;
+          // Clear lastComment since we've attached a comment to this node
+          // This prevents the comment from being incorrectly attached to subsequent nodes
+          this.lastComment = undefined;
       } else if (this.lastComment) {
           // If current token doesn't have comment, but previous one did (and we consumed it),
           // use that one. This is a heuristic.
@@ -757,7 +798,7 @@ export class ProtoParser {
     const numberToken = this.expect('number');
 
     const options = this.parseFieldOptions();
-    this.expect('punctuation', ';');
+    const semicolon = this.expect('punctuation', ';');
 
     const node: FieldDefinition = {
       type: 'field',
@@ -772,6 +813,12 @@ export class ProtoParser {
     };
     if (firstToken) {
         this.attachComment(node, firstToken);
+    }
+    // Also check for trailing comment on the semicolon
+    if (semicolon.trailingComment && !node.comments) {
+      node.comments = semicolon.trailingComment;
+    } else if (semicolon.trailingComment && node.comments) {
+      node.comments = node.comments + '\n' + semicolon.trailingComment;
     }
     return node;
   }
@@ -886,7 +933,7 @@ export class ProtoParser {
     this.expect('punctuation', '=');
     const numberToken = this.expect('number');
     this.parseFieldOptions(); // Consume but ignore for map
-    this.expect('punctuation', ';');
+    const semicolon = this.expect('punctuation', ';');
 
     const node: MapFieldDefinition = {
       type: 'map',
@@ -899,6 +946,12 @@ export class ProtoParser {
       range: { start: startToken.range.start, end: numberToken.range.end }
     };
     this.attachComment(node, startToken);
+    // Also check for trailing comment on the semicolon
+    if (semicolon.trailingComment && !node.comments) {
+      node.comments = semicolon.trailingComment;
+    } else if (semicolon.trailingComment && node.comments) {
+      node.comments = node.comments + '\n' + semicolon.trailingComment;
+    }
     return node;
   }
 
@@ -982,7 +1035,7 @@ export class ProtoParser {
     this.expect('punctuation', '=');
     const numberToken = this.advance()!;
     const options = this.parseFieldOptions();
-    this.expect('punctuation', ';');
+    const semicolon = this.expect('punctuation', ';');
 
     const node: EnumValue = {
       type: 'enum_value',
@@ -993,6 +1046,12 @@ export class ProtoParser {
       range: { start: nameToken.range.start, end: numberToken.range.end }
     };
     this.attachComment(node, nameToken);
+    // Also check for trailing comment on the semicolon
+    if (semicolon.trailingComment && !node.comments) {
+      node.comments = semicolon.trailingComment;
+    } else if (semicolon.trailingComment && node.comments) {
+      node.comments = node.comments + '\n' + semicolon.trailingComment;
+    }
     return node;
   }
 
@@ -1091,9 +1150,21 @@ export class ProtoParser {
       }
       const endToken = this.expect('punctuation', '}');
       rpc.range.end = endToken.range.end;
+      // Check for trailing comment on closing brace
+      if (endToken.trailingComment && !rpc.comments) {
+        rpc.comments = endToken.trailingComment;
+      } else if (endToken.trailingComment && rpc.comments) {
+        rpc.comments = rpc.comments + '\n' + endToken.trailingComment;
+      }
     } else {
       const endToken = this.expect('punctuation', ';');
       rpc.range.end = endToken.range.end;
+      // Check for trailing comment on semicolon
+      if (endToken.trailingComment && !rpc.comments) {
+        rpc.comments = endToken.trailingComment;
+      } else if (endToken.trailingComment && rpc.comments) {
+        rpc.comments = rpc.comments + '\n' + endToken.trailingComment;
+      }
     }
 
     return rpc;

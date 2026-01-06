@@ -1103,6 +1103,17 @@ connection.onRequest(REQUEST_METHODS.MIGRATE_TO_PROTO3, (params: { uri: string }
   return providers.migration.convertToProto3(file, document.getText(), params.uri);
 });
 
+// Documentation preview
+connection.onRequest(REQUEST_METHODS.GET_DOCUMENTATION, (params: { uri: string }) => {
+  // Refresh analyzer state for current document to get latest content
+  const document = documents.get(params.uri);
+  if (document) {
+    const file = providers.parser.parse(document.getText(), params.uri);
+    providers.analyzer.updateFile(params.uri, file);
+  }
+  return providers.documentation.getDocumentation(params.uri);
+});
+
 // Start listening
 documents.listen(connection);
 connection.listen();

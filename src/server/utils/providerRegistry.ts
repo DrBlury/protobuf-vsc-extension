@@ -20,6 +20,7 @@ import { CodeLensProvider } from '../providers/codeLens';
 import { DocumentLinksProvider } from '../providers/documentLinks';
 import { SemanticTokensProvider } from '../providers/semanticTokens';
 import { GrpcProvider } from '../providers/grpc';
+import { DocumentationProvider } from '../providers/documentation';
 import { ProtocCompiler } from '../services/protoc';
 import { BreakingChangeDetector } from '../services/breaking';
 import { ExternalLinterProvider } from '../services/externalLinter';
@@ -52,6 +53,7 @@ export class ProviderRegistry {
   public readonly semanticTokens: SemanticTokensProvider;
   public readonly migration: MigrationProvider;
   public readonly grpc: GrpcProvider;
+  public readonly documentation: DocumentationProvider;
 
   // Services
   public readonly protoc: ProtocCompiler;
@@ -89,6 +91,7 @@ export class ProviderRegistry {
     this.semanticTokens = new SemanticTokensProvider(this.analyzer);
     this.migration = new MigrationProvider();
     this.grpc = new GrpcProvider(this.analyzer);
+    this.documentation = new DocumentationProvider(this.analyzer);
   }
 
   /**
