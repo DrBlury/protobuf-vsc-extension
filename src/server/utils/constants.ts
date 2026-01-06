@@ -271,7 +271,8 @@ export const REQUEST_METHODS = {
   GET_GRPC_RPCS_USING_TYPE: 'protobuf/getGrpcRpcsUsingType',
   GENERATE_GRPC_CLIENT_STUB: 'protobuf/generateGrpcClientStub',
   GENERATE_GRPC_SERVER_TEMPLATE: 'protobuf/generateGrpcServerTemplate',
-  GET_GRPC_SERVICE_STATS: 'protobuf/getGrpcServiceStats'
+  GET_GRPC_SERVICE_STATS: 'protobuf/getGrpcServiceStats',
+  GET_DOCUMENTATION: 'protobuf/getDocumentation'
 } as const;
 
 /**
