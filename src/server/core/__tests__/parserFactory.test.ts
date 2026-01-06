@@ -9,6 +9,7 @@ import { ProtoFile } from '../../core/ast';
 // Mock the treeSitterParser module
 jest.mock('../../core/treeSitterParser', () => ({
   isTreeSitterInitialized: jest.fn(() => false),
+  getTreeSitterInitError: jest.fn(() => null),
   TreeSitterProtoParser: jest.fn().mockImplementation(() => ({
     parse: jest.fn().mockReturnValue({
       type: 'file',
@@ -20,7 +21,13 @@ jest.mock('../../core/treeSitterParser', () => ({
       services: [],
       extends: []
     })
-  }))
+  })),
+  TreeSitterInitError: class TreeSitterInitError extends Error {
+    constructor(public errorType: string, message: string) {
+      super(message);
+      this.name = 'TreeSitterInitError';
+    }
+  }
 }));
 
 describe('ParserFactory', () => {

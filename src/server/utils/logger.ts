@@ -227,12 +227,60 @@ export class Logger {
       return message;
     }
     try {
-      return `${message} ${args.map(arg =>
-        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
-      ).join(' ')}`;
+      return `${message} ${args.map(arg => this.formatArg(arg)).join(' ')}`;
     } catch {
       return `${message} [Error formatting arguments]`;
     }
+  }
+
+  /**
+   * Format a single argument for logging
+   * Handles Error objects specially to extract useful information
+   */
+  private formatArg(arg: unknown): string {
+    if (arg === null) {
+      return 'null';
+    }
+    if (arg === undefined) {
+      return 'undefined';
+    }
+    if (arg instanceof Error) {
+      // Extract useful error information
+      const parts: string[] = [arg.name || 'Error'];
+      if (arg.message) {
+        parts.push(arg.message);
+      }
+      if (arg.stack) {
+        // Include first few lines of stack trace
+        const stackLines = arg.stack.split('\n').slice(0, 3).join(' | ');
+        parts.push(`Stack: ${stackLines}`);
+      }
+      // Handle cause if present (ES2022+)
+      if ('cause' in arg && arg.cause) {
+        parts.push(`Cause: ${this.formatArg(arg.cause)}`);
+      }
+      return parts.join(': ');
+    }
+    if (typeof arg === 'object') {
+      try {
+        // Check if it's an empty object
+        const keys = Object.keys(arg);
+        if (keys.length === 0) {
+          // Try to get constructor name for more info
+          const constructorName = (arg as object).constructor?.name;
+          if (constructorName && constructorName !== 'Object') {
+            return `[${constructorName} (empty)]`;
+          }
+          return '[empty object]';
+        }
+        return JSON.stringify(arg);
+      } catch {
+        // Handle circular references or non-serializable objects
+        const constructorName = (arg as object).constructor?.name || 'Object';
+        return `[${constructorName} (non-serializable)]`;
+      }
+    }
+    return String(arg);
   }
 
   /**

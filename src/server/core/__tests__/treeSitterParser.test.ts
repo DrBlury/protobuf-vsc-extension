@@ -2,6 +2,13 @@
  * Tests for treeSitterParser.ts
  */
 
+// Mock fs module before importing the module
+jest.mock('fs', () => ({
+  existsSync: jest.fn().mockReturnValue(true),
+  accessSync: jest.fn(),
+  constants: { R_OK: 4 }
+}));
+
 // We need to mock web-tree-sitter before importing the module
 const mockParse = jest.fn();
 const mockSetLanguage = jest.fn();
@@ -95,6 +102,12 @@ describe('treeSitterParser', () => {
   describe('initTreeSitterParser', () => {
     beforeEach(() => {
       jest.resetModules();
+      // Re-mock fs after resetModules since it clears module state
+      jest.doMock('fs', () => ({
+        existsSync: jest.fn().mockReturnValue(true),
+        accessSync: jest.fn(),
+        constants: { R_OK: 4 }
+      }));
     });
 
     it('should initialize the parser successfully', async () => {
@@ -115,22 +128,46 @@ describe('treeSitterParser', () => {
     });
 
     it('should throw error on initialization failure', async () => {
-      mockLanguageLoad.mockRejectedValueOnce(new Error('Failed to load'));
+      // Mock to always reject (for all retry attempts)
+      mockLanguageLoad.mockRejectedValue(new Error('Failed to load'));
 
       const { initTreeSitterParser } = require('../treeSitterParser');
-      await expect(initTreeSitterParser('/path/to/wasm')).rejects.toThrow('Failed to load');
+      // Pass retryCount: 0 to disable retries for this test
+      await expect(initTreeSitterParser('/path/to/wasm', { retryCount: 0 })).rejects.toThrow('Failed to load');
+
+      // Reset the mock for other tests
+      mockLanguageLoad.mockResolvedValue({});
     });
   });
 
   describe('isTreeSitterInitialized', () => {
+    beforeEach(() => {
+      // Re-mock fs after resetModules
+      jest.doMock('fs', () => ({
+        existsSync: jest.fn().mockReturnValue(true),
+        accessSync: jest.fn(),
+        constants: { R_OK: 4 }
+      }));
+    });
+
     it('should return false before initialization', () => {
       jest.resetModules();
+      jest.doMock('fs', () => ({
+        existsSync: jest.fn().mockReturnValue(true),
+        accessSync: jest.fn(),
+        constants: { R_OK: 4 }
+      }));
       const { isTreeSitterInitialized } = require('../treeSitterParser');
       expect(isTreeSitterInitialized()).toBe(false);
     });
 
     it('should return true after initialization', async () => {
       jest.resetModules();
+      jest.doMock('fs', () => ({
+        existsSync: jest.fn().mockReturnValue(true),
+        accessSync: jest.fn(),
+        constants: { R_OK: 4 }
+      }));
       const { initTreeSitterParser, isTreeSitterInitialized } = require('../treeSitterParser');
       await initTreeSitterParser('/path/to/wasm');
 
@@ -141,6 +178,12 @@ describe('treeSitterParser', () => {
   describe('TreeSitterProtoParser', () => {
     beforeEach(async () => {
       jest.resetModules();
+      // Re-mock fs after resetModules
+      jest.doMock('fs', () => ({
+        existsSync: jest.fn().mockReturnValue(true),
+        accessSync: jest.fn(),
+        constants: { R_OK: 4 }
+      }));
       const { initTreeSitterParser } = require('../treeSitterParser');
       await initTreeSitterParser('/path/to/wasm');
     });
