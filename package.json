@@ -759,6 +759,11 @@
         "category": "Protobuf"
       },
       {
+        "command": "protobuf.openProtovalidatePlayground",
+        "title": "Open Protovalidate Playground",
+        "category": "Protobuf"
+      },
+      {
         "command": "protobuf.addBufDependency",
         "title": "Add Buf Dependency",
         "category": "Protobuf"
