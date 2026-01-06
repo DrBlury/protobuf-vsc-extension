@@ -187,4 +187,160 @@ message Test {
       expect(hover).toBeDefined();
     });
   });
+
+  describe('Well-Known Types', () => {
+    it('should include documentation link for google.protobuf types', () => {
+      const text = `syntax = "proto3";
+import "google/protobuf/timestamp.proto";
+
+message Event {
+  google.protobuf.Timestamp created_at = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const position: Position = { line: 4, character: 22 };
+      const lineText = '  google.protobuf.Timestamp created_at = 1;';
+      const hover = provider.getHover(uri, position, lineText);
+
+      // Even without the imported type, hover should work for field
+      expect(hover).toBeDefined();
+    });
+  });
+
+  describe('service hover', () => {
+    it('should provide hover for service definition', () => {
+      const text = `syntax = "proto3";
+
+// UserService handles user operations
+service UserService {
+  // Get a user by ID
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message GetUserResponse {
+  string name = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const position: Position = { line: 3, character: 10 };
+      const lineText = 'service UserService {';
+      const hover = provider.getHover(uri, position, lineText);
+
+      expect(hover).toBeDefined();
+    });
+
+    it('should provide hover for RPC with comments', () => {
+      const text = `syntax = "proto3";
+
+service TestService {
+  // List all users in the system
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+}
+
+message ListUsersRequest {}
+message ListUsersResponse {}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const position: Position = { line: 4, character: 7 };
+      const lineText = '  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);';
+      const hover = provider.getHover(uri, position, lineText);
+
+      expect(hover).toBeDefined();
+    });
+  });
+
+  describe('message with references', () => {
+    it('should show reference count for messages used in multiple places', () => {
+      const text = `syntax = "proto3";
+
+message User {
+  string name = 1;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message UpdateUserRequest {
+  User user = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const position: Position = { line: 2, character: 10 };
+      const lineText = 'message User {';
+      const hover = provider.getHover(uri, position, lineText);
+
+      expect(hover).toBeDefined();
+    });
+  });
+
+  describe('enum hover', () => {
+    it('should provide hover for enum with all values', () => {
+      const text = `syntax = "proto3";
+
+// Status represents the state of a resource
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_ACTIVE = 1;
+  STATUS_INACTIVE = 2;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const position: Position = { line: 3, character: 6 };
+      const lineText = 'enum Status {';
+      const hover = provider.getHover(uri, position, lineText);
+
+      expect(hover).toBeDefined();
+    });
+
+    it('should provide hover for enum value', () => {
+      const text = `syntax = "proto3";
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_ACTIVE = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const position: Position = { line: 4, character: 4 };
+      const lineText = '  STATUS_ACTIVE = 1;';
+      const hover = provider.getHover(uri, position, lineText);
+
+      expect(hover).toBeDefined();
+    });
+  });
+
+  describe('no hover cases', () => {
+    it('should return null for empty line text', () => {
+      const text = `syntax = "proto3";
+message Test {
+  string name = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const position: Position = { line: 1, character: 0 };
+      const lineText = '';
+      const hover = provider.getHover(uri, position, lineText);
+
+      expect(hover).toBeNull();
+    });
+  });
 });

@@ -518,4 +518,208 @@ message V2Message {}`;
       expect(result).toBeNull();
     });
   });
-});
+
+  describe('findLocalSymbol edge cases (lines 159-214)', () => {
+    it('should find enum value by name', () => {
+      const text = `syntax = "proto3";
+enum Status {
+  STATUS_UNKNOWN = 0;
+  STATUS_ACTIVE = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const position: Position = { line: 3, character: 3 };
+      const lineText = '  STATUS_ACTIVE = 1;';
+      const result = provider.prepareRename(uri, position, lineText);
+
+      expect(result?.placeholder).toBe('STATUS_ACTIVE');
+    });
+
+    it('should find RPC in service', () => {
+      const text = `syntax = "proto3";
+
+message Request {}
+message Response {}
+
+service MyService {
+  rpc DoSomething(Request) returns (Response);
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const position: Position = { line: 6, character: 7 };
+      const lineText = '  rpc DoSomething(Request) returns (Response);';
+      const result = provider.prepareRename(uri, position, lineText);
+
+      expect(result?.placeholder).toBe('DoSomething');
+    });
+
+    it('should find field in nested message', () => {
+      const text = `syntax = "proto3";
+
+message Outer {
+  message Inner {
+    string deep_field = 1;
+  }
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const position: Position = { line: 4, character: 12 };
+      const lineText = '    string deep_field = 1;';
+      const result = provider.prepareRename(uri, position, lineText);
+
+      expect(result?.placeholder).toBe('deep_field');
+    });
+
+    it('should find enum value in nested enum', () => {
+      const text = `syntax = "proto3";
+
+message Outer {
+  enum InnerEnum {
+    INNER_UNKNOWN = 0;
+    INNER_VALUE = 1;
+  }
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const position: Position = { line: 5, character: 5 };
+      const lineText = '    INNER_VALUE = 1;';
+      const result = provider.prepareRename(uri, position, lineText);
+
+      expect(result?.placeholder).toBe('INNER_VALUE');
+    });
+  });
+
+  describe('collectFieldRenames edge cases (lines 288-325)', () => {
+    it('should rename map field', () => {
+      const text = `syntax = "proto3";
+
+message Test {
+  map<string, string> my_map = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const position: Position = { line: 3, character: 23 };
+      const lineText = '  map<string, string> my_map = 1;';
+      const result = provider.rename(uri, position, lineText, 'renamed_map');
+
+      expect(result.changes.size).toBeGreaterThan(0);
+    });
+
+    it('should rename nested enum value', () => {
+      const text = `syntax = "proto3";
+
+message Container {
+  enum Status {
+    STATUS_UNKNOWN = 0;
+    STATUS_OK = 1;
+  }
+  Status status = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const position: Position = { line: 5, character: 5 };
+      const lineText = '    STATUS_OK = 1;';
+      const result = provider.rename(uri, position, lineText, 'STATUS_SUCCESS');
+
+      expect(result.changes.size).toBeGreaterThan(0);
+    });
+
+    it('should rename field inside deeply nested structure', () => {
+      const text = `syntax = "proto3";
+
+message L1 {
+  message L2 {
+    message L3 {
+      string deeply_nested = 1;
+    }
+  }
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const position: Position = { line: 5, character: 14 };
+      const lineText = '      string deeply_nested = 1;';
+      const result = provider.rename(uri, position, lineText, 'very_deep');
+
+      expect(result.changes.size).toBeGreaterThan(0);
+    });
+  });
+
+  describe('containsPosition helper (lines 433-436)', () => {
+    it('should handle position at exact start of range', () => {
+      const text = `syntax = "proto3";
+message Test {
+  string name = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      // Position at very start of message
+      const position: Position = { line: 1, character: 0 };
+      const lineText = 'message Test {';
+      const result = provider.prepareRename(uri, position, lineText);
+
+      // 'message' is a keyword, should return null
+      expect(result).toBeNull();
+    });
+
+    it('should handle position at exact end of range', () => {
+      const text = `syntax = "proto3";
+message Test {
+  string name = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      // Position at end of message name
+      const position: Position = { line: 1, character: 12 };
+      const lineText = 'message Test {';
+      const result = provider.prepareRename(uri, position, lineText);
+
+      expect(result?.placeholder).toBe('Test');
+    });
+
+    it('should handle position outside range (before)', () => {
+      const text = `syntax = "proto3";
+message Test {
+  string name = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      // Position before any message content
+      const position: Position = { line: 0, character: 0 };
+      const lineText = 'syntax = "proto3";';
+      const result = provider.prepareRename(uri, position, lineText);
+
+      // 'syntax' is a keyword
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('renameLocalSymbol with null file (line 237)', () => {
+    it('should return empty changes when file is undefined', () => {
+      // Don't add any file to analyzer
+      const position: Position = { line: 0, character: 8 };
+      const lineText = 'message Test {}';
+      const result = provider.rename('file:///unknown.proto', position, lineText, 'NewName');
+
+      expect(result.changes.size).toBe(0);
+    });
+  });});

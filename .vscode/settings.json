@@ -1,5 +1,8 @@
 {
-  "protobuf.includes": ["${workspaceFolder}/examples/buf/.buf-deps"],
+  "protobuf.includes": [
+    "${workspaceFolder}/examples/buf/.buf-deps",
+    "${workspaceFolder}/examples/regressions/buf-workspace-imports/proto/.buf-deps"
+  ],
   "protobuf.formatter.alignFields": true,
   // Use buf linter instead of protoc
   "protobuf.externalLinter.enabled": true,
