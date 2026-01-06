@@ -218,6 +218,56 @@ describe('DocumentationProvider', () => {
       expect(enumDef.values![2]!.comments).toContain('inactive status');
     });
 
+    it('should not bleed message comment into first field when field has no comment', () => {
+      parseAndUpdate('file:///test.proto', `
+        syntax = "proto3";
+
+        // This is the message description
+        message TestMessage {
+          string no_comment_field = 1;
+          string another_field = 2;
+        }
+      `);
+
+      const doc = docProvider.getDocumentation('file:///test.proto');
+      const message = doc!.messages[0]!;
+
+      // Message should have its comment
+      expect(message.comments).toContain('This is the message description');
+
+      // First field should NOT have the message's comment
+      expect(message.fields![0]!.name).toBe('no_comment_field');
+      expect(message.fields![0]!.comments).toBeUndefined();
+
+      // Second field should also have no comment
+      expect(message.fields![1]!.name).toBe('another_field');
+      expect(message.fields![1]!.comments).toBeUndefined();
+    });
+
+    it('should correctly separate message and field comments when both exist', () => {
+      parseAndUpdate('file:///test.proto', `
+        syntax = "proto3";
+
+        // This is the message description
+        message TestMessage {
+          // First field comment
+          string first_field = 1;
+          // Second field comment
+          string second_field = 2;
+        }
+      `);
+
+      const doc = docProvider.getDocumentation('file:///test.proto');
+      const message = doc!.messages[0]!;
+
+      // Message should only have its own comment
+      expect(message.comments).toBe('This is the message description');
+
+      // Fields should only have their own comments
+      expect(message.fields![0]!.comments).toBe('First field comment');
+      expect(message.fields![1]!.comments).toBe('Second field comment');
+    });
+
     it('should detect deprecated fields', () => {
       parseAndUpdate('file:///test.proto', `
         syntax = "proto3";

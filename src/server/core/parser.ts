@@ -460,6 +460,9 @@ export class ProtoParser {
   private attachComment(node: ProtoNode, token: Token) {
       if (token.comment) {
           node.comments = token.comment;
+          // Clear lastComment since we've attached a comment to this node
+          // This prevents the comment from being incorrectly attached to subsequent nodes
+          this.lastComment = undefined;
       } else if (this.lastComment) {
           // If current token doesn't have comment, but previous one did (and we consumed it),
           // use that one. This is a heuristic.
