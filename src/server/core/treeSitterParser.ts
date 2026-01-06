@@ -5,10 +5,13 @@
  * It provides better error recovery and more robust parsing than the custom parser.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const TreeSitter = require('web-tree-sitter');
-const TreeSitterParser = TreeSitter.Parser;
-type Parser = InstanceType<typeof TreeSitterParser>;
+import * as fs from 'fs';
+import * as path from 'path';
+
+let TreeSitter: unknown = null;
+let TreeSitterParser: unknown = null;
+type Parser = { parse(input: string): Tree | null; setLanguage(lang: unknown): void };
+type Tree = { rootNode: Node };
 type Language = unknown;
 interface Point { row: number; column: number; }
 interface Node {
@@ -51,27 +54,283 @@ import { logger } from '../utils/logger';
 
 let parserInstance: Parser | null = null;
 let initPromise: Promise<void> | null = null;
+let initializationError: Error | null = null;
+let lastWasmPath: string | null = null;
+
+/**
+ * Error types for tree-sitter initialization failures
+ */
+export enum TreeSitterErrorType {
+  MODULE_LOAD_FAILED = 'MODULE_LOAD_FAILED',
+  WASM_PATH_INVALID = 'WASM_PATH_INVALID',
+  WASM_FILE_NOT_FOUND = 'WASM_FILE_NOT_FOUND',
+  WASM_FILE_NOT_READABLE = 'WASM_FILE_NOT_READABLE',
+  TREESITTER_INIT_FAILED = 'TREESITTER_INIT_FAILED',
+  LANGUAGE_LOAD_FAILED = 'LANGUAGE_LOAD_FAILED',
+  PARSER_CREATION_FAILED = 'PARSER_CREATION_FAILED',
+  SET_LANGUAGE_FAILED = 'SET_LANGUAGE_FAILED',
+  UNKNOWN = 'UNKNOWN'
+}
+
+/**
+ * Custom error class for tree-sitter initialization failures
+ */
+export class TreeSitterInitError extends Error {
+  public readonly errorType: TreeSitterErrorType;
+  public readonly originalCause?: Error;
+
+  constructor(
+    errorType: TreeSitterErrorType,
+    message: string,
+    cause?: Error
+  ) {
+    super(message, cause ? { cause } : undefined);
+    this.name = 'TreeSitterInitError';
+    this.errorType = errorType;
+    this.originalCause = cause;
+  }
+}
+
+/**
+ * Load the web-tree-sitter module with error handling
+ */
+function loadTreeSitterModule(): void {
+  if (TreeSitter !== null) {
+    return;
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    TreeSitter = require('web-tree-sitter');
+    TreeSitterParser = (TreeSitter as { Parser: unknown }).Parser;
+    logger.debug('web-tree-sitter module loaded successfully');
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    throw new TreeSitterInitError(
+      TreeSitterErrorType.MODULE_LOAD_FAILED,
+      `Failed to load web-tree-sitter module: ${err.message}. ` +
+      'Ensure web-tree-sitter is installed: npm install web-tree-sitter',
+      err
+    );
+  }
+}
+
+/**
+ * Validate WASM file path and check existence
+ */
+function validateWasmPath(wasmPath: string): void {
+  // Check if path is provided
+  if (!wasmPath || typeof wasmPath !== 'string') {
+    throw new TreeSitterInitError(
+      TreeSitterErrorType.WASM_PATH_INVALID,
+      `WASM path is invalid: ${wasmPath === '' ? '(empty string)' : String(wasmPath)}`
+    );
+  }
+
+  // Normalize the path
+  const normalizedPath = path.normalize(wasmPath);
+
+  // Check if file exists
+  try {
+    if (!fs.existsSync(normalizedPath)) {
+      throw new TreeSitterInitError(
+        TreeSitterErrorType.WASM_FILE_NOT_FOUND,
+        `WASM file not found at path: ${normalizedPath}. ` +
+        'Ensure the tree-sitter grammar was built with: npm run build:tree-sitter'
+      );
+    }
+  } catch (error) {
+    if (error instanceof TreeSitterInitError) {
+      throw error;
+    }
+    const err = error instanceof Error ? error : new Error(String(error));
+    throw new TreeSitterInitError(
+      TreeSitterErrorType.WASM_FILE_NOT_FOUND,
+      `Failed to check WASM file existence at ${normalizedPath}: ${err.message}`,
+      err
+    );
+  }
+
+  // Check if file is readable
+  try {
+    fs.accessSync(normalizedPath, fs.constants.R_OK);
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    throw new TreeSitterInitError(
+      TreeSitterErrorType.WASM_FILE_NOT_READABLE,
+      `WASM file exists but is not readable at ${normalizedPath}: ${err.message}`,
+      err
+    );
+  }
+
+  // Validate file extension
+  if (!normalizedPath.endsWith('.wasm')) {
+    logger.warn(`WASM path does not have .wasm extension: ${normalizedPath}`);
+  }
+
+  logger.debug(`WASM path validated: ${normalizedPath}`);
+}
+
+/**
+ * Reset the parser state (useful for testing or re-initialization)
+ */
+export function resetTreeSitterParser(): void {
+  parserInstance = null;
+  initPromise = null;
+  initializationError = null;
+  lastWasmPath = null;
+  logger.debug('Tree-sitter parser state reset');
+}
+
+/**
+ * Get the last initialization error if any
+ */
+export function getTreeSitterInitError(): Error | null {
+  return initializationError;
+}
 
 /**
  * Initialize the Tree-sitter parser
  * This should be called once at extension activation
+ *
+ * @param wasmPath - Path to the tree-sitter-proto.wasm file
+ * @param options - Optional configuration
+ * @returns Promise that resolves when initialization is complete
+ * @throws TreeSitterInitError if initialization fails
  */
-export async function initTreeSitterParser(wasmPath: string): Promise<void> {
-  if (initPromise) {
+export async function initTreeSitterParser(
+  wasmPath: string,
+  options: { retryCount?: number; retryDelayMs?: number } = {}
+): Promise<void> {
+  const { retryCount = 2, retryDelayMs = 100 } = options;
+
+  // If already initialized with the same path, return immediately
+  if (initPromise && lastWasmPath === wasmPath && !initializationError) {
     return initPromise;
   }
 
+  // If there was a previous error, allow re-initialization
+  if (initializationError) {
+    logger.info('Re-attempting tree-sitter initialization after previous failure');
+    resetTreeSitterParser();
+  }
+
+  lastWasmPath = wasmPath;
+
   initPromise = (async () => {
-    try {
-      await TreeSitterParser.init();
-      parserInstance = new TreeSitterParser();
-      const Proto = await TreeSitter.Language.load(wasmPath) as Language;
-      parserInstance.setLanguage(Proto);
-      logger.info('Tree-sitter parser initialized successfully');
-    } catch (error) {
-      logger.error('Failed to initialize Tree-sitter parser:', error);
-      throw error;
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= retryCount; attempt++) {
+      try {
+        if (attempt > 0) {
+          logger.info(`Tree-sitter initialization retry attempt ${attempt}/${retryCount}`);
+          await new Promise(resolve => setTimeout(resolve, retryDelayMs * attempt));
+        }
+
+        // Step 1: Load the web-tree-sitter module
+        loadTreeSitterModule();
+
+        // Step 2: Validate the WASM path
+        validateWasmPath(wasmPath);
+
+        // Step 3: Initialize TreeSitter
+        try {
+          await (TreeSitterParser as { init(): Promise<void> }).init();
+          logger.debug('TreeSitter.init() completed successfully');
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          throw new TreeSitterInitError(
+            TreeSitterErrorType.TREESITTER_INIT_FAILED,
+            `TreeSitter.init() failed: ${err.message}. ` +
+            'This may indicate a problem with the web-tree-sitter installation or WASM support.',
+            err
+          );
+        }
+
+        // Step 4: Create parser instance
+        try {
+          parserInstance = new (TreeSitterParser as new () => Parser)();
+          if (!parserInstance) {
+            throw new Error('Parser constructor returned null/undefined');
+          }
+          logger.debug('Parser instance created successfully');
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          throw new TreeSitterInitError(
+            TreeSitterErrorType.PARSER_CREATION_FAILED,
+            `Failed to create Parser instance: ${err.message}`,
+            err
+          );
+        }
+
+        // Step 5: Load the language
+        let Proto: Language;
+        try {
+          Proto = await (TreeSitter as { Language: { load(path: string): Promise<Language> } }).Language.load(wasmPath);
+          if (!Proto) {
+            throw new Error('Language.load returned null/undefined');
+          }
+          logger.debug('Proto language loaded successfully');
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          throw new TreeSitterInitError(
+            TreeSitterErrorType.LANGUAGE_LOAD_FAILED,
+            `Failed to load Proto language from ${wasmPath}: ${err.message}. ` +
+            'The WASM file may be corrupted or incompatible. Try rebuilding with: npm run build:tree-sitter',
+            err
+          );
+        }
+
+        // Step 6: Set the language on the parser
+        try {
+          parserInstance.setLanguage(Proto);
+          logger.debug('Parser language set successfully');
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          throw new TreeSitterInitError(
+            TreeSitterErrorType.SET_LANGUAGE_FAILED,
+            `Failed to set parser language: ${err.message}`,
+            err
+          );
+        }
+
+        // Success!
+        initializationError = null;
+        logger.info(`Tree-sitter parser initialized successfully with WASM from: ${wasmPath}`);
+        return;
+
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // Log the error with full details
+        if (error instanceof TreeSitterInitError) {
+          logger.error(
+            `Tree-sitter initialization failed (${error.errorType}): ${error.message}`,
+            error.originalCause || error
+          );
+        } else {
+          logger.error('Tree-sitter initialization failed with unexpected error:', error);
+        }
+
+        // Don't retry on validation errors (they won't succeed)
+        if (error instanceof TreeSitterInitError) {
+          const nonRetryableErrors = [
+            TreeSitterErrorType.WASM_PATH_INVALID,
+            TreeSitterErrorType.WASM_FILE_NOT_FOUND,
+            TreeSitterErrorType.WASM_FILE_NOT_READABLE,
+            TreeSitterErrorType.MODULE_LOAD_FAILED
+          ];
+          if (nonRetryableErrors.includes(error.errorType)) {
+            break;
+          }
+        }
+      }
     }
+
+    // All attempts failed
+    initializationError = lastError;
+    parserInstance = null;
+    throw lastError;
   })();
 
   return initPromise;
