@@ -140,6 +140,18 @@ export class CompletionProvider {
       }
     }
 
+    // Map key type completion (inside map<...>)
+    const mapKeyCompletions = this.getMapKeyTypeCompletions(position, beforeCursor);
+    if (mapKeyCompletions.length > 0) {
+      return mapKeyCompletions;
+    }
+
+    // RPC request/response type completions
+    const rpcTypeCompletions = this.getRpcTypeCompletions(uri, position, beforeCursor, typePrefix);
+    if (rpcTypeCompletions.length > 0) {
+      return rpcTypeCompletions;
+    }
+
     // Import path completion
     if (beforeCursor.includes('import') && beforeCursor.includes('"')) {
       return this.getImportCompletions(uri);
@@ -345,6 +357,7 @@ export class CompletionProvider {
     // Full snippet expansions (message, enum, service, etc.) are handled by snippets/proto.json
     // to avoid duplicate suggestions
     const simpleKeywords = [
+      { label: 'rpc', detail: 'RPC method declaration' },
       { label: 'optional', detail: 'Optional field modifier' },
       { label: 'required', detail: 'Required field modifier (proto2)' },
       { label: 'repeated', detail: 'Repeated field modifier' },
@@ -370,6 +383,66 @@ export class CompletionProvider {
     }
 
     return completions;
+  }
+
+  private getMapKeyTypeCompletions(position: Position, beforeCursor: string): CompletionItem[] {
+    const match = beforeCursor.match(/\bmap<\s*([A-Za-z_][\w.]*)?$/);
+    if (!match) {
+      return [];
+    }
+
+    const partial = match[1] ?? '';
+    const partialLower = partial.toLowerCase();
+    const replaceRange: Range = {
+      start: { line: position.line, character: position.character - partial.length },
+      end: { line: position.line, character: position.character }
+    };
+
+    const keyTypes = [
+      'string',
+      'bool',
+      'int32',
+      'int64',
+      'uint32',
+      'uint64',
+      'sint32',
+      'sint64',
+      'fixed32',
+      'fixed64',
+      'sfixed32',
+      'sfixed64'
+    ];
+
+    return keyTypes
+      .filter(type => partialLower === '' || type.startsWith(partialLower))
+      .map(type => ({
+        label: type,
+        kind: CompletionItemKind.Keyword,
+        detail: 'Map key type',
+        sortText: '0' + type,
+        textEdit: TextEdit.replace(replaceRange, type)
+      }));
+  }
+
+  private getRpcTypeCompletions(
+    uri: string,
+    position: Position,
+    beforeCursor: string,
+    typePrefix?: TypePrefix
+  ): CompletionItem[] {
+    const rpcRequestContext =
+      /\brpc\s+\w+\s*\(\s*(?:stream\s+)?[A-Za-z_][\w.]*$/.test(beforeCursor) ||
+      /\brpc\s+\w+\s*\(\s*(?:stream\s+)?$/.test(beforeCursor);
+    const rpcResponseContext =
+      /\breturns\s*\(\s*(?:stream\s+)?[A-Za-z_][\w.]*$/.test(beforeCursor) ||
+      /\breturns\s*\(\s*(?:stream\s+)?$/.test(beforeCursor);
+
+    if (!rpcRequestContext && !rpcResponseContext) {
+      return [];
+    }
+
+    const completions = this.getTypeCompletions(uri, position, typePrefix);
+    return completions.filter(item => item.kind === CompletionItemKind.Class);
   }
 
   private getFieldNumberCompletions(uri: string, position: Position, documentText?: string): CompletionItem[] {

@@ -1142,7 +1142,7 @@ export class ProtoParser {
     const ranges: ReservedRange[] = [];
     const names: string[] = [];
 
-    while (!this.match('punctuation', ';')) {
+    while (!this.isAtEnd() && !this.match('punctuation', ';')) {
       if (this.match('punctuation', ',')) {
         this.advance();
         continue;
@@ -1187,7 +1187,7 @@ export class ProtoParser {
     const startToken = this.expect('identifier', 'extensions');
     const ranges: ReservedRange[] = [];
 
-    while (!this.match('punctuation', ';')) {
+    while (!this.isAtEnd() && !this.match('punctuation', ';')) {
       if (this.match('punctuation', ',')) {
         this.advance();
         continue;

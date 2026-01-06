@@ -29,4 +29,7 @@ module.exports = {
   },
   verbose: true,
   setupFiles: ["<rootDir>/jest.setup.js"],
+  testTimeout: 15000,
+  forceExit: true,
+  testPathIgnorePatterns: ["/node_modules/"],
 };

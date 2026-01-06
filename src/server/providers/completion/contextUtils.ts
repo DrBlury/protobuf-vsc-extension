@@ -19,9 +19,10 @@ export function isTypeContext(text: string): boolean {
   const typeFragment = '[A-Za-z_][\\w.]*';
 
   const withModifier = new RegExp(`^\\s*(?:optional|required|repeated)\\s+${typeFragment}$`);
+  const modifierOnly = /^\s*(?:optional|required|repeated)\s+$/;
   const bareType = new RegExp(`^\\s*${typeFragment}$`);
 
-  return withModifier.test(text) || bareType.test(text);
+  return withModifier.test(text) || modifierOnly.test(text) || bareType.test(text);
 }
 
 /**
