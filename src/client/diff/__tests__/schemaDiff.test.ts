@@ -32,15 +32,16 @@ import { SchemaDiffManager } from '../schemaDiff';
 /**
  * Helper to flush all pending promises and timers.
  * This ensures async operations complete deterministically.
+ * Uses multiple iterations to handle nested async operations.
  */
 async function flushPromisesAndTimers(): Promise<void> {
-  // Run all pending timers (for mock child process events)
-  jest.runAllTimers();
-  // Flush the microtask queue to let promises resolve
-  await Promise.resolve();
-  // Run any timers that were scheduled by promise handlers
-  jest.runAllTimers();
-  await Promise.resolve();
+  // Multiple rounds to handle nested async operations
+  // Each round runs timers and flushes the promise queue
+  for (let i = 0; i < 10; i++) {
+    jest.runAllTimers();
+    // Use setImmediate (not faked) to properly flush the promise queue
+    await new Promise(resolve => setImmediate(resolve));
+  }
 }
 
 describe('SchemaDiffManager', () => {
@@ -48,8 +49,8 @@ describe('SchemaDiffManager', () => {
   let mockOutputChannel: ReturnType<typeof mockVscode.window.createOutputChannel>;
 
   beforeEach(() => {
-    // Use fake timers for deterministic async behavior
-    jest.useFakeTimers();
+    // Use fake timers but don't fake setImmediate so we can use it to flush promises
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     jest.clearAllMocks();
     jest.resetModules();
     mockWriteFile.mockClear();
