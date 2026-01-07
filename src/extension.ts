@@ -22,6 +22,7 @@ import { DependencySuggestionProvider } from './client/toolchain/dependencySugge
 import { CodegenManager } from './client/codegen/codegenManager';
 import { SchemaDiffManager } from './client/diff/schemaDiff';
 import { PlaygroundManager } from './client/playground/playgroundManager';
+import { ProtovalidatePlaygroundManager, type ProtovalidateRule } from './client/playground/protovalidatePlaygroundManager';
 import { OptionInspectorProvider } from './client/inspector/optionInspector';
 import { RegistryManager } from './client/registry/registryManager';
 import { SaveStateTracker } from './client/formatting/saveState';
@@ -37,6 +38,7 @@ let dependencySuggestionProvider: DependencySuggestionProvider;
 let codegenManager: CodegenManager;
 let schemaDiffManager: SchemaDiffManager;
 let playgroundManager: PlaygroundManager;
+let protovalidatePlaygroundManager: ProtovalidatePlaygroundManager;
 let registryManager: RegistryManager;
 
 // Debounce map for dependency suggestions to avoid multiple prompts
@@ -221,6 +223,12 @@ export async function activate(context: vscode.ExtensionContext) {
   playgroundManager = new PlaygroundManager(context, outputChannel);
   context.subscriptions.push(vscode.commands.registerCommand('protobuf.openPlayground', () => {
     playgroundManager.openPlayground();
+  }));
+
+  // Initialize protovalidate playground manager
+  protovalidatePlaygroundManager = new ProtovalidatePlaygroundManager(context, outputChannel);
+  context.subscriptions.push(vscode.commands.registerCommand('protobuf.openProtovalidatePlayground', (rule?: ProtovalidateRule) => {
+    protovalidatePlaygroundManager.openPlayground(rule);
   }));
 
   // Initialize registry manager

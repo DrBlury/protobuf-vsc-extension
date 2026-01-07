@@ -28,5 +28,5 @@
     "declarationMap": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", ".vscode-test", "**/*.test.ts"]
+  "exclude": ["node_modules", ".vscode-test", "**/*.test.ts", "**/__tests__/**"]
 }

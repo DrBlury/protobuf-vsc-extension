@@ -302,11 +302,139 @@ message ExternalUser {
     analyzer.updateFile(uri2, file2);
 
     const lenses = codeLensProvider.getCodeLenses(uri1, file1);
-    
+
     // Find the lens for Shared message
     const sharedLens = lenses.find(l => l.range.start.line === 3);
     expect(sharedLens).toBeDefined();
     expect(sharedLens?.command?.title).toContain('external');
     expect(sharedLens?.command?.title).toContain('internal');
+  });
+
+  describe('protovalidate code lenses', () => {
+    it('should create code lenses for fields with buf.validate options when import is present', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message User {
+  string email = 1 [(buf.validate.field).string.email = true];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+}`;
+      const uri = 'file:///user.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+
+      // Should have lenses for protovalidate fields
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBeGreaterThan(0);
+    });
+
+    it('should not create protovalidate lenses without buf.validate import', () => {
+      const content = `syntax = "proto3";
+
+message User {
+  string email = 1 [(buf.validate.field).string.email = true];
+}`;
+      const uri = 'file:///user.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBe(0);
+    });
+
+    it('should include rule information in code lens arguments', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message User {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+}`;
+      const uri = 'file:///user.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLens = lenses.find(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+
+      expect(protovalidateLens).toBeDefined();
+      expect(protovalidateLens?.command?.arguments?.[0]).toEqual(
+        expect.objectContaining({
+          fieldName: 'name',
+          messageName: expect.stringContaining('User'),
+          filePath: uri
+        })
+      );
+    });
+
+    it('should detect validate.proto import variant', () => {
+      const content = `syntax = "proto3";
+import "validate/validate.proto";
+
+message Request {
+  int32 count = 1 [(validate.rules).int32.gt = 0];
+}`;
+      const uri = 'file:///request.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBeGreaterThan(0);
+    });
+
+    it('should handle nested messages with protovalidate rules', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message Outer {
+  message Inner {
+    string value = 1 [(buf.validate.field).string.pattern = "^[a-z]+$"];
+  }
+  Inner inner = 1;
+}`;
+      const uri = 'file:///nested.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBeGreaterThan(0);
+    });
+
+    it('should show beaker icon in code lens title', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message User {
+  string email = 1 [(buf.validate.field).string.email = true];
+}`;
+      const uri = 'file:///user.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLens = lenses.find(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+
+      expect(protovalidateLens?.command?.title).toContain('$(beaker)');
+      expect(protovalidateLens?.command?.title).toContain('Protovalidate Playground');
+    });
   });
 });
