@@ -194,6 +194,8 @@ describe('PlaygroundManager', () => {
         mockSpawn.mockReturnValue(mockProc);
 
         const handlerPromise = messageHandler?.({ command: 'listServices', file: '/test/api.proto' });
+        // Flush multiple times to handle all async operations
+        await flushPromisesAndTimers();
         await flushPromisesAndTimers();
         await handlerPromise;
 
