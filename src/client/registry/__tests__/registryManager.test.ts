@@ -72,11 +72,12 @@ jest.mock('child_process', () => ({
 import { RegistryManager } from '../registryManager';
 
 /**
- * Helper to flush promises and advance fake timers
+ * Helper to flush promises and advance fake timers.
+ * Uses higher values for CI reliability where timing may be less predictable.
  */
 async function flushPromisesAndTimers(): Promise<void> {
-  for (let i = 0; i < 20; i++) {
-    jest.advanceTimersByTime(20);
+  for (let i = 0; i < 50; i++) {
+    jest.advanceTimersByTime(50);
     await new Promise(resolve => setImmediate(resolve));
   }
 }

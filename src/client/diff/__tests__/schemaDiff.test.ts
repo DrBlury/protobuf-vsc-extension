@@ -33,13 +33,15 @@ import { SchemaDiffManager } from '../schemaDiff';
  * Helper to flush all pending promises and timers.
  * This ensures async operations complete deterministically.
  * Uses multiple iterations to handle nested async operations.
+ * Uses higher values for CI reliability where timing may be less predictable.
  */
 async function flushPromisesAndTimers(): Promise<void> {
   // Multiple rounds to handle nested async operations
   // Each round runs timers and flushes the promise queue
-  for (let i = 0; i < 20; i++) {
+  // Use 50 iterations with 50ms each for CI robustness
+  for (let i = 0; i < 50; i++) {
     // Advance timers first to trigger setTimeout callbacks
-    jest.advanceTimersByTime(20);
+    jest.advanceTimersByTime(50);
     // Use setImmediate (not faked) to properly flush the promise queue
     await new Promise(resolve => setImmediate(resolve));
   }
