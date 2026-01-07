@@ -90,6 +90,17 @@ jest.mock('child_process', () => ({
   spawn: (...args: unknown[]) => mockSpawn(...args),
 }));
 
+/**
+ * Helper to flush all pending promises and timers.
+ * This ensures async operations complete deterministically.
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    jest.advanceTimersByTime(20);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
+
 describe('AutoDetector', () => {
   let mockContext: {
     globalStorageUri: { fsPath: string };
@@ -97,6 +108,7 @@ describe('AutoDetector', () => {
   };
 
   beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     jest.clearAllMocks();
     jest.resetModules();
     mockConfiguration.clear();
@@ -111,6 +123,10 @@ describe('AutoDetector', () => {
       globalStorageUri: { fsPath: getTestGlobalStorage() },
       subscriptions: { push: jest.fn() },
     };
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('detectTools', () => {
@@ -134,7 +150,9 @@ describe('AutoDetector', () => {
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       expect(result.protoc).toBeDefined();
       expect(result.protoc?.path).toBe(expectedProtocPath);
@@ -156,7 +174,9 @@ describe('AutoDetector', () => {
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       expect(result.bufYamlFound).toBe(true);
     });
@@ -176,7 +196,9 @@ describe('AutoDetector', () => {
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       expect(result.bufWorkYamlFound).toBe(true);
     });
@@ -196,7 +218,9 @@ describe('AutoDetector', () => {
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       expect(result.protolintConfigFound).toBe(true);
     });
@@ -216,7 +240,9 @@ describe('AutoDetector', () => {
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       expect(result.clangFormatConfigFound).toBe(true);
     });
@@ -230,7 +256,9 @@ describe('AutoDetector', () => {
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       // Should return undefined for tools, not throw
       expect(result.protoc).toBeUndefined();
@@ -247,7 +275,9 @@ describe('AutoDetector', () => {
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       expect(result.protoc?.version).toBe('libprotoc 33.0');
     });
@@ -262,7 +292,9 @@ describe('AutoDetector', () => {
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       expect(result.buf?.version).toBe('1.28.1');
     });
@@ -330,10 +362,14 @@ describe('AutoDetector', () => {
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
       // First call
-      await detector.detectAndPrompt();
+      const firstPromise = detector.detectAndPrompt();
+      await flushPromisesAndTimers();
+      await firstPromise;
 
       // Second call should not prompt again
-      await detector.detectAndPrompt();
+      const secondPromise = detector.detectAndPrompt();
+      await flushPromisesAndTimers();
+      await secondPromise;
 
       // showInformationMessage should only be called once at most
       // (or not at all if no suggestions)

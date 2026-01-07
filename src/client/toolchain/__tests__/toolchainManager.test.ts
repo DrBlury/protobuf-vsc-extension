@@ -130,6 +130,16 @@ jest.mock('https', () => ({
   get: jest.fn(),
 }));
 
+/**
+ * Helper to flush promises and advance fake timers
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    jest.advanceTimersByTime(20);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
+
 describe('ToolchainManager', () => {
   let mockContext: {
     globalStorageUri: { fsPath: string };
@@ -139,6 +149,7 @@ describe('ToolchainManager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.resetModules();
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     mockConfiguration.clear();
     mockStatusBarItem.text = '';
     mockStatusBarItem.tooltip = '';
@@ -155,6 +166,10 @@ describe('ToolchainManager', () => {
     mockReadDirectory.mockResolvedValue([]);
     // Default: bin directory doesn't exist yet (for sync fs)
     mockFsExistsSync.mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('Tool Detection', () => {
@@ -178,7 +193,7 @@ describe('ToolchainManager', () => {
       const _manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
       // Wait for async checkTools to complete
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await flushPromisesAndTimers();
 
       // Verify spawn was called with the detected path
       expect(mockSpawn).toHaveBeenCalled();
@@ -201,7 +216,7 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const _manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
       // Should have called spawn multiple times (with and without shell)
       expect(mockSpawn.mock.calls.length).toBeGreaterThanOrEqual(1);
@@ -227,7 +242,7 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const _manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await flushPromisesAndTimers();
 
       expect(mockFileExists).toHaveBeenCalledWith(managedProtocPath);
     });
@@ -242,7 +257,7 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const _manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
       // Should not throw, just log
       expect(mockOutputChannel.appendLine).toHaveBeenCalled();
@@ -276,7 +291,7 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const _manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
       // Status bar should be hidden when tools are detected (no issues to report)
       expect(mockStatusBarItem.hide).toHaveBeenCalled();
@@ -290,7 +305,7 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const _manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
       expect(mockStatusBarItem.text).toContain('Protobuf');
       expect(mockStatusBarItem.show).toHaveBeenCalled();
@@ -305,7 +320,7 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const _manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
       // Should have warning background when no tools detected
       expect(mockStatusBarItem.backgroundColor).toBeDefined();
@@ -323,7 +338,7 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await flushPromisesAndTimers();
 
       // Simulate menu open
       (vscode.window.showQuickPick as jest.Mock).mockResolvedValue(null);
@@ -360,7 +375,7 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
       (vscode.window.showQuickPick as jest.Mock).mockResolvedValue(null);
       await manager.manageToolchain();
@@ -410,7 +425,7 @@ describe('ToolchainManager', () => {
 
       const manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
       (vscode.window.showQuickPick as jest.Mock).mockResolvedValue(null);
       await manager.manageToolchain();
@@ -448,7 +463,7 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
       (vscode.window.showQuickPick as jest.Mock).mockResolvedValue(null);
       await manager.manageToolchain();
@@ -473,7 +488,7 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await flushPromisesAndTimers();
 
       (vscode.window.showQuickPick as jest.Mock).mockResolvedValue(null);
       await manager.manageToolchain();

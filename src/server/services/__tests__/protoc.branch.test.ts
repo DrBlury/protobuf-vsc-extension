@@ -11,12 +11,23 @@ import * as path from 'path';
 jest.mock('child_process');
 jest.mock('fs');
 
+/**
+ * Helper to flush promises and advance fake timers
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    jest.advanceTimersByTime(20);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
+
 describe('ProtocCompiler Branch Coverage', () => {
   let compiler: ProtocCompiler;
   let mockSpawn: jest.MockedFunction<typeof spawn>;
   let mockFs: jest.Mocked<typeof fs>;
 
   beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     compiler = new ProtocCompiler();
     mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
     mockFs = fs as jest.Mocked<typeof fs>;
@@ -28,6 +39,7 @@ describe('ProtocCompiler Branch Coverage', () => {
 
   afterEach(() => {
     compiler.cancelAll();
+    jest.useRealTimers();
   });
 
   describe('isAvailable fallback to shell', () => {
@@ -59,7 +71,9 @@ describe('ProtocCompiler Branch Coverage', () => {
         return successProcess;
       });
 
-      const result = await compiler.isAvailable();
+      const resultPromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(true);
       expect(mockSpawn).toHaveBeenCalledTimes(2);
     });
@@ -78,7 +92,9 @@ describe('ProtocCompiler Branch Coverage', () => {
         return errorProcess;
       });
 
-      const result = await compiler.isAvailable();
+      const resultPromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(false);
     });
   });
@@ -120,7 +136,9 @@ describe('ProtocCompiler Branch Coverage', () => {
         return successProcess;
       });
 
-      const result = await compiler.getVersion();
+      const resultPromise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe('3.21.0');
       expect(mockSpawn).toHaveBeenCalledTimes(2);
     });
@@ -139,7 +157,9 @@ describe('ProtocCompiler Branch Coverage', () => {
         return errorProcess;
       });
 
-      const result = await compiler.getVersion();
+      const resultPromise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBeNull();
     });
 
@@ -172,7 +192,9 @@ describe('ProtocCompiler Branch Coverage', () => {
         return failProcess;
       });
 
-      const result = await compiler.getVersion();
+      const resultPromise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBeNull();
     });
   });
@@ -192,7 +214,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.isAvailable();
+      const availablePromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      await availablePromise;
       expect(mockSpawn).toHaveBeenCalledWith('/path/to/protoc.sh', ['--version'], { shell: true });
     });
 
@@ -210,7 +234,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.isAvailable();
+      const availablePromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      await availablePromise;
       expect(mockSpawn).toHaveBeenCalledWith('protoc.bat', ['--version'], { shell: true });
     });
 
@@ -228,7 +254,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.isAvailable();
+      const availablePromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      await availablePromise;
       expect(mockSpawn).toHaveBeenCalledWith('/path/to/protoc.py', ['--version'], { shell: true });
     });
 
@@ -256,7 +284,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.isAvailable();
+      const availablePromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      await availablePromise;
       expect(mockSpawn).toHaveBeenCalledWith('/path/to/protoc-wrapper', ['--version'], { shell: true });
     });
 
@@ -279,7 +309,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
 
       // Should be called with shell: false for regular executable
       expect(mockSpawn).toHaveBeenCalled();
@@ -304,7 +336,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.isAvailable();
+      const availablePromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      await availablePromise;
       // Should not use shell since file doesn't exist
       expect(mockSpawn).toHaveBeenCalledWith('/nonexistent/protoc', ['--version'], { shell: false });
     });
@@ -328,7 +362,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.isAvailable();
+      const availablePromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      await availablePromise;
       // Should not use shell since file is too small
       expect(mockSpawn).toHaveBeenCalledWith('/path/to/tiny-file', ['--version'], { shell: false });
     });
@@ -352,7 +388,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.isAvailable();
+      const availablePromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      await availablePromise;
       // Should not use shell since fs read failed
       expect(mockSpawn).toHaveBeenCalledWith('/path/to/unreadable', ['--version'], { shell: false });
     });
@@ -380,7 +418,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.isAvailable();
+      const availablePromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      await availablePromise;
       // Should not use shell since no shebang
       expect(mockSpawn).toHaveBeenCalledWith('/path/to/binary', ['--version'], { shell: false });
     });
@@ -406,7 +446,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const args = mockSpawn.mock.calls[0][1] as string[];
@@ -434,7 +476,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
     });
 
@@ -457,7 +501,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
     });
 
@@ -480,7 +526,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       const args = mockSpawn.mock.calls[0][1] as string[];
       const goOutArg = args.find(arg => arg.startsWith('--go_out='));
       expect(goOutArg).toBeDefined();
@@ -528,7 +576,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileAll();
+      const resultPromise = compiler.compileAll();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result.fileCount).toBe(2);
     });
   });
@@ -559,7 +609,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileFile('/workspace/test.proto');
+      const resultPromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result.success).toBe(false);
       // Should include a suggestion about google well-known types
       const suggestion = result.errors.find(e => e.message.includes('Tip:'));
@@ -592,7 +644,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileFile('/workspace/test.proto');
+      const resultPromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result.success).toBe(false);
       const suggestion = result.errors.find(e => e.message.includes('Tip:'));
       expect(suggestion).toBeDefined();
@@ -624,7 +678,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileFile('/workspace/test.proto');
+      const resultPromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result.success).toBe(false);
       const suggestion = result.errors.find(e => e.message.includes('Tip:'));
       expect(suggestion).toBeDefined();
@@ -653,7 +709,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileFile('/workspace/test.proto');
+      const resultPromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result.success).toBe(false);
       const suggestion = result.errors.find(e => e.message.includes('Tip:'));
       expect(suggestion).toBeDefined();
@@ -682,7 +740,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileFile('/workspace/test.proto');
+      const resultPromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result.success).toBe(false);
       const suggestion = result.errors.find(e => e.message.includes('Tip:'));
       expect(suggestion).toBeDefined();
@@ -711,7 +771,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileFile('/workspace/test.proto');
+      const resultPromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       const warningError = result.errors.find(e => e.severity === 'warning');
       expect(warningError).toBeDefined();
     });
@@ -738,7 +800,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileFile('/workspace/test.proto');
+      const resultPromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result.errors.length).toBeGreaterThan(0);
       const error = result.errors.find(e => e.message.includes('Missing semicolon'));
       expect(error).toBeDefined();
@@ -763,7 +827,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.validate('/workspace/test.proto');
+      const resultPromise = compiler.validate('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result.success).toBe(true);
 
       const args = mockSpawn.mock.calls[0][1] as string[];
@@ -791,7 +857,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.validate('/workspace/test.proto');
+      const validatePromise = compiler.validate('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await validatePromise;
 
       const args = mockSpawn.mock.calls[0][1] as string[];
       const protoPathArgs = args.filter(arg => arg.startsWith('--proto_path='));
@@ -819,7 +887,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.validate('/workspace/protos/test.proto');
+      const validatePromise = compiler.validate('/workspace/protos/test.proto');
+      await flushPromisesAndTimers();
+      await validatePromise;
 
       const args = mockSpawn.mock.calls[0][1] as string[];
       const protoPathArgs = args.filter(arg => arg.startsWith('--proto_path='));
@@ -855,7 +925,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileFile('/workspace/test.proto');
+      const resultPromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       // Should have truncation warning
       expect(result.errors.some(e => e.message.includes('truncated'))).toBe(true);
     });
@@ -884,14 +956,16 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileFile('/workspace/test.proto');
+      const resultPromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result.errors.some(e => e.message.includes('truncated'))).toBe(true);
     });
   });
 
   describe('timeout handling', () => {
     it('should timeout and kill process', async () => {
-      jest.useFakeTimers();
+      // Already using fake timers from beforeEach
 
       compiler.updateSettings({ timeout: 100 });
 
@@ -909,6 +983,7 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       // Advance past timeout
       jest.advanceTimersByTime(150);
+      await new Promise(resolve => setImmediate(resolve));
 
       // Simulate close after kill
       const closeCallback = mockProcess.on.mock.calls.find((call: unknown[]) => call[0] === 'close')?.[1];
@@ -920,8 +995,6 @@ describe('ProtocCompiler Branch Coverage', () => {
       expect(result.timedOut).toBe(true);
       expect(result.success).toBe(false);
       expect(mockKill).toHaveBeenCalledWith('SIGTERM');
-
-      jest.useRealTimers();
     });
   });
 
@@ -965,7 +1038,9 @@ describe('ProtocCompiler Branch Coverage', () => {
       mockFs.existsSync.mockReturnValue(true);
       mockFs.unlinkSync.mockReturnValue(undefined);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       // Should have attempted fallback
       expect(mockSpawn.mock.calls.length).toBeGreaterThan(1);
     });
@@ -1056,7 +1131,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
 
       const args = mockSpawn.mock.calls[0][1] as string[];
       expect(args.some(arg => arg.includes(customPath))).toBe(true);
@@ -1090,7 +1167,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
 
       const args = mockSpawn.mock.calls[0][1] as string[];
       // Should have replaced with empty string
@@ -1116,7 +1195,9 @@ describe('ProtocCompiler Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
 
       const args = mockSpawn.mock.calls[0][1] as string[];
       // Config variables are replaced with empty string

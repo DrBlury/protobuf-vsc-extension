@@ -11,6 +11,16 @@ jest.mock('child_process', () => ({
 
 import { CodegenManager } from '../codegenManager';
 
+/**
+ * Helper to flush promises and advance fake timers
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    jest.advanceTimersByTime(20);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
+
 describe('CodegenManager', () => {
   let manager: CodegenManager;
   let mockOutputChannel: ReturnType<typeof mockVscode.window.createOutputChannel>;
@@ -36,10 +46,15 @@ describe('CodegenManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     mockOutputChannel = mockVscode.window.createOutputChannel();
     mockVscode.window.activeTextEditor = undefined;
     mockVscode.workspace.workspaceFolders = [{ uri: { fsPath: '/test/workspace' } }];
     manager = new CodegenManager(mockOutputChannel);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -133,9 +148,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockSpawn).toHaveBeenCalledWith(
           'protoc',
@@ -151,9 +166,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode(providedUri as never);
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode(providedUri as never);
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockSpawn).toHaveBeenCalledWith(
           'protoc',
@@ -170,9 +185,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockOutputChannel.show).toHaveBeenCalledWith(true);
       });
@@ -185,9 +200,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Running: protoc'));
       });
@@ -200,9 +215,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('Generated successfully', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockOutputChannel.appendLine).toHaveBeenCalledWith('Codegen completed successfully.');
         expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith('Codegen completed successfully.');
@@ -216,9 +231,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', 'Error: missing import', 1);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockOutputChannel.appendLine).toHaveBeenCalledWith('Codegen failed with exit code 1.');
         expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
@@ -234,9 +249,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0, new Error('spawn ENOENT'));
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Failed to start process'));
         expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
@@ -252,9 +267,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('stdout output', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockOutputChannel.append).toHaveBeenCalledWith('stdout output');
       });
@@ -267,9 +282,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', 'stderr output', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockOutputChannel.append).toHaveBeenCalledWith('stderr output');
       });
@@ -283,9 +298,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockSpawn).toHaveBeenCalledWith('/custom/path/to/protoc', expect.any(Array), expect.any(Object));
       });
@@ -298,9 +313,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockSpawn).toHaveBeenCalledWith(
           expect.any(String),
@@ -333,9 +348,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockSpawn).toHaveBeenCalledWith(
           'protoc',
@@ -357,9 +372,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockSpawn).toHaveBeenCalledWith(
           'protoc',
@@ -379,9 +394,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockSpawn).toHaveBeenCalledWith(
           'protoc',

@@ -9,12 +9,23 @@ import { logger } from '../../utils/logger';
 
 jest.mock('child_process');
 
+/**
+ * Helper to flush promises and advance fake timers
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    jest.advanceTimersByTime(20);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
+
 describe('ClangFormatProvider', () => {
   let provider: ClangFormatProvider;
   let mockSpawn: jest.MockedFunction<typeof spawn>;
   let warnSpy: jest.SpyInstance;
 
   beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     provider = new ClangFormatProvider();
     mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
     jest.clearAllMocks();
@@ -23,6 +34,7 @@ describe('ClangFormatProvider', () => {
 
   afterEach(() => {
     warnSpy.mockRestore();
+    jest.useRealTimers();
   });
 
   describe('updateSettings', () => {
@@ -58,7 +70,9 @@ describe('ClangFormatProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.isAvailable();
+      const resultPromise = provider.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(true);
     });
 
@@ -75,7 +89,9 @@ describe('ClangFormatProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.isAvailable();
+      const resultPromise = provider.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(false);
     });
   });
@@ -101,7 +117,9 @@ describe('ClangFormatProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.getVersion();
+      const resultPromise = provider.getVersion();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe('14.0.0');
     });
 
@@ -125,7 +143,9 @@ describe('ClangFormatProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.getVersion();
+      const resultPromise = provider.getVersion();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe('clang-format 14.0.0');
     });
 
@@ -142,7 +162,9 @@ describe('ClangFormatProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.getVersion();
+      const resultPromise = provider.getVersion();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBeNull();
     });
   });
@@ -201,7 +223,9 @@ describe('ClangFormatProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.formatDocument('message Test {}');
+      const resultPromise = provider.formatDocument('message Test {}');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result.length).toBeGreaterThan(0);
     });
 
@@ -228,7 +252,9 @@ describe('ClangFormatProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.formatDocument(text);
+      const resultPromise = provider.formatDocument(text);
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toEqual([]);
     });
   });
@@ -267,7 +293,9 @@ describe('ClangFormatProvider', () => {
       // Format range starting at line 1 (second line)
       // In CRLF: "line1\r\n" = 7 bytes, so line 2 starts at offset 7
       const range = Range.create(1, 0, 1, 5);
-      await provider.formatRange(text, range);
+      const formatPromise = provider.formatRange(text, range);
+      await flushPromisesAndTimers();
+      await formatPromise;
 
       const offsetArg = capturedArgs.find(a => a.startsWith('--offset='));
       const lengthArg = capturedArgs.find(a => a.startsWith('--length='));
@@ -304,7 +332,9 @@ describe('ClangFormatProvider', () => {
       // Format range starting at line 1 (second line)
       // In LF: "line1\n" = 6 bytes, so line 2 starts at offset 6
       const range = Range.create(1, 0, 1, 5);
-      await provider.formatRange(text, range);
+      const formatPromise = provider.formatRange(text, range);
+      await flushPromisesAndTimers();
+      await formatPromise;
 
       const offsetArg = capturedArgs.find(a => a.startsWith('--offset='));
       const lengthArg = capturedArgs.find(a => a.startsWith('--length='));
@@ -339,7 +369,9 @@ describe('ClangFormatProvider', () => {
       mockSpawn.mockReturnValue(mockProcess);
 
       const range = Range.create(0, 0, 2, 1);
-      const result = await provider.formatRange(text, range);
+      const resultPromise = provider.formatRange(text, range);
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       // formatRange may return empty array if formatted text equals original
       expect(Array.isArray(result)).toBe(true);
     });
@@ -368,7 +400,9 @@ describe('ClangFormatProvider', () => {
 
       const range = Range.create(0, 0, 2, 1);
       const filePath = '/Users/test/workspace/foo.proto';
-      await provider.formatRange(text, range, filePath);
+      const formatPromise = provider.formatRange(text, range, filePath);
+      await flushPromisesAndTimers();
+      await formatPromise;
 
       // Ensure --assume-filename is set to the provided file path (not default file.proto)
       const assumeArg = capturedArgs.find(a => typeof a === 'string' && a.startsWith('--assume-filename='));
@@ -398,7 +432,9 @@ describe('ClangFormatProvider', () => {
       });
 
       const filePath = '/Users/test/workspace/protos/foo.proto';
-      await provider.formatDocument(text, filePath);
+      const formatPromise = provider.formatDocument(text, filePath);
+      await flushPromisesAndTimers();
+      await formatPromise;
 
       // Ensure cwd is set to the directory containing the file
       expect(capturedOptions).toBeDefined();
@@ -428,7 +464,9 @@ describe('ClangFormatProvider', () => {
       });
 
       const fileUri = 'file:///Users/test/workspace/protos/foo.proto';
-      await provider.formatDocument(text, fileUri);
+      const formatPromise = provider.formatDocument(text, fileUri);
+      await flushPromisesAndTimers();
+      await formatPromise;
 
       // Ensure cwd is set to the directory containing the file
       expect(capturedOptions).toBeDefined();
@@ -462,7 +500,9 @@ describe('ClangFormatProvider', () => {
         return mockProcess;
       });
 
-      await provider.formatDocument(text);
+      const formatPromise = provider.formatDocument(text);
+      await flushPromisesAndTimers();
+      await formatPromise;
 
       // Ensure --style=file:<path> is passed when configPath is set
       const styleArg = capturedArgs.find(a => a.startsWith('--style='));
@@ -496,7 +536,9 @@ describe('ClangFormatProvider', () => {
         return mockProcess;
       });
 
-      await provider.formatDocument(text);
+      const formatPromise = provider.formatDocument(text);
+      await flushPromisesAndTimers();
+      await formatPromise;
 
       // Ensure --style=file is passed without path when configPath is empty
       const styleArg = capturedArgs.find(a => a.startsWith('--style='));
@@ -530,7 +572,9 @@ describe('ClangFormatProvider', () => {
         return mockProcess;
       });
 
-      await provider.formatDocument(text);
+      const formatPromise = provider.formatDocument(text);
+      await flushPromisesAndTimers();
+      await formatPromise;
 
       // When style is not 'file', configPath should be ignored
       const styleArg = capturedArgs.find(a => a.startsWith('--style='));

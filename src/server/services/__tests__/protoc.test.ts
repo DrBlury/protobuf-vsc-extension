@@ -18,11 +18,22 @@ function pathContains(fullPath: string, segment: string): boolean {
   return normalizePath(fullPath).includes(normalizePath(segment));
 }
 
+/**
+ * Helper to flush promises and advance fake timers
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    jest.advanceTimersByTime(20);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
+
 describe('ProtocCompiler', () => {
   let compiler: ProtocCompiler;
   let mockSpawn: jest.MockedFunction<typeof spawn>;
 
   beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     compiler = new ProtocCompiler();
     mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
     jest.clearAllMocks();
@@ -31,6 +42,7 @@ describe('ProtocCompiler', () => {
   afterEach(() => {
     // Clean up any active processes
     compiler.cancelAll();
+    jest.useRealTimers();
   });
 
   describe('updateSettings', () => {
@@ -67,18 +79,24 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.getVersion();
+      const versionPromise1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await versionPromise1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Get version again - should use cache
-      await compiler.getVersion();
+      const versionPromise2 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await versionPromise2;
       expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional call
 
       // Change path - should clear cache
       compiler.updateSettings({ path: '/different/protoc' });
 
       // Next call should spawn again
-      await compiler.getVersion();
+      const versionPromise3 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await versionPromise3;
       expect(mockSpawn).toHaveBeenCalledTimes(2);
     });
   });
@@ -103,7 +121,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.isAvailable();
+      const resultPromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(true);
     });
 
@@ -119,7 +139,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.isAvailable();
+      const resultPromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(false);
     });
 
@@ -135,7 +157,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.isAvailable();
+      const resultPromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(false);
     });
   });
@@ -161,7 +185,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.getVersion();
+      const resultPromise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe('3.20.0');
     });
 
@@ -185,7 +211,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.getVersion();
+      const resultPromise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe('protoc version 3.20.0');
     });
 
@@ -201,7 +229,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.getVersion();
+      const resultPromise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBeNull();
     });
 
@@ -220,7 +250,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.getVersion();
+      const resultPromise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBeNull();
     });
 
@@ -245,12 +277,16 @@ describe('ProtocCompiler', () => {
       mockSpawn.mockReturnValue(mockProcess);
 
       // First call
-      const result1 = await compiler.getVersion();
+      const result1Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result1 = await result1Promise;
       expect(result1).toBe('3.20.0');
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Second call - should use cache
-      const result2 = await compiler.getVersion();
+      const result2Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result2 = await result2Promise;
       expect(result2).toBe('3.20.0');
       expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional spawn
     });
@@ -276,11 +312,15 @@ describe('ProtocCompiler', () => {
       mockSpawn.mockReturnValue(mockProcess);
 
       // First call
-      await compiler.getVersion();
+      const p1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Force refresh
-      await compiler.getVersion(true);
+      const p2 = compiler.getVersion(true);
+      await flushPromisesAndTimers();
+      await p2;
       expect(mockSpawn).toHaveBeenCalledTimes(2);
     });
 
@@ -305,14 +345,18 @@ describe('ProtocCompiler', () => {
       mockSpawn.mockReturnValue(mockProcess);
 
       // First call
-      await compiler.getVersion();
+      const p1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Clear cache
       compiler.clearVersionCache();
 
       // Next call should spawn again
-      await compiler.getVersion();
+      const p2 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p2;
       expect(mockSpawn).toHaveBeenCalledTimes(2);
     });
 
@@ -331,12 +375,16 @@ describe('ProtocCompiler', () => {
       mockSpawn.mockReturnValue(mockProcess);
 
       // First call - should return null
-      const result1 = await compiler.getVersion();
+      const result1Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result1 = await result1Promise;
       expect(result1).toBeNull();
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Second call - should use cached null
-      const result2 = await compiler.getVersion();
+      const result2Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result2 = await result2Promise;
       expect(result2).toBeNull();
       expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional spawn
     });
@@ -362,14 +410,18 @@ describe('ProtocCompiler', () => {
       mockSpawn.mockReturnValue(mockProcess);
 
       // Cache version for default path
-      await compiler.getVersion();
+      const p1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Change to different path
       compiler.updateSettings({ path: '/new/protoc' });
 
       // Should fetch again due to path change
-      await compiler.getVersion();
+      const p2 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p2;
       expect(mockSpawn).toHaveBeenCalledTimes(2);
     });
 
@@ -396,14 +448,18 @@ describe('ProtocCompiler', () => {
       mockSpawn.mockReturnValue(mockProcess);
 
       // Cache version
-      await compiler.getVersion();
+      const p1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Update with same path (should not clear cache)
       compiler.updateSettings({ path: '/my/protoc' });
 
       // Should still use cache
-      await compiler.getVersion();
+      const p2 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p2;
       expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional spawn
     });
 
@@ -428,7 +484,9 @@ describe('ProtocCompiler', () => {
       mockSpawn.mockReturnValue(mockProcess);
 
       // Cache version
-      await compiler.getVersion();
+      const p1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Update unrelated settings
@@ -436,7 +494,9 @@ describe('ProtocCompiler', () => {
       compiler.updateSettings({ options: ['--go_out=gen'] });
 
       // Should still use cache
-      await compiler.getVersion();
+      const p2 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p2;
       expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional spawn
     });
 
@@ -466,12 +526,16 @@ describe('ProtocCompiler', () => {
 
       // Get version for first protoc
       compiler.updateSettings({ path: '/protoc/v3' });
-      const v1 = await compiler.getVersion();
+      const v1Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const v1 = await v1Promise;
       expect(v1).toBe('3.20.0');
 
       // Get version for second protoc (path change clears cache)
       compiler.updateSettings({ path: '/protoc/v4' });
-      const v2 = await compiler.getVersion();
+      const v2Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const v2 = await v2Promise;
       expect(v2).toBe('4.0.0');
 
       expect(mockSpawn).toHaveBeenCalledTimes(2);
@@ -498,14 +562,22 @@ describe('ProtocCompiler', () => {
       mockSpawn.mockReturnValue(mockProcess);
 
       // First call - caches the result
-      const result1 = await compiler.getVersion();
+      const result1Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result1 = await result1Promise;
       expect(result1).toBe('3.20.0');
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Sequential calls after cache is populated should all use cache
-      const result2 = await compiler.getVersion();
-      const result3 = await compiler.getVersion();
-      const result4 = await compiler.getVersion();
+      const result2Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result2 = await result2Promise;
+      const result3Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result3 = await result3Promise;
+      const result4Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result4 = await result4Promise;
 
       expect(result2).toBe('3.20.0');
       expect(result3).toBe('3.20.0');
@@ -536,21 +608,29 @@ describe('ProtocCompiler', () => {
       mockSpawn.mockReturnValue(mockProcess);
 
       // First cycle
-      await compiler.getVersion();
+      const p1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
       compiler.clearVersionCache();
 
       // Second cycle
-      await compiler.getVersion();
+      const p2 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p2;
       expect(mockSpawn).toHaveBeenCalledTimes(2);
       compiler.clearVersionCache();
 
       // Third cycle
-      await compiler.getVersion();
+      const p3 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p3;
       expect(mockSpawn).toHaveBeenCalledTimes(3);
 
       // Verify cache works after clearing
-      await compiler.getVersion();
+      const p4 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p4;
       expect(mockSpawn).toHaveBeenCalledTimes(3); // Should use cache
     });
 
@@ -575,11 +655,15 @@ describe('ProtocCompiler', () => {
       mockSpawn.mockReturnValue(mockProcess);
 
       // First call
-      await compiler.getVersion();
+      const p1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Explicit forceRefresh=false should use cache
-      await compiler.getVersion(false);
+      const p2 = compiler.getVersion(false);
+      await flushPromisesAndTimers();
+      await p2;
       expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional spawn
     });
   });
@@ -604,7 +688,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileFile('test.proto');
+      const resultPromise = compiler.compileFile('test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result.success).toBe(true);
     });
 
@@ -642,7 +728,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/protos/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/protos/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -674,7 +762,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/protos/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/protos/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -710,7 +800,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/protos/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/protos/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -752,7 +844,10 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/protos/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/protos/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
+
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -782,7 +877,10 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
+
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -818,7 +916,10 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileFile('test.proto');
+      const compilePromise = compiler.compileFile('test.proto');
+      await flushPromisesAndTimers();
+      const result = await compilePromise;
+
       expect(result.success).toBe(false);
       expect(result.errors.length).toBeGreaterThanOrEqual(0);
     });
@@ -840,7 +941,10 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('test.proto');
+      const compilePromise = compiler.compileFile('test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
+
       expect(mockSpawn).toHaveBeenCalled();
     });
 
@@ -860,7 +964,10 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('test.proto');
+      const compilePromise = compiler.compileFile('test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
+
       expect(mockSpawn).toHaveBeenCalled();
     });
   });
@@ -883,7 +990,10 @@ describe('ProtocCompiler', () => {
       compiler.updateSettings({ compileAllPath: '/workspace' });
       compiler.setWorkspaceRoot('/workspace');
 
-      const result = await compiler.compileAll();
+      const compilePromise = compiler.compileAll();
+      await flushPromisesAndTimers();
+      const result = await compilePromise;
+
       expect(result).toBeDefined();
     });
 
@@ -918,7 +1028,10 @@ describe('ProtocCompiler', () => {
       compiler.updateSettings({ compileAllPath: '/workspace' });
       compiler.setWorkspaceRoot('/workspace');
 
-      const result = await compiler.compileAll();
+      const compilePromise = compiler.compileAll();
+      await flushPromisesAndTimers();
+      const result = await compilePromise;
+
       expect(result).toBeDefined();
 
       // Verify that spawn was called - either directly or with a response file
@@ -1174,7 +1287,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1204,7 +1319,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1233,7 +1350,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1262,7 +1381,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1291,7 +1412,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1336,7 +1459,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1367,7 +1492,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1395,7 +1522,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1426,7 +1555,9 @@ describe('ProtocCompiler', () => {
       mockSpawn.mockReturnValue(mockProcess);
 
       // File in a path with spaces
-      await compiler.compileFile('/Users/test/Documents/My Project/protos/test.proto');
+      const compilePromise = compiler.compileFile('/Users/test/Documents/My Project/protos/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1458,7 +1589,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1497,7 +1630,9 @@ describe('ProtocCompiler', () => {
 
       // File path with spaces in directory name - the file dir will be added as proto_path
       // but since we're testing the quoting, let's verify proto_path is quoted
-      await compiler.compileFile('/Users/test/Documents/My Project/protos/test.proto');
+      const compilePromise = compiler.compileFile('/Users/test/Documents/My Project/protos/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1529,7 +1664,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1635,7 +1772,9 @@ describe('ProtocCompiler', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileFile('/workspace/test.proto');
+      const resultPromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result.executionTime).toBeDefined();
       expect(result.executionTime).toBeGreaterThanOrEqual(0);
     });

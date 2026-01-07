@@ -8,14 +8,29 @@ import { pathToUri } from '../../utils/utils';
 
 jest.mock('child_process');
 
+/**
+ * Helper to flush promises and advance fake timers
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    jest.advanceTimersByTime(20);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
+
 describe('ExternalLinterProvider', () => {
   let provider: ExternalLinterProvider;
   let mockSpawn: jest.MockedFunction<typeof spawn>;
 
   beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     provider = new ExternalLinterProvider();
     mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('updateSettings', () => {
@@ -64,7 +79,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.isAvailable();
+      const resultPromise = provider.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(true);
     });
 
@@ -81,7 +98,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.isAvailable();
+      const resultPromise = provider.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(false);
     });
 
@@ -98,7 +117,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.isAvailable();
+      const resultPromise = provider.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(true);
     });
 
@@ -115,7 +136,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.isAvailable();
+      const resultPromise = provider.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(true);
     });
   });
@@ -157,7 +180,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.lint('/workspace/test.proto');
+      const resultPromise = provider.lint('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toEqual([]);
     });
 
@@ -178,7 +203,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.lint('/workspace/test.proto');
+      const resultPromise = provider.lint('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toEqual([]);
     });
 
@@ -206,7 +233,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.lint('/workspace/test.proto');
+      const resultPromise = provider.lint('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toEqual([]);
     });
 
@@ -234,7 +263,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.lint('/workspace/test.proto');
+      const resultPromise = provider.lint('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toEqual([]);
     });
 
@@ -266,7 +297,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await provider.lint('/workspace/test.proto');
+      const lintPromise = provider.lint('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await lintPromise;
 
       // Verify api-linter was called with config flag
       expect(mockSpawn).toHaveBeenCalled();
@@ -307,7 +340,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.lintWorkspace();
+      const resultPromise = provider.lintWorkspace();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBeInstanceOf(Map);
     });
   });
@@ -591,7 +626,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.getAvailableRules();
+      const resultPromise = provider.getAvailableRules();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toContain('ENUM_PASCAL_CASE');
       expect(result).toContain('FIELD_LOWER_SNAKE_CASE');
     });
@@ -637,7 +674,9 @@ describe('ExternalLinterProvider', () => {
         }
       });
 
-      const result = await provider.getAvailableRules();
+      const resultPromise = provider.getAvailableRules();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toContain('RULE_ONE');
     });
 
@@ -658,7 +697,9 @@ describe('ExternalLinterProvider', () => {
         return failProcess;
       });
 
-      const result = await provider.getAvailableRules();
+      const resultPromise = provider.getAvailableRules();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toEqual([]);
     });
 
@@ -693,7 +734,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.getAvailableRules();
+      const resultPromise = provider.getAvailableRules();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toContain('core::0140::lower-snake');
       expect(result).toContain('core::0131::request-body');
     });
@@ -721,7 +764,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.getAvailableRules();
+      const resultPromise = provider.getAvailableRules();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toContain('not valid json');
     });
 
@@ -748,7 +793,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.getAvailableRules();
+      const resultPromise = provider.getAvailableRules();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toEqual([]);
     });
 
@@ -793,7 +840,9 @@ describe('ExternalLinterProvider', () => {
         }
       });
 
-      const result = await provider.getAvailableRules();
+      const resultPromise = provider.getAvailableRules();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toContain('core::0140::lower-snake');
     });
 
@@ -838,7 +887,9 @@ describe('ExternalLinterProvider', () => {
         }
       });
 
-      const result = await provider.getAvailableRules();
+      const resultPromise = provider.getAvailableRules();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toEqual([]);
     });
 
@@ -883,7 +934,9 @@ describe('ExternalLinterProvider', () => {
         }
       });
 
-      const result = await provider.getAvailableRules();
+      const resultPromise = provider.getAvailableRules();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toContain('rule1');
       expect(result).toContain('rule2');
     });
@@ -905,7 +958,9 @@ describe('ExternalLinterProvider', () => {
         return failProcess;
       });
 
-      const result = await provider.getAvailableRules();
+      const resultPromise = provider.getAvailableRules();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toEqual([]);
     });
   });
@@ -948,7 +1003,9 @@ describe('ExternalLinterProvider', () => {
         }
       });
 
-      const result = await provider.isAvailable();
+      const resultPromise = provider.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(true);
     });
 
@@ -983,7 +1040,9 @@ describe('ExternalLinterProvider', () => {
         }
       });
 
-      const result = await provider.isAvailable();
+      const resultPromise = provider.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(false);
     });
 
@@ -1002,7 +1061,9 @@ describe('ExternalLinterProvider', () => {
         return failProcess;
       });
 
-      const result = await provider.isAvailable();
+      const resultPromise = provider.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(false);
     });
 
@@ -1020,7 +1081,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.isAvailable();
+      const resultPromise = provider.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(false);
     });
   });
@@ -1069,7 +1132,9 @@ describe('ExternalLinterProvider', () => {
         }
       });
 
-      const result = await provider.lint('/workspace/test.proto');
+      const resultPromise = provider.lint('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toEqual([]);
     });
 
@@ -1091,7 +1156,9 @@ describe('ExternalLinterProvider', () => {
         return failProcess;
       });
 
-      const result = await provider.lint('/workspace/test.proto');
+      const resultPromise = provider.lint('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toEqual([]);
     });
 
@@ -1138,7 +1205,9 @@ describe('ExternalLinterProvider', () => {
         }
       });
 
-      const result = await provider.lint('/workspace/test.proto');
+      const resultPromise = provider.lint('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toEqual([]);
     });
 
@@ -1160,7 +1229,9 @@ describe('ExternalLinterProvider', () => {
         return failProcess;
       });
 
-      const result = await provider.lint('/workspace/test.proto');
+      const resultPromise = provider.lint('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toEqual([]);
     });
 
@@ -1207,7 +1278,9 @@ describe('ExternalLinterProvider', () => {
         }
       });
 
-      const result = await provider.lint('/workspace/test.proto');
+      const resultPromise = provider.lint('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toEqual([]);
     });
 
@@ -1229,7 +1302,9 @@ describe('ExternalLinterProvider', () => {
         return failProcess;
       });
 
-      const result = await provider.lint('/workspace/test.proto');
+      const resultPromise = provider.lint('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toEqual([]);
     });
   });
@@ -1265,7 +1340,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.lintWorkspace();
+      const resultPromise = provider.lintWorkspace();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result.size).toBe(2);
       expect(result.get(pathToUri('/workspace/a.proto'))).toHaveLength(2);
       expect(result.get(pathToUri('/workspace/b.proto'))).toHaveLength(1);
@@ -1295,7 +1372,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.lintWorkspace();
+      const resultPromise = provider.lintWorkspace();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBeInstanceOf(Map);
     });
 
@@ -1323,7 +1402,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.lintWorkspace();
+      const resultPromise = provider.lintWorkspace();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBeInstanceOf(Map);
     });
   });
@@ -1357,7 +1438,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await provider.lint('/workspace/test.proto');
+      const lintPromise = provider.lint('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await lintPromise;
 
       expect(mockSpawn).toHaveBeenCalled();
       const callArgs = mockSpawn.mock.calls[0];
@@ -1393,7 +1476,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await provider.lint('/workspace/project/test.proto');
+      const lintPromise = provider.lint('/workspace/project/test.proto');
+      await flushPromisesAndTimers();
+      await lintPromise;
 
       expect(mockSpawn).toHaveBeenCalled();
       const callArgs = mockSpawn.mock.calls[0];
@@ -1422,7 +1507,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await provider.lint('/workspace/test.proto');
+      const lintPromise = provider.lint('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await lintPromise;
 
       expect(mockSpawn).toHaveBeenCalled();
       const callArgs = mockSpawn.mock.calls[0];
@@ -1461,7 +1548,9 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await provider.lint('/workspace/test.proto');
+      const resultPromise = provider.lint('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toHaveLength(1);
       expect(result[0].message).toBe('Error in test');
     });

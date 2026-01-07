@@ -9,16 +9,31 @@ import { spawn } from 'child_process';
 
 jest.mock('child_process');
 
+/**
+ * Helper to flush promises and advance fake timers
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    jest.advanceTimersByTime(20);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
+
 describe('BreakingChangeDetector Branch Coverage', () => {
   let detector: BreakingChangeDetector;
   let parser: ProtoParser;
   let mockSpawn: jest.MockedFunction<typeof spawn>;
 
   beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     detector = new BreakingChangeDetector();
     parser = new ProtoParser();
     mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('getBaselineFromGit default ref', () => {
@@ -55,7 +70,9 @@ describe('BreakingChangeDetector Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await detector.getBaselineFromGit('/workspace/test.proto');
+      const resultPromise = detector.getBaselineFromGit('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe('syntax = "proto3";');
       // Verify spawn was called with default ref HEAD~1
       expect(mockSpawn).toHaveBeenCalledWith(
@@ -856,7 +873,9 @@ describe('BreakingChangeDetector Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await detector.getBaselineFromGit('/workspace/test.proto');
+      const resultPromise = detector.getBaselineFromGit('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe('syntax = "proto3";');
     });
 
@@ -887,7 +906,9 @@ describe('BreakingChangeDetector Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await detector.getBaselineFromGit('/workspace/test.proto');
+      const resultPromise = detector.getBaselineFromGit('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe('syntax = "proto3";');
     });
   });

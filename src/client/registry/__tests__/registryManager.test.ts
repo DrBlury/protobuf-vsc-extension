@@ -71,11 +71,22 @@ jest.mock('child_process', () => ({
 
 import { RegistryManager } from '../registryManager';
 
+/**
+ * Helper to flush promises and advance fake timers
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    jest.advanceTimersByTime(20);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
+
 describe('RegistryManager', () => {
   let registryManager: RegistryManager;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     mockFileExists.mockReset();
     mockReadFile.mockReset();
     mockWriteFile.mockReset();
@@ -111,6 +122,10 @@ describe('RegistryManager', () => {
     mockSpawn.mockReturnValue(mockProc);
 
     registryManager = new RegistryManager(mockOutputChannel as unknown as vscode.OutputChannel);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -161,7 +176,9 @@ describe('RegistryManager', () => {
       mockVscode.window.showInformationMessage.mockResolvedValue('Yes');
       mockReadFile.mockResolvedValue('version: v1\nname: test\n');
 
-      await registryManager.addDependency();
+      const addPromise = registryManager.addDependency();
+      await flushPromisesAndTimers();
+      await addPromise;
 
       expect(mockSpawn).toHaveBeenCalledWith('buf', ['mod', 'init'], { cwd: '/test/workspace' });
     });
@@ -192,7 +209,9 @@ describe('RegistryManager', () => {
       mockFileExists.mockResolvedValue(true);
       mockReadFile.mockResolvedValue('version: v1\nname: test\n\ndeps:\n  - buf.build/existing/module');
 
-      await registryManager.addDependency();
+      const addPromise = registryManager.addDependency();
+      await flushPromisesAndTimers();
+      await addPromise;
 
       expect(mockWriteFile).toHaveBeenCalledWith(
         '/test/workspace/buf.yaml',
@@ -205,7 +224,9 @@ describe('RegistryManager', () => {
       mockFileExists.mockResolvedValue(true);
       mockReadFile.mockResolvedValue('version: v1\nname: test\n');
 
-      await registryManager.addDependency();
+      const addPromise = registryManager.addDependency();
+      await flushPromisesAndTimers();
+      await addPromise;
 
       expect(mockWriteFile).toHaveBeenCalledWith(
         '/test/workspace/buf.yaml',
@@ -218,7 +239,9 @@ describe('RegistryManager', () => {
       mockFileExists.mockResolvedValue(true);
       mockReadFile.mockResolvedValue('version: v1\nname: test\n\ndeps:\n  - buf.build/existing/module');
 
-      await registryManager.addDependency();
+      const addPromise = registryManager.addDependency();
+      await flushPromisesAndTimers();
+      await addPromise;
 
       const writeCall = mockWriteFile.mock.calls[0];
       if (writeCall) {
@@ -233,7 +256,9 @@ describe('RegistryManager', () => {
       mockFileExists.mockResolvedValue(true);
       mockReadFile.mockResolvedValue('version: v1\nname: test\n');
 
-      await registryManager.addDependency();
+      const addPromise = registryManager.addDependency();
+      await flushPromisesAndTimers();
+      await addPromise;
 
       expect(mockSpawn).toHaveBeenCalledWith('buf', ['dep', 'update'], { cwd: '/test/workspace' });
     });
@@ -243,7 +268,9 @@ describe('RegistryManager', () => {
       mockFileExists.mockResolvedValue(true);
       mockReadFile.mockResolvedValue('version: v1\nname: test\n');
 
-      await registryManager.addDependency();
+      const addPromise = registryManager.addDependency();
+      await flushPromisesAndTimers();
+      await addPromise;
 
       expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith('Added dependency buf.build/new/module');
     });
@@ -253,7 +280,9 @@ describe('RegistryManager', () => {
       mockFileExists.mockResolvedValue(true);
       mockReadFile.mockResolvedValue('version: v1\nname: test\n');
 
-      await registryManager.addDependency();
+      const addPromise = registryManager.addDependency();
+      await flushPromisesAndTimers();
+      await addPromise;
 
       expect(mockOutputChannel.appendLine).toHaveBeenCalledWith('Added buf.build/new/module to buf.yaml');
     });
@@ -282,7 +311,9 @@ describe('RegistryManager', () => {
         return mockProc;
       });
 
-      await registryManager.addDependency();
+      const addPromise = registryManager.addDependency();
+      await flushPromisesAndTimers();
+      await addPromise;
 
       expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
         expect.stringContaining('Failed to add dependency')
@@ -301,7 +332,9 @@ describe('RegistryManager', () => {
         return mockProc;
       });
 
-      await registryManager.addDependency();
+      const addPromise = registryManager.addDependency();
+      await flushPromisesAndTimers();
+      await addPromise;
 
       expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
         expect.stringContaining('Failed to add dependency')
@@ -321,7 +354,9 @@ describe('RegistryManager', () => {
         }),
       });
 
-      await registryManager.addDependency();
+      const addPromise = registryManager.addDependency();
+      await flushPromisesAndTimers();
+      await addPromise;
 
       expect(mockSpawn).toHaveBeenCalledWith('/custom/path/buf', expect.any(Array), expect.any(Object));
     });
@@ -342,7 +377,9 @@ describe('RegistryManager', () => {
         }),
       });
 
-      await registryManager.addDependency();
+      const addPromise = registryManager.addDependency();
+      await flushPromisesAndTimers();
+      await addPromise;
 
       expect(mockSpawn).toHaveBeenCalledWith('/fallback/buf', expect.any(Array), expect.any(Object));
     });
@@ -361,7 +398,9 @@ describe('RegistryManager', () => {
         return mockStdout;
       });
 
-      await registryManager.addDependency();
+      const addPromise = registryManager.addDependency();
+      await flushPromisesAndTimers();
+      await addPromise;
 
       expect(mockOutputChannel.append).toHaveBeenCalledWith('stdout output');
     });
@@ -378,7 +417,9 @@ describe('RegistryManager', () => {
         return mockStderr;
       });
 
-      await registryManager.addDependency();
+      const addPromise = registryManager.addDependency();
+      await flushPromisesAndTimers();
+      await addPromise;
 
       expect(mockOutputChannel.append).toHaveBeenCalledWith('stderr output');
     });
