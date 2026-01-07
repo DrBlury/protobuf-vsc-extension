@@ -75,10 +75,17 @@ const mockVscode = {
   },
   workspace: {
     getConfiguration: jest.fn().mockReturnValue(mockConfiguration),
-    createFileSystemWatcher: jest.fn(),
+    createFileSystemWatcher: jest.fn().mockReturnValue({
+      onDidCreate: jest.fn().mockReturnValue({ dispose: jest.fn() }),
+      onDidChange: jest.fn().mockReturnValue({ dispose: jest.fn() }),
+      onDidDelete: jest.fn().mockReturnValue({ dispose: jest.fn() }),
+      dispose: jest.fn()
+    }),
     onWillSaveTextDocument: jest.fn(),
     onDidSaveTextDocument: jest.fn(),
     onDidCloseTextDocument: jest.fn(),
+    findFiles: jest.fn().mockResolvedValue([]),
+    openTextDocument: jest.fn().mockResolvedValue({ getText: () => '' }),
     workspaceFolders: [
       { uri: { fsPath: '/mock/workspace' }, name: 'workspace' }
     ]

@@ -269,8 +269,8 @@ describe('ToolchainManager', () => {
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Status bar should show versions
-      expect(mockStatusBarItem.show).toHaveBeenCalled();
+      // Status bar should be hidden when tools are detected (no issues to report)
+      expect(mockStatusBarItem.hide).toHaveBeenCalled();
     });
 
     it('should show info icon when no tools detected', async () => {
@@ -287,9 +287,8 @@ describe('ToolchainManager', () => {
       expect(mockStatusBarItem.show).toHaveBeenCalled();
     });
 
-    it('should not show warning for "missing" optional tools', async () => {
-      // Even if tools are not detected, no warning should appear
-      // because tools are optional
+    it('should show warning when no tools detected', async () => {
+      // When no tools are detected, show warning to help user install them
       mockFileExists.mockResolvedValue(false);
       const failProcess = createMockProcess('', '', 1, new Error('ENOENT'));
       mockSpawn.mockReturnValue(failProcess);
@@ -299,8 +298,9 @@ describe('ToolchainManager', () => {
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Should NOT have warning background - tools are optional
-      expect(mockStatusBarItem.backgroundColor).toBeUndefined();
+      // Should have warning background when no tools detected
+      expect(mockStatusBarItem.backgroundColor).toBeDefined();
+      expect(mockStatusBarItem.show).toHaveBeenCalled();
     });
   });
 

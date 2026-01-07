@@ -72,6 +72,13 @@ export function createMockVscode() {
       onDidSaveTextDocument: jest.fn(() => ({ dispose: jest.fn() })),
       onDidChangeTextDocument: jest.fn(() => ({ dispose: jest.fn() })),
       getWorkspaceFolder: jest.fn(),
+      findFiles: jest.fn().mockResolvedValue([]),
+      createFileSystemWatcher: jest.fn(() => ({
+        onDidCreate: jest.fn(() => ({ dispose: jest.fn() })),
+        onDidChange: jest.fn(() => ({ dispose: jest.fn() })),
+        onDidDelete: jest.fn(() => ({ dispose: jest.fn() })),
+        dispose: jest.fn(),
+      })),
       fs: {
         readFile: jest.fn(),
         writeFile: jest.fn(),

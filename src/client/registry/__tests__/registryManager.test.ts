@@ -160,7 +160,7 @@ describe('RegistryManager', () => {
       expect(mockSpawn).toHaveBeenCalledWith(
         'buf',
         ['mod', 'init'],
-        { cwd: '/test/workspace', shell: true }
+        { cwd: '/test/workspace' }
       );
     });
 
@@ -236,7 +236,7 @@ describe('RegistryManager', () => {
       expect(mockSpawn).toHaveBeenCalledWith(
         'buf',
         ['dep', 'update'],
-        { cwd: '/test/workspace', shell: true }
+        { cwd: '/test/workspace' }
       );
     });
 
