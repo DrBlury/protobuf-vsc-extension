@@ -174,7 +174,7 @@ message SingleField {
     analyzer.updateFile(uri, file);
 
     const lenses = codeLensProvider.getCodeLenses(uri, file);
-    
+
     expect(lenses.length).toBeGreaterThan(0);
     // With 1 field, should show "field" (singular)
     expect(lenses[0].command?.title).toContain('1 field');
@@ -191,7 +191,7 @@ enum SingleValue {
     analyzer.updateFile(uri, file);
 
     const lenses = codeLensProvider.getCodeLenses(uri, file);
-    
+
     expect(lenses.length).toBeGreaterThan(0);
     // With 1 value, should show "value" (singular)
     expect(lenses[0].command?.title).toContain('1 value');
@@ -210,7 +210,7 @@ service SingleRpc {
     analyzer.updateFile(uri, file);
 
     const lenses = codeLensProvider.getCodeLenses(uri, file);
-    
+
     // Find the service lens
     const serviceLens = lenses.find(l => l.command?.title?.includes('RPC'));
     expect(serviceLens).toBeDefined();
@@ -235,7 +235,7 @@ message User2 {
     analyzer.updateFile(uri, file);
 
     const lenses = codeLensProvider.getCodeLenses(uri, file);
-    
+
     // Find the lens for ReferencedMessage
     const refLens = lenses.find(l => l.range.start.line === 1);
     expect(refLens).toBeDefined();
@@ -250,7 +250,7 @@ message User2 {
     analyzer.updateFile(uri, file);
 
     const lenses = codeLensProvider.getCodeLenses(uri, file);
-    
+
     expect(lenses).toEqual([]);
   });
 
@@ -265,7 +265,7 @@ message TestMessage {
     analyzer.updateFile(uri, file);
 
     const lenses = codeLensProvider.getCodeLenses(uri, file);
-    
+
     expect(lenses.length).toBeGreaterThan(0);
     expect(lenses[0].command?.command).toBe('protobuf.findReferences');
     expect(lenses[0].command?.arguments).toBeDefined();
