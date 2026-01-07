@@ -37,8 +37,9 @@ import { SchemaDiffManager } from '../schemaDiff';
 async function flushPromisesAndTimers(): Promise<void> {
   // Multiple rounds to handle nested async operations
   // Each round runs timers and flushes the promise queue
-  for (let i = 0; i < 10; i++) {
-    jest.runAllTimers();
+  for (let i = 0; i < 20; i++) {
+    // Advance timers first to trigger setTimeout callbacks
+    jest.advanceTimersByTime(20);
     // Use setImmediate (not faked) to properly flush the promise queue
     await new Promise(resolve => setImmediate(resolve));
   }
