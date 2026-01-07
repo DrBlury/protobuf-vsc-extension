@@ -138,6 +138,7 @@ describe('ToolchainManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.resetModules();
     mockConfiguration.clear();
     mockStatusBarItem.text = '';
     mockStatusBarItem.tooltip = '';
