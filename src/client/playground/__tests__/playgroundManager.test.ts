@@ -33,12 +33,12 @@ jest.mock('path', () => {
 import { PlaygroundManager } from '../playgroundManager';
 
 /**
- * Helper to flush promises and advance fake timers.
- * Uses higher values for CI reliability where timing may be less predictable.
+ * Helper to flush promises and setImmediate callbacks.
+ * Since mock child process uses setImmediate (not faked), we just need to flush the queue.
  */
 async function flushPromisesAndTimers(): Promise<void> {
-  for (let i = 0; i < 50; i++) {
-    jest.advanceTimersByTime(50);
+  // Flush multiple times to handle nested setImmediate calls
+  for (let i = 0; i < 10; i++) {
     await new Promise(resolve => setImmediate(resolve));
   }
 }
@@ -194,8 +194,6 @@ describe('PlaygroundManager', () => {
         mockSpawn.mockReturnValue(mockProc);
 
         const handlerPromise = messageHandler?.({ command: 'listServices', file: '/test/api.proto' });
-        // Flush multiple times to handle all async operations
-        await flushPromisesAndTimers();
         await flushPromisesAndTimers();
         await handlerPromise;
 

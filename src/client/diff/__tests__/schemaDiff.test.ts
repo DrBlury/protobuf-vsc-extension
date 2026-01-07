@@ -30,19 +30,12 @@ jest.mock('child_process', () => ({
 import { SchemaDiffManager } from '../schemaDiff';
 
 /**
- * Helper to flush all pending promises and timers.
- * This ensures async operations complete deterministically.
- * Uses multiple iterations to handle nested async operations.
- * Uses higher values for CI reliability where timing may be less predictable.
+ * Helper to flush promises and setImmediate callbacks.
+ * Since mock child process uses setImmediate (not faked), we just need to flush the queue.
  */
 async function flushPromisesAndTimers(): Promise<void> {
-  // Multiple rounds to handle nested async operations
-  // Each round runs timers and flushes the promise queue
-  // Use 50 iterations with 50ms each for CI robustness
-  for (let i = 0; i < 50; i++) {
-    // Advance timers first to trigger setTimeout callbacks
-    jest.advanceTimersByTime(50);
-    // Use setImmediate (not faked) to properly flush the promise queue
+  // Flush multiple times to handle nested setImmediate calls
+  for (let i = 0; i < 10; i++) {
     await new Promise(resolve => setImmediate(resolve));
   }
 }

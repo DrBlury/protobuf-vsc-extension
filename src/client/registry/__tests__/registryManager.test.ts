@@ -72,12 +72,12 @@ jest.mock('child_process', () => ({
 import { RegistryManager } from '../registryManager';
 
 /**
- * Helper to flush promises and advance fake timers.
- * Uses higher values for CI reliability where timing may be less predictable.
+ * Helper to flush promises and setImmediate callbacks.
+ * Since mock child process uses setImmediate (not faked), we just need to flush the queue.
  */
 async function flushPromisesAndTimers(): Promise<void> {
-  for (let i = 0; i < 50; i++) {
-    jest.advanceTimersByTime(50);
+  // Flush multiple times to handle nested setImmediate calls
+  for (let i = 0; i < 10; i++) {
     await new Promise(resolve => setImmediate(resolve));
   }
 }
@@ -113,7 +113,8 @@ describe('RegistryManager', () => {
 
     mockProc.on.mockImplementation((event: string, callback: (code?: number | Error) => void) => {
       if (event === 'close') {
-        setTimeout(() => callback(0), 0);
+        // Use setImmediate for deterministic behavior (not faked by jest)
+        setImmediate(() => setImmediate(() => callback(0)));
       }
       return mockProc;
     });
@@ -307,7 +308,7 @@ describe('RegistryManager', () => {
 
       mockProc.on.mockImplementation((event: string, callback: (code?: number | Error) => void) => {
         if (event === 'close') {
-          setTimeout(() => callback(1), 0);
+          setImmediate(() => setImmediate(() => callback(1)));
         }
         return mockProc;
       });
@@ -328,7 +329,7 @@ describe('RegistryManager', () => {
 
       mockProc.on.mockImplementation((event: string, callback: (code?: number | Error) => void) => {
         if (event === 'error') {
-          setTimeout(() => callback(new Error('Spawn error')), 0);
+          setImmediate(() => callback(new Error('Spawn error')));
         }
         return mockProc;
       });
@@ -394,7 +395,7 @@ describe('RegistryManager', () => {
 
       mockStdout.on.mockImplementation((event: string, callback: (data: Buffer) => void) => {
         if (event === 'data') {
-          setTimeout(() => callback(Buffer.from('stdout output')), 0);
+          setImmediate(() => callback(Buffer.from('stdout output')));
         }
         return mockStdout;
       });
@@ -413,7 +414,7 @@ describe('RegistryManager', () => {
 
       mockStderr.on.mockImplementation((event: string, callback: (data: Buffer) => void) => {
         if (event === 'data') {
-          setTimeout(() => callback(Buffer.from('stderr output')), 0);
+          setImmediate(() => callback(Buffer.from('stderr output')));
         }
         return mockStderr;
       });

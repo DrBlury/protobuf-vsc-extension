@@ -413,6 +413,8 @@ export function createMockChildProcess(stdout: string = '', stderr: string = '',
   const stderrHandlers: Record<string, ((data: Buffer) => void)[]> = {};
   const procHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};
 
+  // Use setImmediate for callbacks since it's not faked by jest.useFakeTimers({ doNotFake: ['setImmediate'] })
+  // This provides deterministic behavior across all platforms
   return {
     stdout: {
       on: jest.fn((event: string, callback: (data: Buffer) => void) => {
@@ -421,7 +423,7 @@ export function createMockChildProcess(stdout: string = '', stderr: string = '',
         }
         stdoutHandlers[event].push(callback);
         if (event === 'data' && stdout) {
-          setTimeout(() => callback(Buffer.from(stdout)), 5);
+          setImmediate(() => callback(Buffer.from(stdout)));
         }
       }),
     },
@@ -432,7 +434,7 @@ export function createMockChildProcess(stdout: string = '', stderr: string = '',
         }
         stderrHandlers[event].push(callback);
         if (event === 'data' && stderr) {
-          setTimeout(() => callback(Buffer.from(stderr)), 5);
+          setImmediate(() => callback(Buffer.from(stderr)));
         }
       }),
     },
@@ -442,10 +444,11 @@ export function createMockChildProcess(stdout: string = '', stderr: string = '',
       }
       procHandlers[event].push(callback);
       if (event === 'close') {
-        setTimeout(() => callback(exitCode), 10);
+        // Use nested setImmediate to ensure data handlers run first
+        setImmediate(() => setImmediate(() => callback(exitCode)));
       }
       if (event === 'error' && error) {
-        setTimeout(() => callback(error), 5);
+        setImmediate(() => callback(error));
       }
     }),
     kill: jest.fn(),
