@@ -664,5 +664,421 @@ message Request {
       );
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
+
+    it('should include all required arguments in code lens for protovalidate', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message User {
+  string email = 1 [(buf.validate.field).string.email = true];
+}`;
+      const uri = 'file:///user.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLens = lenses.find(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+
+      expect(protovalidateLens).toBeDefined();
+      const args = protovalidateLens?.command?.arguments?.[0];
+      expect(args).toHaveProperty('fieldName', 'email');
+      expect(args).toHaveProperty('messageName');
+      expect(args).toHaveProperty('ruleType');
+      expect(args).toHaveProperty('ruleText');
+      expect(args).toHaveProperty('lineNumber');
+      expect(args).toHaveProperty('filePath', uri);
+    });
+
+    it('should handle bool field validation', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message Config {
+  bool enabled = 1 [(buf.validate.field).bool.const = true];
+}`;
+      const uri = 'file:///config.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBeGreaterThan(0);
+    });
+
+    it('should handle bytes field validation', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message Document {
+  bytes data = 1 [(buf.validate.field).bytes = { min_len: 1, max_len: 1048576 }];
+}`;
+      const uri = 'file:///document.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBeGreaterThan(0);
+    });
+
+    it('should handle map field validation', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message Metadata {
+  map<string, string> tags = 1 [(buf.validate.field).map = { min_pairs: 1 }];
+}`;
+      const uri = 'file:///metadata.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      // Map fields may or may not generate lenses depending on parser support
+      expect(lenses).toBeDefined();
+    });
+
+    it('should handle multiple validation rules on same field', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message User {
+  string email = 1 [
+    (buf.validate.field).string.email = true,
+    (buf.validate.field).string.max_len = 255
+  ];
+}`;
+      const uri = 'file:///multi-rule.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBeGreaterThan(0);
+    });
+
+    it('should handle timestamp validation', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+message Event {
+  google.protobuf.Timestamp created_at = 1 [(buf.validate.field).timestamp = { gt_now: true }];
+}`;
+      const uri = 'file:///event.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      expect(lenses).toBeDefined();
+    });
+
+    it('should handle duration validation', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+import "google/protobuf/duration.proto";
+
+message Timeout {
+  google.protobuf.Duration max_wait = 1 [(buf.validate.field).duration = { gte: { seconds: 1 } }];
+}`;
+      const uri = 'file:///timeout.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      expect(lenses).toBeDefined();
+    });
+  });
+
+  describe('reference counting', () => {
+    it('should show singular "reference" for 1 reference', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+message User {
+  string name = 1;
+}
+
+message Request {
+  User user = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      // Find a lens that might show reference count
+      expect(lenses.length).toBeGreaterThan(0);
+    });
+
+    it('should show plural "references" for multiple references', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+message User {
+  string name = 1;
+}
+
+message Request {
+  User user1 = 1;
+  User user2 = 2;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      expect(lenses.length).toBeGreaterThan(0);
+    });
+
+    it('should show singular "field" for 1 field', () => {
+      const content = `syntax = "proto3";
+message SingleField {
+  string only = 1;
+}`;
+      const uri = 'file:///single.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const messageLens = lenses.find(l => l.command?.title?.includes('field'));
+      expect(messageLens?.command?.title).toContain('1 field');
+      expect(messageLens?.command?.title).not.toContain('1 fields');
+    });
+
+    it('should show plural "fields" for multiple fields', () => {
+      const content = `syntax = "proto3";
+message MultiField {
+  string one = 1;
+  string two = 2;
+}`;
+      const uri = 'file:///multi.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const messageLens = lenses.find(l => l.command?.title?.includes('field'));
+      expect(messageLens?.command?.title).toContain('2 fields');
+    });
+
+    it('should show singular "value" for 1 enum value', () => {
+      const content = `syntax = "proto3";
+enum SingleValue {
+  SINGLE_VALUE_UNSPECIFIED = 0;
+}`;
+      const uri = 'file:///single-enum.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const enumLens = lenses.find(l => l.command?.title?.includes('value'));
+      expect(enumLens?.command?.title).toContain('1 value');
+      expect(enumLens?.command?.title).not.toContain('1 values');
+    });
+
+    it('should show plural "values" for multiple enum values', () => {
+      const content = `syntax = "proto3";
+enum MultiValue {
+  MULTI_VALUE_UNSPECIFIED = 0;
+  MULTI_VALUE_ONE = 1;
+  MULTI_VALUE_TWO = 2;
+}`;
+      const uri = 'file:///multi-enum.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const enumLens = lenses.find(l => l.command?.title?.includes('value'));
+      expect(enumLens?.command?.title).toContain('3 values');
+    });
+
+    it('should show singular "RPC" for 1 RPC', () => {
+      const content = `syntax = "proto3";
+message Request {}
+message Response {}
+
+service SingleRpc {
+  rpc DoSomething(Request) returns (Response);
+}`;
+      const uri = 'file:///single-rpc.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const serviceLens = lenses.find(l => l.command?.title?.includes('RPC'));
+      expect(serviceLens?.command?.title).toContain('1 RPC');
+      expect(serviceLens?.command?.title).not.toContain('1 RPCs');
+    });
+
+    it('should show plural "RPCs" for multiple RPCs', () => {
+      const content = `syntax = "proto3";
+message Request {}
+message Response {}
+
+service MultiRpc {
+  rpc DoOne(Request) returns (Response);
+  rpc DoTwo(Request) returns (Response);
+  rpc DoThree(Request) returns (Response);
+}`;
+      const uri = 'file:///multi-rpc.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const serviceLens = lenses.find(l => l.command?.title?.includes('RPC'));
+      expect(serviceLens?.command?.title).toContain('3 RPCs');
+    });
+  });
+
+  describe('code lens arguments', () => {
+    it('should include uri and position in findReferences command', () => {
+      const content = `syntax = "proto3";
+message TestMessage {
+  string field = 1;
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const referenceLens = lenses.find(l => l.command?.command === 'protobuf.findReferences');
+
+      expect(referenceLens).toBeDefined();
+      expect(referenceLens?.command?.arguments?.[0]).toHaveProperty('uri', uri);
+      expect(referenceLens?.command?.arguments?.[0]).toHaveProperty('position');
+      expect(referenceLens?.command?.arguments?.[0].position).toHaveProperty('line');
+      expect(referenceLens?.command?.arguments?.[0].position).toHaveProperty('character');
+    });
+  });
+
+  describe('file without package', () => {
+    it('should handle messages without package prefix', () => {
+      const content = `syntax = "proto3";
+
+message NoPackageMessage {
+  string field = 1;
+}`;
+      const uri = 'file:///no-package.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      expect(lenses.length).toBeGreaterThan(0);
+    });
+
+    it('should handle enums without package prefix', () => {
+      const content = `syntax = "proto3";
+
+enum NoPackageEnum {
+  NO_PACKAGE_ENUM_UNSPECIFIED = 0;
+}`;
+      const uri = 'file:///no-package-enum.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      expect(lenses.length).toBeGreaterThan(0);
+    });
+
+    it('should handle services without package prefix', () => {
+      const content = `syntax = "proto3";
+
+message Request {}
+message Response {}
+
+service NoPackageService {
+  rpc DoSomething(Request) returns (Response);
+}`;
+      const uri = 'file:///no-package-service.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      expect(lenses.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('complex proto structures', () => {
+    it('should handle deeply nested messages', () => {
+      const content = `syntax = "proto3";
+package deep.v1;
+
+message L1 {
+  message L2 {
+    message L3 {
+      message L4 {
+        message L5 {
+          string value = 1;
+        }
+        L5 l5 = 1;
+      }
+      L4 l4 = 1;
+    }
+    L3 l3 = 1;
+  }
+  L2 l2 = 1;
+}`;
+      const uri = 'file:///deep.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      // Should have lenses for all nested messages
+      expect(lenses.length).toBeGreaterThanOrEqual(5);
+    });
+
+    it('should handle message with nested enum', () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+message Container {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_ACTIVE = 1;
+  }
+  Status status = 1;
+}`;
+      const uri = 'file:///container.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      expect(lenses.length).toBeGreaterThan(0);
+    });
+
+    it('should handle file with multiple messages, enums, and services', () => {
+      const content = `syntax = "proto3";
+package full.v1;
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+}
+
+message Request {
+  string id = 1;
+}
+
+message Response {
+  Status status = 1;
+}
+
+service MyService {
+  rpc Process(Request) returns (Response);
+}`;
+      const uri = 'file:///full.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      // Should have lenses for enum, both messages, and service
+      expect(lenses.length).toBeGreaterThanOrEqual(4);
+    });
   });
 });

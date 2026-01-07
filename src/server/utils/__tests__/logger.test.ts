@@ -481,5 +481,329 @@ describe('Logger', () => {
       logger2.verboseWithContext('Message', { uri: 'test.proto' });
       expect(consoleSpy.log).toHaveBeenCalled();
     });
+
+    it('should use console for debugWithContext when no connection', () => {
+      const logger2 = new Logger();
+      logger2.setLevel(LogLevel.DEBUG);
+      logger2.debugWithContext('Debug message', { uri: 'test.proto' });
+      // debugWithContext calls debug which uses console.debug
+      expect(consoleSpy.debug).toHaveBeenCalled();
+    });
+
+    it('should use console for errorWithContext when no connection', () => {
+      const logger2 = new Logger();
+      logger2.setLevel(LogLevel.ERROR);
+      logger2.errorWithContext('Error message', { uri: 'test.proto' });
+      expect(consoleSpy.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('errorWithContext edge cases', () => {
+    beforeEach(() => {
+      logger.initialize(mockConnection as Connection);
+    });
+
+    it('should include position in error context', () => {
+      logger.errorWithContext('Error', { position: { line: 10, character: 5 } });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('Position: 10:5'));
+    });
+
+    it('should include operation in error context', () => {
+      logger.errorWithContext('Error', { operation: 'parsing' });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('Operation: parsing'));
+    });
+
+    it('should include all context fields together', () => {
+      logger.errorWithContext('Full context error', {
+        uri: 'file:///test.proto',
+        position: { line: 5, character: 10 },
+        operation: 'validation',
+        error: new Error('Test error')
+      });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('URI:'));
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('Position: 5:10'));
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('Operation: validation'));
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('Error:'));
+    });
+
+    it('should handle empty context', () => {
+      logger.errorWithContext('Error with empty context', {});
+      expect(mockConnection.console?.error).toHaveBeenCalledWith('Error with empty context');
+    });
+
+    it('should redact .key file extension', () => {
+      const error = new Error('Cannot read private.key');
+      logger.errorWithContext('Error', { error });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('[REDACTED_EXT]'));
+    });
+
+    it('should redact .p12 file extension', () => {
+      const error = new Error('Cannot load certificate.p12');
+      logger.errorWithContext('Error', { error });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('[REDACTED_EXT]'));
+    });
+
+    it('should redact .pfx file extension', () => {
+      const error = new Error('Certificate file.pfx not found');
+      logger.errorWithContext('Error', { error });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('[REDACTED_EXT]'));
+    });
+  });
+
+  describe('debugWithContext', () => {
+    beforeEach(() => {
+      logger.initialize(mockConnection as Connection, LogLevel.DEBUG);
+    });
+
+    it('should include uri in debug context', () => {
+      logger.debugWithContext('Debug', { uri: 'file:///test.proto' });
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('URI: file:///test.proto'));
+    });
+
+    it('should include position in debug context', () => {
+      logger.debugWithContext('Debug', { position: { line: 5, character: 10 } });
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('Position: 5:10'));
+    });
+
+    it('should include operation in debug context', () => {
+      logger.debugWithContext('Debug', { operation: 'analyze' });
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('Operation: analyze'));
+    });
+
+    it('should include error message in debug context', () => {
+      const error = new Error('Debug error');
+      logger.debugWithContext('Debug', { error });
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('Error: Debug error'));
+    });
+
+    it('should handle non-Error object in debug context', () => {
+      logger.debugWithContext('Debug', { error: 'String error' });
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('Error: String error'));
+    });
+
+    it('should handle all context fields together', () => {
+      logger.debugWithContext('Full debug', {
+        uri: 'file:///debug.proto',
+        position: { line: 1, character: 0 },
+        operation: 'test',
+        error: new Error('test error')
+      });
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('URI:'));
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('Position:'));
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('Operation:'));
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('Error:'));
+    });
+
+    it('should not log when level is above DEBUG', () => {
+      logger.setLevel(LogLevel.ERROR);
+      logger.debugWithContext('Should not appear', { uri: 'test.proto' });
+      expect(mockConnection.console?.log).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('verboseWithContext edge cases', () => {
+    beforeEach(() => {
+      logger.initialize(mockConnection as Connection);
+      logger.setVerboseLogging(true);
+    });
+
+    it('should include all context types', () => {
+      logger.verboseWithContext('Verbose message', {
+        uri: 'file:///test.proto',
+        position: { line: 10, character: 5 },
+        operation: 'completion',
+        duration: 150,
+        extra: 'value'
+      });
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('[VERBOSE]'));
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('URI:'));
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('Position: 10:5'));
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('Operation: completion'));
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('Duration: 150ms'));
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('extra: value'));
+    });
+
+    it('should handle zero duration', () => {
+      logger.verboseWithContext('Fast operation', { duration: 0 });
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('Duration: 0ms'));
+    });
+
+    it('should serialize object context values', () => {
+      logger.verboseWithContext('Object context', {
+        data: { nested: { value: 123 } }
+      });
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('{"nested":{"value":123}}'));
+    });
+
+    it('should handle array context values', () => {
+      logger.verboseWithContext('Array context', {
+        items: [1, 2, 3]
+      });
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('[1,2,3]'));
+    });
+
+    it('should handle boolean context values', () => {
+      logger.verboseWithContext('Boolean context', {
+        enabled: true,
+        disabled: false
+      });
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('enabled: true'));
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('disabled: false'));
+    });
+
+    it('should handle null context values', () => {
+      logger.verboseWithContext('Null context', {
+        value: null
+      });
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('value: null'));
+    });
+
+    it('should handle undefined context values', () => {
+      logger.verboseWithContext('Undefined context', {
+        value: undefined
+      });
+      expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('value: undefined'));
+    });
+  });
+
+  describe('LogLevel enum values', () => {
+    it('should have correct numeric values', () => {
+      expect(LogLevel.ERROR).toBe(0);
+      expect(LogLevel.WARN).toBe(1);
+      expect(LogLevel.INFO).toBe(2);
+      expect(LogLevel.DEBUG).toBe(3);
+      expect(LogLevel.VERBOSE).toBe(4);
+    });
+
+    it('should filter correctly at each level', () => {
+      logger.initialize(mockConnection as Connection, LogLevel.ERROR);
+
+      logger.error('error');
+      logger.warn('warn');
+      logger.info('info');
+      logger.debug('debug');
+      logger.verbose('verbose');
+
+      expect(mockConnection.console?.error).toHaveBeenCalledTimes(1);
+      expect(mockConnection.console?.warn).not.toHaveBeenCalled();
+      expect(mockConnection.console?.info).not.toHaveBeenCalled();
+      expect(mockConnection.console?.log).not.toHaveBeenCalled();
+    });
+
+    it('should allow all at VERBOSE level', () => {
+      logger.initialize(mockConnection as Connection, LogLevel.VERBOSE);
+
+      logger.error('error');
+      logger.warn('warn');
+      logger.info('info');
+      logger.debug('debug');
+      logger.verbose('verbose');
+
+      expect(mockConnection.console?.error).toHaveBeenCalledTimes(1);
+      expect(mockConnection.console?.warn).toHaveBeenCalledTimes(1);
+      expect(mockConnection.console?.info).toHaveBeenCalledTimes(1);
+      // debug and verbose both use console.log
+      expect(mockConnection.console?.log).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('formatArg additional cases', () => {
+    beforeEach(() => {
+      logger.initialize(mockConnection as Connection);
+    });
+
+    it('should format Date objects', () => {
+      const date = new Date('2026-01-07T12:00:00Z');
+      logger.info('Date:', date);
+      expect(mockConnection.console?.info).toHaveBeenCalled();
+    });
+
+    it('should format RegExp objects', () => {
+      const regex = /test-pattern/gi;
+      logger.info('Regex:', regex);
+      expect(mockConnection.console?.info).toHaveBeenCalled();
+    });
+
+    it('should format Map objects', () => {
+      const map = new Map([['key', 'value']]);
+      logger.info('Map:', map);
+      expect(mockConnection.console?.info).toHaveBeenCalled();
+    });
+
+    it('should format Set objects', () => {
+      const set = new Set([1, 2, 3]);
+      logger.info('Set:', set);
+      expect(mockConnection.console?.info).toHaveBeenCalled();
+    });
+
+    it('should format Symbol values', () => {
+      const sym = Symbol('test');
+      logger.info('Symbol:', sym);
+      expect(mockConnection.console?.info).toHaveBeenCalled();
+    });
+
+    it('should format BigInt values', () => {
+      const big = BigInt(9007199254740991);
+      logger.info('BigInt:', big);
+      expect(mockConnection.console?.info).toHaveBeenCalled();
+    });
+
+    it('should format function objects', () => {
+      const fn = () => 'test';
+      logger.info('Function:', fn);
+      expect(mockConnection.console?.info).toHaveBeenCalled();
+    });
+
+    it('should format NaN', () => {
+      logger.info('NaN:', NaN);
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('NaN'));
+    });
+
+    it('should format Infinity', () => {
+      logger.info('Infinity:', Infinity);
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('Infinity'));
+    });
+
+    it('should format negative Infinity', () => {
+      logger.info('Negative Infinity:', -Infinity);
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('-Infinity'));
+    });
+  });
+
+  describe('sanitizeErrorMessage additional cases', () => {
+    beforeEach(() => {
+      logger.initialize(mockConnection as Connection);
+    });
+
+    it('should redact multiple paths in same message', () => {
+      const error = new Error('Copy /src/file to /dest/file failed');
+      logger.errorWithContext('Error', { error });
+      // Should have multiple [REDACTED_PATH] occurrences
+      expect(mockConnection.console?.error).toHaveBeenCalled();
+    });
+
+    it('should redact paths with special characters', () => {
+      const error = new Error('Error at /path/with-dashes/and_underscores/file.txt');
+      logger.errorWithContext('Error', { error });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('[REDACTED_PATH]'));
+    });
+
+    it('should preserve non-path text', () => {
+      const error = new Error('Connection failed');
+      logger.errorWithContext('Error', { error });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('Connection failed'));
+    });
+
+    it('should handle empty error message', () => {
+      const error = new Error('');
+      logger.errorWithContext('Error', { error });
+      expect(mockConnection.console?.error).toHaveBeenCalled();
+    });
+
+    it('should handle error with only whitespace', () => {
+      const error = new Error('   ');
+      logger.errorWithContext('Error', { error });
+      expect(mockConnection.console?.error).toHaveBeenCalled();
+    });
   });
 });
