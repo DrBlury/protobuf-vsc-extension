@@ -11,6 +11,7 @@ import { DEFAULT_CONFIG } from './constants';
 export interface Settings {
   protobuf: {
     formatOnSave: boolean;
+    enableBetaFeatures: boolean;
     indentSize: number;
     useTabIndent: boolean;
     maxLineLength: number;
@@ -116,6 +117,7 @@ export interface Settings {
 export const defaultSettings: Settings = {
   protobuf: {
     formatOnSave: false,
+    enableBetaFeatures: false,
     indentSize: DEFAULT_CONFIG.INDENT_SIZE,
     useTabIndent: false,
     maxLineLength: DEFAULT_CONFIG.MAX_LINE_LENGTH,

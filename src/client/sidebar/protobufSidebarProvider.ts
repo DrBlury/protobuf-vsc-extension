@@ -79,8 +79,10 @@ export class ProtobufSidebarProvider implements vscode.TreeDataProvider<TreeItem
   private protoFileCount = 0;
   private serviceCount = 0;
   private hasBufConfig = false;
+  private readonly betaFeaturesEnabled: boolean;
 
-  constructor(extensionContext: vscode.ExtensionContext) {
+  constructor(extensionContext: vscode.ExtensionContext, betaFeaturesEnabled: boolean) {
+    this.betaFeaturesEnabled = betaFeaturesEnabled;
     this.scanWorkspace();
 
     // Watch for file changes
@@ -146,14 +148,22 @@ export class ProtobufSidebarProvider implements vscode.TreeDataProvider<TreeItem
   }
 
   private getSections(): SectionItem[] {
-    return [
+    const sections: SectionItem[] = [
       new SectionItem('workspace', 'WORKSPACE', 'folder-opened', `${this.protoFileCount} files`),
-      new SectionItem('playgrounds', 'PLAYGROUNDS', 'beaker'),
+    ];
+
+    if (this.betaFeaturesEnabled) {
+      sections.push(new SectionItem('playgrounds', 'PLAYGROUNDS', 'beaker'));
+    }
+
+    sections.push(
       new SectionItem('tools', 'BUILD & GENERATE', 'tools'),
       new SectionItem('analysis', 'ANALYSIS', 'graph'),
       new SectionItem('registry', 'BUF REGISTRY', 'cloud'),
-      new SectionItem('help', 'HELP', 'question'),
-    ];
+      new SectionItem('help', 'HELP', 'question')
+    );
+
+    return sections;
   }
 
   private getSectionChildren(sectionId: SectionId): TreeItemType[] {
@@ -161,6 +171,9 @@ export class ProtobufSidebarProvider implements vscode.TreeDataProvider<TreeItem
       case 'workspace':
         return this.getWorkspaceItems();
       case 'playgrounds':
+        if (!this.betaFeaturesEnabled) {
+          return [];
+        }
         return this.getPlaygroundItems();
       case 'tools':
         return this.getToolItems();
@@ -349,8 +362,11 @@ export class ProtobufSidebarProvider implements vscode.TreeDataProvider<TreeItem
 /**
  * Register the Protobuf sidebar view
  */
-export function registerProtobufSidebar(context: vscode.ExtensionContext): ProtobufSidebarProvider {
-  const sidebarProvider = new ProtobufSidebarProvider(context);
+export function registerProtobufSidebar(
+  context: vscode.ExtensionContext,
+  betaFeaturesEnabled = false
+): ProtobufSidebarProvider {
+  const sidebarProvider = new ProtobufSidebarProvider(context, betaFeaturesEnabled);
 
   const treeView = vscode.window.createTreeView('protobufExplorer', {
     treeDataProvider: sidebarProvider,

@@ -33,14 +33,18 @@ let autoDetector: AutoDetector;
 let dependencySuggestionProvider: DependencySuggestionProvider;
 let codegenManager: CodegenManager;
 let schemaDiffManager: SchemaDiffManager;
-let playgroundManager: PlaygroundManager;
-let protovalidatePlaygroundManager: ProtovalidatePlaygroundManager;
+let playgroundManager: PlaygroundManager | undefined;
+let protovalidatePlaygroundManager: ProtovalidatePlaygroundManager | undefined;
 let registryManager: RegistryManager;
 
 // Debounce map for dependency suggestions to avoid multiple prompts
 const dependencySuggestionDebounce = new Map<string, boolean>();
 const saveStateTracker = new SaveStateTracker();
 let modificationsModeWarningShown = false;
+
+function isBetaFeaturesEnabled(): boolean {
+  return vscode.workspace.getConfiguration('protobuf').get<boolean>('enableBetaFeatures', false);
+}
 
 function isProtoDocument(document: vscode.TextDocument): boolean {
   return document.languageId === 'proto' || document.languageId === 'textproto';
@@ -141,6 +145,7 @@ async function formatDocumentIfNeeded(document: vscode.TextDocument): Promise<vo
 export async function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME);
   outputChannel.appendLine('Activating Protobuf extension...');
+  const betaFeaturesEnabled = isBetaFeaturesEnabled();
 
   // Initialize toolchain manager
   toolchainManager = new ToolchainManager(context, outputChannel);
@@ -234,18 +239,32 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // Initialize playground manager
-  playgroundManager = new PlaygroundManager(context, outputChannel);
   context.subscriptions.push(
     vscode.commands.registerCommand('protobuf.openPlayground', () => {
+      if (!isBetaFeaturesEnabled()) {
+        vscode.window.showInformationMessage(
+          'Enable protobuf.enableBetaFeatures to use the Playground (reload may be required).'
+        );
+        return;
+      }
+      if (!playgroundManager) {
+        playgroundManager = new PlaygroundManager(context, outputChannel);
+      }
       playgroundManager.openPlayground();
     })
   );
 
-  // Initialize protovalidate playground manager
-  protovalidatePlaygroundManager = new ProtovalidatePlaygroundManager(context, outputChannel);
   context.subscriptions.push(
     vscode.commands.registerCommand('protobuf.openProtovalidatePlayground', (rule?: ProtovalidateRule) => {
+      if (!isBetaFeaturesEnabled()) {
+        vscode.window.showInformationMessage(
+          'Enable protobuf.enableBetaFeatures to use the Protovalidate Playground (reload may be required).'
+        );
+        return;
+      }
+      if (!protovalidatePlaygroundManager) {
+        protovalidatePlaygroundManager = new ProtovalidatePlaygroundManager(context, outputChannel);
+      }
       protovalidatePlaygroundManager.openPlayground(rule);
     })
   );
@@ -259,10 +278,12 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   // Register Binary Decoder Provider
-  context.subscriptions.push(BinaryDecoderProvider.register(context, outputChannel));
+  if (betaFeaturesEnabled) {
+    context.subscriptions.push(BinaryDecoderProvider.register(context, outputChannel));
+  }
 
   // Register Protobuf Sidebar
-  registerProtobufSidebar(context);
+  registerProtobufSidebar(context, betaFeaturesEnabled);
   outputChannel.appendLine('Protobuf sidebar registered');
 
   // Register quick add dependency command (used by code actions)

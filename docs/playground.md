@@ -2,6 +2,8 @@
 
 The Protobuf Playground is an interactive webview that allows you to test gRPC services directly from VS Code. You can send requests to gRPC servers and see responses without leaving your editor.
 
+> **Note:** The Playground is a beta feature. Enable `protobuf.enableBetaFeatures` in your VS Code settings (reload required) to access it.
+
 ## Overview
 
 The Playground provides:

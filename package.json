@@ -140,6 +140,11 @@
           "default": false,
           "description": "Automatically format proto files on save"
         },
+        "protobuf.enableBetaFeatures": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable beta features such as the Binary Inspector and Playground (reload required)."
+        },
         "protobuf.indentSize": {
           "type": "number",
           "default": 2,
@@ -771,12 +776,14 @@
       {
         "command": "protobuf.openPlayground",
         "title": "Open Request Playground",
-        "category": "Protobuf"
+        "category": "Protobuf",
+        "enablement": "config.protobuf.enableBetaFeatures"
       },
       {
         "command": "protobuf.openProtovalidatePlayground",
         "title": "Open Protovalidate Playground",
-        "category": "Protobuf"
+        "category": "Protobuf",
+        "enablement": "config.protobuf.enableBetaFeatures"
       },
       {
         "command": "protobuf.addBufDependency",
