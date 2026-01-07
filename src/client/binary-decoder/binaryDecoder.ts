@@ -301,7 +301,7 @@ export class BinaryDecoderProvider implements vscode.CustomReadonlyEditorProvide
 
   private async decodeBinary(uri: vscode.Uri, messageType?: string): Promise<DecodeResult> {
     const config = vscode.workspace.getConfiguration('protobuf');
-    const protocPath = config.get<string>('protocPath', 'protoc');
+    const protocPath = config.get<string>('protoc.path') || 'protoc';
     const includes = config.get<string[]>('includes') || [];
     const cwd = path.dirname(uri.fsPath);
 

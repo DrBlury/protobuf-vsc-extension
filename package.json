@@ -33,7 +33,8 @@
   ],
   "activationEvents": [
     "onLanguage:proto",
-    "onLanguage:textproto"
+    "onLanguage:textproto",
+    "onCustomEditor:protobuf.binaryInspector"
   ],
   "keywords": [
     "protobuf",
