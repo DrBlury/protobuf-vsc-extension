@@ -351,6 +351,7 @@ message Test {
       const completions = provider.getCompletions(uri, position, lineText, undefined, text);
 
       // Extensions are proto2 feature
-      expect(completions).toBeDefined();    });
+      expect(completions).toBeDefined();
+    });
   });
 });

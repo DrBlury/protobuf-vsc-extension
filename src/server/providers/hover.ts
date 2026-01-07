@@ -14,12 +14,9 @@ import type {
   ProtoNode,
   ProtoFile,
   ServiceDefinition,
-  Range
+  Range,
 } from '../core/ast';
-import {
-  BUILTIN_TYPES,
-  SymbolKind
-} from '../core/ast';
+import { BUILTIN_TYPES, SymbolKind } from '../core/ast';
 import type { SemanticAnalyzer } from '../core/analyzer';
 import { getBuiltinTypeHover, getKeywordHover } from './hover/builtinHover';
 import { getCelHover } from './hover/celHover';
@@ -130,13 +127,10 @@ export class HoverProvider {
       [SymbolKind.Rpc]: 'rpc',
       [SymbolKind.Field]: 'field',
       [SymbolKind.EnumValue]: 'enum value',
-      [SymbolKind.Oneof]: 'oneof'
+      [SymbolKind.Oneof]: 'oneof',
     };
 
-    const lines = [
-      `**${kindLabels[symbol.kind] || symbol.kind}** \`${symbol.name}\``,
-      ''
-    ];
+    const lines = [`**${kindLabels[symbol.kind] || symbol.kind}** \`${symbol.name}\``, ''];
 
     if (symbol.fullName !== symbol.name) {
       lines.push(`Full name: \`${symbol.fullName}\``);
@@ -148,9 +142,9 @@ export class HoverProvider {
 
     // Add Well-Known Type Link
     if (symbol.fullName.startsWith('google.protobuf.')) {
-        const typeName = symbol.fullName.replace('google.protobuf.', '');
-        const wktUrl = `${GOOGLE_WKT_BASE_URL}#${typeName}`;
-        lines.push(`[Open Documentation](${wktUrl})`);
+      const typeName = symbol.fullName.replace('google.protobuf.', '');
+      const wktUrl = `${GOOGLE_WKT_BASE_URL}#${typeName}`;
+      lines.push(`[Open Documentation](${wktUrl})`);
     }
 
     // Add reference count
@@ -166,14 +160,14 @@ export class HoverProvider {
     // Helper to find the definition node in the file
     const file = this.analyzer.getFile(symbol.location.uri);
     if (file) {
-        const node = this.findNodeAt(file, symbol.location.range.start);
-        if (node && node.comments) {
-            comments = node.comments;
-        }
+      const node = this.findNodeAt(file, symbol.location.range.start);
+      if (node && node.comments) {
+        comments = node.comments;
+      }
     }
 
     if (comments) {
-        lines.push('', '---', '', comments);
+      lines.push('', '---', '', comments);
     }
 
     // Add rich detail for messages and enums
@@ -195,83 +189,83 @@ export class HoverProvider {
 
     const content: MarkupContent = {
       kind: MarkupKind.Markdown,
-      value: lines.join('\n')
+      value: lines.join('\n'),
     };
 
     return { contents: content };
   }
 
   // Simplified node finder based on position
-  private findNodeAt(file: ProtoFile, position: { line: number, character: number }): ProtoNode | undefined {
-      // Traverse file to find node
-      for (const msg of file.messages) {
-          if (this.contains(msg.range, position)) {
-              if (this.isNameRange(msg.nameRange, position)) {
-                  return msg;
-              }
-              return this.findInMessage(msg, position);
-          }
+  private findNodeAt(file: ProtoFile, position: { line: number; character: number }): ProtoNode | undefined {
+    // Traverse file to find node
+    for (const msg of file.messages) {
+      if (this.contains(msg.range, position)) {
+        if (this.isNameRange(msg.nameRange, position)) {
+          return msg;
+        }
+        return this.findInMessage(msg, position);
       }
-      for (const enm of file.enums) {
-          if (this.contains(enm.range, position)) {
-              if (this.isNameRange(enm.nameRange, position)) {
-                  return enm;
-              }
-              return this.findInEnum(enm, position);
-          }
+    }
+    for (const enm of file.enums) {
+      if (this.contains(enm.range, position)) {
+        if (this.isNameRange(enm.nameRange, position)) {
+          return enm;
+        }
+        return this.findInEnum(enm, position);
       }
-      for (const svc of file.services) {
-          if (this.contains(svc.range, position)) {
-              if (this.isNameRange(svc.nameRange, position)) {
-                  return svc;
-              }
-              return this.findInService(svc, position);
-          }
+    }
+    for (const svc of file.services) {
+      if (this.contains(svc.range, position)) {
+        if (this.isNameRange(svc.nameRange, position)) {
+          return svc;
+        }
+        return this.findInService(svc, position);
       }
-      return undefined;
+    }
+    return undefined;
   }
 
-  private findInMessage(msg: MessageDefinition, position: { line: number, character: number }): ProtoNode | undefined {
-      for (const field of msg.fields) {
-          if (this.contains(field.range, position)) {
-              return field;
-          }
+  private findInMessage(msg: MessageDefinition, position: { line: number; character: number }): ProtoNode | undefined {
+    for (const field of msg.fields) {
+      if (this.contains(field.range, position)) {
+        return field;
       }
-      for (const nested of msg.nestedMessages) {
-          if (this.contains(nested.range, position)) {
-              if (this.isNameRange(nested.nameRange, position)) {
-                  return nested;
-              }
-              return this.findInMessage(nested, position);
-          }
+    }
+    for (const nested of msg.nestedMessages) {
+      if (this.contains(nested.range, position)) {
+        if (this.isNameRange(nested.nameRange, position)) {
+          return nested;
+        }
+        return this.findInMessage(nested, position);
       }
-      for (const enm of msg.nestedEnums) {
-          if (this.contains(enm.range, position)) {
-              if (this.isNameRange(enm.nameRange, position)) {
-                  return enm;
-              }
-              return this.findInEnum(enm, position);
-          }
+    }
+    for (const enm of msg.nestedEnums) {
+      if (this.contains(enm.range, position)) {
+        if (this.isNameRange(enm.nameRange, position)) {
+          return enm;
+        }
+        return this.findInEnum(enm, position);
       }
-      return msg;
+    }
+    return msg;
   }
 
-  private findInEnum(enm: EnumDefinition, position: { line: number, character: number }): ProtoNode | undefined {
-      for (const val of enm.values) {
-          if (this.contains(val.range, position)) {
-              return val;
-          }
+  private findInEnum(enm: EnumDefinition, position: { line: number; character: number }): ProtoNode | undefined {
+    for (const val of enm.values) {
+      if (this.contains(val.range, position)) {
+        return val;
       }
-      return enm;
+    }
+    return enm;
   }
 
-  private findInService(svc: ServiceDefinition, position: { line: number, character: number }): ProtoNode | undefined {
-      for (const rpc of svc.rpcs) {
-          if (this.contains(rpc.range, position)) {
-              return rpc;
-          }
+  private findInService(svc: ServiceDefinition, position: { line: number; character: number }): ProtoNode | undefined {
+    for (const rpc of svc.rpcs) {
+      if (this.contains(rpc.range, position)) {
+        return rpc;
       }
-      return svc;
+    }
+    return svc;
   }
 
   /**
@@ -287,7 +281,7 @@ export class HoverProvider {
    */
   private findContainingMessageScope(
     file: ProtoFile,
-    position: { line: number, character: number },
+    position: { line: number; character: number },
     packageName: string
   ): string {
     // Try to find the containing message chain
@@ -307,7 +301,7 @@ export class HoverProvider {
    */
   private findContainingMessageChain(
     messages: MessageDefinition[],
-    position: { line: number, character: number }
+    position: { line: number; character: number }
   ): MessageDefinition[] {
     for (const msg of messages) {
       if (this.contains(msg.range, position)) {
@@ -319,21 +313,21 @@ export class HoverProvider {
     return [];
   }
 
-  private contains(range: Range, pos: { line: number, character: number }): boolean {
-      if (pos.line < range.start.line || pos.line > range.end.line) {
-          return false;
-      }
-      if (pos.line === range.start.line && pos.character < range.start.character) {
-          return false;
-      }
-      if (pos.line === range.end.line && pos.character > range.end.character) {
-          return false;
-      }
-      return true;
+  private contains(range: Range, pos: { line: number; character: number }): boolean {
+    if (pos.line < range.start.line || pos.line > range.end.line) {
+      return false;
+    }
+    if (pos.line === range.start.line && pos.character < range.start.character) {
+      return false;
+    }
+    if (pos.line === range.end.line && pos.character > range.end.character) {
+      return false;
+    }
+    return true;
   }
 
-  private isNameRange(range: Range, pos: { line: number, character: number }): boolean {
-      return this.contains(range, pos);
+  private isNameRange(range: Range, pos: { line: number; character: number }): boolean {
+    return this.contains(range, pos);
   }
 
   private formatMessage(message: MessageDefinition): string[] {
@@ -359,20 +353,12 @@ export class HoverProvider {
       body.push(`  enum ${nestedEnum.name} { ... }`);
     }
 
-    return [
-      `message ${message.name} {`,
-      ...body,
-      '}'
-    ];
+    return [`message ${message.name} {`, ...body, '}'];
   }
 
   private formatEnum(enumDef: EnumDefinition): string[] {
     const values = enumDef.values.map(v => `  ${v.name} = ${v.number};`);
-    return [
-      `enum ${enumDef.name} {`,
-      ...values,
-      '}'
-    ];
+    return [`enum ${enumDef.name} {`, ...values, '}'];
   }
 
   private formatField(field: FieldDefinition): string {

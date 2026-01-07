@@ -59,7 +59,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -76,7 +76,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -93,7 +93,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -110,7 +110,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -144,7 +144,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(Buffer.from('[]')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stderr: { on: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -152,7 +152,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -173,7 +173,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(1), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -194,14 +194,14 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(Buffer.from('')), 0);
             }
             return mockProcess.stderr;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -221,7 +221,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(Buffer.from('[]')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stderr: { on: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -229,7 +229,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -242,7 +242,7 @@ describe('ExternalLinterProvider', () => {
       provider.updateSettings({
         enabled: true,
         linter: 'api-linter',
-        apiLinterConfigPath: '/workspace/api-linter.yaml'
+        apiLinterConfigPath: '/workspace/api-linter.yaml',
       });
       provider.setWorkspaceRoot('/workspace');
 
@@ -253,7 +253,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(Buffer.from('[]')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stderr: { on: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -261,7 +261,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -294,7 +294,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(Buffer.from('[]')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stderr: { on: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -302,7 +302,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -314,7 +314,8 @@ describe('ExternalLinterProvider', () => {
 
   describe('parseBufOutput', () => {
     it('should parse valid JSON output', () => {
-      const output = '{"path":"test.proto","start_line":10,"start_column":5,"end_line":10,"end_column":20,"type":"FAILURE","message":"Test error"}\n';
+      const output =
+        '{"path":"test.proto","start_line":10,"start_column":5,"end_line":10,"end_column":20,"type":"FAILURE","message":"Test error"}\n';
       const results = (provider as any).parseBufOutput(output);
       expect(results).toHaveLength(1);
       expect(results[0].file).toBe('test.proto');
@@ -325,7 +326,8 @@ describe('ExternalLinterProvider', () => {
     });
 
     it('should handle multiple JSON lines', () => {
-      const output = '{"path":"a.proto","start_line":1,"start_column":1,"type":"FAILURE","message":"Error 1"}\n{"path":"b.proto","start_line":5,"start_column":10,"type":"WARNING","message":"Warning 1"}\n';
+      const output =
+        '{"path":"a.proto","start_line":1,"start_column":1,"type":"FAILURE","message":"Error 1"}\n{"path":"b.proto","start_line":5,"start_column":10,"type":"WARNING","message":"Warning 1"}\n';
       const results = (provider as any).parseBufOutput(output);
       expect(results).toHaveLength(2);
     });
@@ -355,8 +357,15 @@ describe('ExternalLinterProvider', () => {
     it('should parse valid JSON output', () => {
       const output = JSON.stringify({
         lints: [
-          { filename: 'test.proto', line: 10, column: 5, message: 'Test error', rule: 'FIELD_NAMES_LOWER_SNAKE_CASE', severity: 'error' }
-        ]
+          {
+            filename: 'test.proto',
+            line: 10,
+            column: 5,
+            message: 'Test error',
+            rule: 'FIELD_NAMES_LOWER_SNAKE_CASE',
+            severity: 'error',
+          },
+        ],
       });
       const results = (provider as any).parseProtolintOutput(output);
       expect(results).toHaveLength(1);
@@ -368,9 +377,7 @@ describe('ExternalLinterProvider', () => {
 
     it('should parse warning severity', () => {
       const output = JSON.stringify({
-        lints: [
-          { filename: 'test.proto', line: 5, column: 1, message: 'Warning', rule: 'RULE', severity: 'warning' }
-        ]
+        lints: [{ filename: 'test.proto', line: 5, column: 1, message: 'Warning', rule: 'RULE', severity: 'warning' }],
       });
       const results = (provider as any).parseProtolintOutput(output);
       expect(results[0].severity).toBe('warning');
@@ -403,11 +410,11 @@ describe('ExternalLinterProvider', () => {
               rule_id: 'core::0140::lower-snake',
               location: {
                 start_position: { line_number: 10, column_number: 3 },
-                end_position: { line_number: 10, column_number: 15 }
-              }
-            }
-          ]
-        }
+                end_position: { line_number: 10, column_number: 15 },
+              },
+            },
+          ],
+        },
       ]);
       const results = (provider as any).parseApiLinterOutput(output);
       expect(results).toHaveLength(1);
@@ -426,10 +433,10 @@ describe('ExternalLinterProvider', () => {
               message: 'Field name issue',
               suggestion: 'Consider using lower_snake_case',
               rule_id: 'core::0140',
-              location: { start_position: { line_number: 1, column_number: 1 } }
-            }
-          ]
-        }
+              location: { start_position: { line_number: 1, column_number: 1 } },
+            },
+          ],
+        },
       ]);
       const results = (provider as any).parseApiLinterOutput(output);
       expect(results[0].message).toContain('Consider using lower_snake_case');
@@ -500,7 +507,7 @@ describe('ExternalLinterProvider', () => {
         column: 5,
         rule: 'TEST',
         message: 'Error message',
-        severity: 'error'
+        severity: 'error',
       });
       expect(result.severity).toBe(1); // DiagnosticSeverity.Error
       expect(result.message).toBe('Error message');
@@ -514,7 +521,7 @@ describe('ExternalLinterProvider', () => {
         column: 5,
         rule: 'TEST',
         message: 'Info message',
-        severity: 'info'
+        severity: 'info',
       });
       expect(result.severity).toBe(3); // DiagnosticSeverity.Information
     });
@@ -527,7 +534,7 @@ describe('ExternalLinterProvider', () => {
         column: 5,
         rule: 'TEST',
         message: 'Warning message',
-        severity: 'warning'
+        severity: 'warning',
       });
       expect(result.severity).toBe(2); // DiagnosticSeverity.Warning
     });
@@ -540,7 +547,7 @@ describe('ExternalLinterProvider', () => {
         column: 5,
         rule: 'TEST',
         message: 'Message',
-        severity: 'warning'
+        severity: 'warning',
       });
       expect(result.range.end.line).toBe(9);
     });
@@ -572,14 +579,14 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(Buffer.from('ENUM_PASCAL_CASE\nFIELD_LOWER_SNAKE_CASE\n')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -605,7 +612,7 @@ describe('ExternalLinterProvider', () => {
                 setTimeout(() => callback(new Error('spawn failed')), 0);
               }
               return failProcess;
-            })
+            }),
           } as any;
           return failProcess;
         } else {
@@ -617,14 +624,14 @@ describe('ExternalLinterProvider', () => {
                   setTimeout(() => callback(Buffer.from('RULE_ONE\nRULE_TWO\n')), 0);
                 }
                 return successProcess.stdout;
-              })
+              }),
             },
             on: jest.fn((event: string, callback: (code: number) => void) => {
               if (event === 'close') {
                 setTimeout(() => callback(0), 10);
               }
               return successProcess;
-            })
+            }),
           } as any;
           return successProcess;
         }
@@ -646,7 +653,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(new Error('spawn failed')), 0);
             }
             return failProcess;
-          })
+          }),
         } as any;
         return failProcess;
       });
@@ -663,20 +670,25 @@ describe('ExternalLinterProvider', () => {
         stdout: {
           on: jest.fn((event: string, callback: (data: Buffer) => void) => {
             if (event === 'data') {
-              setTimeout(() => callback(Buffer.from(JSON.stringify([
-                { name: 'core::0140::lower-snake' },
-                { name: 'core::0131::request-body' }
-              ]))), 0);
+              setTimeout(
+                () =>
+                  callback(
+                    Buffer.from(
+                      JSON.stringify([{ name: 'core::0140::lower-snake' }, { name: 'core::0131::request-body' }])
+                    )
+                  ),
+                0
+              );
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -697,14 +709,14 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(Buffer.from('not valid json')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -724,14 +736,14 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(Buffer.from('{"not": "array"}')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -756,7 +768,7 @@ describe('ExternalLinterProvider', () => {
                 setTimeout(() => callback(new Error('spawn failed')), 0);
               }
               return failProcess;
-            })
+            }),
           } as any;
           return failProcess;
         } else {
@@ -765,19 +777,17 @@ describe('ExternalLinterProvider', () => {
             stdout: {
               on: jest.fn((event: string, callback: (data: Buffer) => void) => {
                 if (event === 'data') {
-                  setTimeout(() => callback(Buffer.from(JSON.stringify([
-                    { name: 'core::0140::lower-snake' }
-                  ]))), 0);
+                  setTimeout(() => callback(Buffer.from(JSON.stringify([{ name: 'core::0140::lower-snake' }]))), 0);
                 }
                 return successProcess.stdout;
-              })
+              }),
             },
             on: jest.fn((event: string, callback: (code: number) => void) => {
               if (event === 'close') {
                 setTimeout(() => callback(0), 10);
               }
               return successProcess;
-            })
+            }),
           } as any;
           return successProcess;
         }
@@ -803,7 +813,7 @@ describe('ExternalLinterProvider', () => {
                 setTimeout(() => callback(new Error('spawn failed')), 0);
               }
               return failProcess;
-            })
+            }),
           } as any;
           return failProcess;
         } else {
@@ -815,14 +825,14 @@ describe('ExternalLinterProvider', () => {
                   setTimeout(() => callback(Buffer.from('{"not": "array"}')), 0);
                 }
                 return successProcess.stdout;
-              })
+              }),
             },
             on: jest.fn((event: string, callback: (code: number) => void) => {
               if (event === 'close') {
                 setTimeout(() => callback(0), 10);
               }
               return successProcess;
-            })
+            }),
           } as any;
           return successProcess;
         }
@@ -848,7 +858,7 @@ describe('ExternalLinterProvider', () => {
                 setTimeout(() => callback(new Error('spawn failed')), 0);
               }
               return failProcess;
-            })
+            }),
           } as any;
           return failProcess;
         } else {
@@ -860,14 +870,14 @@ describe('ExternalLinterProvider', () => {
                   setTimeout(() => callback(Buffer.from('rule1\nrule2\n')), 0);
                 }
                 return successProcess.stdout;
-              })
+              }),
             },
             on: jest.fn((event: string, callback: (code: number) => void) => {
               if (event === 'close') {
                 setTimeout(() => callback(0), 10);
               }
               return successProcess;
-            })
+            }),
           } as any;
           return successProcess;
         }
@@ -890,7 +900,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(new Error('spawn failed')), 0);
             }
             return failProcess;
-          })
+          }),
         } as any;
         return failProcess;
       });
@@ -921,7 +931,7 @@ describe('ExternalLinterProvider', () => {
                 setTimeout(() => callback(new Error('spawn failed')), 0);
               }
               return failProcess;
-            })
+            }),
           } as any;
           return failProcess;
         } else {
@@ -932,7 +942,7 @@ describe('ExternalLinterProvider', () => {
                 setTimeout(() => callback(0), 0);
               }
               return successProcess;
-            })
+            }),
           } as any;
           return successProcess;
         }
@@ -956,7 +966,7 @@ describe('ExternalLinterProvider', () => {
                 setTimeout(() => callback(new Error('spawn failed')), 0);
               }
               return failProcess;
-            })
+            }),
           } as any;
           return failProcess;
         } else {
@@ -967,7 +977,7 @@ describe('ExternalLinterProvider', () => {
                 setTimeout(() => callback(1), 0);
               }
               return failShellProcess;
-            })
+            }),
           } as any;
           return failShellProcess;
         }
@@ -987,7 +997,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(new Error('spawn failed')), 0);
             }
             return failProcess;
-          })
+          }),
         } as any;
         return failProcess;
       });
@@ -1005,7 +1015,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(1), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1033,7 +1043,7 @@ describe('ExternalLinterProvider', () => {
                 setTimeout(() => callback(new Error('spawn failed')), 0);
               }
               return failProcess;
-            })
+            }),
           } as any;
           return failProcess;
         } else {
@@ -1045,7 +1055,7 @@ describe('ExternalLinterProvider', () => {
                   setTimeout(() => callback(Buffer.from('[]')), 0);
                 }
                 return successProcess.stdout;
-              })
+              }),
             },
             stderr: { on: jest.fn() },
             on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -1053,7 +1063,7 @@ describe('ExternalLinterProvider', () => {
                 setTimeout(() => callback(0), 10);
               }
               return successProcess;
-            })
+            }),
           } as any;
           return successProcess;
         }
@@ -1076,7 +1086,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(new Error('spawn failed')), 0);
             }
             return failProcess;
-          })
+          }),
         } as any;
         return failProcess;
       });
@@ -1102,7 +1112,7 @@ describe('ExternalLinterProvider', () => {
                 setTimeout(() => callback(new Error('spawn failed')), 0);
               }
               return failProcess;
-            })
+            }),
           } as any;
           return failProcess;
         } else {
@@ -1114,7 +1124,7 @@ describe('ExternalLinterProvider', () => {
                   setTimeout(() => callback(Buffer.from('{"lints":[]}')), 0);
                 }
                 return successProcess.stdout;
-              })
+              }),
             },
             stderr: { on: jest.fn() },
             on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -1122,7 +1132,7 @@ describe('ExternalLinterProvider', () => {
                 setTimeout(() => callback(0), 10);
               }
               return successProcess;
-            })
+            }),
           } as any;
           return successProcess;
         }
@@ -1145,7 +1155,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(new Error('spawn failed')), 0);
             }
             return failProcess;
-          })
+          }),
         } as any;
         return failProcess;
       });
@@ -1171,7 +1181,7 @@ describe('ExternalLinterProvider', () => {
                 setTimeout(() => callback(new Error('spawn failed')), 0);
               }
               return failProcess;
-            })
+            }),
           } as any;
           return failProcess;
         } else {
@@ -1183,7 +1193,7 @@ describe('ExternalLinterProvider', () => {
                   setTimeout(() => callback(Buffer.from('[]')), 0);
                 }
                 return successProcess.stdout;
-              })
+              }),
             },
             stderr: { on: jest.fn() },
             on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -1191,7 +1201,7 @@ describe('ExternalLinterProvider', () => {
                 setTimeout(() => callback(0), 10);
               }
               return successProcess;
-            })
+            }),
           } as any;
           return successProcess;
         }
@@ -1214,7 +1224,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(new Error('spawn failed')), 0);
             }
             return failProcess;
-          })
+          }),
         } as any;
         return failProcess;
       });
@@ -1232,7 +1242,7 @@ describe('ExternalLinterProvider', () => {
       const mockOutput = [
         '{"path":"a.proto","start_line":1,"start_column":1,"type":"FAILURE","message":"Error in a"}',
         '{"path":"b.proto","start_line":2,"start_column":1,"type":"FAILURE","message":"Error in b"}',
-        '{"path":"a.proto","start_line":5,"start_column":1,"type":"FAILURE","message":"Second error in a"}'
+        '{"path":"a.proto","start_line":5,"start_column":1,"type":"FAILURE","message":"Second error in a"}',
       ].join('\n');
 
       const mockProcess = {
@@ -1242,7 +1252,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(Buffer.from(mockOutput)), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stderr: { on: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -1250,7 +1260,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1272,7 +1282,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(Buffer.from('{"lints":[]}')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stderr: { on: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -1280,7 +1290,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1300,7 +1310,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(Buffer.from('[]')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stderr: { on: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -1308,7 +1318,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1323,7 +1333,7 @@ describe('ExternalLinterProvider', () => {
       provider.updateSettings({
         enabled: true,
         linter: 'buf',
-        bufConfigPath: '/custom/buf.yaml'
+        bufConfigPath: '/custom/buf.yaml',
       });
       provider.setWorkspaceRoot('/workspace');
 
@@ -1334,7 +1344,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(Buffer.from('[]')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stderr: { on: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -1342,7 +1352,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1359,7 +1369,7 @@ describe('ExternalLinterProvider', () => {
       provider.updateSettings({
         enabled: true,
         linter: 'buf',
-        bufConfigPath: '../configs/buf.yaml'
+        bufConfigPath: '../configs/buf.yaml',
       });
       provider.setWorkspaceRoot('/workspace/project');
 
@@ -1370,7 +1380,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(Buffer.from('[]')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stderr: { on: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -1378,7 +1388,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1395,7 +1405,7 @@ describe('ExternalLinterProvider', () => {
       provider.updateSettings({
         enabled: true,
         linter: 'protolint',
-        protolintConfigPath: '/custom/.protolint.yaml'
+        protolintConfigPath: '/custom/.protolint.yaml',
       });
       provider.setWorkspaceRoot('/workspace');
 
@@ -1407,7 +1417,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1428,7 +1438,7 @@ describe('ExternalLinterProvider', () => {
 
       const mockOutput = [
         '{"path":"test.proto","start_line":1,"start_column":1,"type":"FAILURE","message":"Error in test"}',
-        '{"path":"other.proto","start_line":2,"start_column":1,"type":"FAILURE","message":"Error in other"}'
+        '{"path":"other.proto","start_line":2,"start_column":1,"type":"FAILURE","message":"Error in other"}',
       ].join('\n');
 
       const mockProcess = {
@@ -1438,7 +1448,7 @@ describe('ExternalLinterProvider', () => {
               setTimeout(() => callback(Buffer.from(mockOutput)), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stderr: { on: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -1446,7 +1456,7 @@ describe('ExternalLinterProvider', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);

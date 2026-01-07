@@ -49,12 +49,9 @@ function registerCheckBreakingChangesCommand(
     }
 
     try {
-      const result = (await client.sendRequest<BreakingChangesResult>(
-        REQUEST_METHODS.CHECK_BREAKING_CHANGES,
-        {
-          uri: editor.document.uri.toString()
-        }
-      )) as BreakingChangesResult;
+      const result = (await client.sendRequest<BreakingChangesResult>(REQUEST_METHODS.CHECK_BREAKING_CHANGES, {
+        uri: editor.document.uri.toString(),
+      })) as BreakingChangesResult;
 
       if (!result.hasBreakingChanges) {
         vscode.window.showInformationMessage(SUCCESS_MESSAGES.NO_BREAKING_CHANGES);
@@ -66,9 +63,7 @@ function registerCheckBreakingChangesCommand(
         for (const change of result.changes) {
           panel.appendLine(`[${change.rule}] ${change.message}`);
           if (change.location) {
-            panel.appendLine(
-              `  Line ${change.location.line + 1}, Character ${change.location.character + 1}`
-            );
+            panel.appendLine(`  Line ${change.location.line + 1}, Character ${change.location.character + 1}`);
           }
         }
         panel.show();

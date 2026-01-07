@@ -24,7 +24,7 @@ describe('DiagnosticsProvider Coverage Tests', () => {
       discouragedConstructs: true,
       importChecks: true,
       deprecatedUsage: true,
-      editionFeatures: true
+      editionFeatures: true,
     });
   });
 
@@ -43,8 +43,8 @@ service TestService {
       const diagnostics = provider.validate(uri, file, text);
 
       // Should report undefined type
-      const rpcErrors = diagnostics.filter(d =>
-        d.message.includes('Unknown') || d.message.includes('undefined') || d.message.includes('Undefined')
+      const rpcErrors = diagnostics.filter(
+        d => d.message.includes('Unknown') || d.message.includes('undefined') || d.message.includes('Undefined')
       );
       expect(rpcErrors.length).toBeGreaterThanOrEqual(0);
     });
@@ -63,8 +63,8 @@ service TestService {
       const diagnostics = provider.validate(uri, file, text);
 
       // Should report undefined type
-      const rpcErrors = diagnostics.filter(d =>
-        d.message.includes('Unknown') || d.message.includes('undefined') || d.message.includes('Undefined')
+      const rpcErrors = diagnostics.filter(
+        d => d.message.includes('Unknown') || d.message.includes('undefined') || d.message.includes('Undefined')
       );
       expect(rpcErrors.length).toBeGreaterThanOrEqual(0);
     });
@@ -104,8 +104,8 @@ message Container {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const unusedDiags = diagnostics.filter(d =>
-        d.message.includes('never used') && d.message.includes('UsedMessage')
+      const unusedDiags = diagnostics.filter(
+        d => d.message.includes('never used') && d.message.includes('UsedMessage')
       );
       expect(unusedDiags.length).toBe(0);
     });
@@ -125,9 +125,7 @@ message Container {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const unusedDiags = diagnostics.filter(d =>
-        d.message.includes('never used') && d.message.includes('UsedStatus')
-      );
+      const unusedDiags = diagnostics.filter(d => d.message.includes('never used') && d.message.includes('UsedStatus'));
       expect(unusedDiags.length).toBe(0);
     });
 
@@ -150,9 +148,8 @@ service DataService {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const unusedDiags = diagnostics.filter(d =>
-        d.message.includes('never used') &&
-        (d.message.includes('Request') || d.message.includes('Response'))
+      const unusedDiags = diagnostics.filter(
+        d => d.message.includes('never used') && (d.message.includes('Request') || d.message.includes('Response'))
       );
       expect(unusedDiags.length).toBe(0);
     });
@@ -229,9 +226,8 @@ message Test {
       const diagnostics = provider.validate(uri, file, text);
 
       // Groups are discouraged construct
-      const groupDiags = diagnostics.filter(d =>
-        d.message.toLowerCase().includes('group') ||
-        d.message.includes('duplicate')
+      const groupDiags = diagnostics.filter(
+        d => d.message.toLowerCase().includes('group') || d.message.includes('duplicate')
       );
       expect(groupDiags.length).toBeGreaterThan(0);
     });
@@ -310,9 +306,7 @@ service my_service {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const namingDiags = diagnostics.filter(d =>
-        d.message.includes('PascalCase') && d.message.includes('Service')
-      );
+      const namingDiags = diagnostics.filter(d => d.message.includes('PascalCase') && d.message.includes('Service'));
       expect(namingDiags.length).toBeGreaterThan(0);
     });
   });
@@ -330,8 +324,8 @@ enum Status {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const namingDiags = diagnostics.filter(d =>
-        d.message.includes('UPPER_SNAKE_CASE') || d.message.includes('uppercase')
+      const namingDiags = diagnostics.filter(
+        d => d.message.includes('UPPER_SNAKE_CASE') || d.message.includes('uppercase')
       );
       expect(namingDiags.length).toBeGreaterThanOrEqual(0);
     });
@@ -348,9 +342,7 @@ enum Status {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const prefixDiags = diagnostics.filter(d =>
-        d.message.includes('prefix') || d.message.includes('PREFIX')
-      );
+      const prefixDiags = diagnostics.filter(d => d.message.includes('prefix') || d.message.includes('PREFIX'));
       expect(prefixDiags.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -372,9 +364,7 @@ message NewMessage {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const deprecatedDiags = diagnostics.filter(d =>
-        d.message.toLowerCase().includes('deprecated')
-      );
+      const deprecatedDiags = diagnostics.filter(d => d.message.toLowerCase().includes('deprecated'));
       expect(deprecatedDiags.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -409,8 +399,8 @@ message Test {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const unresolvedDiags = diagnostics.filter(d =>
-        d.message.includes('Unknown') || d.message.includes('resolve') || d.message.includes('undefined')
+      const unresolvedDiags = diagnostics.filter(
+        d => d.message.includes('Unknown') || d.message.includes('resolve') || d.message.includes('undefined')
       );
       expect(unresolvedDiags.length).toBeGreaterThanOrEqual(0);
     });
@@ -428,9 +418,7 @@ message Test {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const mapDiags = diagnostics.filter(d =>
-        d.message.includes('map') || d.message.includes('key')
-      );
+      const mapDiags = diagnostics.filter(d => d.message.includes('map') || d.message.includes('key'));
       expect(mapDiags.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -450,9 +438,7 @@ message Test {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const oneofDiags = diagnostics.filter(d =>
-        d.message.includes('Duplicate') || d.message.includes('field number')
-      );
+      const oneofDiags = diagnostics.filter(d => d.message.includes('Duplicate') || d.message.includes('field number'));
       expect(oneofDiags.length).toBeGreaterThan(0);
     });
   });
@@ -470,9 +456,7 @@ message Test {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const reservedDiags = diagnostics.filter(d =>
-        d.message.includes('reserved')
-      );
+      const reservedDiags = diagnostics.filter(d => d.message.includes('reserved'));
       expect(reservedDiags.length).toBeGreaterThan(0);
     });
 
@@ -488,9 +472,7 @@ message Test {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const reservedDiags = diagnostics.filter(d =>
-        d.message.includes('reserved')
-      );
+      const reservedDiags = diagnostics.filter(d => d.message.includes('reserved'));
       expect(reservedDiags.length).toBeGreaterThan(0);
     });
   });
@@ -508,9 +490,7 @@ message Test {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const packageDiags = diagnostics.filter(d =>
-        d.message.includes('Package') || d.message.includes('lowercase')
-      );
+      const packageDiags = diagnostics.filter(d => d.message.includes('Package') || d.message.includes('lowercase'));
       expect(packageDiags.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -528,8 +508,8 @@ enum Status {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const enumDiags = diagnostics.filter(d =>
-        d.message.includes('first') || d.message.includes('zero') || d.message.includes('0')
+      const enumDiags = diagnostics.filter(
+        d => d.message.includes('first') || d.message.includes('zero') || d.message.includes('0')
       );
       expect(enumDiags.length).toBeGreaterThan(0);
     });

@@ -76,7 +76,7 @@ describe('ProtovalidatePlaygroundManager', () => {
         ruleType: 'string',
         ruleText: '(buf.validate.field).string.email = true',
         lineNumber: 5,
-        filePath: 'file:///test/user.proto'
+        filePath: 'file:///test/user.proto',
       };
 
       manager.openPlayground(rule);
@@ -84,7 +84,7 @@ describe('ProtovalidatePlaygroundManager', () => {
 
       expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith({
         command: 'setRule',
-        rule
+        rule,
       });
       jest.useRealTimers();
     });
@@ -99,14 +99,14 @@ describe('ProtovalidatePlaygroundManager', () => {
         ruleType: 'string',
         ruleText: '(buf.validate.field).string.min_len = 1',
         lineNumber: 3,
-        filePath: 'file:///test/person.proto'
+        filePath: 'file:///test/person.proto',
       };
 
       manager.openPlayground(rule);
 
       expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith({
         command: 'setRule',
-        rule
+        rule,
       });
     });
   });
@@ -126,7 +126,7 @@ describe('ProtovalidatePlaygroundManager', () => {
 
         expect(mockVscode.env.openExternal).toHaveBeenCalledWith(
           expect.objectContaining({
-            fsPath: expect.stringContaining('buf.build/docs/protovalidate')
+            fsPath: expect.stringContaining('buf.build/docs/protovalidate'),
           })
         );
       });
@@ -138,7 +138,7 @@ describe('ProtovalidatePlaygroundManager', () => {
 
         expect(mockVscode.env.openExternal).toHaveBeenCalledWith(
           expect.objectContaining({
-            fsPath: expect.stringContaining('playcel.undistro.io')
+            fsPath: expect.stringContaining('playcel.undistro.io'),
           })
         );
       });
@@ -149,9 +149,7 @@ describe('ProtovalidatePlaygroundManager', () => {
         await messageHandler?.({ command: 'copyExpression', expression: 'this.size() > 0' });
 
         expect(mockVscode.env.clipboard.writeText).toHaveBeenCalledWith('this.size() > 0');
-        expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(
-          'CEL expression copied to clipboard'
-        );
+        expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith('CEL expression copied to clipboard');
       });
     });
 
@@ -163,7 +161,7 @@ describe('ProtovalidatePlaygroundManager', () => {
           ruleType: 'string',
           ruleText: '(buf.validate.field).string.min_len = 3',
           lineNumber: 1,
-          filePath: 'test.proto'
+          filePath: 'test.proto',
         };
 
         // First set up rule by opening with it
@@ -174,12 +172,12 @@ describe('ProtovalidatePlaygroundManager', () => {
 
         await messageHandler?.({
           command: 'validateData',
-          data: { rule, jsonValue: '"ab"' }
+          data: { rule, jsonValue: '"ab"' },
         });
 
         expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith({
           command: 'validationResult',
-          result: expect.objectContaining({ valid: false })
+          result: expect.objectContaining({ valid: false }),
         });
       });
 
@@ -190,7 +188,7 @@ describe('ProtovalidatePlaygroundManager', () => {
           ruleType: 'string',
           ruleText: '(buf.validate.field).string.min_len = 3',
           lineNumber: 1,
-          filePath: 'test.proto'
+          filePath: 'test.proto',
         };
 
         manager.openPlayground(rule);
@@ -200,12 +198,12 @@ describe('ProtovalidatePlaygroundManager', () => {
 
         await messageHandler?.({
           command: 'validateData',
-          data: { rule, jsonValue: '"hello"' }
+          data: { rule, jsonValue: '"hello"' },
         });
 
         expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith({
           command: 'validationResult',
-          result: expect.objectContaining({ valid: true })
+          result: expect.objectContaining({ valid: true }),
         });
       });
 
@@ -216,7 +214,7 @@ describe('ProtovalidatePlaygroundManager', () => {
           ruleType: 'string',
           ruleText: '(buf.validate.field).string.min_len = 1',
           lineNumber: 1,
-          filePath: 'test.proto'
+          filePath: 'test.proto',
         };
 
         manager.openPlayground(rule);
@@ -226,15 +224,15 @@ describe('ProtovalidatePlaygroundManager', () => {
 
         await messageHandler?.({
           command: 'validateData',
-          data: { rule, jsonValue: 'not valid json' }
+          data: { rule, jsonValue: 'not valid json' },
         });
 
         expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith({
           command: 'validationResult',
           result: expect.objectContaining({
             valid: false,
-            error: expect.stringContaining('Invalid JSON')
-          })
+            error: expect.stringContaining('Invalid JSON'),
+          }),
         });
       });
 
@@ -245,7 +243,7 @@ describe('ProtovalidatePlaygroundManager', () => {
           ruleType: 'numeric',
           ruleText: '(buf.validate.field).int32.gt = 0',
           lineNumber: 1,
-          filePath: 'test.proto'
+          filePath: 'test.proto',
         };
 
         manager.openPlayground(rule);
@@ -255,12 +253,12 @@ describe('ProtovalidatePlaygroundManager', () => {
 
         await messageHandler?.({
           command: 'validateData',
-          data: { rule, jsonValue: '-1' }
+          data: { rule, jsonValue: '-1' },
         });
 
         expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith({
           command: 'validationResult',
-          result: expect.objectContaining({ valid: false })
+          result: expect.objectContaining({ valid: false }),
         });
       });
 
@@ -271,7 +269,7 @@ describe('ProtovalidatePlaygroundManager', () => {
           ruleType: 'repeated',
           ruleText: '(buf.validate.field).repeated.min_items = 1',
           lineNumber: 1,
-          filePath: 'test.proto'
+          filePath: 'test.proto',
         };
 
         manager.openPlayground(rule);
@@ -281,12 +279,12 @@ describe('ProtovalidatePlaygroundManager', () => {
 
         await messageHandler?.({
           command: 'validateData',
-          data: { rule, jsonValue: '[]' }
+          data: { rule, jsonValue: '[]' },
         });
 
         expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith({
           command: 'validationResult',
-          result: expect.objectContaining({ valid: false })
+          result: expect.objectContaining({ valid: false }),
         });
       });
 
@@ -297,7 +295,7 @@ describe('ProtovalidatePlaygroundManager', () => {
           ruleType: 'cel',
           ruleText: '(buf.validate.field).cel.expression = "this.size() > 0"',
           lineNumber: 1,
-          filePath: 'test.proto'
+          filePath: 'test.proto',
         };
 
         manager.openPlayground(rule);
@@ -307,15 +305,15 @@ describe('ProtovalidatePlaygroundManager', () => {
 
         await messageHandler?.({
           command: 'validateData',
-          data: { rule, jsonValue: '"test"' }
+          data: { rule, jsonValue: '"test"' },
         });
 
         expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith({
           command: 'validationResult',
           result: expect.objectContaining({
             valid: true,
-            info: expect.stringContaining('CEL')
-          })
+            info: expect.stringContaining('CEL'),
+          }),
         });
       });
     });

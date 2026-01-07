@@ -51,9 +51,7 @@ export function getTypePrefix(text: string): TypePrefix | undefined {
  */
 export function isKeywordContext(text: string): boolean {
   const trimmed = text.trim();
-  return trimmed === '' ||
-         /^\s*\w*$/.test(trimmed) ||
-         /^\s*(message|enum|service|oneof)\s+\w+\s*\{?\s*$/.test(text);
+  return trimmed === '' || /^\s*\w*$/.test(trimmed) || /^\s*(message|enum|service|oneof)\s+\w+\s*\{?\s*$/.test(text);
 }
 
 /**

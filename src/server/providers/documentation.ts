@@ -13,14 +13,14 @@ import type {
   EnumValue,
   RpcDefinition,
   MapFieldDefinition,
-  OptionStatement
+  OptionStatement,
 } from '../core/ast';
 import type {
   DocumentationData,
   DocumentationElement,
   DocumentationField,
   DocumentationEnumValue,
-  DocumentationRpc
+  DocumentationRpc,
 } from '../../shared/documentation';
 
 export class DocumentationProvider {
@@ -57,7 +57,7 @@ export class DocumentationProvider {
       enums: file.enums.map(enm => this.buildEnumDoc(enm)),
       services: file.services.map(svc => this.buildServiceDoc(svc)),
       fileComments: file.comments,
-      options: file.options.map(opt => this.formatOption(opt))
+      options: file.options.map(opt => this.formatOption(opt)),
     };
   }
 
@@ -99,7 +99,7 @@ export class DocumentationProvider {
       fields,
       nestedMessages: message.nestedMessages.map(nm => this.buildMessageDoc(nm, fullName)),
       nestedEnums: message.nestedEnums.map(ne => this.buildEnumDoc(ne, fullName)),
-      options: message.options.map(opt => this.formatOption(opt))
+      options: message.options.map(opt => this.formatOption(opt)),
     };
   }
 
@@ -111,7 +111,7 @@ export class DocumentationProvider {
       modifier: field.modifier,
       comments: field.comments,
       deprecated: this.isFieldDeprecated(field.options),
-      options: field.options?.map(opt => `${opt.name} = ${opt.value}`)
+      options: field.options?.map(opt => `${opt.name} = ${opt.value}`),
     };
   }
 
@@ -121,7 +121,7 @@ export class DocumentationProvider {
       type: `map<${mapField.keyType}, ${mapField.valueType}>`,
       number: mapField.number,
       comments: mapField.comments,
-      deprecated: false
+      deprecated: false,
     };
   }
 
@@ -135,7 +135,7 @@ export class DocumentationProvider {
       comments: enumDef.comments,
       deprecated: this.isDeprecated(enumDef.options),
       values: enumDef.values.map(val => this.buildEnumValueDoc(val)),
-      options: enumDef.options.map(opt => this.formatOption(opt))
+      options: enumDef.options.map(opt => this.formatOption(opt)),
     };
   }
 
@@ -144,7 +144,7 @@ export class DocumentationProvider {
       name: value.name,
       number: value.number,
       comments: value.comments,
-      deprecated: this.isFieldDeprecated(value.options)
+      deprecated: this.isFieldDeprecated(value.options),
     };
   }
 
@@ -156,7 +156,7 @@ export class DocumentationProvider {
       comments: service.comments,
       deprecated: this.isDeprecated(service.options),
       rpcs: service.rpcs.map(rpc => this.buildRpcDoc(rpc)),
-      options: service.options.map(opt => this.formatOption(opt))
+      options: service.options.map(opt => this.formatOption(opt)),
     };
   }
 
@@ -168,7 +168,7 @@ export class DocumentationProvider {
       requestStreaming: rpc.requestStreaming,
       responseStreaming: rpc.responseStreaming,
       comments: rpc.comments,
-      deprecated: this.isDeprecated(rpc.options)
+      deprecated: this.isDeprecated(rpc.options),
     };
   }
 

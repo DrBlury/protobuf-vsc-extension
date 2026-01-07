@@ -10,7 +10,10 @@ export class PlaygroundManager {
   private outputChannel: vscode.OutputChannel;
   private grpcurlPath: string | undefined;
 
-  constructor(private context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
+  constructor(
+    private context: vscode.ExtensionContext,
+    outputChannel: vscode.OutputChannel
+  ) {
     this.outputChannel = outputChannel;
   }
 
@@ -95,15 +98,10 @@ export class PlaygroundManager {
       return;
     }
 
-    this.panel = vscode.window.createWebviewPanel(
-      this.viewType,
-      'Protobuf Playground',
-      vscode.ViewColumn.Two,
-      {
-        enableScripts: true,
-        localResourceRoots: [vscode.Uri.file(path.join(this.context.extensionPath, 'out'))]
-      }
-    );
+    this.panel = vscode.window.createWebviewPanel(this.viewType, 'Protobuf Playground', vscode.ViewColumn.Two, {
+      enableScripts: true,
+      localResourceRoots: [vscode.Uri.file(path.join(this.context.extensionPath, 'out'))],
+    });
 
     this.panel.webview.html = this.getHtmlContent();
 
@@ -111,28 +109,28 @@ export class PlaygroundManager {
       this.panel = undefined;
     });
 
-    this.panel.webview.onDidReceiveMessage(async (message) => {
+    this.panel.webview.onDidReceiveMessage(async message => {
       switch (message.command) {
         case 'runRequest':
           await this.runRequest(message.data);
           break;
         case 'listServices':
-            await this.listServices(message.file);
-            break;
+          await this.listServices(message.file);
+          break;
         case 'listServicesViaReflection':
-            await this.listServicesViaReflection(message.address);
-            break;
+          await this.listServicesViaReflection(message.address);
+          break;
         case 'runRequestViaReflection':
-            await this.runRequestViaReflection(message.data);
-            break;
+          await this.runRequestViaReflection(message.data);
+          break;
       }
     });
 
     // Initial data load if a file is active
     const activeEditor = vscode.window.activeTextEditor;
     if (activeEditor && activeEditor.document.languageId === 'proto') {
-        this.panel.webview.postMessage({ command: 'setFile', file: activeEditor.document.uri.fsPath });
-        this.listServices(activeEditor.document.uri.fsPath);
+      this.panel.webview.postMessage({ command: 'setFile', file: activeEditor.document.uri.fsPath });
+      this.listServices(activeEditor.document.uri.fsPath);
     }
   }
 
@@ -140,229 +138,237 @@ export class PlaygroundManager {
    * Check if a proto file uses editions syntax (not supported by grpcurl)
    */
   private async usesEditions(filePath: string): Promise<boolean> {
-      try {
-          const fs = await import('fs/promises');
-          const content = await fs.readFile(filePath, 'utf-8');
-          // Check for edition declaration (e.g., edition = "2023";)
-          return /^\s*edition\s*=\s*["'][^"']+["']\s*;/m.test(content);
-      } catch {
-          return false;
-      }
+    try {
+      const fs = await import('fs/promises');
+      const content = await fs.readFile(filePath, 'utf-8');
+      // Check for edition declaration (e.g., edition = "2023";)
+      return /^\s*edition\s*=\s*["'][^"']+["']\s*;/m.test(content);
+    } catch {
+      return false;
+    }
   }
 
   private async listServices(filePath: string) {
-      // Use grpcurl to list services if possible, or parse locally
-      // For now, let's assume we can use grpcurl on the proto file
-      // NOTE: This requires the proto file to be valid and imports resolvable by grpcurl
-      // Often better to use the language server's knowledge, but that requires more plumbing.
-      // Let's try running grpcurl describe with import paths.
+    // Use grpcurl to list services if possible, or parse locally
+    // For now, let's assume we can use grpcurl on the proto file
+    // NOTE: This requires the proto file to be valid and imports resolvable by grpcurl
+    // Often better to use the language server's knowledge, but that requires more plumbing.
+    // Let's try running grpcurl describe with import paths.
 
-      // Check if file uses editions syntax (not supported by grpcurl)
-      if (await this.usesEditions(filePath)) {
-          const errorMsg = 'This proto file uses Protobuf Editions syntax (edition = "..."), which is not yet supported by grpcurl. ' +
-              'Consider using server reflection instead, or convert to proto3 syntax for playground testing.';
-          this.outputChannel.appendLine(`Editions not supported: ${filePath}`);
+    // Check if file uses editions syntax (not supported by grpcurl)
+    if (await this.usesEditions(filePath)) {
+      const errorMsg =
+        'This proto file uses Protobuf Editions syntax (edition = "..."), which is not yet supported by grpcurl. ' +
+        'Consider using server reflection instead, or convert to proto3 syntax for playground testing.';
+      this.outputChannel.appendLine(`Editions not supported: ${filePath}`);
 
-          const action = await vscode.window.showWarningMessage(
-              'grpcurl does not support Protobuf Editions yet. Use server reflection or convert to proto3.',
-              'Use Server Reflection',
-              'Learn More'
-          );
+      const action = await vscode.window.showWarningMessage(
+        'grpcurl does not support Protobuf Editions yet. Use server reflection or convert to proto3.',
+        'Use Server Reflection',
+        'Learn More'
+      );
 
-          if (action === 'Use Server Reflection') {
-              // Update the webview to indicate server reflection mode
+      if (action === 'Use Server Reflection') {
+        // Update the webview to indicate server reflection mode
+        this.panel?.webview.postMessage({
+          command: 'editionsWarning',
+          message: 'Enter server address and use reflection to discover services',
+          useReflection: true,
+        });
+      } else if (action === 'Learn More') {
+        vscode.env.openExternal(vscode.Uri.parse('https://github.com/fullstorydev/grpcurl/issues'));
+      }
+
+      this.panel?.webview.postMessage({ command: 'error', message: errorMsg });
+      return;
+    }
+
+    const config = vscode.workspace.getConfiguration('protobuf');
+    const includes = config.get<string[]>('includes') || [];
+    const cwd = path.dirname(filePath);
+
+    const args = ['-import-path', cwd];
+    includes.forEach(inc => {
+      args.push('-import-path', inc);
+    });
+    args.push('-proto', filePath);
+    args.push('list'); // List services
+
+    try {
+      const grpcurlCmd = await this.getGrpcurlPath();
+      const output = await this.runGrpcurl(grpcurlCmd, args, cwd);
+      const services = output.split('\n').filter(s => s.trim().length > 0);
+      this.panel?.webview.postMessage({ command: 'servicesLoaded', services });
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      this.outputChannel.appendLine(`Failed to list services: ${errorMsg}`);
+
+      // Check if this is an editions-related error from grpcurl
+      if (errorMsg.includes('editions are not yet supported') || errorMsg.includes('edition')) {
+        const editionsErrorMsg =
+          'grpcurl does not support Protobuf Editions syntax. ' +
+          'Use server reflection by connecting to a running gRPC server, or convert to proto3 syntax.';
+        this.panel?.webview.postMessage({ command: 'error', message: editionsErrorMsg });
+
+        vscode.window
+          .showWarningMessage(
+            'grpcurl does not support Protobuf Editions. Use server reflection instead.',
+            'Use Server Reflection'
+          )
+          .then(action => {
+            if (action === 'Use Server Reflection') {
               this.panel?.webview.postMessage({
-                  command: 'editionsWarning',
-                  message: 'Enter server address and use reflection to discover services',
-                  useReflection: true
+                command: 'editionsWarning',
+                message: 'Enter server address and use reflection to discover services',
+                useReflection: true,
               });
-          } else if (action === 'Learn More') {
-              vscode.env.openExternal(vscode.Uri.parse('https://github.com/fullstorydev/grpcurl/issues'));
-          }
-
-          this.panel?.webview.postMessage({ command: 'error', message: errorMsg });
-          return;
+            }
+          });
+        return;
       }
 
-      const config = vscode.workspace.getConfiguration('protobuf');
-      const includes = config.get<string[]>('includes') || [];
-      const cwd = path.dirname(filePath);
-
-      const args = ['-import-path', cwd];
-      includes.forEach(inc => {
-          args.push('-import-path', inc);
-      });
-      args.push('-proto', filePath);
-      args.push('list'); // List services
-
-      try {
-        const grpcurlCmd = await this.getGrpcurlPath();
-        const output = await this.runGrpcurl(grpcurlCmd, args, cwd);
-        const services = output.split('\n').filter(s => s.trim().length > 0);
-        this.panel?.webview.postMessage({ command: 'servicesLoaded', services });
-      } catch (e) {
-          const errorMsg = e instanceof Error ? e.message : String(e);
-          this.outputChannel.appendLine(`Failed to list services: ${errorMsg}`);
-
-          // Check if this is an editions-related error from grpcurl
-          if (errorMsg.includes('editions are not yet supported') || errorMsg.includes('edition')) {
-              const editionsErrorMsg = 'grpcurl does not support Protobuf Editions syntax. ' +
-                  'Use server reflection by connecting to a running gRPC server, or convert to proto3 syntax.';
-              this.panel?.webview.postMessage({ command: 'error', message: editionsErrorMsg });
-
-              vscode.window.showWarningMessage(
-                  'grpcurl does not support Protobuf Editions. Use server reflection instead.',
-                  'Use Server Reflection'
-              ).then(action => {
-                  if (action === 'Use Server Reflection') {
-                      this.panel?.webview.postMessage({
-                          command: 'editionsWarning',
-                          message: 'Enter server address and use reflection to discover services',
-                          useReflection: true
-                      });
-                  }
-              });
-              return;
-          }
-
-          // Check if grpcurl is not installed and provide helpful message
-          if (errorMsg.includes('command not found') || errorMsg.includes('ENOENT')) {
-              const action = await vscode.window.showErrorMessage(
-                  'grpcurl is not installed or not found. Would you like to install it?',
-                  'Install grpcurl',
-                  'Configure Path',
-                  'Cancel'
-              );
-              if (action === 'Install grpcurl') {
-                  vscode.commands.executeCommand('protobuf.toolchain.manage');
-              } else if (action === 'Configure Path') {
-                  vscode.commands.executeCommand('workbench.action.openSettings', 'protobuf.grpcurl.path');
-              }
-          }
-
-          // Send error to webview
-          this.panel?.webview.postMessage({ command: 'error', message: `Failed to list services: ${errorMsg}` });
+      // Check if grpcurl is not installed and provide helpful message
+      if (errorMsg.includes('command not found') || errorMsg.includes('ENOENT')) {
+        const action = await vscode.window.showErrorMessage(
+          'grpcurl is not installed or not found. Would you like to install it?',
+          'Install grpcurl',
+          'Configure Path',
+          'Cancel'
+        );
+        if (action === 'Install grpcurl') {
+          vscode.commands.executeCommand('protobuf.toolchain.manage');
+        } else if (action === 'Configure Path') {
+          vscode.commands.executeCommand('workbench.action.openSettings', 'protobuf.grpcurl.path');
+        }
       }
+
+      // Send error to webview
+      this.panel?.webview.postMessage({ command: 'error', message: `Failed to list services: ${errorMsg}` });
+    }
   }
 
-  private async runRequest(data: { service: string, method: string, address: string, jsonBody: string, filePath: string }) {
-     const config = vscode.workspace.getConfiguration('protobuf');
-     const includes = config.get<string[]>('includes') || [];
-     const cwd = path.dirname(data.filePath);
+  private async runRequest(data: {
+    service: string;
+    method: string;
+    address: string;
+    jsonBody: string;
+    filePath: string;
+  }) {
+    const config = vscode.workspace.getConfiguration('protobuf');
+    const includes = config.get<string[]>('includes') || [];
+    const cwd = path.dirname(data.filePath);
 
-     const args = ['-import-path', cwd];
-     includes.forEach(inc => {
-         args.push('-import-path', inc);
-     });
-     args.push('-proto', data.filePath);
-     args.push('-d', data.jsonBody);
-     args.push('-plaintext'); // Assume plaintext for local dev, make configurable later
-     args.push(data.address);
-     args.push(`${data.service}/${data.method}`);
+    const args = ['-import-path', cwd];
+    includes.forEach(inc => {
+      args.push('-import-path', inc);
+    });
+    args.push('-proto', data.filePath);
+    args.push('-d', data.jsonBody);
+    args.push('-plaintext'); // Assume plaintext for local dev, make configurable later
+    args.push(data.address);
+    args.push(`${data.service}/${data.method}`);
 
-     try {
-         const grpcurlCmd = await this.getGrpcurlPath();
-         this.outputChannel.appendLine(`Running: ${grpcurlCmd} ${args.join(' ')}`);
-         const output = await this.runGrpcurl(grpcurlCmd, args, cwd);
-         this.panel?.webview.postMessage({ command: 'response', output });
-     } catch (e) {
-         const errorMsg = e instanceof Error ? e.message : String(e);
-         // Check if grpcurl is not installed and provide helpful message
-         if (errorMsg.includes('command not found') || errorMsg.includes('ENOENT')) {
-             vscode.window.showErrorMessage(
-                 'grpcurl is not installed. Use "Protobuf: Manage Toolchain" to install it.',
-                 'Install grpcurl'
-             ).then(action => {
-                 if (action === 'Install grpcurl') {
-                     vscode.commands.executeCommand('protobuf.toolchain.manage');
-                 }
-             });
-         }
-         this.panel?.webview.postMessage({ command: 'responseError', error: errorMsg });
-     }
+    try {
+      const grpcurlCmd = await this.getGrpcurlPath();
+      this.outputChannel.appendLine(`Running: ${grpcurlCmd} ${args.join(' ')}`);
+      const output = await this.runGrpcurl(grpcurlCmd, args, cwd);
+      this.panel?.webview.postMessage({ command: 'response', output });
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      // Check if grpcurl is not installed and provide helpful message
+      if (errorMsg.includes('command not found') || errorMsg.includes('ENOENT')) {
+        vscode.window
+          .showErrorMessage(
+            'grpcurl is not installed. Use "Protobuf: Manage Toolchain" to install it.',
+            'Install grpcurl'
+          )
+          .then(action => {
+            if (action === 'Install grpcurl') {
+              vscode.commands.executeCommand('protobuf.toolchain.manage');
+            }
+          });
+      }
+      this.panel?.webview.postMessage({ command: 'responseError', error: errorMsg });
+    }
   }
 
   /**
    * List services using server reflection (no proto file needed)
    */
   private async listServicesViaReflection(address: string) {
-      const args = ['-plaintext', address, 'list'];
+    const args = ['-plaintext', address, 'list'];
 
-      try {
-          const grpcurlCmd = await this.getGrpcurlPath();
-          this.outputChannel.appendLine(`Listing services via reflection: ${grpcurlCmd} ${args.join(' ')}`);
-          const output = await this.runGrpcurl(grpcurlCmd, args, process.cwd());
-          const services = output.split('\n').filter(s => s.trim().length > 0 && !s.startsWith('grpc.'));
-          this.panel?.webview.postMessage({ command: 'servicesLoaded', services });
-      } catch (e) {
-          const errorMsg = e instanceof Error ? e.message : String(e);
-          this.outputChannel.appendLine(`Failed to list services via reflection: ${errorMsg}`);
+    try {
+      const grpcurlCmd = await this.getGrpcurlPath();
+      this.outputChannel.appendLine(`Listing services via reflection: ${grpcurlCmd} ${args.join(' ')}`);
+      const output = await this.runGrpcurl(grpcurlCmd, args, process.cwd());
+      const services = output.split('\n').filter(s => s.trim().length > 0 && !s.startsWith('grpc.'));
+      this.panel?.webview.postMessage({ command: 'servicesLoaded', services });
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      this.outputChannel.appendLine(`Failed to list services via reflection: ${errorMsg}`);
 
-          if (errorMsg.includes('reflection') || errorMsg.includes('Unimplemented')) {
-              this.panel?.webview.postMessage({
-                  command: 'error',
-                  message: 'Server reflection is not enabled on the target server. Enable reflection in your gRPC server configuration.'
-              });
-          } else if (errorMsg.includes('connection refused') || errorMsg.includes('dial tcp')) {
-              this.panel?.webview.postMessage({
-                  command: 'error',
-                  message: `Cannot connect to ${address}. Make sure the gRPC server is running.`
-              });
-          } else {
-              this.panel?.webview.postMessage({ command: 'error', message: `Failed to list services: ${errorMsg}` });
-          }
+      if (errorMsg.includes('reflection') || errorMsg.includes('Unimplemented')) {
+        this.panel?.webview.postMessage({
+          command: 'error',
+          message:
+            'Server reflection is not enabled on the target server. Enable reflection in your gRPC server configuration.',
+        });
+      } else if (errorMsg.includes('connection refused') || errorMsg.includes('dial tcp')) {
+        this.panel?.webview.postMessage({
+          command: 'error',
+          message: `Cannot connect to ${address}. Make sure the gRPC server is running.`,
+        });
+      } else {
+        this.panel?.webview.postMessage({ command: 'error', message: `Failed to list services: ${errorMsg}` });
       }
+    }
   }
 
   /**
    * Run a gRPC request using server reflection (no proto file needed)
    */
-  private async runRequestViaReflection(data: { service: string, method: string, address: string, jsonBody: string }) {
-      const args = [
-          '-plaintext',
-          '-d', data.jsonBody,
-          data.address,
-          `${data.service}/${data.method}`
-      ];
+  private async runRequestViaReflection(data: { service: string; method: string; address: string; jsonBody: string }) {
+    const args = ['-plaintext', '-d', data.jsonBody, data.address, `${data.service}/${data.method}`];
 
-      try {
-          const grpcurlCmd = await this.getGrpcurlPath();
-          this.outputChannel.appendLine(`Running via reflection: ${grpcurlCmd} ${args.join(' ')}`);
-          const output = await this.runGrpcurl(grpcurlCmd, args, process.cwd());
-          this.panel?.webview.postMessage({ command: 'response', output });
-      } catch (e) {
-          const errorMsg = e instanceof Error ? e.message : String(e);
-          this.panel?.webview.postMessage({ command: 'responseError', error: errorMsg });
-      }
+    try {
+      const grpcurlCmd = await this.getGrpcurlPath();
+      this.outputChannel.appendLine(`Running via reflection: ${grpcurlCmd} ${args.join(' ')}`);
+      const output = await this.runGrpcurl(grpcurlCmd, args, process.cwd());
+      this.panel?.webview.postMessage({ command: 'response', output });
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      this.panel?.webview.postMessage({ command: 'responseError', error: errorMsg });
+    }
   }
 
   private runGrpcurl(grpcurlCmd: string, args: string[], cwd: string): Promise<string> {
-      return new Promise((resolve, reject) => {
-          // Don't use shell: true as it breaks paths with spaces
-          const proc = spawn(grpcurlCmd, args, { cwd });
-          let stdout = '';
-          let stderr = '';
+    return new Promise((resolve, reject) => {
+      // Don't use shell: true as it breaks paths with spaces
+      const proc = spawn(grpcurlCmd, args, { cwd });
+      let stdout = '';
+      let stderr = '';
 
-          proc.stdout.on('data', d => stdout += d.toString());
-          proc.stderr.on('data', d => stderr += d.toString());
+      proc.stdout.on('data', d => (stdout += d.toString()));
+      proc.stderr.on('data', d => (stderr += d.toString()));
 
-          proc.on('close', code => {
-              if (code === 0) {
-                  resolve(stdout);
-              } else {
-                  reject(new Error(stderr || `Exited with code ${code}`));
-              }
-          });
-
-          proc.on('error', err => {
-              // Provide more helpful error messages
-              if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-                  reject(new Error(`grpcurl command not found. Install grpcurl or configure the path in settings.`));
-              } else {
-                  reject(err);
-              }
-          });
+      proc.on('close', code => {
+        if (code === 0) {
+          resolve(stdout);
+        } else {
+          reject(new Error(stderr || `Exited with code ${code}`));
+        }
       });
+
+      proc.on('error', err => {
+        // Provide more helpful error messages
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          reject(new Error(`grpcurl command not found. Install grpcurl or configure the path in settings.`));
+        } else {
+          reject(err);
+        }
+      });
+    });
   }
 
   private getHtmlContent(): string {

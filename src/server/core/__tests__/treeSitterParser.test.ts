@@ -6,7 +6,7 @@
 jest.mock('fs', () => ({
   existsSync: jest.fn().mockReturnValue(true),
   accessSync: jest.fn(),
-  constants: { R_OK: 4 }
+  constants: { R_OK: 4 },
 }));
 
 // We need to mock web-tree-sitter before importing the module
@@ -49,7 +49,7 @@ function createMockNode(
     child: (index: number) => children[index] || null,
     childForFieldName: (name: string) => fieldChildren[name] || null,
     isMissing: () => false,
-    parent: null
+    parent: null,
   };
   return node;
 }
@@ -78,8 +78,8 @@ jest.mock('web-tree-sitter', () => {
   return {
     Parser: MockParser,
     Language: {
-      load: mockLanguageLoad
-    }
+      load: mockLanguageLoad,
+    },
   };
 });
 
@@ -89,8 +89,8 @@ jest.mock('../../utils/logger', () => ({
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
-  }
+    error: jest.fn(),
+  },
 }));
 
 describe('treeSitterParser', () => {
@@ -106,7 +106,7 @@ describe('treeSitterParser', () => {
       jest.doMock('fs', () => ({
         existsSync: jest.fn().mockReturnValue(true),
         accessSync: jest.fn(),
-        constants: { R_OK: 4 }
+        constants: { R_OK: 4 },
       }));
     });
 
@@ -146,7 +146,7 @@ describe('treeSitterParser', () => {
       jest.doMock('fs', () => ({
         existsSync: jest.fn().mockReturnValue(true),
         accessSync: jest.fn(),
-        constants: { R_OK: 4 }
+        constants: { R_OK: 4 },
       }));
     });
 
@@ -155,7 +155,7 @@ describe('treeSitterParser', () => {
       jest.doMock('fs', () => ({
         existsSync: jest.fn().mockReturnValue(true),
         accessSync: jest.fn(),
-        constants: { R_OK: 4 }
+        constants: { R_OK: 4 },
       }));
       const { isTreeSitterInitialized } = require('../treeSitterParser');
       expect(isTreeSitterInitialized()).toBe(false);
@@ -166,7 +166,7 @@ describe('treeSitterParser', () => {
       jest.doMock('fs', () => ({
         existsSync: jest.fn().mockReturnValue(true),
         accessSync: jest.fn(),
-        constants: { R_OK: 4 }
+        constants: { R_OK: 4 },
       }));
       const { initTreeSitterParser, isTreeSitterInitialized } = require('../treeSitterParser');
       await initTreeSitterParser('/path/to/wasm');
@@ -182,7 +182,7 @@ describe('treeSitterParser', () => {
       jest.doMock('fs', () => ({
         existsSync: jest.fn().mockReturnValue(true),
         accessSync: jest.fn(),
-        constants: { R_OK: 4 }
+        constants: { R_OK: 4 },
       }));
       const { initTreeSitterParser } = require('../treeSitterParser');
       await initTreeSitterParser('/path/to/wasm');
@@ -343,12 +343,7 @@ describe('treeSitterParser', () => {
       it('should parse message definition', async () => {
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{}', []);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage {}',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage {}', [], { name: nameNode, body: bodyNode });
         const root = createMockNode('source_file', 'message TestMessage {}', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -363,12 +358,10 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'string name = 1;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ string name = 1; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { string name = 1; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { string name = 1; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { string name = 1; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -385,12 +378,10 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'repeated string tags = 1;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ repeated string tags = 1; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { repeated string tags = 1; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { repeated string tags = 1; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { repeated string tags = 1; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -404,12 +395,10 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'optional string name = 1;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ optional string name = 1; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { optional string name = 1; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { optional string name = 1; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { optional string name = 1; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -423,12 +412,10 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'string name = 0x10;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ string name = 0x10; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { string name = 0x10; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { string name = 0x10; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { string name = 0x10; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -442,13 +429,13 @@ describe('treeSitterParser', () => {
         const mapFieldNode = createMockNode('map_field', 'map<string, int32> values = 1;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ map<string, int32> values = 1; }', [mapFieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { map<string, int32> values = 1; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { map<string, int32> values = 1; }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { map<string, int32> values = 1; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { map<string, int32> values = 1; }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
@@ -463,25 +450,25 @@ describe('treeSitterParser', () => {
       it('should parse oneof definition', async () => {
         const oneofFieldNode = createMockNode('oneof_field', 'string name = 1;');
         const oneofNameNode = createMockNode('identifier', 'choice');
-        const oneofNode = createMockNode(
-          'oneof',
-          'oneof choice { string name = 1; }',
-          [oneofFieldNode],
-          { name: oneofNameNode }
-        );
+        const oneofNode = createMockNode('oneof', 'oneof choice { string name = 1; }', [oneofFieldNode], {
+          name: oneofNameNode,
+        });
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ oneof choice { string name = 1; } }', [oneofNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { oneof choice { string name = 1; } }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { oneof choice { string name = 1; } }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { oneof choice { string name = 1; } }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { oneof choice { string name = 1; } }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
-        const result = treeSitterParser.parse('message TestMessage { oneof choice { string name = 1; } }', 'test.proto');
+        const result = treeSitterParser.parse(
+          'message TestMessage { oneof choice { string name = 1; } }',
+          'test.proto'
+        );
 
         expect(result.messages[0].oneofs).toHaveLength(1);
         expect(result.messages[0].oneofs[0].name).toBe('choice');
@@ -491,12 +478,10 @@ describe('treeSitterParser', () => {
         const enumValueNode = createMockNode('enum_field', 'UNKNOWN = 0;');
         const enumNameNode = createMockNode('identifier', 'Status');
         const enumBodyNode = createMockNode('enum_body', '{ UNKNOWN = 0; }', [enumValueNode]);
-        const enumNode = createMockNode(
-          'enum',
-          'enum Status { UNKNOWN = 0; }',
-          [],
-          { name: enumNameNode, body: enumBodyNode }
-        );
+        const enumNode = createMockNode('enum', 'enum Status { UNKNOWN = 0; }', [], {
+          name: enumNameNode,
+          body: enumBodyNode,
+        });
         const root = createMockNode('source_file', 'enum Status { UNKNOWN = 0; }', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -514,12 +499,10 @@ describe('treeSitterParser', () => {
         const enumValueNode = createMockNode('enum_field', 'NEG = -1;');
         const enumNameNode = createMockNode('identifier', 'TestEnum');
         const enumBodyNode = createMockNode('enum_body', '{ NEG = -1; }', [enumValueNode]);
-        const enumNode = createMockNode(
-          'enum',
-          'enum TestEnum { NEG = -1; }',
-          [],
-          { name: enumNameNode, body: enumBodyNode }
-        );
+        const enumNode = createMockNode('enum', 'enum TestEnum { NEG = -1; }', [], {
+          name: enumNameNode,
+          body: enumBodyNode,
+        });
         const root = createMockNode('source_file', 'enum TestEnum { NEG = -1; }', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -533,12 +516,10 @@ describe('treeSitterParser', () => {
         const enumValueNode = createMockNode('enum_field', 'HEX_VAL = 0xFF;');
         const enumNameNode = createMockNode('identifier', 'TestEnum');
         const enumBodyNode = createMockNode('enum_body', '{ HEX_VAL = 0xFF; }', [enumValueNode]);
-        const enumNode = createMockNode(
-          'enum',
-          'enum TestEnum { HEX_VAL = 0xFF; }',
-          [],
-          { name: enumNameNode, body: enumBodyNode }
-        );
+        const enumNode = createMockNode('enum', 'enum TestEnum { HEX_VAL = 0xFF; }', [], {
+          name: enumNameNode,
+          body: enumBodyNode,
+        });
         const root = createMockNode('source_file', 'enum TestEnum { HEX_VAL = 0xFF; }', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -557,11 +538,16 @@ describe('treeSitterParser', () => {
           [rpcNode],
           { name: serviceNameNode }
         );
-        const root = createMockNode('source_file', 'service MyService { rpc GetData(Request) returns (Response); }', [serviceNode]);
+        const root = createMockNode('source_file', 'service MyService { rpc GetData(Request) returns (Response); }', [
+          serviceNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
-        const result = treeSitterParser.parse('service MyService { rpc GetData(Request) returns (Response); }', 'test.proto');
+        const result = treeSitterParser.parse(
+          'service MyService { rpc GetData(Request) returns (Response); }',
+          'test.proto'
+        );
 
         expect(result.services).toHaveLength(1);
         expect(result.services[0].name).toBe('MyService');
@@ -580,11 +566,18 @@ describe('treeSitterParser', () => {
           [rpcNode],
           { name: serviceNameNode }
         );
-        const root = createMockNode('source_file', 'service MyService { rpc StreamData(stream Request) returns (stream Response); }', [serviceNode]);
+        const root = createMockNode(
+          'source_file',
+          'service MyService { rpc StreamData(stream Request) returns (stream Response); }',
+          [serviceNode]
+        );
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
-        const result = treeSitterParser.parse('service MyService { rpc StreamData(stream Request) returns (stream Response); }', 'test.proto');
+        const result = treeSitterParser.parse(
+          'service MyService { rpc StreamData(stream Request) returns (stream Response); }',
+          'test.proto'
+        );
 
         expect(result.services[0].rpcs[0].requestStreaming).toBe(true);
         expect(result.services[0].rpcs[0].responseStreaming).toBe(true);
@@ -606,12 +599,10 @@ describe('treeSitterParser', () => {
         const reservedNode = createMockNode('reserved', 'reserved 1, 2, 5 to 10;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ reserved 1, 2, 5 to 10; }', [reservedNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { reserved 1, 2, 5 to 10; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { reserved 1, 2, 5 to 10; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { reserved 1, 2, 5 to 10; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -628,12 +619,10 @@ describe('treeSitterParser', () => {
         const reservedNode = createMockNode('reserved', 'reserved "foo", "bar";');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ reserved "foo", "bar"; }', [reservedNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { reserved "foo", "bar"; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { reserved "foo", "bar"; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { reserved "foo", "bar"; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -648,12 +637,10 @@ describe('treeSitterParser', () => {
         const extensionsNode = createMockNode('extensions', 'extensions 100 to 200;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ extensions 100 to 200; }', [extensionsNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { extensions 100 to 200; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { extensions 100 to 200; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { extensions 100 to 200; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -668,12 +655,10 @@ describe('treeSitterParser', () => {
         const extensionsNode = createMockNode('extensions', 'extensions 100 to max;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ extensions 100 to max; }', [extensionsNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { extensions 100 to max; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { extensions 100 to max; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { extensions 100 to max; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -693,11 +678,16 @@ describe('treeSitterParser', () => {
           [],
           { name: nameNode, body: bodyNode }
         );
-        const root = createMockNode('source_file', 'message TestMessage { string name = 1 [deprecated = true]; }', [messageNode]);
+        const root = createMockNode('source_file', 'message TestMessage { string name = 1 [deprecated = true]; }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
-        const result = treeSitterParser.parse('message TestMessage { string name = 1 [deprecated = true]; }', 'test.proto');
+        const result = treeSitterParser.parse(
+          'message TestMessage { string name = 1 [deprecated = true]; }',
+          'test.proto'
+        );
 
         expect(result.messages[0].fields[0].options).toBeDefined();
         expect(result.messages[0].fields[0].options).toHaveLength(1);
@@ -708,20 +698,16 @@ describe('treeSitterParser', () => {
       it('should parse nested message', async () => {
         const nestedNameNode = createMockNode('identifier', 'Inner');
         const nestedBodyNode = createMockNode('message_body', '{}', []);
-        const nestedMessageNode = createMockNode(
-          'message',
-          'message Inner {}',
-          [],
-          { name: nestedNameNode, body: nestedBodyNode }
-        );
+        const nestedMessageNode = createMockNode('message', 'message Inner {}', [], {
+          name: nestedNameNode,
+          body: nestedBodyNode,
+        });
         const outerNameNode = createMockNode('identifier', 'Outer');
         const outerBodyNode = createMockNode('message_body', '{ message Inner {} }', [nestedMessageNode]);
-        const outerMessageNode = createMockNode(
-          'message',
-          'message Outer { message Inner {} }',
-          [],
-          { name: outerNameNode, body: outerBodyNode }
-        );
+        const outerMessageNode = createMockNode('message', 'message Outer { message Inner {} }', [], {
+          name: outerNameNode,
+          body: outerBodyNode,
+        });
         const root = createMockNode('source_file', 'message Outer { message Inner {} }', [outerMessageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -735,21 +721,19 @@ describe('treeSitterParser', () => {
       it('should parse nested enum', async () => {
         const enumNameNode = createMockNode('identifier', 'Status');
         const enumBodyNode = createMockNode('enum_body', '{ UNKNOWN = 0; }', []);
-        const enumNode = createMockNode(
-          'enum',
-          'enum Status { UNKNOWN = 0; }',
-          [],
-          { name: enumNameNode, body: enumBodyNode }
-        );
+        const enumNode = createMockNode('enum', 'enum Status { UNKNOWN = 0; }', [], {
+          name: enumNameNode,
+          body: enumBodyNode,
+        });
         const messageNameNode = createMockNode('identifier', 'TestMessage');
         const messageBodyNode = createMockNode('message_body', '{ enum Status { UNKNOWN = 0; } }', [enumNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { enum Status { UNKNOWN = 0; } }',
-          [],
-          { name: messageNameNode, body: messageBodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { enum Status { UNKNOWN = 0; } }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { enum Status { UNKNOWN = 0; } }', [], {
+          name: messageNameNode,
+          body: messageBodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { enum Status { UNKNOWN = 0; } }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
@@ -763,13 +747,13 @@ describe('treeSitterParser', () => {
         const groupNode = createMockNode('group', 'optional group MyGroup = 1 { }');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ optional group MyGroup = 1 { } }', [groupNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { optional group MyGroup = 1 { } }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { optional group MyGroup = 1 { } }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { optional group MyGroup = 1 { } }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { optional group MyGroup = 1 { } }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
@@ -782,7 +766,7 @@ describe('treeSitterParser', () => {
       });
 
       it('should handle malformed option statement gracefully', async () => {
-        const optionNode = createMockNode('option', 'option;');  // Malformed
+        const optionNode = createMockNode('option', 'option;'); // Malformed
         const root = createMockNode('source_file', 'option;', [optionNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -797,12 +781,10 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'invalid field');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ invalid field }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { invalid field }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { invalid field }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { invalid field }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -817,13 +799,13 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'google.protobuf.Any data = 1;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ google.protobuf.Any data = 1; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { google.protobuf.Any data = 1; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { google.protobuf.Any data = 1; }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { google.protobuf.Any data = 1; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { google.protobuf.Any data = 1; }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
@@ -836,13 +818,13 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', '.google.protobuf.Any data = 1;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ .google.protobuf.Any data = 1; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { .google.protobuf.Any data = 1; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { .google.protobuf.Any data = 1; }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { .google.protobuf.Any data = 1; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { .google.protobuf.Any data = 1; }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
@@ -910,12 +892,10 @@ describe('treeSitterParser', () => {
         const mapFieldNode = createMockNode('map_field', 'map invalid;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ map invalid; }', [mapFieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { map invalid; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { map invalid; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { map invalid; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -932,12 +912,10 @@ describe('treeSitterParser', () => {
         const oneofNode = createMockNode('oneof', 'oneof { }', [], {}); // No name field
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ oneof { } }', [oneofNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { oneof { } }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { oneof { } }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { oneof { } }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -952,12 +930,10 @@ describe('treeSitterParser', () => {
         const groupNode = createMockNode('group', 'group;'); // No match
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ group; }', [groupNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { group; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { group; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { group; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -973,12 +949,10 @@ describe('treeSitterParser', () => {
         const enumValueNode = createMockNode('enum_field', 'INVALID;'); // No match
         const enumNameNode = createMockNode('identifier', 'TestEnum');
         const enumBodyNode = createMockNode('enum_body', '{ INVALID; }', [enumValueNode]);
-        const enumNode = createMockNode(
-          'enum',
-          'enum TestEnum { INVALID; }',
-          [],
-          { name: enumNameNode, body: enumBodyNode }
-        );
+        const enumNode = createMockNode('enum', 'enum TestEnum { INVALID; }', [], {
+          name: enumNameNode,
+          body: enumBodyNode,
+        });
         const root = createMockNode('source_file', 'enum TestEnum { INVALID; }', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -992,12 +966,9 @@ describe('treeSitterParser', () => {
       it('should parse malformed RPC gracefully', async () => {
         const rpcNode = createMockNode('rpc', 'rpc;'); // No match
         const serviceNameNode = createMockNode('identifier', 'MyService');
-        const serviceNode = createMockNode(
-          'service',
-          'service MyService { rpc; }',
-          [rpcNode],
-          { name: serviceNameNode }
-        );
+        const serviceNode = createMockNode('service', 'service MyService { rpc; }', [rpcNode], {
+          name: serviceNameNode,
+        });
         const root = createMockNode('source_file', 'service MyService { rpc; }', [serviceNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -1024,18 +995,24 @@ describe('treeSitterParser', () => {
         const optionNode = createMockNode('option', 'option allow_alias = true;');
         const enumValueNode = createMockNode('enum_field', 'UNKNOWN = 0;');
         const enumNameNode = createMockNode('identifier', 'TestEnum');
-        const enumBodyNode = createMockNode('enum_body', '{ option allow_alias = true; UNKNOWN = 0; }', [optionNode, enumValueNode]);
-        const enumNode = createMockNode(
-          'enum',
-          'enum TestEnum { option allow_alias = true; UNKNOWN = 0; }',
-          [],
-          { name: enumNameNode, body: enumBodyNode }
-        );
-        const root = createMockNode('source_file', 'enum TestEnum { option allow_alias = true; UNKNOWN = 0; }', [enumNode]);
+        const enumBodyNode = createMockNode('enum_body', '{ option allow_alias = true; UNKNOWN = 0; }', [
+          optionNode,
+          enumValueNode,
+        ]);
+        const enumNode = createMockNode('enum', 'enum TestEnum { option allow_alias = true; UNKNOWN = 0; }', [], {
+          name: enumNameNode,
+          body: enumBodyNode,
+        });
+        const root = createMockNode('source_file', 'enum TestEnum { option allow_alias = true; UNKNOWN = 0; }', [
+          enumNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
-        const result = treeSitterParser.parse('enum TestEnum { option allow_alias = true; UNKNOWN = 0; }', 'test.proto');
+        const result = treeSitterParser.parse(
+          'enum TestEnum { option allow_alias = true; UNKNOWN = 0; }',
+          'test.proto'
+        );
 
         expect(result.enums[0].options).toHaveLength(1);
         expect(result.enums[0].options[0].name).toBe('allow_alias');
@@ -1045,13 +1022,14 @@ describe('treeSitterParser', () => {
         const reservedNode = createMockNode('reserved', 'reserved 1, 2;');
         const enumValueNode = createMockNode('enum_field', 'UNKNOWN = 0;');
         const enumNameNode = createMockNode('identifier', 'TestEnum');
-        const enumBodyNode = createMockNode('enum_body', '{ reserved 1, 2; UNKNOWN = 0; }', [reservedNode, enumValueNode]);
-        const enumNode = createMockNode(
-          'enum',
-          'enum TestEnum { reserved 1, 2; UNKNOWN = 0; }',
-          [],
-          { name: enumNameNode, body: enumBodyNode }
-        );
+        const enumBodyNode = createMockNode('enum_body', '{ reserved 1, 2; UNKNOWN = 0; }', [
+          reservedNode,
+          enumValueNode,
+        ]);
+        const enumNode = createMockNode('enum', 'enum TestEnum { reserved 1, 2; UNKNOWN = 0; }', [], {
+          name: enumNameNode,
+          body: enumBodyNode,
+        });
         const root = createMockNode('source_file', 'enum TestEnum { reserved 1, 2; UNKNOWN = 0; }', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -1065,12 +1043,10 @@ describe('treeSitterParser', () => {
         const optionNode = createMockNode('option', 'option deprecated = true;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ option deprecated = true; }', [optionNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { option deprecated = true; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { option deprecated = true; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { option deprecated = true; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -1083,18 +1059,29 @@ describe('treeSitterParser', () => {
       it('should parse field with multiple options', async () => {
         const fieldNode = createMockNode('field', 'string name = 1 [deprecated = true, json_name = "the_name"];');
         const nameNode = createMockNode('identifier', 'TestMessage');
-        const bodyNode = createMockNode('message_body', '{ string name = 1 [deprecated = true, json_name = "the_name"]; }', [fieldNode]);
+        const bodyNode = createMockNode(
+          'message_body',
+          '{ string name = 1 [deprecated = true, json_name = "the_name"]; }',
+          [fieldNode]
+        );
         const messageNode = createMockNode(
           'message',
           'message TestMessage { string name = 1 [deprecated = true, json_name = "the_name"]; }',
           [],
           { name: nameNode, body: bodyNode }
         );
-        const root = createMockNode('source_file', 'message TestMessage { string name = 1 [deprecated = true, json_name = "the_name"]; }', [messageNode]);
+        const root = createMockNode(
+          'source_file',
+          'message TestMessage { string name = 1 [deprecated = true, json_name = "the_name"]; }',
+          [messageNode]
+        );
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
-        const result = treeSitterParser.parse('message TestMessage { string name = 1 [deprecated = true, json_name = "the_name"]; }', 'test.proto');
+        const result = treeSitterParser.parse(
+          'message TestMessage { string name = 1 [deprecated = true, json_name = "the_name"]; }',
+          'test.proto'
+        );
 
         expect(result.messages[0].fields[0].options).toHaveLength(2);
         expect(result.messages[0].fields[0].options![0].name).toBe('deprecated');
@@ -1105,13 +1092,13 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'double val = 1 [default = inf];');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ double val = 1 [default = inf]; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { double val = 1 [default = inf]; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = inf]; }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { double val = 1 [default = inf]; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = inf]; }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
@@ -1124,13 +1111,13 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'double val = 1 [default = -inf];');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ double val = 1 [default = -inf]; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { double val = 1 [default = -inf]; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = -inf]; }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { double val = 1 [default = -inf]; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = -inf]; }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
@@ -1143,13 +1130,13 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'double val = 1 [default = nan];');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ double val = 1 [default = nan]; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { double val = 1 [default = nan]; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = nan]; }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { double val = 1 [default = nan]; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = nan]; }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
@@ -1162,13 +1149,13 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'double val = 1 [default = +inf];');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ double val = 1 [default = +inf]; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { double val = 1 [default = +inf]; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = +inf]; }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { double val = 1 [default = +inf]; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = +inf]; }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
@@ -1181,13 +1168,13 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'int32 val = 1 [default = -10];');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ int32 val = 1 [default = -10]; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { int32 val = 1 [default = -10]; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { int32 val = 1 [default = -10]; }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { int32 val = 1 [default = -10]; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { int32 val = 1 [default = -10]; }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
@@ -1200,13 +1187,13 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'double val = 1 [default = 3.14];');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ double val = 1 [default = 3.14]; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { double val = 1 [default = 3.14]; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = 3.14]; }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { double val = 1 [default = 3.14]; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = 3.14]; }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
@@ -1218,18 +1205,27 @@ describe('treeSitterParser', () => {
       it('should parse field option with parenthesized custom option name', async () => {
         const fieldNode = createMockNode('field', 'string val = 1 [(custom.option).path = "value"];');
         const nameNode = createMockNode('identifier', 'TestMessage');
-        const bodyNode = createMockNode('message_body', '{ string val = 1 [(custom.option).path = "value"]; }', [fieldNode]);
+        const bodyNode = createMockNode('message_body', '{ string val = 1 [(custom.option).path = "value"]; }', [
+          fieldNode,
+        ]);
         const messageNode = createMockNode(
           'message',
           'message TestMessage { string val = 1 [(custom.option).path = "value"]; }',
           [],
           { name: nameNode, body: bodyNode }
         );
-        const root = createMockNode('source_file', 'message TestMessage { string val = 1 [(custom.option).path = "value"]; }', [messageNode]);
+        const root = createMockNode(
+          'source_file',
+          'message TestMessage { string val = 1 [(custom.option).path = "value"]; }',
+          [messageNode]
+        );
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
-        const result = treeSitterParser.parse('message TestMessage { string val = 1 [(custom.option).path = "value"]; }', 'test.proto');
+        const result = treeSitterParser.parse(
+          'message TestMessage { string val = 1 [(custom.option).path = "value"]; }',
+          'test.proto'
+        );
 
         expect(result.messages[0].fields[0].options![0].name).toBe('(custom.option).path');
       });
@@ -1238,12 +1234,10 @@ describe('treeSitterParser', () => {
         const enumValueNode = createMockNode('enum_field', 'VALUE = 1 [deprecated = true];');
         const enumNameNode = createMockNode('identifier', 'TestEnum');
         const enumBodyNode = createMockNode('enum_body', '{ VALUE = 1 [deprecated = true]; }', [enumValueNode]);
-        const enumNode = createMockNode(
-          'enum',
-          'enum TestEnum { VALUE = 1 [deprecated = true]; }',
-          [],
-          { name: enumNameNode, body: enumBodyNode }
-        );
+        const enumNode = createMockNode('enum', 'enum TestEnum { VALUE = 1 [deprecated = true]; }', [], {
+          name: enumNameNode,
+          body: enumBodyNode,
+        });
         const root = createMockNode('source_file', 'enum TestEnum { VALUE = 1 [deprecated = true]; }', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -1258,12 +1252,10 @@ describe('treeSitterParser', () => {
         const reservedNode = createMockNode('reserved', 'reserved 100 to max;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ reserved 100 to max; }', [reservedNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { reserved 100 to max; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { reserved 100 to max; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { reserved 100 to max; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -1277,12 +1269,10 @@ describe('treeSitterParser', () => {
         const extensionsNode = createMockNode('extensions', 'extensions 100;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ extensions 100; }', [extensionsNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { extensions 100; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { extensions 100; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { extensions 100; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -1384,17 +1374,20 @@ describe('treeSitterParser', () => {
         const mapFieldNode = createMockNode('map_field', 'map<string, int32> values = 0x10;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ map<string, int32> values = 0x10; }', [mapFieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { map<string, int32> values = 0x10; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { map<string, int32> values = 0x10; }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { map<string, int32> values = 0x10; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { map<string, int32> values = 0x10; }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
-        const result = treeSitterParser.parse('message TestMessage { map<string, int32> values = 0x10; }', 'test.proto');
+        const result = treeSitterParser.parse(
+          'message TestMessage { map<string, int32> values = 0x10; }',
+          'test.proto'
+        );
 
         expect(result.messages[0].maps[0].number).toBe(16);
       });
@@ -1412,7 +1405,7 @@ describe('treeSitterParser', () => {
           child: () => null, // Always returns null
           childForFieldName: () => null,
           isMissing: () => false,
-          parent: null
+          parent: null,
         };
         mockParse.mockReturnValue({ rootNode: rootWithNullChild });
 
@@ -1427,12 +1420,10 @@ describe('treeSitterParser', () => {
         const unknownNode = createMockNode('unknown_type', 'something');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ something }', [unknownNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { something }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { something }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { something }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -1447,12 +1438,10 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'required string name = 1;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ required string name = 1; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { required string name = 1; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { required string name = 1; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { required string name = 1; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -1466,12 +1455,10 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'string name = 0XFF;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ string name = 0XFF; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { string name = 0XFF; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { string name = 0XFF; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { string name = 0XFF; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -1482,20 +1469,27 @@ describe('treeSitterParser', () => {
       });
 
       it('should parse field with string concatenation in option', async () => {
-        const fieldNode = createMockNode('field', "string name = 1 [json_name = \"foo\" \"bar\"];");
+        const fieldNode = createMockNode('field', 'string name = 1 [json_name = "foo" "bar"];');
         const nameNode = createMockNode('identifier', 'TestMessage');
-        const bodyNode = createMockNode('message_body', "{ string name = 1 [json_name = \"foo\" \"bar\"]; }", [fieldNode]);
+        const bodyNode = createMockNode('message_body', '{ string name = 1 [json_name = "foo" "bar"]; }', [fieldNode]);
         const messageNode = createMockNode(
           'message',
-          "message TestMessage { string name = 1 [json_name = \"foo\" \"bar\"]; }",
+          'message TestMessage { string name = 1 [json_name = "foo" "bar"]; }',
           [],
           { name: nameNode, body: bodyNode }
         );
-        const root = createMockNode('source_file', "message TestMessage { string name = 1 [json_name = \"foo\" \"bar\"]; }", [messageNode]);
+        const root = createMockNode(
+          'source_file',
+          'message TestMessage { string name = 1 [json_name = "foo" "bar"]; }',
+          [messageNode]
+        );
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
-        const result = treeSitterParser.parse("message TestMessage { string name = 1 [json_name = \"foo\" \"bar\"]; }", 'test.proto');
+        const result = treeSitterParser.parse(
+          'message TestMessage { string name = 1 [json_name = "foo" "bar"]; }',
+          'test.proto'
+        );
 
         expect(result.messages[0].fields[0].options![0].value).toBe('foobar');
       });
@@ -1503,18 +1497,27 @@ describe('treeSitterParser', () => {
       it('should parse field option with nested brackets', async () => {
         const fieldNode = createMockNode('field', 'string name = 1 [(custom) = {field: "value"}];');
         const nameNode = createMockNode('identifier', 'TestMessage');
-        const bodyNode = createMockNode('message_body', '{ string name = 1 [(custom) = {field: "value"}]; }', [fieldNode]);
+        const bodyNode = createMockNode('message_body', '{ string name = 1 [(custom) = {field: "value"}]; }', [
+          fieldNode,
+        ]);
         const messageNode = createMockNode(
           'message',
           'message TestMessage { string name = 1 [(custom) = {field: "value"}]; }',
           [],
           { name: nameNode, body: bodyNode }
         );
-        const root = createMockNode('source_file', 'message TestMessage { string name = 1 [(custom) = {field: "value"}]; }', [messageNode]);
+        const root = createMockNode(
+          'source_file',
+          'message TestMessage { string name = 1 [(custom) = {field: "value"}]; }',
+          [messageNode]
+        );
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
-        const result = treeSitterParser.parse('message TestMessage { string name = 1 [(custom) = {field: "value"}]; }', 'test.proto');
+        const result = treeSitterParser.parse(
+          'message TestMessage { string name = 1 [(custom) = {field: "value"}]; }',
+          'test.proto'
+        );
 
         // Should not crash on nested brackets
         expect(result.messages[0].fields[0].options).toBeDefined();
@@ -1524,12 +1527,10 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'string name = 1;');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ string name = 1; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { string name = 1; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
+        const messageNode = createMockNode('message', 'message TestMessage { string name = 1; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
         const root = createMockNode('source_file', 'message TestMessage { string name = 1; }', [messageNode]);
         mockParse.mockReturnValue({ rootNode: root });
 
@@ -1543,13 +1544,13 @@ describe('treeSitterParser', () => {
         const groupNode = createMockNode('group', 'repeated group Items = 1 { }');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ repeated group Items = 1 { } }', [groupNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { repeated group Items = 1 { } }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { repeated group Items = 1 { } }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { repeated group Items = 1 { } }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { repeated group Items = 1 { } }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
@@ -1562,13 +1563,13 @@ describe('treeSitterParser', () => {
         const groupNode = createMockNode('group', 'required group Items = 1 { }');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ required group Items = 1 { } }', [groupNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { required group Items = 1 { } }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { required group Items = 1 { } }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { required group Items = 1 { } }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { required group Items = 1 { } }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
@@ -1586,11 +1587,18 @@ describe('treeSitterParser', () => {
           [rpcNode],
           { name: serviceNameNode }
         );
-        const root = createMockNode('source_file', 'service MyService { rpc Send(stream Request) returns (Response); }', [serviceNode]);
+        const root = createMockNode(
+          'source_file',
+          'service MyService { rpc Send(stream Request) returns (Response); }',
+          [serviceNode]
+        );
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
-        const result = treeSitterParser.parse('service MyService { rpc Send(stream Request) returns (Response); }', 'test.proto');
+        const result = treeSitterParser.parse(
+          'service MyService { rpc Send(stream Request) returns (Response); }',
+          'test.proto'
+        );
 
         expect(result.services[0].rpcs[0].requestStreaming).toBe(true);
         expect(result.services[0].rpcs[0].responseStreaming).toBe(false);
@@ -1605,11 +1613,18 @@ describe('treeSitterParser', () => {
           [rpcNode],
           { name: serviceNameNode }
         );
-        const root = createMockNode('source_file', 'service MyService { rpc Receive(Request) returns (stream Response); }', [serviceNode]);
+        const root = createMockNode(
+          'source_file',
+          'service MyService { rpc Receive(Request) returns (stream Response); }',
+          [serviceNode]
+        );
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
-        const result = treeSitterParser.parse('service MyService { rpc Receive(Request) returns (stream Response); }', 'test.proto');
+        const result = treeSitterParser.parse(
+          'service MyService { rpc Receive(Request) returns (stream Response); }',
+          'test.proto'
+        );
 
         expect(result.services[0].rpcs[0].requestStreaming).toBe(false);
         expect(result.services[0].rpcs[0].responseStreaming).toBe(true);
@@ -1619,13 +1634,13 @@ describe('treeSitterParser', () => {
         const fieldNode = createMockNode('field', 'double val = 1 [default = .5];');
         const nameNode = createMockNode('identifier', 'TestMessage');
         const bodyNode = createMockNode('message_body', '{ double val = 1 [default = .5]; }', [fieldNode]);
-        const messageNode = createMockNode(
-          'message',
-          'message TestMessage { double val = 1 [default = .5]; }',
-          [],
-          { name: nameNode, body: bodyNode }
-        );
-        const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = .5]; }', [messageNode]);
+        const messageNode = createMockNode('message', 'message TestMessage { double val = 1 [default = .5]; }', [], {
+          name: nameNode,
+          body: bodyNode,
+        });
+        const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = .5]; }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
@@ -1644,11 +1659,16 @@ describe('treeSitterParser', () => {
           [],
           { name: nameNode, body: bodyNode }
         );
-        const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = 1.5e10]; }', [messageNode]);
+        const root = createMockNode('source_file', 'message TestMessage { double val = 1 [default = 1.5e10]; }', [
+          messageNode,
+        ]);
         mockParse.mockReturnValue({ rootNode: root });
 
         const { treeSitterParser } = require('../treeSitterParser');
-        const result = treeSitterParser.parse('message TestMessage { double val = 1 [default = 1.5e10]; }', 'test.proto');
+        const result = treeSitterParser.parse(
+          'message TestMessage { double val = 1 [default = 1.5e10]; }',
+          'test.proto'
+        );
 
         expect(result.messages[0].fields[0].options![0].value).toBe(1.5e10);
       });
@@ -1657,12 +1677,10 @@ describe('treeSitterParser', () => {
         const enumValueNode = createMockNode('enum_field', 'NEG_HEX = -0x10;');
         const enumNameNode = createMockNode('identifier', 'TestEnum');
         const enumBodyNode = createMockNode('enum_body', '{ NEG_HEX = -0x10; }', [enumValueNode]);
-        const enumNode = createMockNode(
-          'enum',
-          'enum TestEnum { NEG_HEX = -0x10; }',
-          [],
-          { name: enumNameNode, body: enumBodyNode }
-        );
+        const enumNode = createMockNode('enum', 'enum TestEnum { NEG_HEX = -0x10; }', [], {
+          name: enumNameNode,
+          body: enumBodyNode,
+        });
         const root = createMockNode('source_file', 'enum TestEnum { NEG_HEX = -0x10; }', [enumNode]);
         mockParse.mockReturnValue({ rootNode: root });
 

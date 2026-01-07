@@ -14,10 +14,10 @@ describe('CodeActionsHandler', () => {
 
   beforeEach(() => {
     documents = {
-      get: jest.fn()
+      get: jest.fn(),
     } as any;
     codeActionsProvider = {
-      getCodeActions: jest.fn()
+      getCodeActions: jest.fn(),
     } as any;
   });
 
@@ -25,7 +25,7 @@ describe('CodeActionsHandler', () => {
     const params: CodeActionParams = {
       textDocument: { uri: 'file:///nonexistent.proto' },
       range: { start: { line: 0, character: 0 }, end: { line: 0, character: 10 } },
-      context: { diagnostics: [] }
+      context: { diagnostics: [] },
     };
 
     documents.get.mockReturnValue(undefined);
@@ -44,7 +44,7 @@ describe('CodeActionsHandler', () => {
     const params: CodeActionParams = {
       textDocument: { uri },
       range: { start: { line: 1, character: 0 }, end: { line: 1, character: 13 } },
-      context: { diagnostics: [] }
+      context: { diagnostics: [] },
     };
 
     const codeActions = [{ title: 'Test Action', command: { command: 'test', title: 'Test Action' } }];
@@ -52,12 +52,7 @@ describe('CodeActionsHandler', () => {
 
     const result = handleCodeActions(params, documents, codeActionsProvider);
 
-    expect(codeActionsProvider.getCodeActions).toHaveBeenCalledWith(
-      uri,
-      params.range,
-      params.context,
-      content
-    );
+    expect(codeActionsProvider.getCodeActions).toHaveBeenCalledWith(uri, params.range, params.context, content);
     expect(result).toEqual(codeActions);
   });
 
@@ -70,7 +65,7 @@ describe('CodeActionsHandler', () => {
     const params: CodeActionParams = {
       textDocument: { uri },
       range: { start: { line: 0, character: 0 }, end: { line: 0, character: 17 } },
-      context: { diagnostics: [] }
+      context: { diagnostics: [] },
     };
 
     codeActionsProvider.getCodeActions.mockReturnValue([]);

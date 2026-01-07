@@ -834,21 +834,6 @@
         "priority": "default"
       }
     ],
-    "customEditors": [
-      {
-        "viewType": "protobuf.binaryInspector",
-        "displayName": "Protobuf Binary Inspector",
-        "selector": [
-          {
-            "filenamePattern": "*.pb"
-          },
-          {
-            "filenamePattern": "*.bin"
-          }
-        ],
-        "priority": "default"
-      }
-    ],
     "menus": {
       "editor/context": [
         {
@@ -958,6 +943,9 @@
     "watch": "tsc -b -w",
     "type-check": "tsc --noEmit",
     "lint": "eslint ./src",
+    "lint:fix": "eslint ./src --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
     "test": "node ./node_modules/jest/bin/jest.js",
     "test:watch": "node ./node_modules/jest/bin/jest.js --watch",
     "test:coverage": "node ./node_modules/jest/bin/jest.js --coverage",
@@ -979,7 +967,10 @@
     "@typescript-eslint/parser": "^8.51.0",
     "@vscode/vsce": "^3.7.1",
     "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
     "jest": "^30.2.0",
+    "prettier": "^3.7.4",
     "tree-sitter-cli": "^0.26.3",
     "ts-jest": "^29.4.6",
     "typescript": "^5.9.3",

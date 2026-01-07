@@ -15,12 +15,7 @@ export class ReferencesProvider {
     this.analyzer = analyzer;
   }
 
-  findReferences(
-    uri: string,
-    position: Position,
-    lineText: string,
-    includeDeclaration: boolean
-  ): Location[] {
+  findReferences(uri: string, position: Position, lineText: string, includeDeclaration: boolean): Location[] {
     // Extract word at position
     const word = this.getWordAtPosition(lineText, position.character);
     if (!word) {
@@ -43,7 +38,7 @@ export class ReferencesProvider {
     const containingScope = file ? this.findContainingMessageScope(file, position, packageName) : packageName;
     const symbol = this.analyzer.resolveType(word, uri, containingScope);
 
-        if (!symbol) {
+    if (!symbol) {
       return [];
     }
 
@@ -70,7 +65,7 @@ export class ReferencesProvider {
       end++;
     }
 
-        if (start === end) {
+    if (start === end) {
       return null;
     }
     return line.substring(start, end);
@@ -82,7 +77,7 @@ export class ReferencesProvider {
    */
   private findContainingMessageScope(
     file: ProtoFile,
-    position: { line: number, character: number },
+    position: { line: number; character: number },
     packageName: string
   ): string {
     const messageChain = this.findContainingMessageChain(file.messages, position);
@@ -100,7 +95,7 @@ export class ReferencesProvider {
    */
   private findContainingMessageChain(
     messages: MessageDefinition[],
-    position: { line: number, character: number }
+    position: { line: number; character: number }
   ): MessageDefinition[] {
     for (const msg of messages) {
       if (this.contains(msg.range, position)) {
@@ -111,7 +106,7 @@ export class ReferencesProvider {
     return [];
   }
 
-  private contains(range: Range, pos: { line: number, character: number }): boolean {
+  private contains(range: Range, pos: { line: number; character: number }): boolean {
     if (pos.line < range.start.line || pos.line > range.end.line) {
       return false;
     }

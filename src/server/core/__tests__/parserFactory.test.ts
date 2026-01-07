@@ -19,15 +19,18 @@ jest.mock('../../core/treeSitterParser', () => ({
       messages: [],
       enums: [],
       services: [],
-      extends: []
-    })
+      extends: [],
+    }),
   })),
   TreeSitterInitError: class TreeSitterInitError extends Error {
-    constructor(public errorType: string, message: string) {
+    constructor(
+      public errorType: string,
+      message: string
+    ) {
       super(message);
       this.name = 'TreeSitterInitError';
     }
-  }
+  },
 }));
 
 describe('ParserFactory', () => {
@@ -118,8 +121,8 @@ describe('IProtoParser interface', () => {
         messages: [],
         enums: [],
         services: [],
-        extends: []
-      })
+        extends: [],
+      }),
     };
 
     const result = mockParser.parse('', 'file:///test.proto');
@@ -144,11 +147,27 @@ describe('ParserFactory with Tree-sitter initialized', () => {
         range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
         imports: [],
         options: [],
-        messages: [{ name: 'TreeSitterParsed', type: 'message', fields: [], nestedMessages: [], nestedEnums: [], oneofs: [], options: [], reserved: [], extensions: [], maps: [], groups: [], nameRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } } }],
+        messages: [
+          {
+            name: 'TreeSitterParsed',
+            type: 'message',
+            fields: [],
+            nestedMessages: [],
+            nestedEnums: [],
+            oneofs: [],
+            options: [],
+            reserved: [],
+            extensions: [],
+            maps: [],
+            groups: [],
+            nameRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+            range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+          },
+        ],
         enums: [],
         services: [],
-        extends: []
-      })
+        extends: [],
+      }),
     };
     (treeSitterModule.TreeSitterProtoParser as jest.Mock).mockImplementation(() => mockTreeSitterParser);
 
@@ -252,8 +271,8 @@ describe('ParserFactory statistics and diagnostics', () => {
         messages: [],
         enums: [],
         services: [],
-        extends: []
-      })
+        extends: [],
+      }),
     };
     (treeSitterModule.TreeSitterProtoParser as jest.Mock).mockImplementation(() => mockTreeSitterParser);
 
@@ -487,7 +506,7 @@ describe('ParserFactory statistics and diagnostics', () => {
         messages: [],
         enums: [],
         services: [],
-        extends: []
+        extends: [],
       });
       factory.parse('syntax = "proto3";', 'file:///test3.proto');
 
@@ -691,8 +710,8 @@ message User {
         messages: [],
         enums: [],
         services: [],
-        extends: []
-      })
+        extends: [],
+      }),
     };
     (treeSitterModule.TreeSitterProtoParser as jest.Mock).mockImplementation(() => mockParser);
 

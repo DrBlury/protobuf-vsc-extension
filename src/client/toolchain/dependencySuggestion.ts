@@ -19,7 +19,10 @@ export const KNOWN_BSR_MODULES: { [pattern: string]: { module: string; descripti
 
   // Buf Validate (formerly protoc-gen-validate)
   'buf/validate/': { module: 'buf.build/bufbuild/protovalidate', description: 'Buf validation rules' },
-  'validate/validate.proto': { module: 'buf.build/envoyproxy/protoc-gen-validate', description: 'Protoc-gen-validate (legacy)' },
+  'validate/validate.proto': {
+    module: 'buf.build/envoyproxy/protoc-gen-validate',
+    description: 'Protoc-gen-validate (legacy)',
+  },
 
   // gRPC
   'grpc/': { module: 'buf.build/grpc/grpc', description: 'gRPC definitions' },
@@ -122,16 +125,12 @@ export class DependencySuggestionProvider {
 
     // Show suggestion
     const moduleNames = newSuggestions.map(s => s.module.split('/').pop()).join(', ');
-    const message = newSuggestions.length === 1
-      ? `Import requires "${newSuggestions[0]!.module}". Add to buf.yaml?`
-      : `Imports require ${newSuggestions.length} dependencies (${moduleNames}). Add to buf.yaml?`;
+    const message =
+      newSuggestions.length === 1
+        ? `Import requires "${newSuggestions[0]!.module}". Add to buf.yaml?`
+        : `Imports require ${newSuggestions.length} dependencies (${moduleNames}). Add to buf.yaml?`;
 
-    const action = await vscode.window.showInformationMessage(
-      message,
-      'Add Dependencies',
-      'Show Details',
-      'Ignore'
-    );
+    const action = await vscode.window.showInformationMessage(message, 'Add Dependencies', 'Show Details', 'Ignore');
 
     if (action === 'Add Dependencies') {
       await this.addDependencies(bufYamlPath, newSuggestions);
@@ -157,9 +156,7 @@ export class DependencySuggestionProvider {
     });
 
     if (selected && selected.length > 0) {
-      const selectedSuggestions = suggestions.filter(s =>
-        selected.some(sel => sel.module === s.module)
-      );
+      const selectedSuggestions = suggestions.filter(s => selected.some(sel => sel.module === s.module));
       await this.addDependencies(bufYamlPath, selectedSuggestions);
     }
   }
@@ -183,7 +180,9 @@ export class DependencySuggestionProvider {
       }
 
       const parent = path.dirname(currentDir);
-      if (parent === currentDir) {break;}
+      if (parent === currentDir) {
+        break;
+      }
       currentDir = parent;
     }
 
@@ -343,7 +342,9 @@ breaking:
           const editionsErrors = this.parseEditionsErrors(stderrOutput, cwd);
 
           if (editionsErrors.length > 0 && retryCount < maxRetries) {
-            this.outputChannel.appendLine(`\nDetected ${editionsErrors.length} editions compatibility issue(s). Auto-fixing...`);
+            this.outputChannel.appendLine(
+              `\nDetected ${editionsErrors.length} editions compatibility issue(s). Auto-fixing...`
+            );
 
             try {
               await this.fixEditionsErrors(editionsErrors);
@@ -373,11 +374,15 @@ breaking:
   /**
    * Parse buf output for editions-related errors (optional/required labels)
    */
-  private parseEditionsErrors(stderr: string, cwd: string): Array<{filePath: string; line: number; fieldName: string; label: 'optional' | 'required'}> {
-    const errors: Array<{filePath: string; line: number; fieldName: string; label: 'optional' | 'required'}> = [];
+  private parseEditionsErrors(
+    stderr: string,
+    cwd: string
+  ): Array<{ filePath: string; line: number; fieldName: string; label: 'optional' | 'required' }> {
+    const errors: Array<{ filePath: string; line: number; fieldName: string; label: 'optional' | 'required' }> = [];
 
     // Pattern: file.proto:43:9:field package.Message.field_name: label 'optional' is not allowed in editions
-    const regex = /^([^:]+):(\d+):\d+:field\s+[\w.]+\.(\w+):\s+label\s+'(optional|required)'\s+is\s+not\s+allowed\s+in\s+editions/gm;
+    const regex =
+      /^([^:]+):(\d+):\d+:field\s+[\w.]+\.(\w+):\s+label\s+'(optional|required)'\s+is\s+not\s+allowed\s+in\s+editions/gm;
 
     let match;
     while ((match = regex.exec(stderr)) !== null) {
@@ -397,9 +402,11 @@ breaking:
   /**
    * Fix editions errors by converting optional/required to features.field_presence
    */
-  private async fixEditionsErrors(errors: Array<{filePath: string; line: number; fieldName: string; label: 'optional' | 'required'}>): Promise<void> {
+  private async fixEditionsErrors(
+    errors: Array<{ filePath: string; line: number; fieldName: string; label: 'optional' | 'required' }>
+  ): Promise<void> {
     // Group errors by file
-    const errorsByFile = new Map<string, Array<{line: number; fieldName: string; label: 'optional' | 'required'}>>();
+    const errorsByFile = new Map<string, Array<{ line: number; fieldName: string; label: 'optional' | 'required' }>>();
 
     for (const error of errors) {
       const existing = errorsByFile.get(error.filePath) || [];
@@ -447,9 +454,13 @@ breaking:
 
               lines[lineIndex] = newLine;
               fixCount++;
-              this.outputChannel.appendLine(`  Fixed: ${filePath}:${error.line} - converted '${error.label}' to features.field_presence = ${presenceValue}`);
+              this.outputChannel.appendLine(
+                `  Fixed: ${filePath}:${error.line} - converted '${error.label}' to features.field_presence = ${presenceValue}`
+              );
             } else {
-              this.outputChannel.appendLine(`  WARNING: Line ${error.line} did not match expected pattern: "${line.substring(0, 80)}"`);
+              this.outputChannel.appendLine(
+                `  WARNING: Line ${error.line} did not match expected pattern: "${line.substring(0, 80)}"`
+              );
             }
           }
         }

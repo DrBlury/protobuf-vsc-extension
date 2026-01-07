@@ -3,9 +3,7 @@
  * Shows reference counts and other metadata above symbols
  */
 
-import type {
-  CodeLens
-} from 'vscode-languageserver/node';
+import type { CodeLens } from 'vscode-languageserver/node';
 import type { ProtoFile, MessageDefinition, EnumDefinition, ServiceDefinition, FieldOption } from '../core/ast';
 import type { SemanticAnalyzer } from '../core/analyzer';
 
@@ -14,9 +12,7 @@ import type { SemanticAnalyzer } from '../core/analyzer';
  */
 function isProtovalidateOption(option: FieldOption): boolean {
   const name = option.name.toLowerCase();
-  return name.includes('buf.validate') ||
-         name.includes('validate.') ||
-         name.includes('protovalidate');
+  return name.includes('buf.validate') || name.includes('validate.') || name.includes('protovalidate');
 }
 
 /**
@@ -67,9 +63,8 @@ export class CodeLensProvider {
     const lenses: CodeLens[] = [];
 
     // Check if file imports protovalidate
-    const hasProtovalidateImport = file.imports.some(imp =>
-      imp.path.includes('buf/validate') ||
-      imp.path.includes('validate/validate.proto')
+    const hasProtovalidateImport = file.imports.some(
+      imp => imp.path.includes('buf/validate') || imp.path.includes('validate/validate.proto')
     );
 
     // Add code lenses for messages
@@ -108,7 +103,7 @@ export class CodeLensProvider {
       lenses.push({
         range: {
           start: { line: message.nameRange.start.line, character: 0 },
-          end: { line: message.nameRange.start.line, character: 0 }
+          end: { line: message.nameRange.start.line, character: 0 },
         },
         command: {
           title: `${references.length} reference${references.length !== 1 ? 's' : ''} (${externalRefs.length} external, ${internalRefs.length} internal) | ${message.fields.length} field${message.fields.length !== 1 ? 's' : ''}`,
@@ -118,11 +113,11 @@ export class CodeLensProvider {
               uri,
               position: {
                 line: message.nameRange.start.line,
-                character: message.nameRange.start.character
-              }
-            }
-          ]
-        }
+                character: message.nameRange.start.character,
+              },
+            },
+          ],
+        },
       });
     }
 
@@ -142,11 +137,7 @@ export class CodeLensProvider {
   /**
    * Get code lenses for protovalidate rules on fields
    */
-  private getProtovalidateCodeLenses(
-    uri: string,
-    message: MessageDefinition,
-    messageName: string
-  ): CodeLens[] {
+  private getProtovalidateCodeLenses(uri: string, message: MessageDefinition, messageName: string): CodeLens[] {
     const lenses: CodeLens[] = [];
 
     for (const field of message.fields) {
@@ -159,7 +150,7 @@ export class CodeLensProvider {
           lenses.push({
             range: {
               start: { line: field.range.start.line, character: 0 },
-              end: { line: field.range.start.line, character: 0 }
+              end: { line: field.range.start.line, character: 0 },
             },
             command: {
               title: '$(beaker) Test in Protovalidate Playground',
@@ -171,10 +162,10 @@ export class CodeLensProvider {
                   ruleType: ruleType,
                   ruleText: ruleText,
                   lineNumber: field.range.start.line,
-                  filePath: uri
-                }
-              ]
-            }
+                  filePath: uri,
+                },
+              ],
+            },
           });
         }
       }
@@ -192,7 +183,7 @@ export class CodeLensProvider {
             lenses.push({
               range: {
                 start: { line: field.range.start.line, character: 0 },
-                end: { line: field.range.start.line, character: 0 }
+                end: { line: field.range.start.line, character: 0 },
               },
               command: {
                 title: '$(beaker) Test in Protovalidate Playground',
@@ -204,10 +195,10 @@ export class CodeLensProvider {
                     ruleType: ruleType,
                     ruleText: ruleText,
                     lineNumber: field.range.start.line,
-                    filePath: uri
-                  }
-                ]
-              }
+                    filePath: uri,
+                  },
+                ],
+              },
             });
           }
         }
@@ -217,11 +208,7 @@ export class CodeLensProvider {
     return lenses;
   }
 
-  private getEnumCodeLenses(
-    uri: string,
-    enumDef: EnumDefinition,
-    prefix: string
-  ): CodeLens[] {
+  private getEnumCodeLenses(uri: string, enumDef: EnumDefinition, prefix: string): CodeLens[] {
     const lenses: CodeLens[] = [];
     const fullName = prefix ? `${prefix}.${enumDef.name}` : enumDef.name;
 
@@ -233,7 +220,7 @@ export class CodeLensProvider {
       lenses.push({
         range: {
           start: { line: enumDef.nameRange.start.line, character: 0 },
-          end: { line: enumDef.nameRange.start.line, character: 0 }
+          end: { line: enumDef.nameRange.start.line, character: 0 },
         },
         command: {
           title: `${references.length} reference${references.length !== 1 ? 's' : ''} (${externalRefs.length} external, ${internalRefs.length} internal) | ${enumDef.values.length} value${enumDef.values.length !== 1 ? 's' : ''}`,
@@ -243,22 +230,18 @@ export class CodeLensProvider {
               uri,
               position: {
                 line: enumDef.nameRange.start.line,
-                character: enumDef.nameRange.start.character
-              }
-            }
-          ]
-        }
+                character: enumDef.nameRange.start.character,
+              },
+            },
+          ],
+        },
       });
     }
 
     return lenses;
   }
 
-  private getServiceCodeLenses(
-    uri: string,
-    service: ServiceDefinition,
-    prefix: string
-  ): CodeLens[] {
+  private getServiceCodeLenses(uri: string, service: ServiceDefinition, prefix: string): CodeLens[] {
     const lenses: CodeLens[] = [];
     const fullName = prefix ? `${prefix}.${service.name}` : service.name;
 
@@ -270,7 +253,7 @@ export class CodeLensProvider {
       lenses.push({
         range: {
           start: { line: service.nameRange.start.line, character: 0 },
-          end: { line: service.nameRange.start.line, character: 0 }
+          end: { line: service.nameRange.start.line, character: 0 },
         },
         command: {
           title: `${references.length} reference${references.length !== 1 ? 's' : ''} (${externalRefs.length} external, ${internalRefs.length} internal) | ${service.rpcs.length} RPC${service.rpcs.length !== 1 ? 's' : ''}`,
@@ -280,11 +263,11 @@ export class CodeLensProvider {
               uri,
               position: {
                 line: service.nameRange.start.line,
-                character: service.nameRange.start.character
-              }
-            }
-          ]
-        }
+                character: service.nameRange.start.character,
+              },
+            },
+          ],
+        },
       });
     }
 

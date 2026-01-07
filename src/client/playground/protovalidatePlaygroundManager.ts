@@ -31,15 +31,10 @@ export class ProtovalidatePlaygroundManager {
       return;
     }
 
-    this.panel = vscode.window.createWebviewPanel(
-      this.viewType,
-      'Protovalidate Playground',
-      vscode.ViewColumn.Two,
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true
-      }
-    );
+    this.panel = vscode.window.createWebviewPanel(this.viewType, 'Protovalidate Playground', vscode.ViewColumn.Two, {
+      enableScripts: true,
+      retainContextWhenHidden: true,
+    });
 
     this.panel.webview.html = this.getHtmlContent();
 
@@ -47,7 +42,7 @@ export class ProtovalidatePlaygroundManager {
       this.panel = undefined;
     });
 
-    this.panel.webview.onDidReceiveMessage(async (message) => {
+    this.panel.webview.onDidReceiveMessage(async message => {
       switch (message.command) {
         case 'validateData':
           await this.validateData(message.data);
@@ -89,13 +84,16 @@ export class ProtovalidatePlaygroundManager {
         command: 'validationResult',
         result: {
           valid: false,
-          error: `Invalid JSON: ${e instanceof Error ? e.message : String(e)}`
-        }
+          error: `Invalid JSON: ${e instanceof Error ? e.message : String(e)}`,
+        },
       });
     }
   }
 
-  private simulateValidation(rule: ProtovalidateRule, value: unknown): { valid: boolean; error?: string; info?: string } {
+  private simulateValidation(
+    rule: ProtovalidateRule,
+    value: unknown
+  ): { valid: boolean; error?: string; info?: string } {
     const ruleText = rule.ruleText.toLowerCase();
 
     // String validations
@@ -217,7 +215,7 @@ export class ProtovalidatePlaygroundManager {
     if (ruleText.includes('cel') || ruleText.includes('expression')) {
       return {
         valid: true,
-        info: 'CEL expressions require server-side validation. Use the CEL Playground link to test your expression.'
+        info: 'CEL expressions require server-side validation. Use the CEL Playground link to test your expression.',
       };
     }
 

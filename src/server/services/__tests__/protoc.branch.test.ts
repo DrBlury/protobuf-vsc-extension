@@ -21,7 +21,7 @@ describe('ProtocCompiler Branch Coverage', () => {
     mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
     mockFs = fs as jest.Mocked<typeof fs>;
     jest.clearAllMocks();
-    
+
     // Default mock for fs.existsSync
     mockFs.existsSync.mockReturnValue(false);
   });
@@ -43,7 +43,7 @@ describe('ProtocCompiler Branch Coverage', () => {
                 setTimeout(() => callback(), 0);
               }
               return errorProcess;
-            })
+            }),
           } as any;
           return errorProcess;
         }
@@ -54,7 +54,7 @@ describe('ProtocCompiler Branch Coverage', () => {
               setTimeout(() => callback(0), 0);
             }
             return successProcess;
-          })
+          }),
         } as any;
         return successProcess;
       });
@@ -73,7 +73,7 @@ describe('ProtocCompiler Branch Coverage', () => {
               setTimeout(() => callback(), 0);
             }
             return errorProcess;
-          })
+          }),
         } as any;
         return errorProcess;
       });
@@ -96,7 +96,7 @@ describe('ProtocCompiler Branch Coverage', () => {
                 setTimeout(() => callback(), 0);
               }
               return errorProcess;
-            })
+            }),
           } as any;
           return errorProcess;
         }
@@ -108,14 +108,14 @@ describe('ProtocCompiler Branch Coverage', () => {
                 setTimeout(() => callback(Buffer.from('libprotoc 3.21.0')), 0);
               }
               return successProcess.stdout;
-            })
+            }),
           },
           on: jest.fn((event: string, callback: (code: number) => void) => {
             if (event === 'close') {
               setTimeout(() => callback(0), 10);
             }
             return successProcess;
-          })
+          }),
         } as any;
         return successProcess;
       });
@@ -134,7 +134,7 @@ describe('ProtocCompiler Branch Coverage', () => {
               setTimeout(() => callback(), 0);
             }
             return errorProcess;
-          })
+          }),
         } as any;
         return errorProcess;
       });
@@ -155,7 +155,7 @@ describe('ProtocCompiler Branch Coverage', () => {
                 setTimeout(() => callback(), 0);
               }
               return errorProcess;
-            })
+            }),
           } as any;
           return errorProcess;
         }
@@ -167,7 +167,7 @@ describe('ProtocCompiler Branch Coverage', () => {
               setTimeout(() => callback(1), 0);
             }
             return failProcess;
-          })
+          }),
         } as any;
         return failProcess;
       });
@@ -187,17 +187,13 @@ describe('ProtocCompiler Branch Coverage', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       await compiler.isAvailable();
-      expect(mockSpawn).toHaveBeenCalledWith(
-        '/path/to/protoc.sh',
-        ['--version'],
-        { shell: true }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('/path/to/protoc.sh', ['--version'], { shell: true });
     });
 
     it('should detect batch file on Windows', async () => {
@@ -209,17 +205,13 @@ describe('ProtocCompiler Branch Coverage', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       await compiler.isAvailable();
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'protoc.bat',
-        ['--version'],
-        { shell: true }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('protoc.bat', ['--version'], { shell: true });
     });
 
     it('should detect python script', async () => {
@@ -231,17 +223,13 @@ describe('ProtocCompiler Branch Coverage', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       await compiler.isAvailable();
-      expect(mockSpawn).toHaveBeenCalledWith(
-        '/path/to/protoc.py',
-        ['--version'],
-        { shell: true }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('/path/to/protoc.py', ['--version'], { shell: true });
     });
 
     it('should detect shebang in extensionless file', async () => {
@@ -263,17 +251,13 @@ describe('ProtocCompiler Branch Coverage', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       await compiler.isAvailable();
-      expect(mockSpawn).toHaveBeenCalledWith(
-        '/path/to/protoc-wrapper',
-        ['--version'],
-        { shell: true }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('/path/to/protoc-wrapper', ['--version'], { shell: true });
     });
 
     it('should not use shell for regular executable', async () => {
@@ -290,13 +274,13 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       await compiler.compileFile('/workspace/test.proto');
-      
+
       // Should be called with shell: false for regular executable
       expect(mockSpawn).toHaveBeenCalled();
       const call = mockSpawn.mock.calls[0];
@@ -315,23 +299,19 @@ describe('ProtocCompiler Branch Coverage', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       await compiler.isAvailable();
       // Should not use shell since file doesn't exist
-      expect(mockSpawn).toHaveBeenCalledWith(
-        '/nonexistent/protoc',
-        ['--version'],
-        { shell: false }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('/nonexistent/protoc', ['--version'], { shell: false });
     });
 
     it('should return false for file with less than 2 bytes', async () => {
       compiler.updateSettings({ path: '/path/to/tiny-file' });
-      
+
       mockFs.existsSync.mockReturnValue(true);
       mockFs.openSync.mockReturnValue(3);
       mockFs.readSync.mockReturnValue(1); // Only 1 byte read
@@ -343,23 +323,19 @@ describe('ProtocCompiler Branch Coverage', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       await compiler.isAvailable();
       // Should not use shell since file is too small
-      expect(mockSpawn).toHaveBeenCalledWith(
-        '/path/to/tiny-file',
-        ['--version'],
-        { shell: false }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('/path/to/tiny-file', ['--version'], { shell: false });
     });
 
     it('should handle fs errors gracefully', async () => {
       compiler.updateSettings({ path: '/path/to/unreadable' });
-      
+
       mockFs.existsSync.mockReturnValue(true);
       mockFs.openSync.mockImplementation(() => {
         throw new Error('Permission denied');
@@ -371,23 +347,19 @@ describe('ProtocCompiler Branch Coverage', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       await compiler.isAvailable();
       // Should not use shell since fs read failed
-      expect(mockSpawn).toHaveBeenCalledWith(
-        '/path/to/unreadable',
-        ['--version'],
-        { shell: false }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('/path/to/unreadable', ['--version'], { shell: false });
     });
 
     it('should return false for file without shebang', async () => {
       compiler.updateSettings({ path: '/path/to/binary' });
-      
+
       mockFs.existsSync.mockReturnValue(true);
       mockFs.openSync.mockReturnValue(3);
       mockFs.readSync.mockImplementation((_fd: number, buffer: any) => {
@@ -403,25 +375,21 @@ describe('ProtocCompiler Branch Coverage', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       await compiler.isAvailable();
       // Should not use shell since no shebang
-      expect(mockSpawn).toHaveBeenCalledWith(
-        '/path/to/binary',
-        ['--version'],
-        { shell: false }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('/path/to/binary', ['--version'], { shell: false });
     });
   });
 
   describe('quotePathIfNeeded', () => {
     it('should quote paths with double quotes', async () => {
       compiler.updateSettings({
-        options: ['--go_out=/path/with"quote/output']
+        options: ['--go_out=/path/with"quote/output'],
       });
 
       const mockProcess = {
@@ -433,7 +401,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -449,7 +417,7 @@ describe('ProtocCompiler Branch Coverage', () => {
 
     it('should quote paths with single quotes', async () => {
       compiler.updateSettings({
-        options: ["--go_out=/path/with'apostrophe/output"]
+        options: ["--go_out=/path/with'apostrophe/output"],
       });
 
       const mockProcess = {
@@ -461,7 +429,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -472,7 +440,7 @@ describe('ProtocCompiler Branch Coverage', () => {
 
     it('should allow parent traversal in output paths', async () => {
       compiler.updateSettings({
-        options: ['--go_out=../gen']
+        options: ['--go_out=../gen'],
       });
 
       const mockProcess = {
@@ -484,7 +452,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -495,7 +463,7 @@ describe('ProtocCompiler Branch Coverage', () => {
 
     it('should allow paths with parentheses', async () => {
       compiler.updateSettings({
-        options: ['--go_out=/path/Program Files (x86)/out']
+        options: ['--go_out=/path/Program Files (x86)/out'],
       });
 
       const mockProcess = {
@@ -507,7 +475,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -530,7 +498,7 @@ describe('ProtocCompiler Branch Coverage', () => {
       (compiler as any).findProtoFiles = () => [];
 
       const result = await compiler.compileAll();
-      
+
       expect(result.success).toBe(true);
       expect(result.stdout).toBe('No .proto files found');
       expect(result.fileCount).toBe(0);
@@ -544,10 +512,7 @@ describe('ProtocCompiler Branch Coverage', () => {
       compiler.updateSettings({ compileAllPath: '/workspace' });
 
       // Mock findProtoFiles
-      (compiler as any).findProtoFiles = () => [
-        '/workspace/a.proto',
-        '/workspace/b.proto'
-      ];
+      (compiler as any).findProtoFiles = () => ['/workspace/a.proto', '/workspace/b.proto'];
 
       const mockProcess = {
         stdout: { on: jest.fn() },
@@ -558,7 +523,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -575,12 +540,13 @@ describe('ProtocCompiler Branch Coverage', () => {
         stderr: {
           on: jest.fn((event: string, callback: (data: Buffer) => void) => {
             if (event === 'data') {
-              setTimeout(() => callback(Buffer.from(
-                'test.proto:1:1: Import "google/protobuf/timestamp.proto" was not found.'
-              )), 0);
+              setTimeout(
+                () => callback(Buffer.from('test.proto:1:1: Import "google/protobuf/timestamp.proto" was not found.')),
+                0
+              );
             }
             return mockProcess.stderr;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
@@ -588,7 +554,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -607,12 +573,13 @@ describe('ProtocCompiler Branch Coverage', () => {
         stderr: {
           on: jest.fn((event: string, callback: (data: Buffer) => void) => {
             if (event === 'data') {
-              setTimeout(() => callback(Buffer.from(
-                'test.proto:1:1: Import "google/type/money.proto" was not found.'
-              )), 0);
+              setTimeout(
+                () => callback(Buffer.from('test.proto:1:1: Import "google/type/money.proto" was not found.')),
+                0
+              );
             }
             return mockProcess.stderr;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
@@ -620,7 +587,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -638,12 +605,13 @@ describe('ProtocCompiler Branch Coverage', () => {
         stderr: {
           on: jest.fn((event: string, callback: (data: Buffer) => void) => {
             if (event === 'data') {
-              setTimeout(() => callback(Buffer.from(
-                'test.proto:1:1: Import "google/api/annotations.proto" was not found.'
-              )), 0);
+              setTimeout(
+                () => callback(Buffer.from('test.proto:1:1: Import "google/api/annotations.proto" was not found.')),
+                0
+              );
             }
             return mockProcess.stderr;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
@@ -651,7 +619,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -669,12 +637,10 @@ describe('ProtocCompiler Branch Coverage', () => {
         stderr: {
           on: jest.fn((event: string, callback: (data: Buffer) => void) => {
             if (event === 'data') {
-              setTimeout(() => callback(Buffer.from(
-                'test.proto:1:1: File not found: common/types.proto'
-              )), 0);
+              setTimeout(() => callback(Buffer.from('test.proto:1:1: File not found: common/types.proto')), 0);
             }
             return mockProcess.stderr;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
@@ -682,7 +648,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -700,12 +666,10 @@ describe('ProtocCompiler Branch Coverage', () => {
         stderr: {
           on: jest.fn((event: string, callback: (data: Buffer) => void) => {
             if (event === 'data') {
-              setTimeout(() => callback(Buffer.from(
-                'test.proto:5:10: "MyType" is not defined'
-              )), 0);
+              setTimeout(() => callback(Buffer.from('test.proto:5:10: "MyType" is not defined')), 0);
             }
             return mockProcess.stderr;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
@@ -713,7 +677,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -731,12 +695,10 @@ describe('ProtocCompiler Branch Coverage', () => {
         stderr: {
           on: jest.fn((event: string, callback: (data: Buffer) => void) => {
             if (event === 'data') {
-              setTimeout(() => callback(Buffer.from(
-                'test.proto:5:10: warning: deprecated field usage'
-              )), 0);
+              setTimeout(() => callback(Buffer.from('test.proto:5:10: warning: deprecated field usage')), 0);
             }
             return mockProcess.stderr;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
@@ -744,7 +706,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -760,12 +722,10 @@ describe('ProtocCompiler Branch Coverage', () => {
         stderr: {
           on: jest.fn((event: string, callback: (data: Buffer) => void) => {
             if (event === 'data') {
-              setTimeout(() => callback(Buffer.from(
-                'test.proto:10: Missing semicolon'
-              )), 0);
+              setTimeout(() => callback(Buffer.from('test.proto:10: Missing semicolon')), 0);
             }
             return mockProcess.stderr;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
@@ -773,7 +733,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -798,7 +758,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -814,7 +774,7 @@ describe('ProtocCompiler Branch Coverage', () => {
     it('should use user proto paths in validation', async () => {
       const testPath = path.resolve('/usr/local/include');
       compiler.updateSettings({
-        options: [`--proto_path=${testPath}`]
+        options: [`--proto_path=${testPath}`],
       });
 
       const mockProcess = {
@@ -826,7 +786,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -842,7 +802,7 @@ describe('ProtocCompiler Branch Coverage', () => {
       const otherPath = path.resolve('/other/path');
       const workspaceProtosPath = path.resolve('/workspace/protos');
       compiler.updateSettings({
-        options: [`--proto_path=${otherPath}`]
+        options: [`--proto_path=${otherPath}`],
       });
 
       const mockProcess = {
@@ -854,7 +814,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -881,7 +841,7 @@ describe('ProtocCompiler Branch Coverage', () => {
               setTimeout(() => callback(Buffer.from(largeOutput)), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stderr: { on: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -890,7 +850,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -911,7 +871,7 @@ describe('ProtocCompiler Branch Coverage', () => {
               setTimeout(() => callback(Buffer.from(largeError)), 0);
             }
             return mockProcess.stderr;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
@@ -919,7 +879,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -940,7 +900,7 @@ describe('ProtocCompiler Branch Coverage', () => {
         stdout: { on: jest.fn() },
         stderr: { on: jest.fn() },
         on: jest.fn(),
-        kill: mockKill
+        kill: mockKill,
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -951,9 +911,7 @@ describe('ProtocCompiler Branch Coverage', () => {
       jest.advanceTimersByTime(150);
 
       // Simulate close after kill
-      const closeCallback = mockProcess.on.mock.calls.find(
-        (call: unknown[]) => call[0] === 'close'
-      )?.[1];
+      const closeCallback = mockProcess.on.mock.calls.find((call: unknown[]) => call[0] === 'close')?.[1];
       if (closeCallback) {
         closeCallback(null);
       }
@@ -983,7 +941,7 @@ describe('ProtocCompiler Branch Coverage', () => {
               }
               return errorProcess;
             }),
-            kill: jest.fn()
+            kill: jest.fn(),
           } as any;
           return errorProcess;
         }
@@ -997,7 +955,7 @@ describe('ProtocCompiler Branch Coverage', () => {
             }
             return successProcess;
           }),
-          kill: jest.fn()
+          kill: jest.fn(),
         } as any;
         return successProcess;
       });
@@ -1019,18 +977,18 @@ describe('ProtocCompiler Branch Coverage', () => {
       let callCount = 0;
       mockFs.readdirSync.mockImplementation((dir: fs.PathLike) => {
         callCount++;
-        if (callCount > 10) {return [];} // Prevent infinite recursion
-        
+        if (callCount > 10) {
+          return [];
+        } // Prevent infinite recursion
+
         if (dir.toString() === '/workspace') {
           return [
             { name: '.hidden', isDirectory: () => true, isFile: () => false },
-            { name: 'src', isDirectory: () => true, isFile: () => false }
+            { name: 'src', isDirectory: () => true, isFile: () => false },
           ] as any;
         }
         if (dir.toString().includes('src')) {
-          return [
-            { name: 'test.proto', isDirectory: () => false, isFile: () => true }
-          ] as any;
+          return [{ name: 'test.proto', isDirectory: () => false, isFile: () => true }] as any;
         }
         return [];
       });
@@ -1048,7 +1006,7 @@ describe('ProtocCompiler Branch Coverage', () => {
         if (dir.toString() === '/workspace') {
           return [
             { name: 'node_modules', isDirectory: () => true, isFile: () => false },
-            { name: 'test.proto', isDirectory: () => false, isFile: () => true }
+            { name: 'test.proto', isDirectory: () => false, isFile: () => true },
           ] as any;
         }
         return [];
@@ -1081,7 +1039,7 @@ describe('ProtocCompiler Branch Coverage', () => {
       process.env.MY_PROTO_PATH = customPath;
 
       compiler.updateSettings({
-        options: ['--proto_path=${env.MY_PROTO_PATH}']
+        options: ['--proto_path=${env.MY_PROTO_PATH}'],
       });
 
       const mockProcess = {
@@ -1093,7 +1051,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1115,7 +1073,7 @@ describe('ProtocCompiler Branch Coverage', () => {
       delete process.env.NONEXISTENT_VAR;
 
       compiler.updateSettings({
-        options: ['--proto_path=${env.NONEXISTENT_VAR}/protos']
+        options: ['--proto_path=${env.NONEXISTENT_VAR}/protos'],
       });
 
       const mockProcess = {
@@ -1127,7 +1085,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1141,7 +1099,7 @@ describe('ProtocCompiler Branch Coverage', () => {
 
     it('should handle config variables (return empty)', async () => {
       compiler.updateSettings({
-        options: ['--proto_path=${config.myPath}']
+        options: ['--proto_path=${config.myPath}'],
       });
 
       const mockProcess = {
@@ -1153,7 +1111,7 @@ describe('ProtocCompiler Branch Coverage', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);

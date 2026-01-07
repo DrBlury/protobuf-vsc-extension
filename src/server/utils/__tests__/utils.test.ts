@@ -17,7 +17,7 @@ import {
   isError,
   createRange,
   isPositionInRange,
-  deepClone
+  deepClone,
 } from '../utils';
 
 describe('Utils', () => {
@@ -327,8 +327,8 @@ describe('Utils', () => {
         a: 1,
         b: {
           c: [1, 2, 3],
-          d: 'test'
-        }
+          d: 'test',
+        },
       };
       const cloned = deepClone(obj);
       expect(cloned).toEqual(obj);

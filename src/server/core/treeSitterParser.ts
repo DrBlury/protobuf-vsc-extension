@@ -13,7 +13,10 @@ let TreeSitterParser: unknown = null;
 type Parser = { parse(input: string): Tree | null; setLanguage(lang: unknown): void };
 type Tree = { rootNode: Node };
 type Language = unknown;
-interface Point { row: number; column: number; }
+interface Point {
+  row: number;
+  column: number;
+}
 interface Node {
   type: string;
   text: string;
@@ -69,7 +72,7 @@ export enum TreeSitterErrorType {
   LANGUAGE_LOAD_FAILED = 'LANGUAGE_LOAD_FAILED',
   PARSER_CREATION_FAILED = 'PARSER_CREATION_FAILED',
   SET_LANGUAGE_FAILED = 'SET_LANGUAGE_FAILED',
-  UNKNOWN = 'UNKNOWN'
+  UNKNOWN = 'UNKNOWN',
 }
 
 /**
@@ -79,11 +82,7 @@ export class TreeSitterInitError extends Error {
   public readonly errorType: TreeSitterErrorType;
   public readonly originalCause?: Error;
 
-  constructor(
-    errorType: TreeSitterErrorType,
-    message: string,
-    cause?: Error
-  ) {
+  constructor(errorType: TreeSitterErrorType, message: string, cause?: Error) {
     super(message, cause ? { cause } : undefined);
     this.name = 'TreeSitterInitError';
     this.errorType = errorType;
@@ -109,7 +108,7 @@ function loadTreeSitterModule(): void {
     throw new TreeSitterInitError(
       TreeSitterErrorType.MODULE_LOAD_FAILED,
       `Failed to load web-tree-sitter module: ${err.message}. ` +
-      'Ensure web-tree-sitter is installed: npm install web-tree-sitter',
+        'Ensure web-tree-sitter is installed: npm install web-tree-sitter',
       err
     );
   }
@@ -136,7 +135,7 @@ function validateWasmPath(wasmPath: string): void {
       throw new TreeSitterInitError(
         TreeSitterErrorType.WASM_FILE_NOT_FOUND,
         `WASM file not found at path: ${normalizedPath}. ` +
-        'Ensure the tree-sitter grammar was built with: npm run build:tree-sitter'
+          'Ensure the tree-sitter grammar was built with: npm run build:tree-sitter'
       );
     }
   } catch (error) {
@@ -242,7 +241,7 @@ export async function initTreeSitterParser(
           throw new TreeSitterInitError(
             TreeSitterErrorType.TREESITTER_INIT_FAILED,
             `TreeSitter.init() failed: ${err.message}. ` +
-            'This may indicate a problem with the web-tree-sitter installation or WASM support.',
+              'This may indicate a problem with the web-tree-sitter installation or WASM support.',
             err
           );
         }
@@ -276,7 +275,7 @@ export async function initTreeSitterParser(
           throw new TreeSitterInitError(
             TreeSitterErrorType.LANGUAGE_LOAD_FAILED,
             `Failed to load Proto language from ${wasmPath}: ${err.message}. ` +
-            'The WASM file may be corrupted or incompatible. Try rebuilding with: npm run build:tree-sitter',
+              'The WASM file may be corrupted or incompatible. Try rebuilding with: npm run build:tree-sitter',
             err
           );
         }
@@ -298,7 +297,6 @@ export async function initTreeSitterParser(
         initializationError = null;
         logger.info(`Tree-sitter parser initialized successfully with WASM from: ${wasmPath}`);
         return;
-
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
 
@@ -318,7 +316,7 @@ export async function initTreeSitterParser(
             TreeSitterErrorType.WASM_PATH_INVALID,
             TreeSitterErrorType.WASM_FILE_NOT_FOUND,
             TreeSitterErrorType.WASM_FILE_NOT_READABLE,
-            TreeSitterErrorType.MODULE_LOAD_FAILED
+            TreeSitterErrorType.MODULE_LOAD_FAILED,
           ];
           if (nonRetryableErrors.includes(error.errorType)) {
             break;
@@ -359,7 +357,7 @@ function getParser(): Parser {
 function pointToPosition(point: Point): Position {
   return {
     line: point.row,
-    character: point.column
+    character: point.column,
   };
 }
 
@@ -369,7 +367,7 @@ function pointToPosition(point: Point): Position {
 function nodeToRange(node: Node): Range {
   return {
     start: pointToPosition(node.startPosition),
-    end: pointToPosition(node.endPosition)
+    end: pointToPosition(node.endPosition),
   };
 }
 
@@ -431,7 +429,9 @@ export class TreeSitterProtoParser {
 
     for (let i = 0; i < root.childCount; i++) {
       const child = root.child(i);
-      if (!child) {continue;}
+      if (!child) {
+        continue;
+      }
 
       try {
         switch (child.type) {
@@ -488,21 +488,21 @@ export class TreeSitterProtoParser {
   private collectSyntaxErrors(root: Node, file: ProtoFile): void {
     const errorNodes = this.findErrorNodes(root);
     for (const errorNode of errorNodes) {
-        if (errorNode.isMissing) {
-            const parent = errorNode.parent;
-            const message = parent
-                ? `Syntax error: missing '${errorNode.type}' in ${parent.type}`
-                : `Syntax error: missing '${errorNode.type}'`;
-            file.syntaxErrors?.push({
-                range: nodeToRange(errorNode),
-                message,
-            });
-        } else {
-            file.syntaxErrors?.push({
-                range: nodeToRange(errorNode),
-                message: `Syntax error: unexpected "${errorNode.text}"`,
-            });
-        }
+      if (errorNode.isMissing) {
+        const parent = errorNode.parent;
+        const message = parent
+          ? `Syntax error: missing '${errorNode.type}' in ${parent.type}`
+          : `Syntax error: missing '${errorNode.type}'`;
+        file.syntaxErrors?.push({
+          range: nodeToRange(errorNode),
+          message,
+        });
+      } else {
+        file.syntaxErrors?.push({
+          range: nodeToRange(errorNode),
+          message: `Syntax error: unexpected "${errorNode.text}"`,
+        });
+      }
     }
   }
 
@@ -513,7 +513,7 @@ export class TreeSitterProtoParser {
     return {
       type: 'syntax',
       version,
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
   }
 
@@ -525,7 +525,7 @@ export class TreeSitterProtoParser {
     return {
       type: 'edition',
       edition,
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
   }
 
@@ -536,7 +536,7 @@ export class TreeSitterProtoParser {
     return {
       type: 'package',
       name,
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
   }
 
@@ -546,14 +546,17 @@ export class TreeSitterProtoParser {
     const path = pathMatch?.[1] ?? '';
 
     let modifier: 'weak' | 'public' | undefined;
-    if (text.includes('weak')) { modifier = 'weak'; }
-    else if (text.includes('public')) { modifier = 'public'; }
+    if (text.includes('weak')) {
+      modifier = 'weak';
+    } else if (text.includes('public')) {
+      modifier = 'public';
+    }
 
     return {
       type: 'import',
       path,
       modifier,
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
   }
 
@@ -568,7 +571,7 @@ export class TreeSitterProtoParser {
         type: 'option',
         name: '',
         value: '',
-        range: nodeToRange(node)
+        range: nodeToRange(node),
       };
     }
 
@@ -577,12 +580,18 @@ export class TreeSitterProtoParser {
 
     // Parse value based on type
     let value: string | number | boolean = valueText;
-    if (valueText === 'true') { value = true; }
-    else if (valueText === 'false') { value = false; }
-    else if (/^-?\d+$/.test(valueText)) { value = parseInt(valueText, 10); }
-    else if (/^-?\d+\.\d+$/.test(valueText)) { value = parseFloat(valueText); }
-    else if ((valueText.startsWith('"') && valueText.endsWith('"')) ||
-             (valueText.startsWith("'") && valueText.endsWith("'"))) {
+    if (valueText === 'true') {
+      value = true;
+    } else if (valueText === 'false') {
+      value = false;
+    } else if (/^-?\d+$/.test(valueText)) {
+      value = parseInt(valueText, 10);
+    } else if (/^-?\d+\.\d+$/.test(valueText)) {
+      value = parseFloat(valueText);
+    } else if (
+      (valueText.startsWith('"') && valueText.endsWith('"')) ||
+      (valueText.startsWith("'") && valueText.endsWith("'"))
+    ) {
       // Remove quotes from string values
       value = valueText.slice(1, -1);
     }
@@ -592,7 +601,7 @@ export class TreeSitterProtoParser {
       type: 'option',
       name,
       value,
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
   }
 
@@ -614,13 +623,15 @@ export class TreeSitterProtoParser {
       reserved: [],
       extensions: [],
       maps: [],
-      groups: []
+      groups: [],
     };
 
     if (bodyNode) {
       for (let i = 0; i < bodyNode.childCount; i++) {
         const child = bodyNode.child(i);
-        if (!child) {continue;}
+        if (!child) {
+          continue;
+        }
 
         try {
           switch (child.type) {
@@ -674,7 +685,8 @@ export class TreeSitterProtoParser {
     // Global regex to find all field definitions in the text
     // Pattern: [modifier] type name = number (without options - we extract those separately)
     // NOTE: Modifier group uses word boundary (\b) to prevent "RepeatedRules" from matching as modifier "Repeated" + type "Rules"
-    const fieldRegex = /(?:(optional|required|repeated)\s+)?(\.?\w+(?:\.\w+)*)\s+(\w+)\s*=\s*(?:\/\/[^\r\n]*)?\s*(0x[0-9a-fA-F]+|\d+)/gi;
+    const fieldRegex =
+      /(?:(optional|required|repeated)\s+)?(\.?\w+(?:\.\w+)*)\s+(\w+)\s*=\s*(?:\/\/[^\r\n]*)?\s*(0x[0-9a-fA-F]+|\d+)/gi;
 
     let match;
     while ((match = fieldRegex.exec(text)) !== null) {
@@ -682,9 +694,7 @@ export class TreeSitterProtoParser {
       const fieldType = match[2] || 'string';
       const name = match[3] || '';
       const numberStr = match[4] || '0';
-      const number = numberStr.toLowerCase().startsWith('0x')
-        ? parseInt(numberStr, 16)
-        : parseInt(numberStr, 10);
+      const number = numberStr.toLowerCase().startsWith('0x') ? parseInt(numberStr, 16) : parseInt(numberStr, 10);
 
       // Extract options using bracket matching
       const matchEnd = match.index + match[0].length;
@@ -698,12 +708,11 @@ export class TreeSitterProtoParser {
         const textBeforeOptions = text.slice(0, optionsOffset);
         const newlinesBefore = (textBeforeOptions.match(/\n/g) || []).length;
         const lastNewlineBefore = textBeforeOptions.lastIndexOf('\n');
-        const startChar = lastNewlineBefore === -1
-          ? node.startPosition.column + optionsOffset
-          : optionsOffset - lastNewlineBefore - 1;
+        const startChar =
+          lastNewlineBefore === -1 ? node.startPosition.column + optionsOffset : optionsOffset - lastNewlineBefore - 1;
         optionsBaseRange = {
           start: { line: node.startPosition.row + newlinesBefore, character: startChar },
-          end: { line: node.startPosition.row + newlinesBefore, character: startChar }
+          end: { line: node.startPosition.row + newlinesBefore, character: startChar },
         };
       }
 
@@ -738,7 +747,7 @@ export class TreeSitterProtoParser {
         nameRange,
         number,
         options,
-        range: nodeToRange(node)
+        range: nodeToRange(node),
       });
     }
 
@@ -759,7 +768,9 @@ export class TreeSitterProtoParser {
     // Note: /i flag needed for case-insensitive hex matching (0x vs 0X)
     // Allows optional comment after = and before number (handles multi-line fields with comments)
     // NOTE: Modifier group requires whitespace after to prevent "RepeatedRules" from matching as modifier "Repeated" + type "Rules"
-    const match = text.match(/(?:(optional|required|repeated)\s+)?(\.?\w+(?:\.\w+)*)\s+(\w+)\s*=\s*(?:\/\/[^\r\n]*)?\s*(0x[0-9a-fA-F]+|\d+)/i);
+    const match = text.match(
+      /(?:(optional|required|repeated)\s+)?(\.?\w+(?:\.\w+)*)\s+(\w+)\s*=\s*(?:\/\/[^\r\n]*)?\s*(0x[0-9a-fA-F]+|\d+)/i
+    );
 
     if (!match) {
       return {
@@ -769,7 +780,7 @@ export class TreeSitterProtoParser {
         name: '',
         nameRange: nodeToRange(node),
         number: 0,
-        range: nodeToRange(node)
+        range: nodeToRange(node),
       };
     }
 
@@ -777,9 +788,8 @@ export class TreeSitterProtoParser {
     const fieldType = match[2] || 'string';
     const name = match[3] || '';
     const numberStr = match[4] || '0';
-    const number = numberStr.startsWith('0x') || numberStr.startsWith('0X')
-      ? parseInt(numberStr, 16)
-      : parseInt(numberStr, 10);
+    const number =
+      numberStr.startsWith('0x') || numberStr.startsWith('0X') ? parseInt(numberStr, 16) : parseInt(numberStr, 10);
 
     // Extract options using bracket matching instead of regex
     // Find where the field number match ends
@@ -794,12 +804,11 @@ export class TreeSitterProtoParser {
       const textBeforeOptions = text.slice(0, optionsOffset);
       const newlinesBefore = (textBeforeOptions.match(/\n/g) || []).length;
       const lastNewlineBefore = textBeforeOptions.lastIndexOf('\n');
-      const startChar = lastNewlineBefore === -1
-        ? node.startPosition.column + optionsOffset
-        : optionsOffset - lastNewlineBefore - 1;
+      const startChar =
+        lastNewlineBefore === -1 ? node.startPosition.column + optionsOffset : optionsOffset - lastNewlineBefore - 1;
       optionsBaseRange = {
         start: { line: node.startPosition.row + newlinesBefore, character: startChar },
-        end: { line: node.startPosition.row + newlinesBefore, character: startChar }
+        end: { line: node.startPosition.row + newlinesBefore, character: startChar },
       };
     }
 
@@ -822,7 +831,7 @@ export class TreeSitterProtoParser {
       nameRange: this.rangeFromOffsets(node, text, nameOffset, name.length),
       number,
       options,
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
   }
 
@@ -838,13 +847,11 @@ export class TreeSitterProtoParser {
     const newlineMatches = before.match(/\n/g);
     const lineDelta = newlineMatches ? newlineMatches.length : 0;
     const lastNewline = before.lastIndexOf('\n');
-    const character = lineDelta === 0
-      ? node.startPosition.column + clampedOffset
-      : clampedOffset - (lastNewline + 1);
+    const character = lineDelta === 0 ? node.startPosition.column + clampedOffset : clampedOffset - (lastNewline + 1);
 
     return {
       line: node.startPosition.row + lineDelta,
-      character
+      character,
     };
   }
 
@@ -932,7 +939,9 @@ export class TreeSitterProtoParser {
 
     // Remove surrounding brackets
     const inner = optionsStr.slice(1, -1).trim();
-    if (!inner) {return options;}
+    if (!inner) {
+      return options;
+    }
 
     // Split by comma, but be careful with nested structures
     const parts = this.splitFieldOptions(inner);
@@ -941,7 +950,9 @@ export class TreeSitterProtoParser {
       // Strip comments from the part before parsing
       const strippedPart = this.stripComments(part);
       const trimmed = strippedPart.trim();
-      if (!trimmed) {continue;}
+      if (!trimmed) {
+        continue;
+      }
 
       // Match option patterns: name = value or (name).path = value
       // Pattern breakdown:
@@ -987,23 +998,19 @@ export class TreeSitterProtoParser {
             const beforeOption = optionsStr.slice(0, optionIdx);
             const newlines = (beforeOption.match(/\n/g) || []).length;
             const lastNewline = beforeOption.lastIndexOf('\n');
-            const startChar = lastNewline === -1
-              ? baseRange.start.character + optionIdx
-              : optionIdx - lastNewline - 1;
+            const startChar = lastNewline === -1 ? baseRange.start.character + optionIdx : optionIdx - lastNewline - 1;
             const startLine = baseRange.start.line + newlines;
 
             // Calculate end position
             const optionText = part.trim();
             const optNewlines = (optionText.match(/\n/g) || []).length;
             const optLastNewline = optionText.lastIndexOf('\n');
-            const endChar = optNewlines > 0
-              ? optionText.length - optLastNewline - 1
-              : startChar + optionText.length;
+            const endChar = optNewlines > 0 ? optionText.length - optLastNewline - 1 : startChar + optionText.length;
             const endLine = startLine + optNewlines;
 
             optRange = {
               start: { line: startLine, character: startChar },
-              end: { line: endLine, character: endChar }
+              end: { line: endLine, character: endChar },
             };
           }
         }
@@ -1012,7 +1019,7 @@ export class TreeSitterProtoParser {
           type: 'field_option',
           name,
           value,
-          range: optRange
+          range: optRange,
         });
       }
     }
@@ -1030,7 +1037,9 @@ export class TreeSitterProtoParser {
 
     while (remaining.length > 0) {
       remaining = remaining.trim();
-      if (remaining.length === 0) {break;}
+      if (remaining.length === 0) {
+        break;
+      }
 
       // Match a single-quoted or double-quoted string
       const match = remaining.match(/^(["'])((?:[^\\]|\\.)*?)\1/s);
@@ -1216,7 +1225,7 @@ export class TreeSitterProtoParser {
         name: '',
         nameRange: nodeToRange(node),
         number: 0,
-        range: nodeToRange(node)
+        range: nodeToRange(node),
       };
     }
 
@@ -1224,9 +1233,7 @@ export class TreeSitterProtoParser {
     const valueType = match[2] || 'string';
     const name = match[3] || '';
     const numberStr = match[4] || '0';
-    const number = numberStr.toLowerCase().startsWith('0x')
-      ? parseInt(numberStr, 16)
-      : parseInt(numberStr, 10);
+    const number = numberStr.toLowerCase().startsWith('0x') ? parseInt(numberStr, 16) : parseInt(numberStr, 10);
 
     return {
       type: 'map',
@@ -1236,7 +1243,7 @@ export class TreeSitterProtoParser {
       name,
       nameRange: nodeToRange(node),
       number,
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
   }
 
@@ -1249,7 +1256,7 @@ export class TreeSitterProtoParser {
       name,
       nameRange: nameNode ? nodeToRange(nameNode) : nodeToRange(node),
       fields: [],
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
 
     const fields = getChildren(node, 'oneof_field');
@@ -1283,7 +1290,7 @@ export class TreeSitterProtoParser {
       extensions: [],
       maps: [],
       groups: [],
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
   }
 
@@ -1299,13 +1306,15 @@ export class TreeSitterProtoParser {
       values: [],
       options: [],
       reserved: [],
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
 
     if (bodyNode) {
       for (let i = 0; i < bodyNode.childCount; i++) {
         const child = bodyNode.child(i);
-        if (!child) {continue;}
+        if (!child) {
+          continue;
+        }
 
         try {
           switch (child.type) {
@@ -1340,7 +1349,7 @@ export class TreeSitterProtoParser {
         name: '',
         nameRange: nodeToRange(node),
         number: 0,
-        range: nodeToRange(node)
+        range: nodeToRange(node),
       };
     }
 
@@ -1363,12 +1372,11 @@ export class TreeSitterProtoParser {
       const textBeforeOptions = text.slice(0, optionsIdx);
       const newlinesBefore = (textBeforeOptions.match(/\n/g) || []).length;
       const lastNewlineBefore = textBeforeOptions.lastIndexOf('\n');
-      const startChar = lastNewlineBefore === -1
-        ? node.startPosition.column + optionsIdx
-        : optionsIdx - lastNewlineBefore - 1;
+      const startChar =
+        lastNewlineBefore === -1 ? node.startPosition.column + optionsIdx : optionsIdx - lastNewlineBefore - 1;
       optionsBaseRange = {
         start: { line: node.startPosition.row + newlinesBefore, character: startChar },
-        end: { line: node.startPosition.row + newlinesBefore, character: startChar }
+        end: { line: node.startPosition.row + newlinesBefore, character: startChar },
       };
     }
     const options = optionsStr ? this.parseFieldOptionsFromString(optionsStr, optionsBaseRange) : undefined;
@@ -1379,7 +1387,7 @@ export class TreeSitterProtoParser {
       nameRange: nodeToRange(node),
       number,
       options,
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
   }
 
@@ -1393,7 +1401,7 @@ export class TreeSitterProtoParser {
       nameRange: nameNode ? nodeToRange(nameNode) : nodeToRange(node),
       rpcs: [],
       options: [],
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
 
     const rpcNodes = getChildren(node, 'rpc');
@@ -1410,7 +1418,9 @@ export class TreeSitterProtoParser {
 
   private parseRpc(node: Node): RpcDefinition {
     const text = getText(node);
-    const match = text.match(/rpc\s+(\w+)\s*\(\s*(stream\s+)?(\w+(?:\.\w+)*)\s*\)\s*returns\s*\(\s*(stream\s+)?(\w+(?:\.\w+)*)\s*\)/);
+    const match = text.match(
+      /rpc\s+(\w+)\s*\(\s*(stream\s+)?(\w+(?:\.\w+)*)\s*\)\s*returns\s*\(\s*(stream\s+)?(\w+(?:\.\w+)*)\s*\)/
+    );
 
     if (!match) {
       return {
@@ -1424,7 +1434,7 @@ export class TreeSitterProtoParser {
         requestStreaming: false,
         responseStreaming: false,
         options: [],
-        range: nodeToRange(node)
+        range: nodeToRange(node),
       };
     }
 
@@ -1452,7 +1462,7 @@ export class TreeSitterProtoParser {
       outputTypeRange: nodeToRange(node),
       inputStream: requestStreaming,
       outputStream: responseStreaming,
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
   }
 
@@ -1470,7 +1480,7 @@ export class TreeSitterProtoParser {
       // Backward compatibility
       messageName: extendType,
       messageNameRange: nodeToRange(node),
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
   }
 
@@ -1480,7 +1490,7 @@ export class TreeSitterProtoParser {
       type: 'reserved',
       ranges: [],
       names: [],
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
 
     // Try to parse as ranges
@@ -1531,14 +1541,14 @@ export class TreeSitterProtoParser {
     const extensions: ExtensionsStatement = {
       type: 'extensions',
       ranges: [],
-      range: nodeToRange(node)
+      range: nodeToRange(node),
     };
 
     // Remove the 'extensions' keyword and any options in brackets to avoid
     // matching numbers inside [declaration = { number: ... }]
     text = text.replace(/^extensions\s*/, '');
-    text = text.replace(/\s*\[.*\]\s*;?\s*$/s, '');  // Remove [...] options block
-    text = text.replace(/;$/, '');  // Remove trailing semicolon
+    text = text.replace(/\s*\[.*\]\s*;?\s*$/s, ''); // Remove [...] options block
+    text = text.replace(/;$/, ''); // Remove trailing semicolon
 
     const rangePattern = /(\d+)(?:\s+to\s+(\d+|max))?/g;
     const rangeMatches = Array.from(text.matchAll(rangePattern));

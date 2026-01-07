@@ -15,9 +15,7 @@ export function registerDocumentationCommand(
 ): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.showDocumentation', () => {
     const editor = vscode.window.activeTextEditor;
-    const uri = editor?.document.languageId === 'proto'
-      ? editor.document.uri.toString()
-      : undefined;
+    const uri = editor?.document.languageId === 'proto' ? editor.document.uri.toString() : undefined;
 
     DocumentationPanel.createOrShow(context.extensionUri, client, uri);
   });

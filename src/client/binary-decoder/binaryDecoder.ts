@@ -9,444 +9,441 @@ import * as fs from 'fs';
  * Result of binary decoding operation
  */
 interface DecodeResult {
-    /** The decoded text output */
-    rawDecode: string;
-    /** Hex dump of the binary data */
-    hexDump: string;
-    /** Whether schema-aware (named) decoding was successful */
-    isNamed: boolean;
-    /** Error message if decoding failed or fell back */
-    error?: string;
-    /** The message type that was used for successful decode */
-    decodedAs?: string;
-    /** Suggested message types based on auto-detection */
-    suggestedTypes?: string[];
+  /** The decoded text output */
+  rawDecode: string;
+  /** Hex dump of the binary data */
+  hexDump: string;
+  /** Whether schema-aware (named) decoding was successful */
+  isNamed: boolean;
+  /** Error message if decoding failed or fell back */
+  error?: string;
+  /** The message type that was used for successful decode */
+  decodedAs?: string;
+  /** Suggested message types based on auto-detection */
+  suggestedTypes?: string[];
 }
 
 interface MessageTypeInfo {
-    /** Fully qualified message name */
-    name: string;
-    /** Location of the schema definition */
-    uri: vscode.Uri;
+  /** Fully qualified message name */
+  name: string;
+  /** Location of the schema definition */
+  uri: vscode.Uri;
 }
 
 export class BinaryDecoderProvider implements vscode.CustomReadonlyEditorProvider {
+  public static readonly viewType = 'protobuf.binaryInspector';
+  private readonly messageTypeIndex: Map<string, vscode.Uri> = new Map();
 
-    public static readonly viewType = 'protobuf.binaryInspector';
-    private readonly messageTypeIndex: Map<string, vscode.Uri> = new Map();
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly outputChannel: vscode.OutputChannel
+  ) {}
 
-    constructor(
-        private readonly context: vscode.ExtensionContext,
-        private readonly outputChannel: vscode.OutputChannel
-    ) { }
+  public static register(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel): vscode.Disposable {
+    const provider = new BinaryDecoderProvider(context, outputChannel);
+    return vscode.window.registerCustomEditorProvider(BinaryDecoderProvider.viewType, provider, {
+      webviewOptions: {
+        retainContextWhenHidden: true,
+      },
+      supportsMultipleEditorsPerDocument: false,
+    });
+  }
 
-    public static register(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel): vscode.Disposable {
-        const provider = new BinaryDecoderProvider(context, outputChannel);
-        return vscode.window.registerCustomEditorProvider(
-            BinaryDecoderProvider.viewType,
-            provider,
-            {
-                webviewOptions: {
-                    retainContextWhenHidden: true,
-                },
-                supportsMultipleEditorsPerDocument: false,
+  async openCustomDocument(
+    uri: vscode.Uri,
+    _openContext: vscode.CustomDocumentOpenContext,
+    _token: vscode.CancellationToken
+  ): Promise<vscode.CustomDocument> {
+    return { uri, dispose: () => {} };
+  }
+
+  async resolveCustomEditor(
+    document: vscode.CustomDocument,
+    webviewPanel: vscode.WebviewPanel,
+    _token: vscode.CancellationToken
+  ): Promise<void> {
+    webviewPanel.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [this.context.extensionUri],
+    };
+
+    let messageTypeInfos = await this.getMessageTypes();
+    let messageTypes = messageTypeInfos.map(info => info.name);
+    let schemaLookup = this.getSchemaLookup();
+
+    // Try to auto-detect the best message type based on file context
+    const suggestedType = this.autoDetectMessageType(document.uri, messageTypes);
+
+    webviewPanel.webview.html = this.getHtmlForWebview(
+      webviewPanel.webview,
+      { rawDecode: 'Loading...', hexDump: '', isNamed: false },
+      document.uri.fsPath,
+      messageTypes,
+      suggestedType,
+      schemaLookup
+    );
+
+    webviewPanel.webview.onDidReceiveMessage(async message => {
+      switch (message.command) {
+        case 'decode':
+          try {
+            const data = await this.decodeBinary(document.uri, message.messageType);
+            if (message.messageType && data.isNamed && !data.decodedAs) {
+              data.decodedAs = message.messageType;
             }
-        );
+            webviewPanel.webview.postMessage({
+              command: 'updateContent',
+              data,
+              schemaPath: this.getSchemaPath(data.decodedAs),
+              schemaMap: schemaLookup,
+            });
+          } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            webviewPanel.webview.postMessage({ command: 'error', message: errorMessage });
+          }
+          break;
+        case 'autoDetect':
+          try {
+            const data = await this.decodeBinaryWithAutoDetect(document.uri, messageTypes);
+            webviewPanel.webview.postMessage({
+              command: 'updateContent',
+              data,
+              schemaPath: this.getSchemaPath(data.decodedAs),
+              schemaMap: schemaLookup,
+            });
+          } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            webviewPanel.webview.postMessage({ command: 'error', message: errorMessage });
+          }
+          break;
+        case 'refreshTypes':
+          messageTypeInfos = await this.getMessageTypes();
+          messageTypes = messageTypeInfos.map(info => info.name);
+          schemaLookup = this.getSchemaLookup();
+          webviewPanel.webview.postMessage({
+            command: 'updateTypes',
+            types: messageTypes,
+            schemaMap: schemaLookup,
+          });
+          break;
+        case 'openSchema':
+          await this.openSchema(message.messageType, message.schemaPath);
+          break;
+      }
+    });
+
+    // Initial decode - try auto-detection first
+    try {
+      const data = await this.decodeBinaryWithAutoDetect(document.uri, messageTypes);
+      webviewPanel.webview.html = this.getHtmlForWebview(
+        webviewPanel.webview,
+        data,
+        document.uri.fsPath,
+        messageTypes,
+        data.decodedAs || suggestedType,
+        schemaLookup
+      );
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      webviewPanel.webview.html = this.getHtmlForWebview(
+        webviewPanel.webview,
+        { rawDecode: `Error decoding file:\n${errorMessage}`, hexDump: '', isNamed: false },
+        document.uri.fsPath,
+        messageTypes,
+        suggestedType,
+        schemaLookup
+      );
+    }
+  }
+
+  /**
+   * Auto-detect the best message type based on file name and context
+   */
+  private autoDetectMessageType(uri: vscode.Uri, messageTypes: string[]): string | undefined {
+    const fileName = path.basename(uri.fsPath, path.extname(uri.fsPath));
+    const normalizedFileName = fileName.toLowerCase().replace(/[-_]/g, '');
+
+    // Try exact match on simple name
+    for (const type of messageTypes) {
+      const simpleName = type.split('.').pop() || type;
+      if (simpleName.toLowerCase() === normalizedFileName) {
+        this.outputChannel.appendLine(`Binary Inspector: Auto-detected type '${type}' based on filename match`);
+        return type;
+      }
     }
 
-    async openCustomDocument(
-        uri: vscode.Uri,
-        _openContext: vscode.CustomDocumentOpenContext,
-        _token: vscode.CancellationToken
-    ): Promise<vscode.CustomDocument> {
-        return { uri, dispose: () => { } };
+    // Try fuzzy match
+    for (const type of messageTypes) {
+      const simpleName = type.split('.').pop() || type;
+      const normalizedType = simpleName.toLowerCase();
+      if (normalizedFileName.includes(normalizedType) || normalizedType.includes(normalizedFileName)) {
+        this.outputChannel.appendLine(`Binary Inspector: Auto-detected type '${type}' based on fuzzy name match`);
+        return type;
+      }
     }
 
-    async resolveCustomEditor(
-        document: vscode.CustomDocument,
-        webviewPanel: vscode.WebviewPanel,
-        _token: vscode.CancellationToken
-    ): Promise<void> {
-        webviewPanel.webview.options = {
-            enableScripts: true,
-            localResourceRoots: [
-                this.context.extensionUri,
-            ]
-        };
+    return undefined;
+  }
 
-        let messageTypeInfos = await this.getMessageTypes();
-        let messageTypes = messageTypeInfos.map(info => info.name);
-        let schemaLookup = this.getSchemaLookup();
+  /**
+   * Decode binary with auto-detection: tries suggested types then falls back to raw
+   */
+  private async decodeBinaryWithAutoDetect(uri: vscode.Uri, messageTypes: string[]): Promise<DecodeResult> {
+    const suggestedType = this.autoDetectMessageType(uri, messageTypes);
 
-        // Try to auto-detect the best message type based on file context
-        const suggestedType = this.autoDetectMessageType(document.uri, messageTypes);
+    // If we have a suggested type, try it first
+    if (suggestedType) {
+      try {
+        const result = await this.decodeBinary(uri, suggestedType);
+        if (result.isNamed) {
+          return {
+            ...result,
+            decodedAs: suggestedType,
+            suggestedTypes: [suggestedType],
+          };
+        }
+      } catch (e) {
+        this.outputChannel.appendLine(`Binary Inspector: Auto-detected type '${suggestedType}' failed: ${e}`);
+      }
+    }
 
-        webviewPanel.webview.html = this.getHtmlForWebview(
-            webviewPanel.webview,
-            { rawDecode: 'Loading...', hexDump: '', isNamed: false },
-            document.uri.fsPath,
-            messageTypes,
-            suggestedType,
-            schemaLookup
-        );
+    // Fall back to raw decode
+    const rawResult = await this.decodeBinary(uri);
+    return {
+      ...rawResult,
+      suggestedTypes: suggestedType ? [suggestedType] : undefined,
+      error: suggestedType
+        ? `Auto-detection tried '${suggestedType}' but decode failed. Showing raw field data.\nTry selecting a message type manually from the dropdown.`
+        : undefined,
+    };
+  }
 
-        webviewPanel.webview.onDidReceiveMessage(async (message) => {
-            switch (message.command) {
-                case 'decode':
-                    try {
-                        const data = await this.decodeBinary(document.uri, message.messageType);
-                        if (message.messageType && data.isNamed && !data.decodedAs) {
-                            data.decodedAs = message.messageType;
-                        }
-                        webviewPanel.webview.postMessage({
-                            command: 'updateContent',
-                            data,
-                            schemaPath: this.getSchemaPath(data.decodedAs),
-                            schemaMap: schemaLookup
-                        });
-                    } catch (e) {
-                        const errorMessage = e instanceof Error ? e.message : String(e);
-                        webviewPanel.webview.postMessage({ command: 'error', message: errorMessage });
-                    }
-                    break;
-                case 'autoDetect':
-                    try {
-                        const data = await this.decodeBinaryWithAutoDetect(document.uri, messageTypes);
-                        webviewPanel.webview.postMessage({
-                            command: 'updateContent',
-                            data,
-                            schemaPath: this.getSchemaPath(data.decodedAs),
-                            schemaMap: schemaLookup
-                        });
-                    } catch (e) {
-                        const errorMessage = e instanceof Error ? e.message : String(e);
-                        webviewPanel.webview.postMessage({ command: 'error', message: errorMessage });
-                    }
-                    break;
-                case 'refreshTypes':
-                    messageTypeInfos = await this.getMessageTypes();
-                    messageTypes = messageTypeInfos.map(info => info.name);
-                    schemaLookup = this.getSchemaLookup();
-                    webviewPanel.webview.postMessage({
-                        command: 'updateTypes',
-                        types: messageTypes,
-                        schemaMap: schemaLookup
-                    });
-                    break;
-                case 'openSchema':
-                    await this.openSchema(message.messageType, message.schemaPath);
-                    break;
+  private async getMessageTypes(): Promise<MessageTypeInfo[]> {
+    const types: Map<string, vscode.Uri> = new Map();
+    try {
+      const files = await vscode.workspace.findFiles('**/*.proto', '**/node_modules/**');
+      for (const file of files) {
+        try {
+          const content = await vscode.workspace.fs.readFile(file);
+          const text = new globalThis.TextDecoder().decode(content);
+
+          const packageMatch = text.match(/package\s+([\w.]+);/);
+          const pkg = packageMatch ? packageMatch[1] + '.' : '';
+
+          const matches = text.matchAll(/message\s+(\w+)/g);
+          for (const match of matches) {
+            const name = pkg + match[1];
+            if (!types.has(name)) {
+              types.set(name, file);
             }
+          }
+        } catch {
+          /* ignore parsing errors */
+        }
+      }
+    } catch (e) {
+      this.outputChannel.appendLine(`Error scanning for message types: ${e}`);
+    }
+    const results = Array.from(types.entries())
+      .map(([name, uri]) => ({ name, uri }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    this.messageTypeIndex.clear();
+    for (const info of results) {
+      this.messageTypeIndex.set(info.name, info.uri);
+    }
+    return results;
+  }
+
+  private getSchemaPath(typeName?: string): string | undefined {
+    if (!typeName) {
+      return undefined;
+    }
+    return this.messageTypeIndex.get(typeName)?.fsPath;
+  }
+
+  private getSchemaLookup(): Record<string, string> {
+    const lookup: Record<string, string> = {};
+    for (const [name, uri] of this.messageTypeIndex) {
+      lookup[name] = uri.fsPath;
+    }
+    return lookup;
+  }
+
+  private async openSchema(messageType?: string, schemaPath?: string): Promise<void> {
+    const target = messageType?.trim();
+    const explicitPath = schemaPath?.trim();
+    if (!target && !explicitPath) {
+      vscode.window.showInformationMessage('Enter or detect a message type to open its schema.');
+      return;
+    }
+
+    let resolvedUri: vscode.Uri | undefined;
+    if (explicitPath && fs.existsSync(explicitPath)) {
+      resolvedUri = vscode.Uri.file(explicitPath);
+    }
+
+    if (!resolvedUri && target) {
+      const candidate = this.messageTypeIndex.get(target);
+      if (candidate && fs.existsSync(candidate.fsPath)) {
+        resolvedUri = candidate;
+      }
+    }
+
+    if (!resolvedUri) {
+      const label = target || explicitPath || 'schema';
+      vscode.window.showWarningMessage(`Schema for '${label}' not found in workspace.`);
+      return;
+    }
+
+    const doc = await vscode.workspace.openTextDocument(resolvedUri);
+    await vscode.window.showTextDocument(doc, { preview: false });
+  }
+
+  private async decodeBinary(uri: vscode.Uri, messageType?: string): Promise<DecodeResult> {
+    const config = vscode.workspace.getConfiguration('protobuf');
+    const protocPath = config.get<string>('protocPath', 'protoc');
+    const includes = config.get<string[]>('includes') || [];
+    const cwd = path.dirname(uri.fsPath);
+
+    let hexDump = '';
+    try {
+      const buffer = fs.readFileSync(uri.fsPath);
+      hexDump = this.generateHexDump(buffer);
+    } catch (e) {
+      hexDump = `Error reading file for hex dump: ${e}`;
+    }
+
+    const runProtoc = (args: string[]): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        this.outputChannel.appendLine(`Exec: ${protocPath} ${args.join(' ')}`);
+        const proc = spawn(protocPath, args, { cwd });
+        const fileStream = fs.createReadStream(uri.fsPath);
+        fileStream.pipe(proc.stdin);
+
+        let stdout = '';
+        let stderr = '';
+
+        proc.stdout.on('data', d => (stdout += d.toString()));
+        proc.stderr.on('data', d => (stderr += d.toString()));
+
+        proc.on('close', code => {
+          if (code === 0) {
+            resolve(stdout);
+          } else {
+            reject(new Error(stderr || `Exit code ${code}`));
+          }
         });
 
-        // Initial decode - try auto-detection first
+        proc.on('error', err => reject(err));
+      });
+    };
+
+    if (messageType && messageType.trim().length > 0) {
+      const args = [];
+      // Add import paths
+      args.push(`-I.`);
+      if (vscode.workspace.workspaceFolders) {
+        args.push(`-I${vscode.workspace.workspaceFolders[0]!.uri.fsPath}`);
+      }
+      includes.forEach(inc => {
+        const resolved = inc.replace('${workspaceFolder}', vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '');
+        if (resolved) {
+          args.push(`-I${resolved}`);
+        }
+      });
+
+      args.push(`--decode=${messageType}`);
+
+      try {
+        const protoFiles = fs.readdirSync(cwd).filter(f => f.endsWith('.proto'));
+        if (protoFiles.length > 0) {
+          args.push(...protoFiles);
+        }
+      } catch {
+        /* ignore directory read errors */
+      }
+
+      try {
+        const decoded = await runProtoc(args);
+        return { rawDecode: decoded, hexDump, isNamed: true, decodedAs: messageType.trim() };
+      } catch (e) {
+        const errorMsg = e instanceof Error ? e.message : String(e);
+        this.outputChannel.appendLine(`Named decode failed: ${errorMsg}. Falling back to raw.`);
+
         try {
-            const data = await this.decodeBinaryWithAutoDetect(document.uri, messageTypes);
-            webviewPanel.webview.html = this.getHtmlForWebview(
-                webviewPanel.webview,
-                data,
-                document.uri.fsPath,
-                messageTypes,
-                data.decodedAs || suggestedType,
-                schemaLookup
-            );
-        } catch (e) {
-            const errorMessage = e instanceof Error ? e.message : String(e);
-            webviewPanel.webview.html = this.getHtmlForWebview(
-                webviewPanel.webview,
-                { rawDecode: `Error decoding file:\n${errorMessage}`, hexDump: '', isNamed: false },
-                document.uri.fsPath,
-                messageTypes,
-                suggestedType,
-                schemaLookup
-            );
+          const raw = await runProtoc(['--decode_raw']);
+          return {
+            rawDecode: raw,
+            hexDump,
+            isNamed: false,
+            error: `Failed to decode as '${messageType}'. Reverted to Raw View.\nReason: ${errorMsg}`,
+          };
+        } catch (rawErr) {
+          return { rawDecode: `Critical Error: ${rawErr}`, hexDump, isNamed: false };
         }
+      }
+    } else {
+      try {
+        const raw = await runProtoc(['--decode_raw']);
+        return { rawDecode: raw, hexDump, isNamed: false };
+      } catch (e) {
+        return { rawDecode: `Error: ${e}`, hexDump, isNamed: false };
+      }
     }
+  }
 
-    /**
-     * Auto-detect the best message type based on file name and context
-     */
-    private autoDetectMessageType(uri: vscode.Uri, messageTypes: string[]): string | undefined {
-        const fileName = path.basename(uri.fsPath, path.extname(uri.fsPath));
-        const normalizedFileName = fileName.toLowerCase().replace(/[-_]/g, '');
-
-        // Try exact match on simple name
-        for (const type of messageTypes) {
-            const simpleName = type.split('.').pop() || type;
-            if (simpleName.toLowerCase() === normalizedFileName) {
-                this.outputChannel.appendLine(`Binary Inspector: Auto-detected type '${type}' based on filename match`);
-                return type;
-            }
-        }
-
-        // Try fuzzy match
-        for (const type of messageTypes) {
-            const simpleName = type.split('.').pop() || type;
-            const normalizedType = simpleName.toLowerCase();
-            if (normalizedFileName.includes(normalizedType) || normalizedType.includes(normalizedFileName)) {
-                this.outputChannel.appendLine(`Binary Inspector: Auto-detected type '${type}' based on fuzzy name match`);
-                return type;
-            }
-        }
-
-        return undefined;
-    }
-
-    /**
-     * Decode binary with auto-detection: tries suggested types then falls back to raw
-     */
-    private async decodeBinaryWithAutoDetect(uri: vscode.Uri, messageTypes: string[]): Promise<DecodeResult> {
-        const suggestedType = this.autoDetectMessageType(uri, messageTypes);
-
-        // If we have a suggested type, try it first
-        if (suggestedType) {
-            try {
-                const result = await this.decodeBinary(uri, suggestedType);
-                if (result.isNamed) {
-                    return {
-                        ...result,
-                        decodedAs: suggestedType,
-                        suggestedTypes: [suggestedType]
-                    };
-                }
-            } catch (e) {
-                this.outputChannel.appendLine(`Binary Inspector: Auto-detected type '${suggestedType}' failed: ${e}`);
-            }
-        }
-
-        // Fall back to raw decode
-        const rawResult = await this.decodeBinary(uri);
-        return {
-            ...rawResult,
-            suggestedTypes: suggestedType ? [suggestedType] : undefined,
-            error: suggestedType
-                ? `Auto-detection tried '${suggestedType}' but decode failed. Showing raw field data.\nTry selecting a message type manually from the dropdown.`
-                : undefined
-        };
-    }
-
-    private async getMessageTypes(): Promise<MessageTypeInfo[]> {
-        const types: Map<string, vscode.Uri> = new Map();
-        try {
-            const files = await vscode.workspace.findFiles('**/*.proto', '**/node_modules/**');
-            for (const file of files) {
-                try {
-                    const content = await vscode.workspace.fs.readFile(file);
-                    const text = new globalThis.TextDecoder().decode(content);
-
-                    const packageMatch = text.match(/package\s+([\w.]+);/);
-                    const pkg = packageMatch ? packageMatch[1] + '.' : '';
-
-                    const matches = text.matchAll(/message\s+(\w+)/g);
-                    for (const match of matches) {
-                        const name = pkg + match[1];
-                        if (!types.has(name)) {
-                            types.set(name, file);
-                        }
-                    }
-                } catch { /* ignore parsing errors */ }
-            }
-        } catch (e) {
-            this.outputChannel.appendLine(`Error scanning for message types: ${e}`);
-        }
-        const results = Array.from(types.entries())
-            .map(([name, uri]) => ({ name, uri }))
-            .sort((a, b) => a.name.localeCompare(b.name));
-        this.messageTypeIndex.clear();
-        for (const info of results) {
-            this.messageTypeIndex.set(info.name, info.uri);
-        }
-        return results;
-    }
-
-    private getSchemaPath(typeName?: string): string | undefined {
-        if (!typeName) {
-            return undefined;
-        }
-        return this.messageTypeIndex.get(typeName)?.fsPath;
-    }
-
-    private getSchemaLookup(): Record<string, string> {
-        const lookup: Record<string, string> = {};
-        for (const [name, uri] of this.messageTypeIndex) {
-            lookup[name] = uri.fsPath;
-        }
-        return lookup;
-    }
-
-    private async openSchema(messageType?: string, schemaPath?: string): Promise<void> {
-        const target = messageType?.trim();
-        const explicitPath = schemaPath?.trim();
-        if (!target && !explicitPath) {
-            vscode.window.showInformationMessage('Enter or detect a message type to open its schema.');
-            return;
-        }
-
-        let resolvedUri: vscode.Uri | undefined;
-        if (explicitPath && fs.existsSync(explicitPath)) {
-            resolvedUri = vscode.Uri.file(explicitPath);
-        }
-
-        if (!resolvedUri && target) {
-            const candidate = this.messageTypeIndex.get(target);
-            if (candidate && fs.existsSync(candidate.fsPath)) {
-                resolvedUri = candidate;
-            }
-        }
-
-        if (!resolvedUri) {
-            const label = target || explicitPath || 'schema';
-            vscode.window.showWarningMessage(`Schema for '${label}' not found in workspace.`);
-            return;
-        }
-
-        const doc = await vscode.workspace.openTextDocument(resolvedUri);
-        await vscode.window.showTextDocument(doc, { preview: false });
-    }
-
-    private async decodeBinary(uri: vscode.Uri, messageType?: string): Promise<DecodeResult> {
-        const config = vscode.workspace.getConfiguration('protobuf');
-        const protocPath = config.get<string>('protocPath', 'protoc');
-        const includes = config.get<string[]>('includes') || [];
-        const cwd = path.dirname(uri.fsPath);
-
-        let hexDump = '';
-        try {
-            const buffer = fs.readFileSync(uri.fsPath);
-            hexDump = this.generateHexDump(buffer);
-        } catch (e) {
-            hexDump = `Error reading file for hex dump: ${e}`;
-        }
-
-        const runProtoc = (args: string[]): Promise<string> => {
-            return new Promise((resolve, reject) => {
-                this.outputChannel.appendLine(`Exec: ${protocPath} ${args.join(' ')}`);
-                const proc = spawn(protocPath, args, { cwd });
-                const fileStream = fs.createReadStream(uri.fsPath);
-                fileStream.pipe(proc.stdin);
-
-                let stdout = '';
-                let stderr = '';
-
-                proc.stdout.on('data', d => stdout += d.toString());
-                proc.stderr.on('data', d => stderr += d.toString());
-
-                proc.on('close', code => {
-                    if (code === 0) {
-                        resolve(stdout);
-                    } else {
-                        reject(new Error(stderr || `Exit code ${code}`));
-                    }
-                });
-
-                proc.on('error', err => reject(err));
-            });
-        };
-
-        if (messageType && messageType.trim().length > 0) {
-            const args = [];
-            // Add import paths
-            args.push(`-I.`);
-            if (vscode.workspace.workspaceFolders) {
-                args.push(`-I${vscode.workspace.workspaceFolders[0]!.uri.fsPath}`);
-            }
-            includes.forEach(inc => {
-                const resolved = inc.replace('${workspaceFolder}', vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '');
-                if (resolved) {
-                    args.push(`-I${resolved}`);
-                }
-            });
-
-            args.push(`--decode=${messageType}`);
-
-            try {
-                const protoFiles = fs.readdirSync(cwd).filter(f => f.endsWith('.proto'));
-                if (protoFiles.length > 0) {
-                    args.push(...protoFiles);
-                }
-            } catch { /* ignore directory read errors */ }
-
-            try {
-                const decoded = await runProtoc(args);
-                return { rawDecode: decoded, hexDump, isNamed: true, decodedAs: messageType.trim() };
-            } catch (e) {
-                const errorMsg = e instanceof Error ? e.message : String(e);
-                this.outputChannel.appendLine(`Named decode failed: ${errorMsg}. Falling back to raw.`);
-
-                try {
-                    const raw = await runProtoc(['--decode_raw']);
-                    return {
-                        rawDecode: raw,
-                        hexDump,
-                        isNamed: false,
-                        error: `Failed to decode as '${messageType}'. Reverted to Raw View.\nReason: ${errorMsg}`
-                    };
-                } catch (rawErr) {
-                    return { rawDecode: `Critical Error: ${rawErr}`, hexDump, isNamed: false };
-                }
-            }
+  private generateHexDump(buffer: Buffer): string {
+    let output = '';
+    const width = 16;
+    for (let i = 0; i < buffer.length; i += width) {
+      output += i.toString(16).padStart(8, '0') + '  ';
+      const slice = buffer.subarray(i, i + width);
+      let hex = '';
+      for (let j = 0; j < width; j++) {
+        if (j < slice.length) {
+          hex += slice[j]!.toString(16).padStart(2, '0') + ' ';
         } else {
-            try {
-                const raw = await runProtoc(['--decode_raw']);
-                return { rawDecode: raw, hexDump, isNamed: false };
-            } catch (e) {
-                return { rawDecode: `Error: ${e}`, hexDump, isNamed: false };
-            }
+          hex += '   ';
         }
-    }
-
-    private generateHexDump(buffer: Buffer): string {
-        let output = '';
-        const width = 16;
-        for (let i = 0; i < buffer.length; i += width) {
-            output += i.toString(16).padStart(8, '0') + '  ';
-            const slice = buffer.subarray(i, i + width);
-            let hex = '';
-            for (let j = 0; j < width; j++) {
-                if (j < slice.length) {
-                    hex += slice[j]!.toString(16).padStart(2, '0') + ' ';
-                } else {
-                    hex += '   ';
-                }
-                if (j === 7) {
-                    hex += ' ';
-                }
-            }
-            output += hex + ' ';
-            let ascii = '';
-            for (const byte of slice) {
-                ascii += (byte >= 32 && byte <= 126) ? String.fromCharCode(byte) : '.';
-            }
-            output += '|' + ascii + '|\n';
+        if (j === 7) {
+          hex += ' ';
         }
-        return output;
+      }
+      output += hex + ' ';
+      let ascii = '';
+      for (const byte of slice) {
+        ascii += byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : '.';
+      }
+      output += '|' + ascii + '|\n';
     }
+    return output;
+  }
 
-    private getHtmlForWebview(
-        webview: vscode.Webview,
-        data: DecodeResult,
-        filePath: string,
-        messageTypes: string[],
-        suggestedType?: string,
-        schemaLookup: Record<string, string> = {}
-    ): string {
-        const logoUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'logo.png'));
+  private getHtmlForWebview(
+    webview: vscode.Webview,
+    data: DecodeResult,
+    filePath: string,
+    messageTypes: string[],
+    suggestedType?: string,
+    schemaLookup: Record<string, string> = {}
+  ): string {
+    const logoUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'logo.png'));
 
-        const safeRawDecode = escapeHtml(data.rawDecode);
-        const safeHexDump = escapeHtml(data.hexDump);
-        const safeError = data.error ? escapeHtml(data.error) : '';
-        const safeDecodedAs = data.decodedAs ? escapeHtml(data.decodedAs) : '';
-        const safeSuggestedType = suggestedType ? escapeHtml(suggestedType) : '';
-        const schemaAvailable = data.decodedAs ? schemaLookup[data.decodedAs] : undefined;
-        const safeSchemaPath = schemaAvailable ? escapeHtml(schemaAvailable) : '';
-        const schemaJson = JSON.stringify(schemaLookup).replace(/</g, '\\u003c');
+    const safeRawDecode = escapeHtml(data.rawDecode);
+    const safeHexDump = escapeHtml(data.hexDump);
+    const safeError = data.error ? escapeHtml(data.error) : '';
+    const safeDecodedAs = data.decodedAs ? escapeHtml(data.decodedAs) : '';
+    const safeSuggestedType = suggestedType ? escapeHtml(suggestedType) : '';
+    const schemaAvailable = data.decodedAs ? schemaLookup[data.decodedAs] : undefined;
+    const safeSchemaPath = schemaAvailable ? escapeHtml(schemaAvailable) : '';
+    const schemaJson = JSON.stringify(schemaLookup).replace(/</g, '\\u003c');
 
-        // Group message types: suggested first, then alphabetical
-        const dataSuggestedTypes = data.suggestedTypes || [];
-        const messageTypesJson = JSON.stringify(messageTypes).replace(/</g, '\\u003c');
-        const suggestedTypesJson = JSON.stringify(dataSuggestedTypes).replace(/</g, '\\u003c');
+    // Group message types: suggested first, then alphabetical
+    const dataSuggestedTypes = data.suggestedTypes || [];
+    const messageTypesJson = JSON.stringify(messageTypes).replace(/</g, '\\u003c');
+    const suggestedTypesJson = JSON.stringify(dataSuggestedTypes).replace(/</g, '\\u003c');
 
-        return `<!DOCTYPE html>
+    return `<!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
@@ -1354,14 +1351,14 @@ export class BinaryDecoderProvider implements vscode.CustomReadonlyEditorProvide
             </script>
         </body>
         </html>`;
-    }
+  }
 }
 
 function escapeHtml(unsafe: string) {
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }

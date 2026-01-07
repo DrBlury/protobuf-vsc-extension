@@ -42,7 +42,7 @@ const mockConfiguration = {
   get: mockConfigGet,
   update: mockConfigUpdate,
   has: jest.fn().mockReturnValue(false),
-  inspect: jest.fn().mockReturnValue(undefined)
+  inspect: jest.fn().mockReturnValue(undefined),
 };
 
 const mockVscode = {
@@ -64,14 +64,12 @@ const mockVscode = {
       command: '',
       show: jest.fn(),
       hide: jest.fn(),
-      dispose: jest.fn()
+      dispose: jest.fn(),
     }),
     workspace: {
-      workspaceFolders: [
-        { uri: { fsPath: '/mock/workspace' }, name: 'workspace' }
-      ],
-      getConfiguration: jest.fn().mockReturnValue(mockConfiguration)
-    }
+      workspaceFolders: [{ uri: { fsPath: '/mock/workspace' }, name: 'workspace' }],
+      getConfiguration: jest.fn().mockReturnValue(mockConfiguration),
+    },
   },
   workspace: {
     getConfiguration: jest.fn().mockReturnValue(mockConfiguration),
@@ -79,51 +77,49 @@ const mockVscode = {
       onDidCreate: jest.fn().mockReturnValue({ dispose: jest.fn() }),
       onDidChange: jest.fn().mockReturnValue({ dispose: jest.fn() }),
       onDidDelete: jest.fn().mockReturnValue({ dispose: jest.fn() }),
-      dispose: jest.fn()
+      dispose: jest.fn(),
     }),
     onWillSaveTextDocument: jest.fn(),
     onDidSaveTextDocument: jest.fn(),
     onDidCloseTextDocument: jest.fn(),
     findFiles: jest.fn().mockResolvedValue([]),
     openTextDocument: jest.fn().mockResolvedValue({ getText: () => '' }),
-    workspaceFolders: [
-      { uri: { fsPath: '/mock/workspace' }, name: 'workspace' }
-    ]
+    workspaceFolders: [{ uri: { fsPath: '/mock/workspace' }, name: 'workspace' }],
   },
   commands: {
-    registerCommand: jest.fn()
+    registerCommand: jest.fn(),
   },
   languages: {
-    onDidChangeDiagnostics: jest.fn()
+    onDidChangeDiagnostics: jest.fn(),
   },
   ProgressLocation: {
-    Notification: 1
+    Notification: 1,
   },
   Uri: {
-    file: (fsPath: string) => ({ fsPath } as any)
+    file: (fsPath: string) => ({ fsPath }) as any,
   },
   WorkspaceEdit: jest.fn(),
   ConfigurationTarget: {
-    WorkspaceFolder: 2
+    WorkspaceFolder: 2,
   },
   TreeItem: MockTreeItem,
   TreeItemCollapsibleState: {
     None: 0,
     Collapsed: 1,
-    Expanded: 2
+    Expanded: 2,
   },
   EventEmitter: MockEventEmitter,
   Range: MockRange,
   StatusBarAlignment: {
     Left: 1,
-    Right: 2
+    Right: 2,
   },
   ThemeIcon: class ThemeIcon {
     constructor(public id: string) {}
   },
   ThemeColor: class ThemeColor {
     constructor(public id: string) {}
-  }
+  },
 };
 
 // Mock child_process
@@ -132,8 +128,8 @@ const mockChildProcess = {
     on: jest.fn(),
     stderr: { on: jest.fn() },
     stdout: { on: jest.fn() },
-    kill: jest.fn()
-  })
+    kill: jest.fn(),
+  }),
 };
 
 // Mock fs
@@ -141,7 +137,7 @@ const mockFs = {
   existsSync: jest.fn(),
   readFileSync: jest.fn(),
   writeFileSync: jest.fn(),
-  mkdirSync: jest.fn()
+  mkdirSync: jest.fn(),
 };
 
 // Mock language client
@@ -152,7 +148,7 @@ const mockLanguageClient = {
   setTrace: jest.fn(),
   start: jest.fn().mockResolvedValue(undefined),
   stop: jest.fn().mockResolvedValue(undefined),
-  sendRequest: jest.fn()
+  sendRequest: jest.fn(),
 };
 
 const mockExtensionContext = {
@@ -194,12 +190,16 @@ const mockExtensionContext = {
 
 // Set up mocks before importing the extension
 jest.doMock('vscode', () => mockVscode, { virtual: true });
-jest.doMock('vscode-languageclient/node', () => ({
-  LanguageClient: jest.fn().mockImplementation(() => mockLanguageClient),
-  TransportKind: {},
-  Trace: {},
-  RevealOutputChannelOn: {}
-}), { virtual: true });
+jest.doMock(
+  'vscode-languageclient/node',
+  () => ({
+    LanguageClient: jest.fn().mockImplementation(() => mockLanguageClient),
+    TransportKind: {},
+    Trace: {},
+    RevealOutputChannelOn: {},
+  }),
+  { virtual: true }
+);
 
 jest.doMock('child_process', () => mockChildProcess, { virtual: true });
 jest.doMock('fs', () => mockFs, { virtual: true });
@@ -235,7 +235,7 @@ describe('Extension Activation', () => {
       show: jest.fn(),
       hide: jest.fn(),
       clear: jest.fn(),
-      name: 'Test Output Channel'
+      name: 'Test Output Channel',
     });
 
     await activate(mockExtensionContext as any);
@@ -251,7 +251,7 @@ describe('Extension Activation', () => {
       show: jest.fn(),
       hide: jest.fn(),
       clear: jest.fn(),
-      name: 'Test Output Channel'
+      name: 'Test Output Channel',
     });
     mockVscode.commands.registerCommand.mockReturnValue({ dispose: jest.fn() });
 
@@ -267,7 +267,7 @@ describe('Extension Activation', () => {
       show: jest.fn(),
       hide: jest.fn(),
       clear: jest.fn(),
-      name: 'Test Output Channel'
+      name: 'Test Output Channel',
     });
     const mockWatcher = { dispose: jest.fn(), onDidCreate: jest.fn(), onDidChange: jest.fn(), onDidDelete: jest.fn() };
     mockVscode.workspace.createFileSystemWatcher.mockReturnValue(mockWatcher);
@@ -284,7 +284,7 @@ describe('Extension Activation', () => {
       show: jest.fn(),
       hide: jest.fn(),
       clear: jest.fn(),
-      name: 'Test Output Channel'
+      name: 'Test Output Channel',
     });
     const mockDispose = { dispose: jest.fn() };
     mockVscode.workspace.onWillSaveTextDocument.mockReturnValue(mockDispose);
@@ -305,7 +305,7 @@ describe('Extension Activation', () => {
       show: jest.fn(),
       hide: jest.fn(),
       clear: jest.fn(),
-      name: 'Test Output Channel'
+      name: 'Test Output Channel',
     });
 
     await activate(mockExtensionContext as any);
@@ -323,7 +323,7 @@ describe('Extension Activation', () => {
       show: jest.fn(),
       hide: jest.fn(),
       clear: jest.fn(),
-      name: 'Test Output Channel'
+      name: 'Test Output Channel',
     });
 
     await activate(mockExtensionContext as any);
@@ -340,7 +340,7 @@ describe('Extension Activation', () => {
       show: jest.fn(),
       hide: jest.fn(),
       clear: jest.fn(),
-      name: 'Test Output Channel'
+      name: 'Test Output Channel',
     });
     const mockDispose = { dispose: jest.fn() };
     mockVscode.languages.onDidChangeDiagnostics.mockReturnValue(mockDispose);
@@ -357,13 +357,13 @@ describe('Extension Activation', () => {
       show: jest.fn(),
       hide: jest.fn(),
       clear: jest.fn(),
-      name: 'Test Output Channel'
+      name: 'Test Output Channel',
     });
     mockVscode.workspace.getConfiguration.mockReturnValue({
       get: jest.fn().mockReturnValue(false),
       has: jest.fn().mockReturnValue(false),
       update: jest.fn().mockResolvedValue(undefined),
-      inspect: jest.fn().mockReturnValue(undefined)
+      inspect: jest.fn().mockReturnValue(undefined),
     });
 
     const result = activate(mockExtensionContext as any);
@@ -410,10 +410,10 @@ describe('Helper Functions', () => {
       show: jest.fn(),
       hide: jest.fn(),
       clear: jest.fn(),
-      name: 'Test Output Channel'
+      name: 'Test Output Channel',
     });
     mockVscode.workspace.getConfiguration.mockReturnValue({
-      get: jest.fn().mockReturnValue(false)
+      get: jest.fn().mockReturnValue(false),
     });
 
     await activate(mockExtensionContext as any);
@@ -427,9 +427,11 @@ describe('Helper Functions', () => {
     (mockVscode.window as any).activeTextEditor = { document: protoDocument };
     mockVscode.workspace.getConfiguration.mockReturnValue({
       get: jest.fn().mockImplementation((key: string) => {
-        if (key === 'formatOnSave') { return false; }
+        if (key === 'formatOnSave') {
+          return false;
+        }
         return undefined;
-      })
+      }),
     });
 
     // The logic should identify proto documents
@@ -445,13 +447,13 @@ describe('Helper Functions', () => {
       show: jest.fn(),
       hide: jest.fn(),
       clear: jest.fn(),
-      name: 'Test Output Channel'
+      name: 'Test Output Channel',
     });
     mockVscode.workspace.getConfiguration.mockReturnValue({
       get: jest.fn().mockReturnValue('modifications'),
       has: jest.fn().mockReturnValue(false),
       update: jest.fn().mockResolvedValue(undefined),
-      inspect: jest.fn().mockReturnValue(undefined)
+      inspect: jest.fn().mockReturnValue(undefined),
     });
 
     await activate(mockExtensionContext as any);

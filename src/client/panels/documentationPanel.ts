@@ -5,7 +5,13 @@
 
 import * as vscode from 'vscode';
 import type { LanguageClient } from 'vscode-languageclient/node';
-import type { DocumentationData, DocumentationElement, DocumentationField, DocumentationEnumValue, DocumentationRpc } from '../../shared/documentation';
+import type {
+  DocumentationData,
+  DocumentationElement,
+  DocumentationField,
+  DocumentationEnumValue,
+  DocumentationRpc,
+} from '../../shared/documentation';
 
 /**
  * Documentation panel that provides live HTML preview of proto file documentation
@@ -20,11 +26,7 @@ export class DocumentationPanel {
   private isDisposed = false;
   private lastDocumentationData?: DocumentationData;
 
-  static createOrShow(
-    extensionUri: vscode.Uri,
-    client: LanguageClient,
-    uri?: string
-  ): void {
+  static createOrShow(extensionUri: vscode.Uri, client: LanguageClient, uri?: string): void {
     if (DocumentationPanel.currentPanel) {
       DocumentationPanel.currentPanel.reveal(uri);
       return;
@@ -36,7 +38,7 @@ export class DocumentationPanel {
       { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
       {
         enableScripts: true,
-        retainContextWhenHidden: true
+        retainContextWhenHidden: true,
       }
     );
 
@@ -92,8 +94,7 @@ export class DocumentationPanel {
         if (this.isDisposed) {
           return;
         }
-        if (event.document.languageId === 'proto' &&
-            event.document.uri.toString() === this.currentUri) {
+        if (event.document.languageId === 'proto' && event.document.uri.toString() === this.currentUri) {
           void this.loadDocumentation();
         }
       })
@@ -130,10 +131,9 @@ export class DocumentationPanel {
     }
 
     try {
-      const data = await this.client.sendRequest<DocumentationData | null>(
-        'protobuf/getDocumentation',
-        { uri: this.currentUri }
-      );
+      const data = await this.client.sendRequest<DocumentationData | null>('protobuf/getDocumentation', {
+        uri: this.currentUri,
+      });
 
       // Check again after async operation
       if (this.isDisposed) {
@@ -173,7 +173,7 @@ export class DocumentationPanel {
         new RegExp(`message\\s+${symbol}\\s*\\{`),
         new RegExp(`enum\\s+${symbol}\\s*\\{`),
         new RegExp(`service\\s+${symbol}\\s*\\{`),
-        new RegExp(`rpc\\s+${symbol}\\s*\\(`)
+        new RegExp(`rpc\\s+${symbol}\\s*\\(`),
       ];
 
       for (const pattern of patterns) {
@@ -205,9 +205,9 @@ export class DocumentationPanel {
       defaultUri: vscode.Uri.file(defaultFileName),
       filters: {
         'HTML Files': ['html'],
-        'All Files': ['*']
+        'All Files': ['*'],
       },
-      saveLabel: 'Export Documentation'
+      saveLabel: 'Export Documentation',
     });
 
     if (!saveUri) {
@@ -264,11 +264,7 @@ export class DocumentationPanel {
 
   private renderHtml(data: DocumentationData): string {
     const nonce = getNonce();
-    const csp = [
-      "default-src 'none'",
-      `style-src 'unsafe-inline'`,
-      `script-src 'nonce-${nonce}'`
-    ].join('; ');
+    const csp = ["default-src 'none'", `style-src 'unsafe-inline'`, `script-src 'nonce-${nonce}'`].join('; ');
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -369,7 +365,9 @@ export class DocumentationPanel {
       </h3>
       ${msg.comments ? `<div class="doc-comment">${this.formatComment(msg.comments)}</div>` : ''}
 
-      ${msg.fields && msg.fields.length > 0 ? `
+      ${
+        msg.fields && msg.fields.length > 0
+          ? `
         <h4>Fields</h4>
         <table class="fields-table">
           <thead>
@@ -384,30 +382,41 @@ export class DocumentationPanel {
             ${msg.fields.map(f => this.renderFieldRow(f)).join('')}
           </tbody>
         </table>
-      ` : '<p class="no-fields">No fields</p>'}
+      `
+          : '<p class="no-fields">No fields</p>'
+      }
 
-      ${msg.nestedEnums && msg.nestedEnums.length > 0 ? `
+      ${
+        msg.nestedEnums && msg.nestedEnums.length > 0
+          ? `
         <div class="nested-section">
           <h4>Nested Enums</h4>
           ${msg.nestedEnums.map(e => this.renderEnum(e, depth + 1)).join('')}
         </div>
-      ` : ''}
+      `
+          : ''
+      }
 
-      ${msg.nestedMessages && msg.nestedMessages.length > 0 ? `
+      ${
+        msg.nestedMessages && msg.nestedMessages.length > 0
+          ? `
         <div class="nested-section">
           <h4>Nested Messages</h4>
           ${msg.nestedMessages.map(m => this.renderMessage(m, depth + 1)).join('')}
         </div>
-      ` : ''}
+      `
+          : ''
+      }
     </article>`;
   }
 
   private renderFieldRow(field: DocumentationField): string {
     const deprecatedClass = field.deprecated ? 'deprecated' : '';
     const modifier = field.modifier ? `<span class="modifier">${field.modifier}</span> ` : '';
-    const options = field.options && field.options.length > 0
-      ? `<span class="field-options">[${field.options.join(', ')}]</span>`
-      : '';
+    const options =
+      field.options && field.options.length > 0
+        ? `<span class="field-options">[${field.options.join(', ')}]</span>`
+        : '';
 
     return /* html */ `
     <tr class="${deprecatedClass}">
@@ -444,7 +453,9 @@ export class DocumentationPanel {
       </h3>
       ${enumDef.comments ? `<div class="doc-comment">${this.formatComment(enumDef.comments)}</div>` : ''}
 
-      ${enumDef.values && enumDef.values.length > 0 ? `
+      ${
+        enumDef.values && enumDef.values.length > 0
+          ? `
         <table class="enum-values-table">
           <thead>
             <tr>
@@ -457,7 +468,9 @@ export class DocumentationPanel {
             ${enumDef.values.map(v => this.renderEnumValueRow(v)).join('')}
           </tbody>
         </table>
-      ` : '<p class="no-values">No values</p>'}
+      `
+          : '<p class="no-values">No values</p>'
+      }
     </article>`;
   }
 
@@ -496,12 +509,16 @@ export class DocumentationPanel {
       </h3>
       ${service.comments ? `<div class="doc-comment">${this.formatComment(service.comments)}</div>` : ''}
 
-      ${service.rpcs && service.rpcs.length > 0 ? `
+      ${
+        service.rpcs && service.rpcs.length > 0
+          ? `
         <h4>Methods</h4>
         <div class="rpc-list">
           ${service.rpcs.map(r => this.renderRpc(r)).join('')}
         </div>
-      ` : '<p class="no-rpcs">No methods</p>'}
+      `
+          : '<p class="no-rpcs">No methods</p>'
+      }
     </article>`;
   }
 
@@ -1054,7 +1071,9 @@ export class DocumentationPanel {
       </h3>
       ${msg.comments ? `<div class="doc-comment">${this.formatComment(msg.comments)}</div>` : ''}
 
-      ${msg.fields && msg.fields.length > 0 ? `
+      ${
+        msg.fields && msg.fields.length > 0
+          ? `
         <h4>Fields</h4>
         <table>
           <thead>
@@ -1069,21 +1088,31 @@ export class DocumentationPanel {
             ${msg.fields.map(f => this.renderExportFieldRow(f)).join('')}
           </tbody>
         </table>
-      ` : '<p class="no-content">No fields</p>'}
+      `
+          : '<p class="no-content">No fields</p>'
+      }
 
-      ${msg.nestedEnums && msg.nestedEnums.length > 0 ? `
+      ${
+        msg.nestedEnums && msg.nestedEnums.length > 0
+          ? `
         <div class="nested-section">
           <h4>Nested Enums</h4>
           ${msg.nestedEnums.map(e => this.renderExportEnum(e, depth + 1)).join('')}
         </div>
-      ` : ''}
+      `
+          : ''
+      }
 
-      ${msg.nestedMessages && msg.nestedMessages.length > 0 ? `
+      ${
+        msg.nestedMessages && msg.nestedMessages.length > 0
+          ? `
         <div class="nested-section">
           <h4>Nested Messages</h4>
           ${msg.nestedMessages.map(m => this.renderExportMessage(m, depth + 1)).join('')}
         </div>
-      ` : ''}
+      `
+          : ''
+      }
     </article>`;
   }
 
@@ -1120,7 +1149,9 @@ export class DocumentationPanel {
       </h3>
       ${enumDef.comments ? `<div class="doc-comment">${this.formatComment(enumDef.comments)}</div>` : ''}
 
-      ${enumDef.values && enumDef.values.length > 0 ? `
+      ${
+        enumDef.values && enumDef.values.length > 0
+          ? `
         <table>
           <thead>
             <tr>
@@ -1130,16 +1161,22 @@ export class DocumentationPanel {
             </tr>
           </thead>
           <tbody>
-            ${enumDef.values.map(v => `
+            ${enumDef.values
+              .map(
+                v => `
               <tr class="${v.deprecated ? 'deprecated' : ''}">
                 <td>${this.escapeHtml(v.name)}</td>
                 <td>${v.number}</td>
                 <td>${v.comments ? this.formatComment(v.comments) : '-'}</td>
               </tr>
-            `).join('')}
+            `
+              )
+              .join('')}
           </tbody>
         </table>
-      ` : '<p class="no-content">No values</p>'}
+      `
+          : '<p class="no-content">No values</p>'
+      }
     </article>`;
   }
 
@@ -1162,7 +1199,9 @@ export class DocumentationPanel {
       </h3>
       ${service.comments ? `<div class="doc-comment">${this.formatComment(service.comments)}</div>` : ''}
 
-      ${service.rpcs && service.rpcs.length > 0 ? `
+      ${
+        service.rpcs && service.rpcs.length > 0
+          ? `
         <h4>Methods</h4>
         <table>
           <thead>
@@ -1174,17 +1213,23 @@ export class DocumentationPanel {
             </tr>
           </thead>
           <tbody>
-            ${service.rpcs.map(r => `
+            ${service.rpcs
+              .map(
+                r => `
               <tr class="${r.deprecated ? 'deprecated' : ''}">
                 <td>${this.escapeHtml(r.name)}</td>
                 <td>${r.requestStreaming ? 'stream ' : ''}<code>${this.escapeHtml(r.requestType)}</code></td>
                 <td>${r.responseStreaming ? 'stream ' : ''}<code>${this.escapeHtml(r.responseType)}</code></td>
                 <td>${r.comments ? this.formatComment(r.comments) : '-'}</td>
               </tr>
-            `).join('')}
+            `
+              )
+              .join('')}
           </tbody>
         </table>
-      ` : '<p class="no-content">No methods</p>'}
+      `
+          : '<p class="no-content">No methods</p>'
+      }
     </article>`;
   }
 

@@ -55,14 +55,14 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -98,7 +98,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -114,7 +114,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(1), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -130,7 +130,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -149,14 +149,14 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -173,14 +173,14 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('protoc version 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -196,7 +196,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -208,14 +208,14 @@ describe('ProtocCompiler', () => {
     it('should return null on non-zero exit code', async () => {
       const mockProcess = {
         stdout: {
-          on: jest.fn()
+          on: jest.fn(),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(1), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -232,14 +232,14 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -263,14 +263,14 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -292,14 +292,14 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -325,7 +325,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(1), 0); // Non-zero exit = failure
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -349,14 +349,14 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -383,14 +383,14 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -415,14 +415,14 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -453,14 +453,14 @@ describe('ProtocCompiler', () => {
                 const version = versions[currentCall];
                 setTimeout(() => callback(Buffer.from(`libprotoc ${version}`)), 0);
               }
-            })
+            }),
           },
           on: jest.fn((event: string, callback: (code: number) => void) => {
             if (event === 'close') {
               callCount++;
               setTimeout(() => callback(0), 10);
             }
-          })
+          }),
         } as any;
       });
 
@@ -485,14 +485,14 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -523,14 +523,14 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -562,14 +562,14 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -588,10 +588,10 @@ describe('ProtocCompiler', () => {
     it('should compile proto file successfully', async () => {
       const mockProcess = {
         stdout: {
-          on: jest.fn()
+          on: jest.fn(),
         },
         stderr: {
-          on: jest.fn()
+          on: jest.fn(),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
@@ -599,7 +599,7 @@ describe('ProtocCompiler', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -637,7 +637,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -658,7 +658,7 @@ describe('ProtocCompiler', () => {
       // Key test: when user specifies a parent directory as proto_path,
       // the file should use a relative path from that proto_path
       compiler.updateSettings({
-        options: ['--proto_path=/workspace']
+        options: ['--proto_path=/workspace'],
       });
 
       const mockProcess = {
@@ -669,7 +669,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -694,11 +694,7 @@ describe('ProtocCompiler', () => {
     it('should include user-configured proto paths before file directory', async () => {
       // User proto paths should come first for import resolution
       compiler.updateSettings({
-        options: [
-          '--proto_path=/usr/local/include',
-          '-I/workspace/common',
-          '--go_out=gen/go'
-        ]
+        options: ['--proto_path=/usr/local/include', '-I/workspace/common', '--go_out=gen/go'],
       });
 
       const mockProcess = {
@@ -709,7 +705,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -740,7 +736,7 @@ describe('ProtocCompiler', () => {
 
     it('should not duplicate proto path if user already specified file directory', async () => {
       compiler.updateSettings({
-        options: ['--proto_path=/workspace/src/protos']
+        options: ['--proto_path=/workspace/src/protos'],
       });
 
       const mockProcess = {
@@ -751,7 +747,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -770,7 +766,7 @@ describe('ProtocCompiler', () => {
 
     it('should support -I= format for proto paths', async () => {
       compiler.updateSettings({
-        options: ['-I=/workspace/common']
+        options: ['-I=/workspace/common'],
       });
 
       const mockProcess = {
@@ -781,7 +777,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -802,7 +798,7 @@ describe('ProtocCompiler', () => {
     it('should handle compilation errors', async () => {
       const mockProcess = {
         stdout: {
-          on: jest.fn()
+          on: jest.fn(),
         },
         stderr: {
           on: jest.fn((event: string, callback: (data: Buffer) => void) => {
@@ -810,14 +806,14 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('test.proto:5:10: Error message')), 0);
             }
             return mockProcess.stderr;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(1), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -839,7 +835,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -859,7 +855,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -879,7 +875,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -901,7 +897,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -912,7 +908,9 @@ describe('ProtocCompiler', () => {
         // Return many long file paths to exceed command line limit
         const files: string[] = [];
         for (let i = 0; i < 200; i++) {
-          files.push(`/very/long/path/to/proto/files/directory/subdirectory/another_level/file_${i}_with_long_name.proto`);
+          files.push(
+            `/very/long/path/to/proto/files/directory/subdirectory/another_level/file_${i}_with_long_name.proto`
+          );
         }
         return files;
       };
@@ -1160,7 +1158,7 @@ describe('ProtocCompiler', () => {
   describe('buildArgs edge cases', () => {
     it('should skip empty options', async () => {
       compiler.updateSettings({
-        options: ['', '  ', '--go_out=gen/go', '']
+        options: ['', '  ', '--go_out=gen/go', ''],
       });
 
       const mockProcess = {
@@ -1171,7 +1169,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1190,7 +1188,7 @@ describe('ProtocCompiler', () => {
 
     it('should handle paths with trailing slashes in user options', async () => {
       compiler.updateSettings({
-        options: ['--proto_path=/workspace/common/']
+        options: ['--proto_path=/workspace/common/'],
       });
 
       const mockProcess = {
@@ -1201,7 +1199,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1219,7 +1217,7 @@ describe('ProtocCompiler', () => {
 
     it('should handle relative proto paths in options', async () => {
       compiler.updateSettings({
-        options: ['--proto_path=./common']
+        options: ['--proto_path=./common'],
       });
 
       const mockProcess = {
@@ -1230,7 +1228,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1248,7 +1246,7 @@ describe('ProtocCompiler', () => {
 
     it('should handle --proto-path (hyphen) as well as --proto_path (underscore)', async () => {
       compiler.updateSettings({
-        options: ['--proto-path=/workspace/common']
+        options: ['--proto-path=/workspace/common'],
       });
 
       const mockProcess = {
@@ -1259,7 +1257,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1277,7 +1275,7 @@ describe('ProtocCompiler', () => {
 
     it('should handle -I without equals sign', async () => {
       compiler.updateSettings({
-        options: ['-I/workspace/common']
+        options: ['-I/workspace/common'],
       });
 
       const mockProcess = {
@@ -1288,7 +1286,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1308,10 +1306,7 @@ describe('ProtocCompiler', () => {
       // Access the private buildArgs method for testing
       const buildArgs = (compiler as any).buildArgs.bind(compiler);
 
-      const args = buildArgs(
-        '/workspace/src/service.proto',
-        '/workspace/common/types.proto'
-      );
+      const args = buildArgs('/workspace/src/service.proto', '/workspace/common/types.proto');
 
       // Should have proto paths for both directories
       const protoPathArgs = args.filter((arg: string) => arg.startsWith('--proto_path='));
@@ -1325,7 +1320,7 @@ describe('ProtocCompiler', () => {
     it('should expand workspace variables in options', async () => {
       compiler.setWorkspaceRoot('/my/workspace');
       compiler.updateSettings({
-        options: ['--proto_path=${workspaceFolder}/protos']
+        options: ['--proto_path=${workspaceFolder}/protos'],
       });
 
       const mockProcess = {
@@ -1336,7 +1331,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1356,7 +1351,7 @@ describe('ProtocCompiler', () => {
     it('should expand workspaceRoot variable (legacy)', async () => {
       compiler.setWorkspaceRoot('/my/workspace');
       compiler.updateSettings({
-        options: ['--proto_path=${workspaceRoot}/protos']
+        options: ['--proto_path=${workspaceRoot}/protos'],
       });
 
       const mockProcess = {
@@ -1367,7 +1362,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1384,7 +1379,7 @@ describe('ProtocCompiler', () => {
 
     it('should handle output options with spaces in path', async () => {
       compiler.updateSettings({
-        options: ['--go_out=/path/with spaces/output']
+        options: ['--go_out=/path/with spaces/output'],
       });
 
       const mockProcess = {
@@ -1395,7 +1390,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1413,7 +1408,7 @@ describe('ProtocCompiler', () => {
     it('should quote --proto_path paths with spaces', async () => {
       // Simulate a directory path with spaces (like user's issue: "Outdoor Aerial")
       compiler.updateSettings({
-        options: ['--go_out=/output']
+        options: ['--go_out=/output'],
       });
       compiler.setWorkspaceRoot('/Users/test/Documents/My Project');
 
@@ -1425,7 +1420,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1447,7 +1442,7 @@ describe('ProtocCompiler', () => {
 
     it('should quote output options with spaces', async () => {
       compiler.updateSettings({
-        options: ['--go_out=/path/with spaces/output']
+        options: ['--go_out=/path/with spaces/output'],
       });
 
       const mockProcess = {
@@ -1458,7 +1453,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1482,7 +1477,7 @@ describe('ProtocCompiler', () => {
       // the absolute path is used which may contain spaces
       compiler.updateSettings({
         options: ['--go_out=/output'],
-        useAbsolutePath: true
+        useAbsolutePath: true,
       });
       // Clear any user proto paths so the file falls back to absolute path
       compiler.setWorkspaceRoot('/other/workspace');
@@ -1495,7 +1490,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1509,9 +1504,7 @@ describe('ProtocCompiler', () => {
       const args = spawnCall[1] as string[];
 
       // The proto_path for the file's directory should be quoted
-      const protoPathArg = args.find(arg =>
-        arg.startsWith('--proto_path=') && arg.includes('My Project')
-      );
+      const protoPathArg = args.find(arg => arg.startsWith('--proto_path=') && arg.includes('My Project'));
       expect(protoPathArg).toBeDefined();
       expect(protoPathArg).toMatch(/--proto_path=".*My Project.*"/);
     });
@@ -1519,7 +1512,7 @@ describe('ProtocCompiler', () => {
     it('should not add duplicate proto_path when same as file directory', async () => {
       // Using normalized paths - this tests the path normalization logic
       compiler.updateSettings({
-        options: ['--proto_path=/workspace/src']  // Same as file directory
+        options: ['--proto_path=/workspace/src'], // Same as file directory
       });
 
       const mockProcess = {
@@ -1531,7 +1524,7 @@ describe('ProtocCompiler', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1543,8 +1536,8 @@ describe('ProtocCompiler', () => {
       const args = spawnCall[1] as string[];
 
       // Count proto_path args that reference /workspace/src
-      const srcProtoPathArgs = args.filter(arg =>
-        arg.startsWith('--proto_path=') && arg.includes('workspace') && arg.includes('src')
+      const srcProtoPathArgs = args.filter(
+        arg => arg.startsWith('--proto_path=') && arg.includes('workspace') && arg.includes('src')
       );
       // Should only have one (no duplicate)
       expect(srcProtoPathArgs.length).toBe(1);
@@ -1571,7 +1564,7 @@ describe('ProtocCompiler', () => {
           if (closeCallback) {
             closeCallback(null);
           }
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1605,7 +1598,7 @@ describe('ProtocCompiler', () => {
           }
           return mockProcess;
         }),
-        kill: mockKill
+        kill: mockKill,
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1637,7 +1630,7 @@ describe('ProtocCompiler', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);

@@ -33,28 +33,28 @@ describe('BufFormatProvider', () => {
               setTimeout(() => callback(Buffer.from('formatted text')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stderr: {
-          on: jest.fn()
+          on: jest.fn(),
         },
         stdin: {
           write: jest.fn(),
-          end: jest.fn()
+          end: jest.fn(),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       const result = await provider.format('message Test {}');
       expect(result).toBe('formatted text');
-      expect(mockProcess.stdin.write).toHaveBeenCalledWith('message Test {}');
+      expect(mockProcess.stdin.write).toHaveBeenCalledWith('message Test {}', 'utf8');
       expect(mockProcess.stdin.end).toHaveBeenCalled();
     });
 
@@ -68,7 +68,7 @@ describe('BufFormatProvider', () => {
             setTimeout(() => callback(), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -87,7 +87,7 @@ describe('BufFormatProvider', () => {
             setTimeout(() => callback(1), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -104,7 +104,7 @@ describe('BufFormatProvider', () => {
               setTimeout(() => callback(Buffer.from('formatted')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stderr: { on: jest.fn() },
         stdin: { write: jest.fn(), end: jest.fn() },
@@ -113,17 +113,13 @@ describe('BufFormatProvider', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       await provider.format('message Test {}', '/path/to/file.proto');
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'buf',
-        ['format', '--path', 'file.proto'],
-        expect.any(Object)
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('buf', ['format', '--path', 'file.proto'], expect.any(Object));
     });
   });
 });

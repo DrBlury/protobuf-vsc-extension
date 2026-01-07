@@ -66,13 +66,15 @@ describe('HashManager Extended Coverage', () => {
     it('should handle request timeout', async () => {
       const mockRequest = createMockRequest();
 
-      (mockHttps.get as jest.Mock).mockImplementation((_url: string, _options: object, _callback: (res: EventEmitter) => void) => {
-        // Emit timeout after a short delay
-        setTimeout(() => {
-          mockRequest.emit('timeout');
-        }, 10);
-        return mockRequest;
-      });
+      (mockHttps.get as jest.Mock).mockImplementation(
+        (_url: string, _options: object, _callback: (res: EventEmitter) => void) => {
+          // Emit timeout after a short delay
+          setTimeout(() => {
+            mockRequest.emit('timeout');
+          }, 10);
+          return mockRequest;
+        }
+      );
 
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
       const errorSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -80,7 +82,7 @@ describe('HashManager Extended Coverage', () => {
       const manager = new HashManager({
         cacheDir: testCacheDir,
         maxAge: 1000,
-        fetchTimeout: 50
+        fetchTimeout: 50,
       });
 
       const result = await manager.getHash('protoc', '3.21.0', 'protoc-3.21.0-win64.zip');
@@ -94,12 +96,14 @@ describe('HashManager Extended Coverage', () => {
     it('should handle request error', async () => {
       const mockRequest = createMockRequest();
 
-      (mockHttps.get as jest.Mock).mockImplementation((_url: string, _options: object, _callback: (res: EventEmitter) => void) => {
-        setTimeout(() => {
-          mockRequest.emit('error', new Error('Connection refused'));
-        }, 10);
-        return mockRequest;
-      });
+      (mockHttps.get as jest.Mock).mockImplementation(
+        (_url: string, _options: object, _callback: (res: EventEmitter) => void) => {
+          setTimeout(() => {
+            mockRequest.emit('error', new Error('Connection refused'));
+          }, 10);
+          return mockRequest;
+        }
+      );
 
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
       const errorSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -107,7 +111,7 @@ describe('HashManager Extended Coverage', () => {
       const manager = new HashManager({
         cacheDir: testCacheDir,
         maxAge: 1000,
-        fetchTimeout: 5000
+        fetchTimeout: 5000,
       });
 
       const result = await manager.getHash('protoc', '3.21.0', 'protoc-3.21.0-win64.zip');
@@ -129,13 +133,15 @@ describe('HashManager Extended Coverage', () => {
       mockResponse.statusMessage = 'OK';
       mockResponse.headers = {};
 
-      (mockHttps.get as jest.Mock).mockImplementation((url: string, options: object, callback: (res: EventEmitter) => void) => {
-        callback(mockResponse);
-        setTimeout(() => {
-          mockResponse.emit('error', new Error('Connection reset'));
-        }, 10);
-        return mockRequest;
-      });
+      (mockHttps.get as jest.Mock).mockImplementation(
+        (url: string, options: object, callback: (res: EventEmitter) => void) => {
+          callback(mockResponse);
+          setTimeout(() => {
+            mockResponse.emit('error', new Error('Connection reset'));
+          }, 10);
+          return mockRequest;
+        }
+      );
 
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
       const errorSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -143,7 +149,7 @@ describe('HashManager Extended Coverage', () => {
       const manager = new HashManager({
         cacheDir: testCacheDir,
         maxAge: 1000,
-        fetchTimeout: 5000
+        fetchTimeout: 5000,
       });
 
       const result = await manager.getHash('protoc', '3.21.0', 'protoc-3.21.0-win64.zip');
@@ -161,19 +167,23 @@ describe('HashManager Extended Coverage', () => {
       const mockRequest = createMockRequest();
       const mockResponse = createMockResponse(200, 'text content');
 
-      (mockHttp.get as jest.Mock).mockImplementation((url: string, options: object, callback: (res: EventEmitter) => void) => {
-        callback(mockResponse);
-        return mockRequest;
-      });
-      (mockHttps.get as jest.Mock).mockImplementation((url: string, options: object, callback: (res: EventEmitter) => void) => {
-        callback(createMockResponse(404));
-        return mockRequest;
-      });
+      (mockHttp.get as jest.Mock).mockImplementation(
+        (url: string, options: object, callback: (res: EventEmitter) => void) => {
+          callback(mockResponse);
+          return mockRequest;
+        }
+      );
+      (mockHttps.get as jest.Mock).mockImplementation(
+        (url: string, options: object, callback: (res: EventEmitter) => void) => {
+          callback(createMockResponse(404));
+          return mockRequest;
+        }
+      );
 
       const manager = new HashManager({
         cacheDir: testCacheDir,
         maxAge: 1000,
-        fetchTimeout: 5000
+        fetchTimeout: 5000,
       });
 
       // This will internally call http/https based on URL
@@ -196,8 +206,8 @@ describe('HashManager Extended Coverage', () => {
           sha256: 'abc123',
           url: 'https://example.com/protoc.zip',
           lastUpdated: new Date().toISOString(),
-          source: 'official'
-        }
+          source: 'official',
+        },
       };
 
       mockFs.existsSync.mockReturnValue(true);
@@ -209,7 +219,7 @@ describe('HashManager Extended Coverage', () => {
 
       const manager = new HashManager({
         cacheDir: testCacheDir,
-        maxAge: 10000000
+        maxAge: 10000000,
       });
 
       await manager.updateToolHashes('protoc', '25.0');
@@ -229,7 +239,7 @@ describe('HashManager Extended Coverage', () => {
           sha256: 'abc123',
           url: 'https://example.com/recent.zip',
           lastUpdated: new Date().toISOString(),
-          source: 'official'
+          source: 'official',
         },
         'protoc-3.21.0-old.zip': {
           version: '3.21.0',
@@ -237,8 +247,8 @@ describe('HashManager Extended Coverage', () => {
           sha256: 'def456',
           url: 'https://example.com/old.zip',
           lastUpdated: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString(), // 100 days ago
-          source: 'official'
-        }
+          source: 'official',
+        },
       };
 
       mockFs.existsSync.mockReturnValue(true);
@@ -246,7 +256,7 @@ describe('HashManager Extended Coverage', () => {
 
       const manager = new HashManager({
         cacheDir: testCacheDir,
-        maxAge: 1000 // 1 second, so the old entry is definitely expired (7x would be 7 seconds)
+        maxAge: 1000, // 1 second, so the old entry is definitely expired (7x would be 7 seconds)
       });
 
       manager.clearExpiredCache();
@@ -258,30 +268,30 @@ describe('HashManager Extended Coverage', () => {
   describe('getCacheStats with mixed entries', () => {
     it('should correctly count all entry types', () => {
       const cachedData = {
-        'entry1': {
+        entry1: {
           version: '1.0',
           assetName: 'e1.zip',
           sha256: 'h1',
           url: 'https://example.com/e1.zip',
           lastUpdated: new Date().toISOString(),
-          source: 'official'
+          source: 'official',
         },
-        'entry2': {
+        entry2: {
           version: '1.0',
           assetName: 'e2.zip',
           sha256: 'h2',
           url: 'https://example.com/e2.zip',
           lastUpdated: new Date().toISOString(),
-          source: 'calculated'
+          source: 'calculated',
         },
-        'entry3': {
+        entry3: {
           version: '1.0',
           assetName: 'e3.zip',
           sha256: 'h3',
           url: 'https://example.com/e3.zip',
           lastUpdated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days old
-          source: 'official'
-        }
+          source: 'official',
+        },
       };
 
       mockFs.existsSync.mockReturnValue(true);
@@ -289,7 +299,7 @@ describe('HashManager Extended Coverage', () => {
 
       const manager = new HashManager({
         cacheDir: testCacheDir,
-        maxAge: 24 * 60 * 60 * 1000 // 1 day
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
       });
 
       const stats = manager.getCacheStats();

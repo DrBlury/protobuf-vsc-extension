@@ -29,7 +29,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should return basic documentation for simple proto file', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         package mypackage;
 
@@ -37,7 +39,8 @@ describe('DocumentationProvider', () => {
           string name = 1;
           int32 age = 2;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       expect(doc).not.toBeNull();
@@ -49,7 +52,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should extract field information', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         message Person {
@@ -57,7 +62,8 @@ describe('DocumentationProvider', () => {
           repeated int32 scores = 2;
           bool active = 3;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       const message = doc!.messages[0]!;
@@ -79,7 +85,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should extract enum information', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         enum Status {
@@ -87,7 +95,8 @@ describe('DocumentationProvider', () => {
           ACTIVE = 1;
           INACTIVE = 2;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       expect(doc!.enums).toHaveLength(1);
@@ -102,7 +111,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should extract service information', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         service UserService {
@@ -114,7 +125,8 @@ describe('DocumentationProvider', () => {
         message GetUserResponse {}
         message ListUsersRequest {}
         message ListUsersResponse {}
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       expect(doc!.services).toHaveLength(1);
@@ -135,7 +147,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should extract imports', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         import "google/protobuf/timestamp.proto";
         import "other/file.proto";
@@ -143,7 +157,8 @@ describe('DocumentationProvider', () => {
         message Test {
           string id = 1;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       expect(doc!.imports).toHaveLength(2);
@@ -152,7 +167,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should extract comments as documentation', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         // User represents a system user
@@ -162,7 +179,8 @@ describe('DocumentationProvider', () => {
           // The user's display name
           string name = 2;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       const message = doc!.messages[0]!;
@@ -173,7 +191,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should extract trailing comments on same line', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         // A date representation
@@ -182,7 +202,8 @@ describe('DocumentationProvider', () => {
           int32 month = 2; // the month value
           int32 day   = 3; // the day value
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       const message = doc!.messages[0]!;
@@ -197,7 +218,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should extract trailing comments on enum values', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         enum Status {
@@ -205,7 +228,8 @@ describe('DocumentationProvider', () => {
           ACTIVE = 1;   // active status
           INACTIVE = 2; // inactive status
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       const enumDef = doc!.enums[0]!;
@@ -219,7 +243,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should not bleed message comment into first field when field has no comment', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         // This is the message description
@@ -227,7 +253,8 @@ describe('DocumentationProvider', () => {
           string no_comment_field = 1;
           string another_field = 2;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       const message = doc!.messages[0]!;
@@ -245,7 +272,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should correctly separate message and field comments when both exist', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         // This is the message description
@@ -255,7 +284,8 @@ describe('DocumentationProvider', () => {
           // Second field comment
           string second_field = 2;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       const message = doc!.messages[0]!;
@@ -269,7 +299,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should detect deprecated fields', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         message User {
@@ -277,7 +309,8 @@ describe('DocumentationProvider', () => {
           string old_name = 2 [deprecated = true];
           string name = 3;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       const message = doc!.messages[0]!;
@@ -288,7 +321,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should extract nested messages', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         message Outer {
@@ -300,7 +335,8 @@ describe('DocumentationProvider', () => {
 
           Inner inner = 2;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       const outer = doc!.messages[0]!;
@@ -312,7 +348,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should extract nested enums', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         message User {
@@ -323,7 +361,8 @@ describe('DocumentationProvider', () => {
 
           Status status = 1;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       const message = doc!.messages[0]!;
@@ -334,7 +373,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should extract map fields', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         message User {
@@ -345,7 +386,8 @@ describe('DocumentationProvider', () => {
         message Address {
           string city = 1;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       const message = doc!.messages[0]!;
@@ -358,7 +400,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should handle oneof fields', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         message Message {
@@ -367,7 +411,8 @@ describe('DocumentationProvider', () => {
             bytes data = 2;
           }
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       const message = doc!.messages[0]!;
@@ -386,13 +431,16 @@ describe('DocumentationProvider', () => {
     });
 
     it('should extract file options', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         option java_package = "com.example";
         option go_package = "example.com/pkg";
 
         message Test {}
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       expect(doc!.options).toBeDefined();
@@ -401,7 +449,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should handle proto2 syntax', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto2";
         package legacy;
 
@@ -410,7 +460,8 @@ describe('DocumentationProvider', () => {
           optional string name = 2;
           repeated int32 values = 3;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       expect(doc!.syntax).toBe('proto2');
@@ -422,21 +473,26 @@ describe('DocumentationProvider', () => {
     });
 
     it('should handle edition syntax', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         edition = "2023";
         package modern;
 
         message ModernMessage {
           string id = 1;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       expect(doc!.edition).toBe('2023');
     });
 
     it('should sort fields by number', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         message Unordered {
@@ -444,7 +500,8 @@ describe('DocumentationProvider', () => {
           string a = 1;
           string m = 2;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       const fields = doc!.messages[0]!.fields!;
@@ -455,7 +512,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should handle complex nested structures', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         package complex;
 
@@ -474,7 +533,8 @@ describe('DocumentationProvider', () => {
             }
           }
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       const level1 = doc!.messages[0]!;
@@ -493,7 +553,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should detect deprecated messages', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         message ActiveMessage {
@@ -504,7 +566,8 @@ describe('DocumentationProvider', () => {
           option deprecated = true;
           string id = 1;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
 
@@ -513,7 +576,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should detect deprecated enum values', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         enum Status {
@@ -521,7 +586,8 @@ describe('DocumentationProvider', () => {
           ACTIVE = 1;
           LEGACY = 2 [deprecated = true];
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       const enumDef = doc!.enums[0]!;
@@ -532,7 +598,9 @@ describe('DocumentationProvider', () => {
     });
 
     it('should detect deprecated services and RPCs', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
 
         service DeprecatedService {
@@ -542,16 +610,20 @@ describe('DocumentationProvider', () => {
 
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
       expect(doc!.services[0]!.deprecated).toBe(true);
     });
 
     it('should handle empty file', () => {
-      parseAndUpdate('file:///empty.proto', `
+      parseAndUpdate(
+        'file:///empty.proto',
+        `
         syntax = "proto3";
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///empty.proto');
       expect(doc).not.toBeNull();
@@ -561,11 +633,14 @@ describe('DocumentationProvider', () => {
     });
 
     it('should handle file without syntax', () => {
-      parseAndUpdate('file:///nosyntax.proto', `
+      parseAndUpdate(
+        'file:///nosyntax.proto',
+        `
         message SimpleMessage {
           optional string value = 1;
         }
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///nosyntax.proto');
       expect(doc).not.toBeNull();
@@ -575,7 +650,9 @@ describe('DocumentationProvider', () => {
 
   describe('fullName computation', () => {
     it('should compute full names correctly with package', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         package foo.bar;
 
@@ -593,7 +670,8 @@ describe('DocumentationProvider', () => {
 
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
       const doc = docProvider.getDocumentation('file:///test.proto');
 

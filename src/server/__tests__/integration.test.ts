@@ -114,9 +114,7 @@ message test_message {
 
       const diagnostics = diagnosticsProvider.validate(uri, ast, content);
 
-      const namingDiag = diagnostics.find(d =>
-        d.message.includes('PascalCase') || d.message.includes('snake_case')
-      );
+      const namingDiag = diagnostics.find(d => d.message.includes('PascalCase') || d.message.includes('snake_case'));
       expect(namingDiag).toBeDefined();
     });
   });
@@ -465,9 +463,7 @@ message User {
 
       // Validate no false positives
       const diagnostics = diagnosticsProvider.validate(uri, ast, content);
-      const typeDiag = diagnostics.find(d =>
-        d.message.includes('Unknown type') && d.message.includes('DeepNested')
-      );
+      const typeDiag = diagnostics.find(d => d.message.includes('Unknown type') && d.message.includes('DeepNested'));
       // Should resolve nested types correctly
       expect(typeDiag).toBeUndefined();
     });
@@ -569,8 +565,8 @@ message Reserved {
 
       const diagnostics = diagnosticsProvider.validate(uri, ast, content);
       // Should not flag non-reserved fields
-      const reservedDiag = diagnostics.find(d =>
-        d.message.includes('reserved') && (d.message.includes('1') || d.message.includes('3'))
+      const reservedDiag = diagnostics.find(
+        d => d.message.includes('reserved') && (d.message.includes('1') || d.message.includes('3'))
       );
       expect(reservedDiag).toBeUndefined();
     });
@@ -702,9 +698,7 @@ message Test {
     const diagnostics = diagnosticsProvider.validate(uri, ast, content);
 
     // Should not report missing semicolon for continuation lines
-    const semicolonOnLine4 = diagnostics.find(d =>
-      d.message === 'Missing semicolon' && d.range.start.line === 3
-    );
+    const semicolonOnLine4 = diagnostics.find(d => d.message === 'Missing semicolon' && d.range.start.line === 3);
     expect(semicolonOnLine4).toBeUndefined();
   });
 
@@ -733,10 +727,8 @@ message Test {
     const diagnostics = diagnosticsProvider.validate(uri, ast, content);
 
     // Field number 536870912 is out of the valid range (1-536870911)
-    const _rangeDiag = diagnostics.find(d =>
-      d.message.includes('out of range') ||
-      d.message.includes('maximum') ||
-      d.message.includes('greater than')
+    const _rangeDiag = diagnostics.find(
+      d => d.message.includes('out of range') || d.message.includes('maximum') || d.message.includes('greater than')
     );
     // May or may not be detected depending on validator implementation
     expect(diagnostics).toBeDefined();

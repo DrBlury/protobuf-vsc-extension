@@ -41,49 +41,57 @@ const mockOutputChannel = {
 
 const mockConfiguration = new Map<string, unknown>();
 
-jest.mock('vscode', () => {
-   
-  const pathModule = require('path');
-  const testWorkspace = pathModule.join(pathModule.sep, 'test', 'workspace');
-  return {
-    window: {
-      createStatusBarItem: jest.fn(() => mockStatusBarItem),
-      showQuickPick: jest.fn(),
-      showInformationMessage: jest.fn(),
-      showWarningMessage: jest.fn(),
-      showErrorMessage: jest.fn(),
-      withProgress: jest.fn((options: unknown, task: (progress: { report: jest.Mock }, token: { isCancellationRequested: boolean }) => Promise<unknown>) => task({ report: jest.fn() }, { isCancellationRequested: false })),
-    },
-    workspace: {
-      getConfiguration: jest.fn((section: string) => ({
-        get: jest.fn((key: string, defaultValue?: unknown) => {
-          const fullKey = `${section}.${key}`;
-          return mockConfiguration.get(fullKey) ?? defaultValue;
-        }),
-        update: jest.fn(),
-      })),
-      workspaceFolders: [{ uri: { fsPath: testWorkspace } }],
-    },
-    StatusBarAlignment: {
-      Right: 2,
-      Left: 1,
-    },
-    ThemeColor: class {
-      constructor(public id: string) {}
-    },
-    ConfigurationTarget: {
-      Global: 1,
-      Workspace: 2,
-      WorkspaceFolder: 3,
-    },
-    ProgressLocation: {
-      Notification: 15,
-    },
-    QuickPickItemKind: {
-      Separator: -1,
-    },
-  };
-}, { virtual: true });
+jest.mock(
+  'vscode',
+  () => {
+    const pathModule = require('path');
+    const testWorkspace = pathModule.join(pathModule.sep, 'test', 'workspace');
+    return {
+      window: {
+        createStatusBarItem: jest.fn(() => mockStatusBarItem),
+        showQuickPick: jest.fn(),
+        showInformationMessage: jest.fn(),
+        showWarningMessage: jest.fn(),
+        showErrorMessage: jest.fn(),
+        withProgress: jest.fn(
+          (
+            options: unknown,
+            task: (progress: { report: jest.Mock }, token: { isCancellationRequested: boolean }) => Promise<unknown>
+          ) => task({ report: jest.fn() }, { isCancellationRequested: false })
+        ),
+      },
+      workspace: {
+        getConfiguration: jest.fn((section: string) => ({
+          get: jest.fn((key: string, defaultValue?: unknown) => {
+            const fullKey = `${section}.${key}`;
+            return mockConfiguration.get(fullKey) ?? defaultValue;
+          }),
+          update: jest.fn(),
+        })),
+        workspaceFolders: [{ uri: { fsPath: testWorkspace } }],
+      },
+      StatusBarAlignment: {
+        Right: 2,
+        Left: 1,
+      },
+      ThemeColor: class {
+        constructor(public id: string) {}
+      },
+      ConfigurationTarget: {
+        Global: 1,
+        Workspace: 2,
+        WorkspaceFolder: 3,
+      },
+      ProgressLocation: {
+        Notification: 15,
+      },
+      QuickPickItemKind: {
+        Separator: -1,
+      },
+    };
+  },
+  { virtual: true }
+);
 
 // Mock fsUtils for async operations
 const mockFileExists = jest.fn();
@@ -324,12 +332,8 @@ describe('ToolchainManager', () => {
       const items = quickPickCall[0];
 
       // Should have install option for each undetected tool
-      const hasInstallProtoc = items.some((item: { label?: string }) =>
-        item.label?.includes('Install protoc')
-      );
-      const hasInstallBuf = items.some((item: { label?: string }) =>
-        item.label?.includes('Install buf')
-      );
+      const hasInstallProtoc = items.some((item: { label?: string }) => item.label?.includes('Install protoc'));
+      const hasInstallBuf = items.some((item: { label?: string }) => item.label?.includes('Install buf'));
       expect(hasInstallProtoc).toBe(true);
       expect(hasInstallBuf).toBe(true);
     });
@@ -364,12 +368,8 @@ describe('ToolchainManager', () => {
       const items = quickPickCall[0];
 
       // Should NOT have install options when tools are detected
-      const hasInstallProtoc = items.some((item: { label?: string }) =>
-        item.label?.includes('Install protoc')
-      );
-      const hasInstallBuf = items.some((item: { label?: string }) =>
-        item.label?.includes('Install buf')
-      );
+      const hasInstallProtoc = items.some((item: { label?: string }) => item.label?.includes('Install protoc'));
+      const hasInstallBuf = items.some((item: { label?: string }) => item.label?.includes('Install buf'));
       expect(hasInstallProtoc).toBe(false);
       expect(hasInstallBuf).toBe(false);
     });
@@ -456,12 +456,8 @@ describe('ToolchainManager', () => {
       const items = quickPickCall[0];
 
       // Should show individual "Use system X" options for managed tools
-      const hasUseSystemProtoc = items.some((item: { label?: string }) =>
-        item.label?.includes('Use system protoc')
-      );
-      const hasUseSystemBuf = items.some((item: { label?: string }) =>
-        item.label?.includes('Use system buf')
-      );
+      const hasUseSystemProtoc = items.some((item: { label?: string }) => item.label?.includes('Use system protoc'));
+      const hasUseSystemBuf = items.some((item: { label?: string }) => item.label?.includes('Use system buf'));
       // At least one should be true (depending on which tools are detected as managed)
       expect(hasUseSystemProtoc || hasUseSystemBuf).toBe(true);
     });
@@ -484,9 +480,7 @@ describe('ToolchainManager', () => {
       const quickPickCall = (vscode.window.showQuickPick as jest.Mock).mock.calls[0];
       const items = quickPickCall[0];
 
-      const hasRedetect = items.some((item: { label?: string }) =>
-        item.label?.includes('Re-detect')
-      );
+      const hasRedetect = items.some((item: { label?: string }) => item.label?.includes('Re-detect'));
       expect(hasRedetect).toBe(true);
     });
   });
@@ -527,12 +521,7 @@ describe('ToolchainManager', () => {
 /**
  * Helper to create a mock child process
  */
-function createMockProcess(
-  stdout: string,
-  stderr: string,
-  exitCode: number,
-  error?: Error
-) {
+function createMockProcess(stdout: string, stderr: string, exitCode: number, error?: Error) {
   const stdoutHandlers: Record<string, ((data: Buffer) => void)[]> = {};
   const stderrHandlers: Record<string, ((data: Buffer) => void)[]> = {};
   const procHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};

@@ -1,4 +1,9 @@
-import { createMockVscode, createMockTextEditor, createMockExtensionContext, createMockChildProcess } from '../../__tests__/testUtils';
+import {
+  createMockVscode,
+  createMockTextEditor,
+  createMockExtensionContext,
+  createMockChildProcess,
+} from '../../__tests__/testUtils';
 
 const mockVscode = createMockVscode();
 
@@ -8,6 +13,22 @@ const mockSpawn = jest.fn();
 jest.mock('child_process', () => ({
   spawn: mockSpawn,
 }));
+
+// Mock os module to always return non-Windows platform for consistent test behavior
+jest.mock('os', () => ({
+  platform: () => 'darwin',
+  homedir: () => '/home/user',
+}));
+
+// Mock path module to always use posix (forward slashes) for consistent test behavior
+jest.mock('path', () => {
+  const posix = jest.requireActual('path').posix;
+  return {
+    ...posix,
+    join: (...args: string[]) => posix.join(...args),
+    dirname: (p: string) => posix.dirname(p),
+  };
+});
 
 import { PlaygroundManager } from '../playgroundManager';
 
@@ -20,7 +41,9 @@ describe('PlaygroundManager', () => {
   function setupConfig(includes: string[] = []) {
     mockVscode.workspace.getConfiguration = jest.fn(() => ({
       get: jest.fn((key: string) => {
-        if (key === 'includes') {return includes;}
+        if (key === 'includes') {
+          return includes;
+        }
         return undefined;
       }),
       update: jest.fn().mockResolvedValue(undefined),
@@ -183,10 +206,7 @@ describe('PlaygroundManager', () => {
         // Uses managed grpcurl path and includes configured import paths
         expect(mockSpawn).toHaveBeenCalledWith(
           '/test/global-storage/bin/grpcurl',
-          expect.arrayContaining([
-            '-import-path', '/imports/common',
-            '-import-path', '/imports/shared',
-          ]),
+          expect.arrayContaining(['-import-path', '/imports/common', '-import-path', '/imports/shared']),
           expect.any(Object)
         );
       });
@@ -213,9 +233,7 @@ describe('PlaygroundManager', () => {
 
         await new Promise(resolve => setTimeout(resolve, 20));
 
-        expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
-          expect.stringContaining('Failed to list services')
-        );
+        expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Failed to list services'));
         expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith(
           expect.objectContaining({ command: 'error' })
         );
@@ -243,8 +261,10 @@ describe('PlaygroundManager', () => {
         expect(mockSpawn).toHaveBeenCalledWith(
           '/test/global-storage/bin/grpcurl',
           expect.arrayContaining([
-            '-proto', '/test/user.proto',
-            '-d', '{"id": 1}',
+            '-proto',
+            '/test/user.proto',
+            '-d',
+            '{"id": 1}',
             '-plaintext',
             'localhost:50051',
             'mypackage.UserService/GetUser',

@@ -24,7 +24,7 @@ describe('DiagnosticsProvider Branch Coverage', () => {
       discouragedConstructs: true,
       importChecks: true,
       deprecatedUsage: true,
-      editionFeatures: true
+      editionFeatures: true,
     });
   });
 
@@ -128,9 +128,7 @@ message Container {
       const diagnostics = provider.validate(uri, file, text);
 
       // Value is used in map, so should not be reported as unused
-      const unusedValue = diagnostics.filter(d =>
-        d.message.includes('never used') && d.message.includes('Value')
-      );
+      const unusedValue = diagnostics.filter(d => d.message.includes('never used') && d.message.includes('Value'));
       expect(unusedValue.length).toBe(0);
     });
 
@@ -152,9 +150,8 @@ message Container {
       const diagnostics = provider.validate(uri, file, text);
 
       // TypeA and TypeB are used in oneof
-      const unusedTypes = diagnostics.filter(d =>
-        d.message.includes('never used') &&
-        (d.message.includes('TypeA') || d.message.includes('TypeB'))
+      const unusedTypes = diagnostics.filter(
+        d => d.message.includes('never used') && (d.message.includes('TypeA') || d.message.includes('TypeB'))
       );
       expect(unusedTypes.length).toBe(0);
     });
@@ -182,8 +179,8 @@ message Consumer {
       const diagnostics = provider.validate(uri1, file1, text1);
 
       // SharedType is used in another file
-      const unusedShared = diagnostics.filter(d =>
-        d.message.includes('never used') && d.message.includes('SharedType')
+      const unusedShared = diagnostics.filter(
+        d => d.message.includes('never used') && d.message.includes('SharedType')
       );
       expect(unusedShared.length).toBe(0);
     });
@@ -208,9 +205,10 @@ service DataService {
       const diagnostics = provider.validate(uri, file, text);
 
       // Messages used in service should not be reported as unused
-      const unusedMsg = diagnostics.filter(d =>
-        d.message.includes('never used') &&
-        (d.message.includes('ServiceRequest') || d.message.includes('ServiceResponse'))
+      const unusedMsg = diagnostics.filter(
+        d =>
+          d.message.includes('never used') &&
+          (d.message.includes('ServiceRequest') || d.message.includes('ServiceResponse'))
       );
       expect(unusedMsg.length).toBe(0);
     });
@@ -237,14 +235,10 @@ message Container {
       const diagnostics = provider.validate(uri, file, text);
 
       // ValueType used in map, KeyType not used
-      const unusedValue = diagnostics.filter(d =>
-        d.message.includes('never used') && d.message.includes('ValueType')
-      );
+      const unusedValue = diagnostics.filter(d => d.message.includes('never used') && d.message.includes('ValueType'));
       expect(unusedValue.length).toBe(0);
 
-      const unusedKey = diagnostics.filter(d =>
-        d.message.includes('never used') && d.message.includes('KeyType')
-      );
+      const unusedKey = diagnostics.filter(d => d.message.includes('never used') && d.message.includes('KeyType'));
       expect(unusedKey.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -266,9 +260,8 @@ message Wrapper {
       const diagnostics = provider.validate(uri, file, text);
 
       // Both types used in oneof
-      const unused = diagnostics.filter(d =>
-        d.message.includes('never used') &&
-        (d.message.includes('TypeOne') || d.message.includes('TypeTwo'))
+      const unused = diagnostics.filter(
+        d => d.message.includes('never used') && (d.message.includes('TypeOne') || d.message.includes('TypeTwo'))
       );
       expect(unused.length).toBe(0);
     });
@@ -290,9 +283,7 @@ message Outer {
       const diagnostics = provider.validate(uri, file, text);
 
       // Inner used in Nested
-      const unusedInner = diagnostics.filter(d =>
-        d.message.includes('never used') && d.message.includes('Inner')
-      );
+      const unusedInner = diagnostics.filter(d => d.message.includes('never used') && d.message.includes('Inner'));
       expect(unusedInner.length).toBe(0);
     });
   });
@@ -407,9 +398,7 @@ message Test {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const namingDiags = diagnostics.filter(d =>
-        d.message.includes('snake_case') || d.message.includes('Field')
-      );
+      const namingDiags = diagnostics.filter(d => d.message.includes('snake_case') || d.message.includes('Field'));
       expect(namingDiags.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -431,9 +420,7 @@ message NewMessage {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const deprecatedDiags = diagnostics.filter(d =>
-        d.message.toLowerCase().includes('deprecated')
-      );
+      const deprecatedDiags = diagnostics.filter(d => d.message.toLowerCase().includes('deprecated'));
       expect(deprecatedDiags.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -498,8 +485,8 @@ message Test {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const typeErrors = diagnostics.filter(d =>
-        d.message.includes('Unknown') || d.message.includes('undefined') || d.message.includes('resolve')
+      const typeErrors = diagnostics.filter(
+        d => d.message.includes('Unknown') || d.message.includes('undefined') || d.message.includes('resolve')
       );
       expect(typeErrors.length).toBeGreaterThanOrEqual(0);
     });
@@ -516,9 +503,7 @@ message Test {
       const diagnostics = provider.validate(uri, file, text);
 
       // Float is not a valid map key type
-      const mapErrors = diagnostics.filter(d =>
-        d.message.includes('map') || d.message.includes('key')
-      );
+      const mapErrors = diagnostics.filter(d => d.message.includes('map') || d.message.includes('key'));
       expect(mapErrors.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -538,10 +523,11 @@ message Test {
       const diagnostics = provider.validate(uri, file, text);
 
       // Groups are discouraged
-      const groupDiags = diagnostics.filter(d =>
-        d.message.toLowerCase().includes('group') ||
-        d.message.includes('deprecated') ||
-        d.message.includes('discouraged')
+      const groupDiags = diagnostics.filter(
+        d =>
+          d.message.toLowerCase().includes('group') ||
+          d.message.includes('deprecated') ||
+          d.message.includes('discouraged')
       );
       expect(groupDiags.length).toBeGreaterThanOrEqual(0);
     });
@@ -593,9 +579,7 @@ message Test {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const reservedDiags = diagnostics.filter(d =>
-        d.message.includes('reserved') || d.message.includes('19000')
-      );
+      const reservedDiags = diagnostics.filter(d => d.message.includes('reserved') || d.message.includes('19000'));
       expect(reservedDiags.length).toBeGreaterThan(0);
     });
 
@@ -610,8 +594,8 @@ message Test {
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
 
-      const fieldDiags = diagnostics.filter(d =>
-        d.message.includes('maximum') || d.message.includes('exceed') || d.message.includes('range')
+      const fieldDiags = diagnostics.filter(
+        d => d.message.includes('maximum') || d.message.includes('exceed') || d.message.includes('range')
       );
       expect(fieldDiags.length).toBeGreaterThan(0);
     });

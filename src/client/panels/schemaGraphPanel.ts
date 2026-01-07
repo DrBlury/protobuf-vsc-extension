@@ -22,11 +22,7 @@ export class SchemaGraphPanel {
   private sourceUri?: string;
   private initialized = false;
 
-  static createOrShow(
-    extensionUri: vscode.Uri,
-    client: LanguageClient,
-    options: SchemaGraphRequest
-  ): void {
+  static createOrShow(extensionUri: vscode.Uri, client: LanguageClient, options: SchemaGraphRequest): void {
     const scope = options.scope || 'workspace';
 
     if (SchemaGraphPanel.currentPanel) {
@@ -40,7 +36,7 @@ export class SchemaGraphPanel {
       { viewColumn: vscode.ViewColumn.Beside, preserveFocus: false },
       {
         enableScripts: true,
-        retainContextWhenHidden: true
+        retainContextWhenHidden: true,
       }
     );
 
@@ -92,7 +88,7 @@ export class SchemaGraphPanel {
     try {
       const graph = await this.client.sendRequest<SchemaGraph>('protobuf/getSchemaGraph', {
         uri: this.sourceUri,
-        scope: this.currentScope
+        scope: this.currentScope,
       });
 
       if (!this.initialized || initial) {
@@ -112,12 +108,12 @@ export class SchemaGraphPanel {
     const filterNames: Record<string, string> = {
       svg: 'SVG Files',
       png: 'PNG Files',
-      pdf: 'PDF Files'
+      pdf: 'PDF Files',
     };
     const extensions: Record<string, string[]> = {
       svg: ['svg'],
       png: ['png'],
-      pdf: ['pdf']
+      pdf: ['pdf'],
     };
 
     const filterName: string = filterNames[format] || 'Files';
@@ -127,10 +123,12 @@ export class SchemaGraphPanel {
 
     const uri = await vscode.window.showSaveDialog({
       filters: saveFilters,
-      defaultUri: vscode.Uri.file(`schema-graph.${format}`)
+      defaultUri: vscode.Uri.file(`schema-graph.${format}`),
     });
 
-    if (!uri) {return;}
+    if (!uri) {
+      return;
+    }
 
     try {
       const buffer = Buffer.from(data, format === 'svg' ? 'utf8' : 'base64');
@@ -143,7 +141,9 @@ export class SchemaGraphPanel {
   }
 
   private async handleNavigate(file: string, symbolName: string): Promise<void> {
-    if (!file) {return;}
+    if (!file) {
+      return;
+    }
 
     try {
       const doc = await vscode.workspace.openTextDocument(file);
@@ -172,7 +172,7 @@ export class SchemaGraphPanel {
       `img-src ${webview.cspSource} https: data:`,
       `style-src ${webview.cspSource} 'unsafe-inline' https://fonts.googleapis.com`,
       `font-src ${webview.cspSource} https://fonts.gstatic.com`,
-      `script-src 'nonce-${nonce}' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com`
+      `script-src 'nonce-${nonce}' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com`,
     ].join('; ');
 
     const initialData = JSON.stringify(graph);

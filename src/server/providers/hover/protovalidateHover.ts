@@ -11,7 +11,7 @@ import { createMarkdownHover } from './types';
 export const VALIDATE_TYPES: Record<string, string> = {
   field: 'Validation constraints applied to a specific field.',
   message: 'Validation constraints applied to the entire message, using CEL expressions.',
-  oneof: 'Validation constraints for oneof fields (e.g., requiring one to be set).'
+  oneof: 'Validation constraints for oneof fields (e.g., requiring one to be set).',
 };
 
 /**
@@ -37,7 +37,7 @@ export const STRING_CONSTRAINTS: Record<string, string> = {
   uri_ref: 'String must be a valid URI reference.',
   uuid: 'String must be a valid UUID.',
   address: 'String must be a valid address (hostname or IP).',
-  well_known_regex: 'String must match a well-known regex pattern.'
+  well_known_regex: 'String must match a well-known regex pattern.',
 };
 
 /**
@@ -50,7 +50,7 @@ export const NUMERIC_CONSTRAINTS: Record<string, string> = {
   gt: 'Field must be greater than this value.',
   gte: 'Field must be greater than or equal to this value.',
   in: 'Field must be one of the specified values.',
-  not_in: 'Field must not be any of the specified values.'
+  not_in: 'Field must not be any of the specified values.',
 };
 
 /**
@@ -60,7 +60,7 @@ export const REPEATED_CONSTRAINTS: Record<string, string> = {
   min_items: 'Minimum number of items in the list.',
   max_items: 'Maximum number of items in the list.',
   unique: 'All items in the list must be unique.',
-  items: 'Constraints applied to each item in the list.'
+  items: 'Constraints applied to each item in the list.',
 };
 
 /**
@@ -70,7 +70,7 @@ export const CEL_FIELDS: Record<string, string> = {
   cel: 'Custom CEL expression for validation. Provides flexible validation logic.',
   id: 'Unique identifier for this CEL validation rule. Used for error tracking.',
   message: 'Human-readable error message when the CEL expression evaluates to false.',
-  expression: 'The CEL expression that must evaluate to true for valid data, or return an error string.'
+  expression: 'The CEL expression that must evaluate to true for valid data, or return an error string.',
 };
 
 /**
@@ -78,18 +78,17 @@ export const CEL_FIELDS: Record<string, string> = {
  */
 export const COMMON_CONSTRAINTS: Record<string, string> = {
   required: 'Field is required and must be set to a non-default value.',
-  ignore: 'Controls when validation should be skipped (IGNORE_UNSPECIFIED, IGNORE_IF_UNPOPULATED, IGNORE_IF_DEFAULT_VALUE, IGNORE_ALWAYS).',
+  ignore:
+    'Controls when validation should be skipped (IGNORE_UNSPECIFIED, IGNORE_IF_UNPOPULATED, IGNORE_IF_DEFAULT_VALUE, IGNORE_ALWAYS).',
   disabled: 'Disables all validation for this field or message.',
-  skipped: 'Validation is skipped for this field.'
+  skipped: 'Validation is skipped for this field.',
 };
 
 /**
  * Check if we're in a buf.validate context
  */
 export function isValidateContext(lineText: string): boolean {
-  return lineText.includes('buf.validate') ||
-         lineText.includes('validate.') ||
-         lineText.includes('.cel');
+  return lineText.includes('buf.validate') || lineText.includes('validate.') || lineText.includes('.cel');
 }
 
 /**
@@ -110,17 +109,13 @@ export const getProtovalidateHover: HoverHandler = (word: string, lineText: stri
       '',
       VALIDATE_TYPES[checkWord],
       '',
-      '[protovalidate Documentation](https://buf.build/docs/bsr/remote-validation/protovalidate)'
+      '[protovalidate Documentation](https://buf.build/docs/bsr/remote-validation/protovalidate)',
     ]);
   }
 
   // String constraints
   if (STRING_CONSTRAINTS[checkWord] && inValidateContext) {
-    return createMarkdownHover([
-      `**${checkWord}** *(buf.validate.field.string)*`,
-      '',
-      STRING_CONSTRAINTS[checkWord]
-    ]);
+    return createMarkdownHover([`**${checkWord}** *(buf.validate.field.string)*`, '', STRING_CONSTRAINTS[checkWord]]);
   }
 
   // Numeric constraints
@@ -128,7 +123,7 @@ export const getProtovalidateHover: HoverHandler = (word: string, lineText: stri
     return createMarkdownHover([
       `**${checkWord}** *(buf.validate numeric constraint)*`,
       '',
-      NUMERIC_CONSTRAINTS[checkWord]
+      NUMERIC_CONSTRAINTS[checkWord],
     ]);
   }
 
@@ -137,7 +132,7 @@ export const getProtovalidateHover: HoverHandler = (word: string, lineText: stri
     return createMarkdownHover([
       `**${checkWord}** *(buf.validate.field.repeated)*`,
       '',
-      REPEATED_CONSTRAINTS[checkWord]
+      REPEATED_CONSTRAINTS[checkWord],
     ]);
   }
 
@@ -148,17 +143,13 @@ export const getProtovalidateHover: HoverHandler = (word: string, lineText: stri
       '',
       CEL_FIELDS[checkWord],
       '',
-      '[CEL Specification](https://github.com/google/cel-spec)'
+      '[CEL Specification](https://github.com/google/cel-spec)',
     ]);
   }
 
   // Common constraints
   if (COMMON_CONSTRAINTS[checkWord] && inValidateContext) {
-    return createMarkdownHover([
-      `**${checkWord}** *(buf.validate)*`,
-      '',
-      COMMON_CONSTRAINTS[checkWord]
-    ]);
+    return createMarkdownHover([`**${checkWord}** *(buf.validate)*`, '', COMMON_CONSTRAINTS[checkWord]]);
   }
 
   return null;

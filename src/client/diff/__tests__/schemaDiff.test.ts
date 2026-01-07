@@ -79,9 +79,7 @@ describe('SchemaDiffManager', () => {
 
       await manager.diffSchema();
 
-      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
-        'Please open a .proto file to diff.'
-      );
+      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith('Please open a .proto file to diff.');
     });
 
     it('should show error when URI is not a proto file', async () => {
@@ -89,9 +87,7 @@ describe('SchemaDiffManager', () => {
 
       await manager.diffSchema(uri);
 
-      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
-        'Please open a .proto file to diff.'
-      );
+      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith('Please open a .proto file to diff.');
     });
 
     it('should show error when active editor file is not proto', async () => {
@@ -102,9 +98,7 @@ describe('SchemaDiffManager', () => {
 
       await manager.diffSchema();
 
-      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
-        'Please open a .proto file to diff.'
-      );
+      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith('Please open a .proto file to diff.');
     });
 
     it('should prompt for git reference', async () => {
@@ -143,11 +137,7 @@ describe('SchemaDiffManager', () => {
       await flushPromisesAndTimers();
       await diffPromise;
 
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'git',
-        ['show', 'HEAD~1:schema.proto'],
-        { cwd: '/test/project' }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD~1:schema.proto'], { cwd: '/test/project' });
     });
 
     it('should write temp file and open diff view on success', async () => {
@@ -166,10 +156,7 @@ describe('SchemaDiffManager', () => {
       await diffPromise;
 
       const expectedTmpPath = path.join('/tmp', 'schema.proto.main.proto');
-      expect(mockWriteFile).toHaveBeenCalledWith(
-        expectedTmpPath,
-        oldContent
-      );
+      expect(mockWriteFile).toHaveBeenCalledWith(expectedTmpPath, oldContent);
 
       expect(mockVscode.commands.executeCommand).toHaveBeenCalledWith(
         'vscode.diff',
@@ -194,10 +181,7 @@ describe('SchemaDiffManager', () => {
       await diffPromise;
 
       const expectedTmpPath = path.join('/tmp', 'schema.proto.origin_main.proto');
-      expect(mockWriteFile).toHaveBeenCalledWith(
-        expectedTmpPath,
-        'content'
-      );
+      expect(mockWriteFile).toHaveBeenCalledWith(expectedTmpPath, 'content');
     });
 
     it('should show error when git returns no content', async () => {
@@ -214,9 +198,7 @@ describe('SchemaDiffManager', () => {
       await flushPromisesAndTimers();
       await diffPromise;
 
-      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
-        'Could not find file at HEAD~1'
-      );
+      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith('Could not find file at HEAD~1');
     });
 
     it('should show error when git command fails', async () => {
@@ -256,11 +238,7 @@ describe('SchemaDiffManager', () => {
       await flushPromisesAndTimers();
       await diffPromise;
 
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'git',
-        ['show', 'HEAD:active.proto'],
-        { cwd: '/test/project' }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD:active.proto'], { cwd: '/test/project' });
     });
 
     it('should use file directory when no workspace folder', async () => {
@@ -275,11 +253,7 @@ describe('SchemaDiffManager', () => {
       await flushPromisesAndTimers();
       await diffPromise;
 
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'git',
-        ['show', 'HEAD~1:schema.proto'],
-        { cwd: '/standalone/dir' }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD~1:schema.proto'], { cwd: '/standalone/dir' });
     });
 
     it('should handle nested file paths relative to workspace', async () => {
@@ -296,11 +270,9 @@ describe('SchemaDiffManager', () => {
       await flushPromisesAndTimers();
       await diffPromise;
 
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'git',
-        ['show', 'HEAD~1:protos/api/v1/schema.proto'],
-        { cwd: '/test/project' }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD~1:protos/api/v1/schema.proto'], {
+        cwd: '/test/project',
+      });
     });
 
     it('should handle git command failure with non-zero exit code', async () => {

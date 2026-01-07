@@ -14,12 +14,12 @@ describe('ProtoFormatter', () => {
 
   beforeEach(() => {
     mockClangFormat = {
-      formatRange: jest.fn()
+      formatRange: jest.fn(),
     } as any;
 
     mockBufFormat = {
       format: jest.fn(),
-      setBufPath: jest.fn()
+      setBufPath: jest.fn(),
     } as any;
 
     formatter = new ProtoFormatter(mockClangFormat, mockBufFormat);
@@ -872,9 +872,9 @@ message Test {
       const formatted1 = result1[0].newText;
 
       // All colons in the info block should be aligned
-      const infoLines = formatted1.split('\n').filter(l =>
-        l.includes(':') && !l.includes('option') && !l.includes('{') && !l.includes('}')
-      );
+      const infoLines = formatted1
+        .split('\n')
+        .filter(l => l.includes(':') && !l.includes('option') && !l.includes('{') && !l.includes('}'));
 
       if (infoLines.length > 1) {
         const colonPositions = infoLines.map(l => l.indexOf(':'));
@@ -924,7 +924,8 @@ message Test {
     it('should handle CRLF line endings in proto3 files', async () => {
       formatter.updateSettings({ preset: 'minimal', alignFields: true });
       // CRLF line endings (Windows style)
-      const text = 'syntax="proto3";\r\n\r\npackage test;\r\n\r\nmessage Test {\r\n  string name = 1;\r\n  int32 id = 2;\r\n}\r\n';
+      const text =
+        'syntax="proto3";\r\n\r\npackage test;\r\n\r\nmessage Test {\r\n  string name = 1;\r\n  int32 id = 2;\r\n}\r\n';
 
       const result = await formatter.formatDocument(text);
       expect(result).toHaveLength(1);
@@ -945,7 +946,8 @@ message Test {
     it('should handle CRLF line endings in edition files', async () => {
       formatter.updateSettings({ preset: 'minimal', alignFields: true });
       // CRLF line endings (Windows style)
-      const text = 'edition = "2023";\r\n\r\npackage test;\r\n\r\nmessage Test {\r\n  string name = 1;\r\n  uint32 count = 2;\r\n}\r\n';
+      const text =
+        'edition = "2023";\r\n\r\npackage test;\r\n\r\nmessage Test {\r\n  string name = 1;\r\n  uint32 count = 2;\r\n}\r\n';
 
       const result = await formatter.formatDocument(text);
       expect(result).toHaveLength(1);
@@ -997,9 +999,21 @@ message Test {
     it('should correctly format all builtin types with CRLF', async () => {
       formatter.updateSettings({ preset: 'minimal', alignFields: true });
       const types = [
-        'double', 'float', 'int32', 'int64', 'uint32', 'uint64',
-        'sint32', 'sint64', 'fixed32', 'fixed64', 'sfixed32', 'sfixed64',
-        'bool', 'string', 'bytes'
+        'double',
+        'float',
+        'int32',
+        'int64',
+        'uint32',
+        'uint64',
+        'sint32',
+        'sint64',
+        'fixed32',
+        'fixed64',
+        'sfixed32',
+        'sfixed64',
+        'bool',
+        'string',
+        'bytes',
       ];
 
       const fields = types.map((t, i) => `  ${t} field_${t} = ${i + 1};`).join('\r\n');
@@ -1032,7 +1046,8 @@ message Test {
 
     it('should preserve content correctly when formatting CRLF proto3 file', async () => {
       formatter.updateSettings({ preset: 'minimal', renumberOnFormat: false });
-      const text = 'syntax="proto3";\r\n\r\npackage testpkg;\r\n\r\nmessage TestMessage {\r\n\tstring content = 1;\r\n\tint32 id = 2; // comment\r\n}\r\n';
+      const text =
+        'syntax="proto3";\r\n\r\npackage testpkg;\r\n\r\nmessage TestMessage {\r\n\tstring content = 1;\r\n\tint32 id = 2; // comment\r\n}\r\n';
 
       const result = await formatter.formatDocument(text);
       const formatted = result[0].newText;
@@ -1056,7 +1071,8 @@ message Test {
       formatter.updateSettings({ preset: 'minimal', alignFields: true, renumberOnFormat: false });
 
       // User's exact scenario: CRLF file with tab indent and trailing comment
-      let text = 'syntax = "proto3";\r\n\r\npackage protobuf_vsc_issue_30;\r\n\r\n//\r\nmessage Test {\r\n\tint32 field = 1; //\r\n}\r\n';
+      let text =
+        'syntax = "proto3";\r\n\r\npackage protobuf_vsc_issue_30;\r\n\r\n//\r\nmessage Test {\r\n\tint32 field = 1; //\r\n}\r\n';
 
       // First format
       let result = await formatter.formatDocument(text);

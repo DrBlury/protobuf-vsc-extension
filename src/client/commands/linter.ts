@@ -37,23 +37,14 @@ interface LinterAvailabilityResult {
  * @param client - The language client instance
  * @returns Array of disposables for registered commands
  */
-export function registerLinterCommands(
-  context: vscode.ExtensionContext,
-  client: LanguageClient
-): vscode.Disposable[] {
-  return [
-    registerRunExternalLinterCommand(context, client),
-    registerShowAvailableLintRulesCommand(context, client)
-  ];
+export function registerLinterCommands(context: vscode.ExtensionContext, client: LanguageClient): vscode.Disposable[] {
+  return [registerRunExternalLinterCommand(context, client), registerShowAvailableLintRulesCommand(context, client)];
 }
 
 /**
  * Show error message with optional action buttons
  */
-async function showLinterError(
-  message: string,
-  errorInfo?: LinterResult['errorInfo']
-): Promise<void> {
+async function showLinterError(message: string, errorInfo?: LinterResult['errorInfo']): Promise<void> {
   const actions: string[] = [];
 
   if (errorInfo?.settingKey) {
@@ -61,9 +52,7 @@ async function showLinterError(
   }
   actions.push('Show Output');
 
-  const fullMessage = errorInfo?.suggestion
-    ? `${message}\n\n💡 ${errorInfo.suggestion}`
-    : message;
+  const fullMessage = errorInfo?.suggestion ? `${message}\n\n💡 ${errorInfo.suggestion}` : message;
 
   const selection = await vscode.window.showErrorMessage(fullMessage, ...actions);
 
@@ -116,7 +105,7 @@ function registerRunExternalLinterCommand(
       }
 
       const result = (await client.sendRequest<LinterResult>(REQUEST_METHODS.RUN_EXTERNAL_LINTER, {
-        uri: editor.document.uri.toString()
+        uri: editor.document.uri.toString(),
       })) as LinterResult;
 
       if (result.success) {
@@ -136,7 +125,7 @@ function registerRunExternalLinterCommand(
       await showLinterError(`${ERROR_MESSAGES.LINTER_ERROR}: ${errorMessage}`, {
         message: errorMessage,
         suggestion: 'Make sure the language server is running and the linter is properly configured.',
-        settingKey: 'protobuf.externalLinter'
+        settingKey: 'protobuf.externalLinter',
       });
     }
   });

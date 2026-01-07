@@ -81,7 +81,9 @@ service UserService {
     const lenses = codeLensProvider.getCodeLenses(uri, file);
 
     expect(lenses.length).toBeGreaterThan(0);
-    const serviceLens = lenses.find(l => l.command?.title?.includes('UserService') || l.command?.title?.includes('RPC'));
+    const serviceLens = lenses.find(
+      l => l.command?.title?.includes('UserService') || l.command?.title?.includes('RPC')
+    );
     expect(serviceLens).toBeDefined();
     if (serviceLens) {
       expect(serviceLens.command?.title).toBeDefined();
@@ -117,10 +119,11 @@ message Profile {
 
     // Code lens should be created if there are fields or references
     expect(lenses.length).toBeGreaterThan(0);
-    const userLens = lenses.find(l =>
-      l.command?.title?.includes('User') ||
-      l.command?.title?.includes('reference') ||
-      l.command?.title?.includes('field')
+    const userLens = lenses.find(
+      l =>
+        l.command?.title?.includes('User') ||
+        l.command?.title?.includes('reference') ||
+        l.command?.title?.includes('field')
     );
     // Lens should exist because message has fields
     expect(userLens).toBeDefined();
@@ -326,9 +329,7 @@ message User {
       const lenses = codeLensProvider.getCodeLenses(uri, file);
 
       // Should have lenses for protovalidate fields
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
 
@@ -344,9 +345,7 @@ message User {
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
 
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBe(0);
     });
 
@@ -362,16 +361,14 @@ message User {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLens = lenses.find(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLens = lenses.find(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
 
       expect(protovalidateLens).toBeDefined();
       expect(protovalidateLens?.command?.arguments?.[0]).toEqual(
         expect.objectContaining({
           fieldName: 'name',
           messageName: expect.stringContaining('User'),
-          filePath: uri
+          filePath: uri,
         })
       );
     });
@@ -389,9 +386,7 @@ message Request {
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
 
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
 
@@ -411,9 +406,7 @@ message Outer {
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
 
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
 
@@ -429,9 +422,7 @@ message User {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLens = lenses.find(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLens = lenses.find(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
 
       expect(protovalidateLens?.command?.title).toContain('$(beaker)');
       expect(protovalidateLens?.command?.title).toContain('Protovalidate Playground');
@@ -449,9 +440,7 @@ message Request {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
 
@@ -467,9 +456,7 @@ message Price {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
 
@@ -485,9 +472,7 @@ message Score {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
 
@@ -503,9 +488,7 @@ message Tags {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
 
@@ -522,9 +505,7 @@ message DateRange {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
 
@@ -540,9 +521,7 @@ message Required {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
 
@@ -561,9 +540,7 @@ message Contact {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
 
@@ -577,9 +554,7 @@ message Empty {}`;
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBe(0);
     });
 
@@ -596,9 +571,7 @@ enum Status {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBe(0);
     });
 
@@ -617,9 +590,7 @@ service MyService {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBe(0);
     });
 
@@ -641,9 +612,7 @@ message Level1 {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
 
@@ -659,9 +628,7 @@ message Request {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
 
@@ -677,9 +644,7 @@ message User {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLens = lenses.find(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLens = lenses.find(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
 
       expect(protovalidateLens).toBeDefined();
       const args = protovalidateLens?.command?.arguments?.[0];
@@ -703,9 +668,7 @@ message Config {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
 
@@ -721,9 +684,7 @@ message Document {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
 
@@ -758,9 +719,7 @@ message User {
       analyzer.updateFile(uri, file);
 
       const lenses = codeLensProvider.getCodeLenses(uri, file);
-      const protovalidateLenses = lenses.filter(l =>
-        l.command?.command === 'protobuf.openProtovalidatePlayground'
-      );
+      const protovalidateLenses = lenses.filter(l => l.command?.command === 'protobuf.openProtovalidatePlayground');
       expect(protovalidateLenses.length).toBeGreaterThan(0);
     });
 

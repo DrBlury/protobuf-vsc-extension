@@ -145,7 +145,7 @@ message test_message {
         severity: DiagnosticSeverity.Warning,
         range: Range.create(1, 8, 1, 20),
         message: 'Message name should be PascalCase',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(1, 8, 1, 20);
@@ -167,7 +167,7 @@ enum Status {
         severity: DiagnosticSeverity.Warning,
         range: Range.create(2, 2, 2, 9),
         message: 'Enum value should be SCREAMING_SNAKE_CASE',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(2, 2, 2, 9);
@@ -189,7 +189,7 @@ message Test {
         severity: DiagnosticSeverity.Warning,
         range: Range.create(2, 9, 2, 17),
         message: 'Field name should be snake_case',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(2, 9, 2, 17);
@@ -211,7 +211,7 @@ enum Status {
         severity: DiagnosticSeverity.Warning,
         range: Range.create(2, 2, 2, 16),
         message: 'Should be snake_case',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(2, 2, 2, 16);
@@ -235,7 +235,7 @@ enum Status {
         severity: DiagnosticSeverity.Error,
         range: Range.create(0, 0, 0, 7),
         message: 'Missing syntax or edition declaration',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(0, 0, 0, 7);
@@ -256,7 +256,7 @@ enum Status {
         severity: DiagnosticSeverity.Error,
         range: Range.create(0, 0, 0, 7),
         message: 'Missing syntax or edition declaration',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(0, 0, 0, 7);
@@ -283,7 +283,7 @@ message Response {}`;
         severity: DiagnosticSeverity.Error,
         range: Range.create(2, 2, 2, 33),
         message: 'RPC GetData missing request type',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(2, 2, 2, 33);
@@ -305,7 +305,7 @@ message Request {}`;
         severity: DiagnosticSeverity.Error,
         range: Range.create(2, 2, 2, 33),
         message: 'RPC GetData missing response type',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(2, 2, 2, 33);
@@ -326,7 +326,7 @@ option deprecated = "true";`;
         severity: DiagnosticSeverity.Error,
         range: Range.create(1, 0, 1, 28),
         message: 'Option expects a boolean value',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(1, 0, 1, 28);
@@ -346,7 +346,7 @@ option java_package = 123;`;
         severity: DiagnosticSeverity.Error,
         range: Range.create(1, 0, 1, 26),
         message: 'Option expects a string value',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(1, 0, 1, 26);
@@ -366,7 +366,7 @@ option optimize_for = INVALID;`;
         severity: DiagnosticSeverity.Error,
         range: Range.create(1, 0, 1, 31),
         message: 'Option expects one of: SPEED, CODE_SIZE, LITE_RUNTIME',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(1, 0, 1, 31);
@@ -389,7 +389,7 @@ message Test {}`;
         severity: DiagnosticSeverity.Error,
         range: Range.create(1, 0, 1, 38),
         message: "Import 'buf/validate/validate.proto' cannot be resolved",
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(1, 0, 1, 38);
@@ -410,7 +410,7 @@ message Test {}`;
         severity: DiagnosticSeverity.Error,
         range: Range.create(1, 0, 1, 39),
         message: "Import 'google/api/annotations.proto' cannot be resolved",
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(1, 0, 1, 39);
@@ -430,8 +430,9 @@ message Test {}`;
       const diagnostic: Diagnostic = {
         severity: DiagnosticSeverity.Warning,
         range: Range.create(1, 0, 1, 38),
-        message: "Import 'buf/validate/validate.proto' resolves but 'buf.build/bufbuild/protovalidate' is not in buf.yaml dependencies",
-        source: 'protobuf'
+        message:
+          "Import 'buf/validate/validate.proto' resolves but 'buf.build/bufbuild/protovalidate' is not in buf.yaml dependencies",
+        source: 'protobuf',
       };
 
       const range = Range.create(1, 0, 1, 38);
@@ -454,7 +455,7 @@ message Test {}`;
         severity: DiagnosticSeverity.Warning,
         range: Range.create(1, 0, 1, 22),
         message: 'Unused import "unused.proto"',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(1, 0, 1, 22);
@@ -480,7 +481,7 @@ message Test {
         severity: DiagnosticSeverity.Warning,
         range: Range.create(4, 2, 4, 9),
         message: "Type 'Request' must be fully qualified as '.foo.Request'",
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(4, 2, 4, 9);
@@ -504,7 +505,7 @@ message Test {
         severity: DiagnosticSeverity.Error,
         range: Range.create(2, 2, 2, 11),
         message: "Unknown type 'Timestamp'",
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(2, 2, 2, 11);
@@ -526,7 +527,7 @@ message Test {
         severity: DiagnosticSeverity.Error,
         range: Range.create(2, 2, 2, 10),
         message: "Unknown type 'Duration'",
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(2, 2, 2, 10);
@@ -549,7 +550,7 @@ message Test {}`;
         severity: DiagnosticSeverity.Warning,
         range: Range.create(1, 0, 1, 26),
         message: 'Type should be imported via "correct/path.proto" instead of "wrong/path.proto"',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(1, 0, 1, 26);
@@ -573,7 +574,7 @@ enum Status {
         severity: DiagnosticSeverity.Warning,
         range: Range.create(2, 2, 2, 13),
         message: 'First enum value should be 0',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(2, 2, 2, 13);
@@ -597,13 +598,13 @@ message Test {
         severity: DiagnosticSeverity.Warning,
         range: Range.create(2, 2, 2, 26),
         message: "'required' is deprecated in proto3",
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(2, 2, 2, 26);
       const actions = provider.getCodeActions(uri, range, { diagnostics: [diagnostic] }, text);
-      const requiredActions = actions.filter(a => 
-        a.title?.includes('optional') || a.title?.includes("Remove 'required'")
+      const requiredActions = actions.filter(
+        a => a.title?.includes('optional') || a.title?.includes("Remove 'required'")
       );
       expect(requiredActions.length).toBeGreaterThan(0);
     });
@@ -626,7 +627,7 @@ message Test {
         severity: DiagnosticSeverity.Error,
         range: Range.create(3, 2, 3, 15),
         message: 'Duplicate field number 1',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(3, 2, 3, 15);
@@ -651,7 +652,7 @@ message Test {
         severity: DiagnosticSeverity.Error,
         range: Range.create(3, 2, 3, 18),
         message: 'Field number 5 is reserved',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(3, 2, 3, 18);
@@ -675,13 +676,13 @@ message Test {
         severity: DiagnosticSeverity.Error,
         range: Range.create(2, 2, 2, 27),
         message: "'optional' label is not allowed in editions",
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(2, 2, 2, 27);
       const actions = provider.getCodeActions(uri, range, { diagnostics: [diagnostic] }, text);
-      const editionActions = actions.filter(a => 
-        a.title?.includes('field_presence') || a.title?.includes("Remove 'optional'")
+      const editionActions = actions.filter(
+        a => a.title?.includes('field_presence') || a.title?.includes("Remove 'optional'")
       );
       expect(editionActions.length).toBeGreaterThan(0);
     });
@@ -699,7 +700,7 @@ message Test {
         severity: DiagnosticSeverity.Error,
         range: Range.create(2, 2, 2, 47),
         message: "'optional' label is not allowed in editions",
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(2, 2, 2, 47);
@@ -827,7 +828,7 @@ message Test {
         severity: DiagnosticSeverity.Error,
         range: Range.create(2, 2, 2, 14),
         message: 'Type "OtherMessage" is not imported. Add import "other.proto"',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(2, 2, 2, 14);
@@ -852,7 +853,7 @@ message Test {
         severity: DiagnosticSeverity.Warning,
         range: Range.create(3, 2, 3, 15),
         message: 'Field numbers are not strictly increasing',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(3, 2, 3, 15);
@@ -875,7 +876,7 @@ message Test {
         severity: DiagnosticSeverity.Warning,
         range: Range.create(3, 2, 3, 16),
         message: 'Gap in field numbers detected',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(3, 2, 3, 16);
@@ -899,7 +900,7 @@ message Test {
         severity: DiagnosticSeverity.Error,
         range: Range.create(2, 2, 2, 17),
         message: 'Missing semicolon',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(2, 2, 2, 17);
@@ -940,8 +941,8 @@ message Test {
 
       const range = Range.create(0, 0, 10, 0);
       const actions = provider.getCodeActions(uri, range, { diagnostics: [] }, text);
-      const semicolonSourceActions = actions.filter(a => 
-        a.kind === CodeActionKind.Source && a.title?.includes('semicolon')
+      const semicolonSourceActions = actions.filter(
+        a => a.kind === CodeActionKind.Source && a.title?.includes('semicolon')
       );
       expect(semicolonSourceActions.length).toBe(0);
     });
@@ -981,7 +982,7 @@ message Test {
         severity: DiagnosticSeverity.Error,
         range: Range.create(3, 2, 3, 15),
         message: 'Duplicate field number in oneof',
-        source: 'protobuf'
+        source: 'protobuf',
       };
 
       const range = Range.create(2, 0, 4, 0);

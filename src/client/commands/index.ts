@@ -25,10 +25,7 @@ import { registerDocumentationCommand } from './documentation';
  * @param client - The language client instance
  * @returns Array of disposables for all registered commands, which should be added to context.subscriptions
  */
-export function registerAllCommands(
-  context: vscode.ExtensionContext,
-  client: LanguageClient
-): vscode.Disposable[] {
+export function registerAllCommands(context: vscode.ExtensionContext, client: LanguageClient): vscode.Disposable[] {
   const disposables: vscode.Disposable[] = [];
 
   // Core commands
@@ -48,34 +45,46 @@ export function registerAllCommands(
   disposables.push(registerDocumentationCommand(context, client));
 
   // Migrate to proto3 command
-  disposables.push(vscode.commands.registerCommand('protobuf.migrateToProto3', async () => {
+  disposables.push(
+    vscode.commands.registerCommand('protobuf.migrateToProto3', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
-          return;
+        return;
       }
 
       interface TextEdit {
-          range: { start: { line: number; character: number }; end: { line: number; character: number } };
-          newText: string;
+        range: { start: { line: number; character: number }; end: { line: number; character: number } };
+        newText: string;
       }
-      const edits = await client.sendRequest<TextEdit[]>('protobuf/migrateToProto3', { uri: editor.document.uri.toString() });
+      const edits = await client.sendRequest<TextEdit[]>('protobuf/migrateToProto3', {
+        uri: editor.document.uri.toString(),
+      });
       if (edits && edits.length > 0) {
-          const workspaceEdit = new vscode.WorkspaceEdit();
-          workspaceEdit.set(editor.document.uri, edits.map(e => new vscode.TextEdit(
-              new vscode.Range(e.range.start.line, e.range.start.character, e.range.end.line, e.range.end.character),
-              e.newText
-          )));
-          await vscode.workspace.applyEdit(workspaceEdit);
+        const workspaceEdit = new vscode.WorkspaceEdit();
+        workspaceEdit.set(
+          editor.document.uri,
+          edits.map(
+            e =>
+              new vscode.TextEdit(
+                new vscode.Range(e.range.start.line, e.range.start.character, e.range.end.line, e.range.end.character),
+                e.newText
+              )
+          )
+        );
+        await vscode.workspace.applyEdit(workspaceEdit);
       } else {
-          vscode.window.showInformationMessage('No migration changes needed.');
+        vscode.window.showInformationMessage('No migration changes needed.');
       }
-  }));
+    })
+  );
 
   // Copy to clipboard helper
-  disposables.push(vscode.commands.registerCommand('protobuf.copyToClipboard', async (text: string) => {
+  disposables.push(
+    vscode.commands.registerCommand('protobuf.copyToClipboard', async (text: string) => {
       await vscode.env.clipboard.writeText(text);
       vscode.window.showInformationMessage('Copied to clipboard');
-  }));
+    })
+  );
 
   return disposables;
 }

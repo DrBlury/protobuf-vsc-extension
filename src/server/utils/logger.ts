@@ -13,7 +13,7 @@ export enum LogLevel {
   WARN = 1,
   INFO = 2,
   DEBUG = 3,
-  VERBOSE = 4
+  VERBOSE = 4,
 }
 
 /**
@@ -138,13 +138,16 @@ export class Logger {
    * Log a verbose message with automatic context
    * This is a convenience method for verbose logging that includes common context
    */
-  verboseWithContext(message: string, context: {
-    uri?: string;
-    position?: { line: number; character: number };
-    operation?: string;
-    duration?: number;
-    [key: string]: unknown;
-  }): void {
+  verboseWithContext(
+    message: string,
+    context: {
+      uri?: string;
+      position?: { line: number; character: number };
+      operation?: string;
+      duration?: number;
+      [key: string]: unknown;
+    }
+  ): void {
     if (!this.verboseLogging && this.level < LogLevel.VERBOSE) {
       return;
     }
@@ -189,12 +192,15 @@ export class Logger {
   /**
    * Log a debug message with context (alias for debug with context object)
    */
-  debugWithContext(message: string, context: {
-    uri?: string;
-    position?: { line: number; character: number };
-    operation?: string;
-    error?: Error | unknown;
-  }): void {
+  debugWithContext(
+    message: string,
+    context: {
+      uri?: string;
+      position?: { line: number; character: number };
+      operation?: string;
+      error?: Error | unknown;
+    }
+  ): void {
     const parts: string[] = [message];
 
     if (context.uri) {
@@ -210,9 +216,7 @@ export class Logger {
     }
 
     if (context.error) {
-      const errorMessage = context.error instanceof Error
-        ? context.error.message
-        : String(context.error);
+      const errorMessage = context.error instanceof Error ? context.error.message : String(context.error);
       parts.push(`Error: ${errorMessage}`);
     }
 
@@ -288,24 +292,24 @@ export class Logger {
    */
   private sanitizeErrorMessage(error: unknown): string {
     let message = error instanceof Error ? error.message : String(error);
-    
+
     // Remove internal paths that could expose system information
     message = message.replace(/\/[^\s]+/g, '/[REDACTED_PATH]/');
     message = message.replace(/[A-Za-z]:[/\\][^\\s]*[/\\]/g, '[REDACTED_PATH]');
-    
+
     // Remove potential environment variable exposures
     message = message.replace(/[A-Z_][A-Z_]*[A-Z]*=/g, '[REDACTED_ENV]');
-    
+
     // Remove user home directory paths
     message = message.replace(/\/(home|Users)\/[^/\s]+/g, '/[REDACTED_HOME]/');
-    
+
     // Remove potential internal server details
     message = message.replace(/localhost:\d+/g, 'localhost:[PORT]');
     message = message.replace(/127\.0\.0\.1:\d+/g, '127.0.0.1:[PORT]');
-    
+
     // Remove potentially sensitive file extensions
     message = message.replace(/\.(key|pem|p12|pfx)/g, '.[REDACTED_EXT]');
-    
+
     return message;
   }
 

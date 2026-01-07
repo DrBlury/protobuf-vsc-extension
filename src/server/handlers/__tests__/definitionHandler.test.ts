@@ -22,21 +22,21 @@ describe('DefinitionHandler', () => {
 
   beforeEach(() => {
     documents = {
-      get: jest.fn()
+      get: jest.fn(),
     } as any;
     definitionProvider = {
-      getDefinition: jest.fn()
+      getDefinition: jest.fn(),
     } as any;
     parser = {
-      parse: jest.fn()
+      parse: jest.fn(),
     } as any;
     analyzer = {
       getAllSymbols: jest.fn().mockReturnValue([]),
-      updateFile: jest.fn()
+      updateFile: jest.fn(),
     } as any;
     parsedFileCache = {
       get: jest.fn(),
-      set: jest.fn()
+      set: jest.fn(),
     } as any;
   });
 
@@ -100,7 +100,7 @@ describe('DefinitionHandler', () => {
     it('should return null when document not found', () => {
       const params: DefinitionParams = {
         textDocument: { uri: 'file:///nonexistent.proto' },
-        position: { line: 0, character: 0 }
+        position: { line: 0, character: 0 },
       };
 
       documents.get.mockReturnValue(undefined);
@@ -118,7 +118,7 @@ describe('DefinitionHandler', () => {
 
       const params: DefinitionParams = {
         textDocument: { uri },
-        position: { line: 1, character: 10 }
+        position: { line: 1, character: 10 },
       };
 
       const location = Location.create(uri, { start: { line: 1, character: 0 }, end: { line: 1, character: 13 } });
@@ -126,11 +126,7 @@ describe('DefinitionHandler', () => {
 
       const result = handleDefinition(params, documents, definitionProvider, parser, analyzer, parsedFileCache);
 
-      expect(definitionProvider.getDefinition).toHaveBeenCalledWith(
-        uri,
-        params.position,
-        'message Test {}'
-      );
+      expect(definitionProvider.getDefinition).toHaveBeenCalledWith(uri, params.position, 'message Test {}');
       expect(result).toEqual(location);
     });
 
@@ -142,18 +138,14 @@ describe('DefinitionHandler', () => {
 
       const params: DefinitionParams = {
         textDocument: { uri },
-        position: { line: 10, character: 0 }
+        position: { line: 10, character: 0 },
       };
 
       definitionProvider.getDefinition.mockReturnValue(null);
 
       const result = handleDefinition(params, documents, definitionProvider, parser, analyzer, parsedFileCache);
 
-      expect(definitionProvider.getDefinition).toHaveBeenCalledWith(
-        uri,
-        params.position,
-        ''
-      );
+      expect(definitionProvider.getDefinition).toHaveBeenCalledWith(uri, params.position, '');
       expect(result).toBeNull();
     });
 
@@ -165,12 +157,12 @@ describe('DefinitionHandler', () => {
 
       const params: DefinitionParams = {
         textDocument: { uri },
-        position: { line: 1, character: 10 }
+        position: { line: 1, character: 10 },
       };
 
       const locations = [
         Location.create(uri, { start: { line: 1, character: 0 }, end: { line: 1, character: 13 } }),
-        Location.create(uri, { start: { line: 2, character: 0 }, end: { line: 2, character: 10 } })
+        Location.create(uri, { start: { line: 2, character: 0 }, end: { line: 2, character: 10 } }),
       ];
       definitionProvider.getDefinition.mockReturnValue(locations);
 

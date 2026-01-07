@@ -22,7 +22,7 @@ import type {
   RenameParams,
   PrepareRenameParams,
   CodeActionParams,
-  CodeAction
+  CodeAction,
 } from 'vscode-languageserver/node';
 import {
   createConnection,
@@ -31,7 +31,7 @@ import {
   FoldingRangeKind,
   DidChangeConfigurationNotification,
   DiagnosticSeverity,
-  FileChangeType
+  FileChangeType,
 } from 'vscode-languageserver/node';
 
 import * as fs from 'fs';
@@ -48,22 +48,16 @@ import type {
   OptionStatement,
   ServiceDefinition,
   FieldDefinition,
-  RpcDefinition
+  RpcDefinition,
 } from './core/ast';
 
 // Providers and services are now managed through ProviderRegistry
 
 // Utilities
 import { logger, LogLevel } from './utils/logger';
-import {
-  REQUEST_METHODS,
-  DIAGNOSTIC_SOURCE,
-  ERROR_CODES,
-  TIMING,
-  DEFAULT_POSITIONS
-} from './utils/constants';
+import { REQUEST_METHODS, DIAGNOSTIC_SOURCE, ERROR_CODES, TIMING, DEFAULT_POSITIONS } from './utils/constants';
 import { normalizePath, getErrorMessage } from './utils/utils';
-import type { Settings} from './utils/types';
+import type { Settings } from './utils/types';
 import { defaultSettings } from './utils/types';
 import { scanWorkspaceForProtoFiles, scanImportPaths } from './utils/workspace';
 import { updateProvidersWithSettings } from './utils/configManager';
@@ -86,7 +80,7 @@ import {
   handleRename,
   handleCodeActions,
   handleSemanticTokensFull,
-  handleInlayHints
+  handleInlayHints,
 } from './handlers';
 import { bufConfigProvider } from './services/bufConfig';
 
@@ -130,7 +124,6 @@ if (wellKnownIncludePath) {
   providers.analyzer.setImportPaths([wellKnownIncludePath]);
 }
 
-
 let globalSettings: Settings = defaultSettings;
 let workspaceFolders: string[] = [];
 let protoSrcsDir: string = '';
@@ -148,7 +141,8 @@ function resolveParserPreference(config: Settings['protobuf']): ParserPreference
     return 'tree-sitter';
   }
 
-  const experimental = (config as { experimental?: { parser?: ParserPreference; useTreeSitter?: boolean } }).experimental;
+  const experimental = (config as { experimental?: { parser?: ParserPreference; useTreeSitter?: boolean } })
+    .experimental;
   if (experimental?.parser === 'legacy' || experimental?.parser === 'tree-sitter') {
     return experimental.parser;
   }
@@ -159,8 +153,6 @@ function resolveParserPreference(config: Settings['protobuf']): ParserPreference
 
   return 'tree-sitter';
 }
-
-
 
 connection.onInitialize((params: InitializeParams): InitializeResult => {
   const capabilities = params.capabilities;
@@ -278,7 +270,6 @@ connection.onRequest('protobuf/initTreeSitter', async (params: { wasmPath: strin
   }
 });
 
-
 // Handle file changes from workspace file watcher
 connection.onDidChangeWatchedFiles(async (params: DidChangeWatchedFilesParams) => {
   let needsRevalidation = false;
@@ -289,9 +280,13 @@ connection.onDidChangeWatchedFiles(async (params: DidChangeWatchedFilesParams) =
     const uri = change.uri;
 
     // Check if this is a buf config file change
-    if (uri.endsWith('buf.yaml') || uri.endsWith('buf.yml') ||
-        uri.endsWith('buf.work.yaml') || uri.endsWith('buf.work.yml') ||
-        uri.endsWith('buf.lock')) {
+    if (
+      uri.endsWith('buf.yaml') ||
+      uri.endsWith('buf.yml') ||
+      uri.endsWith('buf.work.yaml') ||
+      uri.endsWith('buf.work.yml') ||
+      uri.endsWith('buf.lock')
+    ) {
       hasBufConfigChange = true;
       needsRevalidation = true;
       logger.verboseWithContext('Buf config file changed', { uri, type: change.type });
@@ -344,7 +339,7 @@ connection.onDidChangeWatchedFiles(async (params: DidChangeWatchedFilesParams) =
           parsedFileCache.delete(uri);
           logger.verboseWithContext('Failed to parse watched file change', {
             uri,
-            error
+            error,
           });
         }
       }
@@ -487,7 +482,7 @@ async function validateDocument(document: TextDocument): Promise<void> {
     logger.verboseWithContext('Document validation complete', {
       uri,
       diagnosticsCount: diagnostics.length,
-      duration
+      duration,
     });
 
     connection.sendDiagnostics({ uri, diagnostics });
@@ -497,21 +492,23 @@ async function validateDocument(document: TextDocument): Promise<void> {
 
     logger.errorWithContext('Document validation failed', {
       uri,
-      error
+      error,
     });
 
     // Only send parse error as diagnostic if built-in diagnostics are enabled
     if (globalSettings.protobuf.diagnostics.useBuiltIn !== false) {
-      const diagnostics: Diagnostic[] = [{
-        severity: DiagnosticSeverity.Error,
-        range: {
-          start: { line: DEFAULT_POSITIONS.ERROR_START_LINE, character: DEFAULT_POSITIONS.ERROR_START_CHAR },
-          end: { line: DEFAULT_POSITIONS.ERROR_START_LINE, character: DEFAULT_POSITIONS.ERROR_END_CHAR }
+      const diagnostics: Diagnostic[] = [
+        {
+          severity: DiagnosticSeverity.Error,
+          range: {
+            start: { line: DEFAULT_POSITIONS.ERROR_START_LINE, character: DEFAULT_POSITIONS.ERROR_START_CHAR },
+            end: { line: DEFAULT_POSITIONS.ERROR_START_LINE, character: DEFAULT_POSITIONS.ERROR_END_CHAR },
+          },
+          message: `Parse error: ${getErrorMessage(error)}`,
+          source: DIAGNOSTIC_SOURCE,
+          code: ERROR_CODES.PARSE_ERROR,
         },
-        message: `Parse error: ${getErrorMessage(error)}`,
-        source: DIAGNOSTIC_SOURCE,
-        code: ERROR_CODES.PARSE_ERROR
-      }];
+      ];
       connection.sendDiagnostics({ uri, diagnostics });
     } else {
       // Clear diagnostics when built-in is disabled
@@ -558,28 +555,28 @@ connection.onWorkspaceSymbol((params: WorkspaceSymbolParams) => {
 });
 
 // Code Lens
-connection.onCodeLens((params) => {
+connection.onCodeLens(params => {
   return handleCodeLens(params, documents, providers.codeLens, providers.parser);
 });
 
 // Document Links
-connection.onDocumentLinks((params) => {
+connection.onDocumentLinks(params => {
   return handleDocumentLinks(params, documents, providers.documentLinks, providers.parser);
 });
 
 // Semantic Tokens
-connection.languages.semanticTokens.on((params) => {
+connection.languages.semanticTokens.on(params => {
   const mode = globalSettings.protobuf?.semanticHighlighting?.enabled ?? 'textmate';
   return handleSemanticTokensFull(
     params,
     providers.semanticTokens,
-    (uri) => documents.get(uri),
+    uri => documents.get(uri),
     mode as 'hybrid' | 'semantic' | 'textmate'
   );
 });
 
 // Inlay Hints
-connection.languages.inlayHint.on((params) => {
+connection.languages.inlayHint.on(params => {
   return handleInlayHints(params, documents, providers.parser);
 });
 
@@ -619,7 +616,7 @@ connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
       ranges.push({
         startLine: startInfo.start,
         endLine: lineIndex,
-        kind: FoldingRangeKind.Comment
+        kind: FoldingRangeKind.Comment,
       });
     }
 
@@ -636,7 +633,7 @@ connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
           ranges.push({
             startLine: startInfo.start,
             endLine: lineIndex,
-            kind: FoldingRangeKind.Region
+            kind: FoldingRangeKind.Region,
           });
         }
       }
@@ -652,13 +649,7 @@ connection.onRequest(REQUEST_METHODS.GET_SCHEMA_GRAPH, (params: SchemaGraphReque
 
   // Refresh analyzer state for current document and its open imports to avoid empty graphs
   if (params.uri) {
-    refreshDocumentAndImports(
-      params.uri,
-      documents,
-      providers.parser,
-      providers.analyzer,
-      parsedFileCache
-    );
+    refreshDocumentAndImports(params.uri, documents, providers.parser, providers.analyzer, parsedFileCache);
   }
 
   const graph = providers.schemaGraph.buildGraph(params);
@@ -669,7 +660,7 @@ connection.onRequest(REQUEST_METHODS.GET_SCHEMA_GRAPH, (params: SchemaGraphReque
     uri: params.uri || '<none>',
     nodeCount: graph.nodes.length,
     edgeCount: graph.edges.length,
-    duration
+    duration,
   });
 
   return graph;
@@ -699,14 +690,17 @@ connection.onRequest(REQUEST_METHODS.RENUMBER_MESSAGE, (params: { uri: string; m
   return providers.renumber.renumberMessage(document.getText(), params.uri, params.messageName);
 });
 
-connection.onRequest(REQUEST_METHODS.RENUMBER_FROM_POSITION, (params: { uri: string; position: { line: number; character: number } }) => {
-  const document = documents.get(params.uri);
-  if (!document) {
-    return [];
-  }
+connection.onRequest(
+  REQUEST_METHODS.RENUMBER_FROM_POSITION,
+  (params: { uri: string; position: { line: number; character: number } }) => {
+    const document = documents.get(params.uri);
+    if (!document) {
+      return [];
+    }
 
-  return providers.renumber.renumberFromField(document.getText(), params.uri, params.position);
-});
+    return providers.renumber.renumberFromField(document.getText(), params.uri, params.position);
+  }
+);
 
 connection.onRequest(REQUEST_METHODS.RENUMBER_ENUM, (params: { uri: string; enumName: string }) => {
   const document = documents.get(params.uri);
@@ -774,47 +768,50 @@ connection.onRequest(REQUEST_METHODS.GET_ENUMS, (params: { uri: string }) => {
   return enums;
 });
 
-connection.onRequest(REQUEST_METHODS.GET_MESSAGE_AT_POSITION, (params: { uri: string; position: { line: number; character: number }; text?: string }) => {
-  const document = documents.get(params.uri);
-  const text = document?.getText() || params.text;
-  if (!text) {
-    return null;
-  }
+connection.onRequest(
+  REQUEST_METHODS.GET_MESSAGE_AT_POSITION,
+  (params: { uri: string; position: { line: number; character: number }; text?: string }) => {
+    const document = documents.get(params.uri);
+    const text = document?.getText() || params.text;
+    if (!text) {
+      return null;
+    }
 
-  const file = providers.parser.parse(text, params.uri);
+    const file = providers.parser.parse(text, params.uri);
 
-  function findMessageAtPosition(msgs: MessageDefinition[], prefix: string = ''): string | null {
-    for (const msg of msgs) {
-      const fullName = prefix ? `${prefix}.${msg.name}` : msg.name;
-      if (isPositionInRange(params.position, msg.range)) {
-        // Check nested messages first
-        if (msg.nestedMessages) {
-          const nested = findMessageAtPosition(msg.nestedMessages, fullName);
-          if (nested) {
-            return nested;
+    function findMessageAtPosition(msgs: MessageDefinition[], prefix: string = ''): string | null {
+      for (const msg of msgs) {
+        const fullName = prefix ? `${prefix}.${msg.name}` : msg.name;
+        if (isPositionInRange(params.position, msg.range)) {
+          // Check nested messages first
+          if (msg.nestedMessages) {
+            const nested = findMessageAtPosition(msg.nestedMessages, fullName);
+            if (nested) {
+              return nested;
+            }
           }
+          return fullName;
         }
-        return fullName;
       }
+      return null;
     }
-    return null;
-  }
 
-  function isPositionInRange(pos: { line: number; character: number }, range: AstRange): boolean {
-    if (pos.line < range.start.line || pos.line > range.end.line) {
-      return false;
+    function isPositionInRange(pos: { line: number; character: number }, range: AstRange): boolean {
+      if (pos.line < range.start.line || pos.line > range.end.line) {
+        return false;
+      }
+      if (pos.line === range.start.line && pos.character < range.start.character) {
+        return false;
+      }
+      if (pos.line === range.end.line && pos.character > range.end.character) {
+        return false;
+      }
+      return true;
     }
-    if (pos.line === range.start.line && pos.character < range.start.character) {
-      return false;
-    }
-    if (pos.line === range.end.line && pos.character > range.end.character) {
-      return false;
-    }
-    return true;
-  }
 
-  return findMessageAtPosition(file.messages);
-});
+    return findMessageAtPosition(file.messages);
+  }
+);
 
 connection.onRequest(REQUEST_METHODS.GET_NEXT_FIELD_NUMBER, (params: { uri: string; messageName: string }) => {
   const document = documents.get(params.uri);
@@ -876,7 +873,7 @@ connection.onRequest(REQUEST_METHODS.RUN_EXTERNAL_LINTER, async (params: { uri: 
     return {
       success: true,
       diagnostics,
-      issueCount: diagnostics.length
+      issueCount: diagnostics.length,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -888,8 +885,8 @@ connection.onRequest(REQUEST_METHODS.RUN_EXTERNAL_LINTER, async (params: { uri: 
       errorInfo: {
         message: errorMessage,
         suggestion: 'Check that your linter (buf or protolint) is installed and configured correctly.',
-        settingKey: 'protobuf.externalLinter.linter'
-      }
+        settingKey: 'protobuf.externalLinter.linter',
+      },
     };
   }
 });
@@ -900,7 +897,7 @@ connection.onRequest(REQUEST_METHODS.RUN_EXTERNAL_LINTER_WORKSPACE, async () => 
     return {
       success: true,
       diagnosticsMap: Object.fromEntries(diagnosticsMap),
-      fileCount: diagnosticsMap.size
+      fileCount: diagnosticsMap.size,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -908,7 +905,7 @@ connection.onRequest(REQUEST_METHODS.RUN_EXTERNAL_LINTER_WORKSPACE, async () => 
       success: false,
       diagnosticsMap: {},
       fileCount: 0,
-      error: errorMessage
+      error: errorMessage,
     };
   }
 });
@@ -917,7 +914,7 @@ connection.onRequest(REQUEST_METHODS.IS_EXTERNAL_LINTER_AVAILABLE, async () => {
   const available = await providers.externalLinter.isAvailable();
   return {
     available,
-    linter: providers.externalLinter['settings']?.linter || 'none'
+    linter: providers.externalLinter['settings']?.linter || 'none',
   };
 });
 
@@ -980,7 +977,7 @@ function collectOptions(file: ProtoFile): CollectedOption[] {
           name: opt.name,
           value: opt.value,
           range: opt.range,
-          parent: parentName
+          parent: parentName,
         });
       }
     }
@@ -1024,19 +1021,19 @@ function collectOptions(file: ProtoFile): CollectedOption[] {
       }
     }
     if (node.fields) {
-        for (const field of node.fields) {
-            // Field options are inside options array in FieldDefinition, but AST defines it as FieldOption[] which has name/value
-            if (field.options) {
-                for (const opt of field.options) {
-                    options.push({
-                        name: opt.name,
-                        value: opt.value,
-                        range: field.range, // Approximate range or we need range on field option
-                        parent: `Field ${prefix}${field.name}`
-                    });
-                }
-            }
+      for (const field of node.fields) {
+        // Field options are inside options array in FieldDefinition, but AST defines it as FieldOption[] which has name/value
+        if (field.options) {
+          for (const opt of field.options) {
+            options.push({
+              name: opt.name,
+              value: opt.value,
+              range: field.range, // Approximate range or we need range on field option
+              parent: `Field ${prefix}${field.name}`,
+            });
+          }
         }
+      }
     }
   }
 
@@ -1070,21 +1067,27 @@ connection.onRequest(REQUEST_METHODS.GET_GRPC_RPCS_USING_TYPE, (params: { typeNa
   return providers.grpc.getRpcsUsingType(params.typeName);
 });
 
-connection.onRequest(REQUEST_METHODS.GENERATE_GRPC_CLIENT_STUB, (params: { serviceName: string; language: 'go' | 'java' | 'python' | 'typescript'; uri?: string }) => {
-  const service = providers.grpc.getService(params.serviceName, params.uri);
-  if (!service) {
-    return { error: `Service ${params.serviceName} not found` };
+connection.onRequest(
+  REQUEST_METHODS.GENERATE_GRPC_CLIENT_STUB,
+  (params: { serviceName: string; language: 'go' | 'java' | 'python' | 'typescript'; uri?: string }) => {
+    const service = providers.grpc.getService(params.serviceName, params.uri);
+    if (!service) {
+      return { error: `Service ${params.serviceName} not found` };
+    }
+    return { code: providers.grpc.generateClientStubPreview(service, params.language) };
   }
-  return { code: providers.grpc.generateClientStubPreview(service, params.language) };
-});
+);
 
-connection.onRequest(REQUEST_METHODS.GENERATE_GRPC_SERVER_TEMPLATE, (params: { serviceName: string; language: 'go' | 'java' | 'python' | 'typescript'; uri?: string }) => {
-  const service = providers.grpc.getService(params.serviceName, params.uri);
-  if (!service) {
-    return { error: `Service ${params.serviceName} not found` };
+connection.onRequest(
+  REQUEST_METHODS.GENERATE_GRPC_SERVER_TEMPLATE,
+  (params: { serviceName: string; language: 'go' | 'java' | 'python' | 'typescript'; uri?: string }) => {
+    const service = providers.grpc.getService(params.serviceName, params.uri);
+    if (!service) {
+      return { error: `Service ${params.serviceName} not found` };
+    }
+    return { code: providers.grpc.generateServerTemplate(service, params.language) };
   }
-  return { code: providers.grpc.generateServerTemplate(service, params.language) };
-});
+);
 
 connection.onRequest(REQUEST_METHODS.GET_GRPC_SERVICE_STATS, (params: { serviceName: string; uri?: string }) => {
   const service = providers.grpc.getService(params.serviceName, params.uri);

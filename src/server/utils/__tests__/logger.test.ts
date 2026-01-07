@@ -16,8 +16,8 @@ describe('Logger', () => {
         error: jest.fn(),
         warn: jest.fn(),
         info: jest.fn(),
-        log: jest.fn()
-      } as any
+        log: jest.fn(),
+      } as any,
     };
   });
 
@@ -432,7 +432,7 @@ describe('Logger', () => {
         warn: jest.spyOn(console, 'warn').mockImplementation(),
         info: jest.spyOn(console, 'info').mockImplementation(),
         debug: jest.spyOn(console, 'debug').mockImplementation(),
-        log: jest.spyOn(console, 'log').mockImplementation()
+        log: jest.spyOn(console, 'log').mockImplementation(),
       };
     });
 
@@ -518,7 +518,7 @@ describe('Logger', () => {
         uri: 'file:///test.proto',
         position: { line: 5, character: 10 },
         operation: 'validation',
-        error: new Error('Test error')
+        error: new Error('Test error'),
       });
       expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('URI:'));
       expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('Position: 5:10'));
@@ -586,7 +586,7 @@ describe('Logger', () => {
         uri: 'file:///debug.proto',
         position: { line: 1, character: 0 },
         operation: 'test',
-        error: new Error('test error')
+        error: new Error('test error'),
       });
       expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('URI:'));
       expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('Position:'));
@@ -613,7 +613,7 @@ describe('Logger', () => {
         position: { line: 10, character: 5 },
         operation: 'completion',
         duration: 150,
-        extra: 'value'
+        extra: 'value',
       });
       expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('[VERBOSE]'));
       expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('URI:'));
@@ -630,14 +630,14 @@ describe('Logger', () => {
 
     it('should serialize object context values', () => {
       logger.verboseWithContext('Object context', {
-        data: { nested: { value: 123 } }
+        data: { nested: { value: 123 } },
       });
       expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('{"nested":{"value":123}}'));
     });
 
     it('should handle array context values', () => {
       logger.verboseWithContext('Array context', {
-        items: [1, 2, 3]
+        items: [1, 2, 3],
       });
       expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('[1,2,3]'));
     });
@@ -645,7 +645,7 @@ describe('Logger', () => {
     it('should handle boolean context values', () => {
       logger.verboseWithContext('Boolean context', {
         enabled: true,
-        disabled: false
+        disabled: false,
       });
       expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('enabled: true'));
       expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('disabled: false'));
@@ -653,14 +653,14 @@ describe('Logger', () => {
 
     it('should handle null context values', () => {
       logger.verboseWithContext('Null context', {
-        value: null
+        value: null,
       });
       expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('value: null'));
     });
 
     it('should handle undefined context values', () => {
       logger.verboseWithContext('Undefined context', {
-        value: undefined
+        value: undefined,
       });
       expect(mockConnection.console?.log).toHaveBeenCalledWith(expect.stringContaining('value: undefined'));
     });

@@ -8,7 +8,7 @@ import {
   TreeSitterProtoParser,
   isTreeSitterInitialized,
   getTreeSitterInitError,
-  TreeSitterInitError
+  TreeSitterInitError,
 } from './treeSitterParser';
 import type { ProtoFile } from './ast';
 import { logger } from '../utils/logger';
@@ -45,7 +45,7 @@ export class ParserFactory {
     treeSitterFailures: 0,
     fallbackUses: 0,
     lastError: null,
-    lastErrorTime: null
+    lastErrorTime: null,
   };
 
   constructor() {
@@ -66,12 +66,12 @@ export class ParserFactory {
         if (initError instanceof TreeSitterInitError) {
           logger.warn(
             `Tree-sitter parser requested but initialization failed (${initError.errorType}): ${initError.message}. ` +
-            'Falling back to custom parser.'
+              'Falling back to custom parser.'
           );
         } else {
           logger.warn(
             `Tree-sitter parser requested but initialization failed: ${initError.message}. ` +
-            'Falling back to custom parser.'
+              'Falling back to custom parser.'
           );
         }
       } else {
@@ -114,7 +114,7 @@ export class ParserFactory {
       treeSitterFailures: 0,
       fallbackUses: 0,
       lastError: null,
-      lastErrorTime: null
+      lastErrorTime: null,
     };
   }
 
@@ -138,20 +138,19 @@ export class ParserFactory {
         // Log detailed error information
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorName = error instanceof Error ? error.name : 'Unknown';
-        const errorStack = error instanceof Error && error.stack
-          ? error.stack.split('\n').slice(0, 3).join(' -> ')
-          : 'No stack trace';
+        const errorStack =
+          error instanceof Error && error.stack ? error.stack.split('\n').slice(0, 3).join(' -> ') : 'No stack trace';
 
         logger.error(
           `Tree-sitter parser failed for ${uri}, falling back to custom parser. ` +
-          `Error: [${errorName}] ${errorMessage}. Stack: ${errorStack}`
+            `Error: [${errorName}] ${errorMessage}. Stack: ${errorStack}`
         );
 
         // Log stats periodically if there are many failures
         if (this.stats.treeSitterFailures % 10 === 0) {
           logger.warn(
             `Tree-sitter parser failure rate: ${this.stats.treeSitterFailures}/${this.stats.treeSitterAttempts} ` +
-            `(${((this.stats.treeSitterFailures / this.stats.treeSitterAttempts) * 100).toFixed(1)}%)`
+              `(${((this.stats.treeSitterFailures / this.stats.treeSitterAttempts) * 100).toFixed(1)}%)`
           );
         }
       }
@@ -163,10 +162,7 @@ export class ParserFactory {
       return this.customParser.parse(text, uri);
     } catch (fallbackError) {
       // If even the fallback parser fails, log and re-throw
-      logger.error(
-        `Both tree-sitter and custom parser failed for ${uri}:`,
-        fallbackError
-      );
+      logger.error(`Both tree-sitter and custom parser failed for ${uri}:`, fallbackError);
       throw fallbackError;
     }
   }

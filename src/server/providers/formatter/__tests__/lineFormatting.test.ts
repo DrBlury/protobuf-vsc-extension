@@ -217,7 +217,7 @@ describe('Line Formatting', () => {
       maxTypeLength: 10,
       maxFieldNameLength: 8,
       maxKeyLength: 5,
-      isOptionBlock: false
+      isOptionBlock: false,
     };
 
     it('should use standard formatting when no alignment data', () => {
@@ -282,7 +282,7 @@ describe('Line Formatting', () => {
       maxTypeLength: 0,
       maxFieldNameLength: 0,
       maxKeyLength: 10,
-      isOptionBlock: true
+      isOptionBlock: true,
     };
 
     it('should add indent for lines without alignment data', () => {

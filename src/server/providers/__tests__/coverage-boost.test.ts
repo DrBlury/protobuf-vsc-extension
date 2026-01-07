@@ -321,7 +321,11 @@ service MyService {
       const ast = parser.parse(content, 'test.proto');
       analyzer.updateFile('test.proto', ast);
 
-      const result = provider.prepareRename('test.proto', { line: 7, character: 6 }, '  rpc GetData(Request) returns (Response);');
+      const result = provider.prepareRename(
+        'test.proto',
+        { line: 7, character: 6 },
+        '  rpc GetData(Request) returns (Response);'
+      );
       expect(result).toBeDefined();
       expect(result?.placeholder).toBe('GetData');
     });
@@ -414,7 +418,12 @@ service MyService {
       const ast = parser.parse(content, 'test.proto');
       analyzer.updateFile('test.proto', ast);
 
-      const result = provider.rename('test.proto', { line: 7, character: 6 }, '  rpc OldName(Request) returns (Response);', 'NewName');
+      const result = provider.rename(
+        'test.proto',
+        { line: 7, character: 6 },
+        '  rpc OldName(Request) returns (Response);',
+        'NewName'
+      );
       expect(result.changes.size).toBeGreaterThan(0);
     });
 
@@ -444,7 +453,12 @@ message Test {
       const ast = parser.parse(content, 'test.proto');
       analyzer.updateFile('test.proto', ast);
 
-      const result = provider.rename('test.proto', { line: 4, character: 22 }, '  map<string, string> old_map = 1;', 'new_map');
+      const result = provider.rename(
+        'test.proto',
+        { line: 4, character: 22 },
+        '  map<string, string> old_map = 1;',
+        'new_map'
+      );
       expect(result.changes.size).toBeGreaterThan(0);
     });
 
@@ -546,7 +560,9 @@ message MyType {
       const edits = result.changes.get('test.proto');
       if (edits) {
         // No duplicate ranges should exist
-        const ranges = edits.map(e => `${e.range.start.line}:${e.range.start.character}-${e.range.end.line}:${e.range.end.character}`);
+        const ranges = edits.map(
+          e => `${e.range.start.line}:${e.range.start.character}-${e.range.end.line}:${e.range.end.character}`
+        );
         const uniqueRanges = [...new Set(ranges)];
         expect(ranges.length).toBe(uniqueRanges.length);
       }
@@ -766,8 +782,9 @@ message Test {
 
     const diagnostics = provider.validate('test.proto', ast);
     // Should have diagnostic for duplicate field number in oneof
-    const hasDuplicateWarning = diagnostics.some((d: { message: string }) =>
-      d.message.toLowerCase().includes('duplicate') || d.message.toLowerCase().includes('field number')
+    const hasDuplicateWarning = diagnostics.some(
+      (d: { message: string }) =>
+        d.message.toLowerCase().includes('duplicate') || d.message.toLowerCase().includes('field number')
     );
     expect(hasDuplicateWarning).toBe(true);
   });

@@ -337,20 +337,16 @@ export function createMockExtensionContext() {
   };
 }
 
-export function createMockTextEditor(options: {
-  languageId?: string;
-  uri?: string;
-  text?: string;
-  line?: number;
-  character?: number;
-} = {}) {
-  const {
-    languageId = 'proto',
-    uri = 'file:///test/test.proto',
-    text = '',
-    line = 0,
-    character = 0,
-  } = options;
+export function createMockTextEditor(
+  options: {
+    languageId?: string;
+    uri?: string;
+    text?: string;
+    line?: number;
+    character?: number;
+  } = {}
+) {
+  const { languageId = 'proto', uri = 'file:///test/test.proto', text = '', line = 0, character = 0 } = options;
 
   return {
     document: {
@@ -392,12 +388,14 @@ export function createMockTextEditor(options: {
       isReversed: false,
       isSingleLine: true,
     },
-    selections: [{
-      active: { line, character },
-      anchor: { line, character },
-      start: { line, character },
-      end: { line, character },
-    }],
+    selections: [
+      {
+        active: { line, character },
+        anchor: { line, character },
+        start: { line, character },
+        end: { line, character },
+      },
+    ],
     visibleRanges: [],
     options: {},
     viewColumn: 1,
@@ -410,12 +408,7 @@ export function createMockTextEditor(options: {
   };
 }
 
-export function createMockChildProcess(
-  stdout: string = '',
-  stderr: string = '',
-  exitCode: number = 0,
-  error?: Error
-) {
+export function createMockChildProcess(stdout: string = '', stderr: string = '', exitCode: number = 0, error?: Error) {
   const stdoutHandlers: Record<string, ((data: Buffer) => void)[]> = {};
   const stderrHandlers: Record<string, ((data: Buffer) => void)[]> = {};
   const procHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};

@@ -7,7 +7,7 @@ import {
   findEnclosingEnumName,
   findEnclosingServiceName,
   getWordAtRange,
-  findEnclosingBlockType
+  findEnclosingBlockType,
 } from '../documentUtils';
 
 describe('documentUtils', () => {

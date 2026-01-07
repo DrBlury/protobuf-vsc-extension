@@ -66,7 +66,7 @@ describe('HashManager', () => {
     manager = new HashManager({
       cacheDir: testCacheDir,
       maxAge: 1000,
-      fetchTimeout: 5000
+      fetchTimeout: 5000,
     });
   });
 
@@ -81,7 +81,7 @@ describe('HashManager', () => {
       const customManager = new HashManager({
         cacheDir: '/custom/cache',
         maxAge: 5000,
-        fetchTimeout: 10000
+        fetchTimeout: 10000,
       });
       expect(customManager).toBeDefined();
     });
@@ -94,8 +94,8 @@ describe('HashManager', () => {
           sha256: 'abc123',
           url: 'https://example.com/protoc.zip',
           lastUpdated: new Date().toISOString(),
-          source: 'official'
-        }
+          source: 'official',
+        },
       };
 
       mockFs.existsSync.mockReturnValue(true);
@@ -133,7 +133,7 @@ describe('HashManager', () => {
           sha256: 'hash1',
           url: 'https://example.com/asset1.zip',
           lastUpdated: new Date().toISOString(),
-          source: 'official'
+          source: 'official',
         },
         'protoc-3.21.0-asset2.zip': {
           version: '3.21.0',
@@ -141,7 +141,7 @@ describe('HashManager', () => {
           sha256: 'hash2',
           url: 'https://example.com/asset2.zip',
           lastUpdated: new Date().toISOString(),
-          source: 'calculated'
+          source: 'calculated',
         },
         'buf-1.0.0-asset3.zip': {
           version: '1.0.0',
@@ -149,8 +149,8 @@ describe('HashManager', () => {
           sha256: 'hash3',
           url: 'https://example.com/asset3.zip',
           lastUpdated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days old
-          source: 'official'
-        }
+          source: 'official',
+        },
       };
 
       mockFs.existsSync.mockReturnValue(true);
@@ -158,7 +158,7 @@ describe('HashManager', () => {
 
       const managerWithData = new HashManager({
         cacheDir: testCacheDir,
-        maxAge: 24 * 60 * 60 * 1000 // 1 day
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
       });
 
       const stats = managerWithData.getCacheStats();
@@ -180,8 +180,8 @@ describe('HashManager', () => {
           sha256: 'abc123',
           url: 'https://example.com/protoc.zip',
           lastUpdated: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days ago
-          source: 'official'
-        }
+          source: 'official',
+        },
       };
 
       mockFs.existsSync.mockReturnValue(true);
@@ -189,7 +189,7 @@ describe('HashManager', () => {
 
       const managerWithExpired = new HashManager({
         cacheDir: testCacheDir,
-        maxAge: 1000 // 1 second
+        maxAge: 1000, // 1 second
       });
 
       managerWithExpired.clearExpiredCache();
@@ -231,11 +231,11 @@ describe('HashManager', () => {
         sha256: 'abc123',
         url: 'https://example.com',
         lastUpdated: new Date(),
-        source: 'official'
+        source: 'official',
       };
 
       const cachedData = {
-        'protoc-3.21.0-protoc.zip': recentEntry
+        'protoc-3.21.0-protoc.zip': recentEntry,
       };
 
       mockFs.existsSync.mockReturnValue(true);
@@ -243,7 +243,7 @@ describe('HashManager', () => {
 
       const managerWithRecent = new HashManager({
         cacheDir: testCacheDir,
-        maxAge: 10000000 // Very long time
+        maxAge: 10000000, // Very long time
       });
 
       const stats = managerWithRecent.getCacheStats();
@@ -267,8 +267,8 @@ describe('HashManager', () => {
           sha256: 'abc123def456',
           url: 'https://github.com/protocolbuffers/protobuf/releases/download/v3.21.0/protoc.zip',
           lastUpdated: new Date().toISOString(),
-          source: 'official'
-        }
+          source: 'official',
+        },
       };
 
       mockFs.existsSync.mockReturnValue(true);
@@ -276,7 +276,7 @@ describe('HashManager', () => {
 
       const managerWithCache = new HashManager({
         cacheDir: testCacheDir,
-        maxAge: 10000000
+        maxAge: 10000000,
       });
 
       const result = await managerWithCache.getHash('protoc', '3.21.0', 'protoc.zip');
@@ -333,8 +333,8 @@ describe('HashManager', () => {
           sha256: 'abc123',
           url: 'https://example.com/protoc.zip',
           lastUpdated: new Date(Date.now() - 2000).toISOString(), // 2 seconds ago
-          source: 'official'
-        }
+          source: 'official',
+        },
       };
 
       mockFs.existsSync.mockReturnValue(true);
@@ -345,7 +345,7 @@ describe('HashManager', () => {
       const managerWithExpired = new HashManager({
         cacheDir: testCacheDir,
         maxAge: 1000, // 1 second, so entry is expired
-        fetchTimeout: 100
+        fetchTimeout: 100,
       });
 
       const result = await managerWithExpired.getHash('protoc', '3.21.0', 'protoc.zip');
@@ -369,8 +369,8 @@ describe('HashManager', () => {
           sha256: 'abc123',
           url: 'https://example.com/protoc.zip',
           lastUpdated: new Date(Date.now() - 100000).toISOString(), // Very old
-          source: 'official'
-        }
+          source: 'official',
+        },
       };
 
       mockFs.existsSync.mockReturnValue(true);
@@ -381,7 +381,7 @@ describe('HashManager', () => {
       const managerWithExpired = new HashManager({
         cacheDir: testCacheDir,
         maxAge: 1000, // 1 second
-        fetchTimeout: 100
+        fetchTimeout: 100,
       });
 
       const result = await managerWithExpired.getHash('protoc', '3.21.0', 'protoc.zip');
@@ -404,8 +404,8 @@ describe('HashManager', () => {
           sha256: 'hash1',
           url: 'https://example.com/official.zip',
           lastUpdated: new Date().toISOString(),
-          source: 'cached'
-        }
+          source: 'cached',
+        },
       };
 
       mockFs.existsSync.mockReturnValue(true);
@@ -413,7 +413,7 @@ describe('HashManager', () => {
 
       const managerWithData = new HashManager({
         cacheDir: testCacheDir,
-        maxAge: 24 * 60 * 60 * 1000
+        maxAge: 24 * 60 * 60 * 1000,
       });
 
       const stats = managerWithData.getCacheStats();
@@ -660,7 +660,7 @@ describe('HashManager', () => {
       const _testManager = new HashManager({
         cacheDir: testCacheDir,
         maxAge: 1000,
-        fetchTimeout: 5000
+        fetchTimeout: 5000,
       });
 
       const mockRequest = createMockRequest();
@@ -683,7 +683,7 @@ describe('HashManager', () => {
 
       const testManager = new HashManager({
         cacheDir: testCacheDir,
-        maxAge: 1000
+        maxAge: 1000,
       });
 
       // Call saveCache via clearExpiredCache which triggers save

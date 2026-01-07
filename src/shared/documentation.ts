@@ -6,7 +6,15 @@ export interface DocumentationRequest {
   uri: string;
 }
 
-export type DocumentationElementKind = 'message' | 'enum' | 'service' | 'rpc' | 'field' | 'enumValue' | 'oneof' | 'file';
+export type DocumentationElementKind =
+  | 'message'
+  | 'enum'
+  | 'service'
+  | 'rpc'
+  | 'field'
+  | 'enumValue'
+  | 'oneof'
+  | 'file';
 
 export interface DocumentationField {
   name: string;

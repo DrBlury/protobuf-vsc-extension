@@ -30,31 +30,34 @@ const mockOutputChannel = {
 
 const mockConfiguration = new Map<string, unknown>();
 
-jest.mock('vscode', () => {
-   
-  const pathModule = require('path');
-  const testWorkspace = pathModule.join(pathModule.sep, 'test', 'workspace');
-  return {
-    window: {
-      showInformationMessage: jest.fn(),
-      showQuickPick: jest.fn(),
-    },
-    workspace: {
-      getConfiguration: jest.fn((section: string) => ({
-        get: jest.fn((key: string, defaultValue?: unknown) => {
-          const fullKey = section ? `${section}.${key}` : key;
-          return mockConfiguration.get(fullKey) ?? defaultValue;
-        }),
-        update: jest.fn(),
-      })),
-      workspaceFolders: [{ uri: { fsPath: testWorkspace } }],
-    },
-    ConfigurationTarget: {
-      Global: 1,
-      Workspace: 2,
-    },
-  };
-}, { virtual: true });
+jest.mock(
+  'vscode',
+  () => {
+    const pathModule = require('path');
+    const testWorkspace = pathModule.join(pathModule.sep, 'test', 'workspace');
+    return {
+      window: {
+        showInformationMessage: jest.fn(),
+        showQuickPick: jest.fn(),
+      },
+      workspace: {
+        getConfiguration: jest.fn((section: string) => ({
+          get: jest.fn((key: string, defaultValue?: unknown) => {
+            const fullKey = section ? `${section}.${key}` : key;
+            return mockConfiguration.get(fullKey) ?? defaultValue;
+          }),
+          update: jest.fn(),
+        })),
+        workspaceFolders: [{ uri: { fsPath: testWorkspace } }],
+      },
+      ConfigurationTarget: {
+        Global: 1,
+        Workspace: 2,
+      },
+    };
+  },
+  { virtual: true }
+);
 
 // Mock fsUtils for async fileExists function
 const mockFileExists = jest.fn();
@@ -73,7 +76,6 @@ jest.mock('fs', () => ({
 
 // Mock os to return consistent platform for tests
 jest.mock('os', () => {
-   
   const pathModule = require('path');
   const testUserHome = pathModule.join(pathModule.sep, 'Users', 'testuser');
   return {
@@ -342,12 +344,7 @@ describe('AutoDetector', () => {
 /**
  * Helper to create a mock child process
  */
-function createMockProcess(
-  stdout: string,
-  stderr: string,
-  exitCode: number,
-  error?: Error
-) {
+function createMockProcess(stdout: string, stderr: string, exitCode: number, error?: Error) {
   const stdoutHandlers: Record<string, ((data: Buffer) => void)[]> = {};
   const stderrHandlers: Record<string, ((data: Buffer) => void)[]> = {};
   const procHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};

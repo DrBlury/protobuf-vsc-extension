@@ -3,9 +3,7 @@
  * Makes import paths clickable
  */
 
-import type {
-  DocumentLink
-} from 'vscode-languageserver/node';
+import type { DocumentLink } from 'vscode-languageserver/node';
 import type { ProtoFile } from '../core/ast';
 import type { SemanticAnalyzer } from '../core/analyzer';
 import * as path from 'path';
@@ -28,10 +26,10 @@ export class DocumentLinksProvider {
         links.push({
           range: {
             start: { line: imp.range.start.line, character: imp.range.start.character },
-            end: { line: imp.range.end.line, character: imp.range.end.character }
+            end: { line: imp.range.end.line, character: imp.range.end.character },
           },
           target: resolvedUri,
-          tooltip: `Open ${imp.path}`
+          tooltip: `Open ${imp.path}`,
         });
       } else {
         // Still create a link even if unresolved, might help with navigation
@@ -40,10 +38,10 @@ export class DocumentLinksProvider {
           links.push({
             range: {
               start: { line: imp.range.start.line, character: imp.range.start.character },
-              end: { line: imp.range.end.line, character: imp.range.end.character }
+              end: { line: imp.range.end.line, character: imp.range.end.character },
             },
             target: possiblePath,
-            tooltip: `Try to open ${imp.path} (unresolved)`
+            tooltip: `Try to open ${imp.path} (unresolved)`,
           });
         }
       }

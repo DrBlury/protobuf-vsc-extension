@@ -25,7 +25,7 @@ import type {
   ReservedRange,
   Range,
   FieldOption,
-  ProtoNode
+  ProtoNode,
 } from '../core/ast';
 
 import { logger } from '../utils/logger';
@@ -118,8 +118,8 @@ export class ProtoParser {
       syntaxErrors: [],
       range: {
         start: { line: 0, character: 0 },
-        end: { line: this.lines.length - 1, character: this.lines[this.lines.length - 1]?.length || 0 }
-      }
+        end: { line: this.lines.length - 1, character: this.lines[this.lines.length - 1]?.length || 0 },
+      },
     };
 
     while (!this.isAtEnd()) {
@@ -128,15 +128,15 @@ export class ProtoParser {
       } catch (error) {
         const errorToken = this.tokens[this.pos > 0 ? this.pos - 1 : 0];
         if (error instanceof Error && errorToken) {
-            if (!file.syntaxErrors) {
-                file.syntaxErrors = [];
-            }
-            file.syntaxErrors.push({
-                range: errorToken.range,
-                message: error.message,
-            });
+          if (!file.syntaxErrors) {
+            file.syntaxErrors = [];
+          }
+          file.syntaxErrors.push({
+            range: errorToken.range,
+            message: error.message,
+          });
         }
-        
+
         // Log parse error for debugging
         if (error instanceof Error) {
           logger.error(`Parse error at position ${this.pos}: ${error.message}`);
@@ -225,11 +225,12 @@ export class ProtoParser {
           i++;
         }
 
-        const commentContent = text.slice(start, i)
-            .split('\n')
-            .map(l => l.replace(/^\s*\*\s?/, '').trim())
-            .join('\n')
-            .trim();
+        const commentContent = text
+          .slice(start, i)
+          .split('\n')
+          .map(l => l.replace(/^\s*\*\s?/, '').trim())
+          .join('\n')
+          .trim();
 
         // Check if this is a trailing comment (same logic as single-line)
         if (lastTokenOnLine >= 0 && lastTokenLine === startLine && tokens[lastTokenOnLine]) {
@@ -281,7 +282,7 @@ export class ProtoParser {
           type: 'string',
           value: text.slice(start, i),
           range: { start: { line: startLine, character: startChar }, end: { line, character } },
-          comment
+          comment,
         });
         lastTokenOnLine = tokens.length - 1;
         lastTokenLine = line;
@@ -290,9 +291,11 @@ export class ProtoParser {
 
       // Number (including + or - prefix per spec, and floats starting with .)
       // Per protobuf spec: floatLit can be "." decimals [exponent] e.g., .5, .123e10
-      if (/[0-9]/.test(text[i]!) ||
-          ((text[i]! === '-' || text[i]! === '+') && /[0-9.]/.test(text[i + 1]!)) ||
-          (text[i]! === '.' && /[0-9]/.test(text[i + 1]!))) {
+      if (
+        /[0-9]/.test(text[i]!) ||
+        ((text[i]! === '-' || text[i]! === '+') && /[0-9.]/.test(text[i + 1]!)) ||
+        (text[i]! === '.' && /[0-9]/.test(text[i + 1]!))
+      ) {
         const start = i;
         if (text[i] === '-' || text[i] === '+') {
           i++;
@@ -329,7 +332,7 @@ export class ProtoParser {
           type: 'number',
           value: text.slice(start, i),
           range: { start: { line: startLine, character: startChar }, end: { line, character } },
-          comment
+          comment,
         });
         lastTokenOnLine = tokens.length - 1;
         lastTokenLine = line;
@@ -348,7 +351,7 @@ export class ProtoParser {
           type: 'identifier',
           value,
           range: { start: { line: startLine, character: startChar }, end: { line, character } },
-          comment
+          comment,
         });
         lastTokenOnLine = tokens.length - 1;
         lastTokenLine = line;
@@ -362,7 +365,7 @@ export class ProtoParser {
           type: 'punctuation',
           value: text[i]!,
           range: { start: { line: startLine, character: startChar }, end: { line, character: character + 1 } },
-          comment // Attaching comment to punctuation is rare but possible if it's the only thing left
+          comment, // Attaching comment to punctuation is rare but possible if it's the only thing left
         });
         lastTokenOnLine = tokens.length - 1;
         lastTokenLine = line;
@@ -439,7 +442,7 @@ export class ProtoParser {
 
     return {
       value,
-      range: { start: startRange.start, end: endRange.end }
+      range: { start: startRange.start, end: endRange.end },
     };
   }
 
@@ -458,17 +461,17 @@ export class ProtoParser {
   }
 
   private attachComment(node: ProtoNode, token: Token) {
-      if (token.comment) {
-          node.comments = token.comment;
-          // Clear lastComment since we've attached a comment to this node
-          // This prevents the comment from being incorrectly attached to subsequent nodes
-          this.lastComment = undefined;
-      } else if (this.lastComment) {
-          // If current token doesn't have comment, but previous one did (and we consumed it),
-          // use that one. This is a heuristic.
-          node.comments = this.lastComment;
-          this.lastComment = undefined; // Consumed
-      }
+    if (token.comment) {
+      node.comments = token.comment;
+      // Clear lastComment since we've attached a comment to this node
+      // This prevents the comment from being incorrectly attached to subsequent nodes
+      this.lastComment = undefined;
+    } else if (this.lastComment) {
+      // If current token doesn't have comment, but previous one did (and we consumed it),
+      // use that one. This is a heuristic.
+      node.comments = this.lastComment;
+      this.lastComment = undefined; // Consumed
+    }
   }
 
   private parseTopLevel(file: ProtoFile): void {
@@ -520,7 +523,7 @@ export class ProtoParser {
     const node: SyntaxStatement = {
       type: 'syntax',
       version,
-      range: { start: startToken.range.start, end: versionToken.range.end }
+      range: { start: startToken.range.start, end: versionToken.range.end },
     };
     this.attachComment(node, startToken);
     return node;
@@ -535,7 +538,7 @@ export class ProtoParser {
     const node: EditionStatement = {
       type: 'edition',
       edition: editionToken.value.slice(1, -1),
-      range: { start: startToken.range.start, end: editionToken.range.end }
+      range: { start: startToken.range.start, end: editionToken.range.end },
     };
     this.attachComment(node, startToken);
     return node;
@@ -549,7 +552,7 @@ export class ProtoParser {
     const node: PackageStatement = {
       type: 'package',
       name: nameInfo.value,
-      range: { start: startToken.range.start, end: nameInfo.range.end }
+      range: { start: startToken.range.start, end: nameInfo.range.end },
     };
     this.attachComment(node, startToken);
     return node;
@@ -570,7 +573,7 @@ export class ProtoParser {
       type: 'import',
       path: pathToken.value.slice(1, -1),
       modifier,
-      range: { start: startToken.range.start, end: pathToken.range.end }
+      range: { start: startToken.range.start, end: pathToken.range.end },
     };
     this.attachComment(node, startToken);
     return node;
@@ -642,7 +645,7 @@ export class ProtoParser {
       type: 'option',
       name,
       value,
-      range: { start: startToken.range.start, end: endRange.end }
+      range: { start: startToken.range.start, end: endRange.end },
     };
     this.attachComment(node, startToken);
     return node;
@@ -660,14 +663,17 @@ export class ProtoParser {
 
     while (!this.isAtEnd() && braceDepth > 0) {
       const token = this.advance();
-      if (!token) { break; }
+      if (!token) {
+        break;
+      }
 
       if (token.type === 'punctuation' && token.value === '{') {
         braceDepth++;
         parts.push(token.value);
       } else if (token.type === 'punctuation' && token.value === '}') {
         braceDepth--;
-        if (braceDepth >= 0) {  // Include closing brace
+        if (braceDepth >= 0) {
+          // Include closing brace
           parts.push(token.value);
         }
       } else if (token.type === 'string') {
@@ -707,7 +713,7 @@ export class ProtoParser {
       extensions: [],
       maps: [],
       groups: [],
-      range: { start: startToken.range.start, end: startToken.range.end }
+      range: { start: startToken.range.start, end: startToken.range.end },
     };
     this.attachComment(message, startToken);
 
@@ -780,17 +786,21 @@ export class ProtoParser {
     // Capture the first token for comment attachment
     let firstToken = this.peek();
 
-    if (this.match('identifier', 'optional') || this.match('identifier', 'required') || this.match('identifier', 'repeated')) {
+    if (
+      this.match('identifier', 'optional') ||
+      this.match('identifier', 'required') ||
+      this.match('identifier', 'repeated')
+    ) {
       const token = this.advance()!;
       modifier = token.value as 'optional' | 'required' | 'repeated';
       if (!firstToken) {
-          firstToken = token;
+        firstToken = token;
       }
     }
 
     const typeInfo = this.parseQualifiedIdentifier();
     if (!firstToken) {
-        firstToken = this.peek();
+      firstToken = this.peek();
     }
 
     const nameToken = this.expect('identifier');
@@ -809,10 +819,10 @@ export class ProtoParser {
       nameRange: nameToken.range,
       number: parseIntegerLiteral(numberToken.value),
       options,
-      range: { start: typeInfo.range.start, end: numberToken.range.end }
+      range: { start: typeInfo.range.start, end: numberToken.range.end },
     };
     if (firstToken) {
-        this.attachComment(node, firstToken);
+      this.attachComment(node, firstToken);
     }
     // Also check for trailing comment on the semicolon
     if (semicolon.trailingComment && !node.comments) {
@@ -943,7 +953,7 @@ export class ProtoParser {
       name: nameToken.value,
       nameRange: nameToken.range,
       number: parseIntegerLiteral(numberToken.value),
-      range: { start: startToken.range.start, end: numberToken.range.end }
+      range: { start: startToken.range.start, end: numberToken.range.end },
     };
     this.attachComment(node, startToken);
     // Also check for trailing comment on the semicolon
@@ -965,7 +975,7 @@ export class ProtoParser {
       name: nameToken.value,
       nameRange: nameToken.range,
       fields: [],
-      range: { start: startToken.range.start, end: startToken.range.end }
+      range: { start: startToken.range.start, end: startToken.range.end },
     };
     this.attachComment(oneof, startToken);
 
@@ -1003,7 +1013,7 @@ export class ProtoParser {
       values: [],
       options: [],
       reserved: [],
-      range: { start: startToken.range.start, end: startToken.range.end }
+      range: { start: startToken.range.start, end: startToken.range.end },
     };
     this.attachComment(enumDef, startToken);
 
@@ -1043,7 +1053,7 @@ export class ProtoParser {
       nameRange: nameToken.range,
       number: parseIntegerLiteral(numberToken.value),
       options,
-      range: { start: nameToken.range.start, end: numberToken.range.end }
+      range: { start: nameToken.range.start, end: numberToken.range.end },
     };
     this.attachComment(node, nameToken);
     // Also check for trailing comment on the semicolon
@@ -1066,7 +1076,7 @@ export class ProtoParser {
       nameRange: nameToken.range,
       rpcs: [],
       options: [],
-      range: { start: startToken.range.start, end: startToken.range.end }
+      range: { start: startToken.range.start, end: startToken.range.end },
     };
     this.attachComment(service, startToken);
 
@@ -1134,7 +1144,7 @@ export class ProtoParser {
       outputTypeRange: outputTypeInfo.range,
       outputStream,
       options: [],
-      range: { start: startToken.range.start, end: outputTypeInfo.range.end }
+      range: { start: startToken.range.start, end: outputTypeInfo.range.end },
     };
     this.attachComment(rpc, startToken);
 
@@ -1184,7 +1194,7 @@ export class ProtoParser {
       // Legacy field names for backward compatibility
       messageName: messageNameInfo.value,
       messageNameRange: messageNameInfo.range,
-      range: { start: startToken.range.start, end: startToken.range.end }
+      range: { start: startToken.range.start, end: startToken.range.end },
     };
     this.attachComment(extend, startToken);
 
@@ -1248,7 +1258,7 @@ export class ProtoParser {
       type: 'reserved',
       ranges,
       names,
-      range: { start: startToken.range.start, end: endToken.range.end }
+      range: { start: startToken.range.start, end: endToken.range.end },
     };
     this.attachComment(node, startToken);
     return node;
@@ -1289,7 +1299,7 @@ export class ProtoParser {
     const node: ExtensionsStatement = {
       type: 'extensions',
       ranges,
-      range: { start: startToken.range.start, end: endToken.range.end }
+      range: { start: startToken.range.start, end: endToken.range.end },
     };
     this.attachComment(node, startToken);
     return node;
@@ -1317,7 +1327,7 @@ export class ProtoParser {
       extensions: [],
       maps: [],
       groups: [],
-      range: { start: startToken.range.start, end: startToken.range.end }
+      range: { start: startToken.range.start, end: startToken.range.end },
     };
     this.attachComment(group, startToken);
 

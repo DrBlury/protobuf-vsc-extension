@@ -22,8 +22,12 @@ const mockVscode = {
     workspaceFolders: undefined as { uri: { fsPath: string } }[] | undefined,
     getConfiguration: jest.fn(() => ({
       get: jest.fn((key: string) => {
-        if (key === 'buf.path') {return 'buf';}
-        if (key === 'externalLinter.bufPath') {return undefined;}
+        if (key === 'buf.path') {
+          return 'buf';
+        }
+        if (key === 'externalLinter.bufPath') {
+          return undefined;
+        }
         return undefined;
       }),
     })),
@@ -77,9 +81,7 @@ describe('RegistryManager', () => {
     mockWriteFile.mockReset();
     mockSpawn.mockClear();
 
-    mockVscode.workspace.workspaceFolders = [
-      { uri: { fsPath: '/test/workspace' } }
-    ];
+    mockVscode.workspace.workspaceFolders = [{ uri: { fsPath: '/test/workspace' } }];
     mockFileExists.mockResolvedValue(true);
     mockReadFile.mockResolvedValue('version: v1\nname: test\n\ndeps:\n  - existing-module');
     mockWriteFile.mockResolvedValue(undefined);
@@ -87,8 +89,12 @@ describe('RegistryManager', () => {
     mockVscode.window.showInformationMessage.mockResolvedValue(undefined);
     (mockVscode.workspace.getConfiguration as jest.Mock).mockReturnValue({
       get: jest.fn((key: string) => {
-        if (key === 'buf.path') {return 'buf';}
-        if (key === 'externalLinter.bufPath') {return undefined;}
+        if (key === 'buf.path') {
+          return 'buf';
+        }
+        if (key === 'externalLinter.bufPath') {
+          return undefined;
+        }
         return undefined;
       }),
     });
@@ -121,7 +127,7 @@ describe('RegistryManager', () => {
 
       expect(mockVscode.window.showInputBox).toHaveBeenCalledWith({
         prompt: 'Enter Buf module name (e.g., buf.build/acme/weather)',
-        placeHolder: 'buf.build/owner/repository'
+        placeHolder: 'buf.build/owner/repository',
       });
       expect(mockFileExists).not.toHaveBeenCalled();
     });
@@ -157,11 +163,7 @@ describe('RegistryManager', () => {
 
       await registryManager.addDependency();
 
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'buf',
-        ['mod', 'init'],
-        { cwd: '/test/workspace' }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('buf', ['mod', 'init'], { cwd: '/test/workspace' });
     });
 
     it('should return early when user declines to create buf.yaml', async () => {
@@ -233,11 +235,7 @@ describe('RegistryManager', () => {
 
       await registryManager.addDependency();
 
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'buf',
-        ['dep', 'update'],
-        { cwd: '/test/workspace' }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('buf', ['dep', 'update'], { cwd: '/test/workspace' });
     });
 
     it('should show success message after adding dependency', async () => {
@@ -247,9 +245,7 @@ describe('RegistryManager', () => {
 
       await registryManager.addDependency();
 
-      expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(
-        'Added dependency buf.build/new/module'
-      );
+      expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith('Added dependency buf.build/new/module');
     });
 
     it('should log to output channel', async () => {
@@ -259,9 +255,7 @@ describe('RegistryManager', () => {
 
       await registryManager.addDependency();
 
-      expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
-        'Added buf.build/new/module to buf.yaml'
-      );
+      expect(mockOutputChannel.appendLine).toHaveBeenCalledWith('Added buf.build/new/module to buf.yaml');
     });
 
     it('should show error message when file operation fails', async () => {
@@ -320,18 +314,16 @@ describe('RegistryManager', () => {
       mockReadFile.mockResolvedValue('version: v1\nname: test\n');
       (mockVscode.workspace.getConfiguration as jest.Mock).mockReturnValue({
         get: jest.fn((key: string) => {
-          if (key === 'buf.path') {return '/custom/path/buf';}
+          if (key === 'buf.path') {
+            return '/custom/path/buf';
+          }
           return undefined;
         }),
       });
 
       await registryManager.addDependency();
 
-      expect(mockSpawn).toHaveBeenCalledWith(
-        '/custom/path/buf',
-        expect.any(Array),
-        expect.any(Object)
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('/custom/path/buf', expect.any(Array), expect.any(Object));
     });
 
     it('should fallback to externalLinter.bufPath if buf.path is not set', async () => {
@@ -340,19 +332,19 @@ describe('RegistryManager', () => {
       mockReadFile.mockResolvedValue('version: v1\nname: test\n');
       (mockVscode.workspace.getConfiguration as jest.Mock).mockReturnValue({
         get: jest.fn((key: string) => {
-          if (key === 'buf.path') {return undefined;}
-          if (key === 'externalLinter.bufPath') {return '/fallback/buf';}
+          if (key === 'buf.path') {
+            return undefined;
+          }
+          if (key === 'externalLinter.bufPath') {
+            return '/fallback/buf';
+          }
           return undefined;
         }),
       });
 
       await registryManager.addDependency();
 
-      expect(mockSpawn).toHaveBeenCalledWith(
-        '/fallback/buf',
-        expect.any(Array),
-        expect.any(Object)
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('/fallback/buf', expect.any(Array), expect.any(Object));
     });
   });
 

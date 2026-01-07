@@ -53,7 +53,7 @@ describe('ClangFormatProvider', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -70,7 +70,7 @@ describe('ClangFormatProvider', () => {
             setTimeout(() => callback(), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -89,14 +89,14 @@ describe('ClangFormatProvider', () => {
               setTimeout(() => callback(Buffer.from('clang-format version 14.0.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -113,14 +113,14 @@ describe('ClangFormatProvider', () => {
               setTimeout(() => callback(Buffer.from('clang-format 14.0.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -137,7 +137,7 @@ describe('ClangFormatProvider', () => {
             setTimeout(() => callback(), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -188,7 +188,7 @@ describe('ClangFormatProvider', () => {
               setTimeout(() => callback(Buffer.from('formatted')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stdin: { write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -196,7 +196,7 @@ describe('ClangFormatProvider', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -215,7 +215,7 @@ describe('ClangFormatProvider', () => {
               setTimeout(() => callback(Buffer.from(text)), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stdin: { write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -223,7 +223,7 @@ describe('ClangFormatProvider', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -255,7 +255,7 @@ describe('ClangFormatProvider', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       };
 
       let capturedArgs: string[] = [];
@@ -292,7 +292,7 @@ describe('ClangFormatProvider', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       };
 
       let capturedArgs: string[] = [];
@@ -325,7 +325,7 @@ describe('ClangFormatProvider', () => {
               setTimeout(() => callback(Buffer.from(text)), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stdin: { write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -333,7 +333,7 @@ describe('ClangFormatProvider', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -357,7 +357,7 @@ describe('ClangFormatProvider', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       };
 
       let capturedArgs: any[] = [];
@@ -388,7 +388,7 @@ describe('ClangFormatProvider', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       };
 
       let capturedOptions: any = null;
@@ -418,7 +418,7 @@ describe('ClangFormatProvider', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       };
 
       let capturedOptions: any = null;
@@ -440,7 +440,7 @@ describe('ClangFormatProvider', () => {
         enabled: true,
         style: 'file',
         fallbackStyle: 'Google',
-        configPath: '/custom/path/.clang-format'
+        configPath: '/custom/path/.clang-format',
       });
       const text = 'message Test {}';
 
@@ -453,7 +453,7 @@ describe('ClangFormatProvider', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       };
 
       let capturedArgs: string[] = [];
@@ -474,7 +474,7 @@ describe('ClangFormatProvider', () => {
         enabled: true,
         style: 'file',
         fallbackStyle: 'Google',
-        configPath: ''
+        configPath: '',
       });
       const text = 'message Test {}';
 
@@ -487,7 +487,7 @@ describe('ClangFormatProvider', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       };
 
       let capturedArgs: string[] = [];
@@ -508,7 +508,7 @@ describe('ClangFormatProvider', () => {
         enabled: true,
         style: 'Google',
         fallbackStyle: 'Google',
-        configPath: '/custom/path/.clang-format'
+        configPath: '/custom/path/.clang-format',
       });
       const text = 'message Test {}';
 
@@ -521,7 +521,7 @@ describe('ClangFormatProvider', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       };
 
       let capturedArgs: string[] = [];

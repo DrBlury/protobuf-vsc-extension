@@ -65,8 +65,8 @@ describe('CompletionProvider Enhanced Features', () => {
 
       const completions = completionProvider.getCompletions(uri, position, lineText);
 
-      const googleCompletions = completions.filter(c =>
-        c.label.includes('google/protobuf/') || c.label.includes('google/type/')
+      const googleCompletions = completions.filter(
+        c => c.label.includes('google/protobuf/') || c.label.includes('google/type/')
       );
 
       expect(googleCompletions.length).toBeGreaterThan(0);
@@ -95,9 +95,7 @@ import "`;
 
       const completions = completionProvider.getCompletions(uri2, position, lineText);
 
-      const workspaceCompletions = completions.filter(c =>
-        c.label.includes('user.proto') || c.label.includes('User')
-      );
+      const workspaceCompletions = completions.filter(c => c.label.includes('user.proto') || c.label.includes('User'));
 
       expect(workspaceCompletions.length).toBeGreaterThan(0);
     });
@@ -111,9 +109,10 @@ import "`;
 
       const completions = completionProvider.getCompletions(uri, position, lineText);
 
-      const fieldNameCompletions = completions.filter(c =>
-        c.kind === 5 && // Field kind
-        (c.label === 'name' || c.label === 'id' || c.label === 'title')
+      const fieldNameCompletions = completions.filter(
+        c =>
+          c.kind === 5 && // Field kind
+          (c.label === 'name' || c.label === 'id' || c.label === 'title')
       );
 
       expect(fieldNameCompletions.length).toBeGreaterThan(0);
@@ -131,13 +130,7 @@ message User {
       const lineText = '  string id';
       const position: Position = { line: 3, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const assignment = completions.find(c => c.detail === 'Insert next field tag and semicolon');
       expect(assignment?.insertText).toContain('= 1;');
@@ -153,13 +146,7 @@ message User {
       const lineText = '  string id = 1;';
       const position: Position = { line: 3, character: lineText.indexOf('=') };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const assignment = completions.find(c => c.detail === 'Insert next field tag and semicolon');
       const fieldNumber = completions.find(c => c.detail === 'Next available field number');
@@ -190,13 +177,7 @@ message BillingAddress {
       const lineText = '    expression: "this.';
       const position: Position = { line: 5, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       // Debug: log what we get
       // console.log('Completions:', completions.map(c => c.label));
@@ -230,13 +211,7 @@ message BillingAddress {
       const lineText = '    expression: "h';
       const position: Position = { line: 5, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       // Should find has() function
       const hasCompletion = completions.find(c => c.label === 'has');
@@ -261,13 +236,7 @@ message BillingAddress {
       const lineText = '    expression: "';
       const position: Position = { line: 5, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       // Should suggest 'this' keyword
       const thisCompletion = completions.find(c => c.label === 'this');
@@ -291,13 +260,7 @@ message BillingAddress {
       const lineText = '    ';
       const position: Position = { line: 4, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       // Should provide id, message, expression options
       const idCompletion = completions.find(c => c.label === 'id');
@@ -325,13 +288,7 @@ message User {
       const lineText = '  option (buf.validate.';
       const position: Position = { line: 3, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const fieldOption = completions.find(c => c.label === 'field');
       const messageOption = completions.find(c => c.label === 'message');
@@ -354,13 +311,7 @@ message User {
       const lineText = '  string name = 1 [(buf.validate.field).';
       const position: Position = { line: 3, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const celOption = completions.find(c => c.label === 'cel');
       const requiredOption = completions.find(c => c.label === 'required');
@@ -385,13 +336,7 @@ message User {
       const lineText = '  string email = 1 [(buf.validate.field).string.';
       const position: Position = { line: 3, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const emailOption = completions.find(c => c.label === 'email');
       const minLenOption = completions.find(c => c.label === 'min_len');
@@ -416,13 +361,7 @@ message User {
       const lineText = '  option (buf.validate.message).';
       const position: Position = { line: 3, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const celOption = completions.find(c => c.label === 'cel');
       const disabledOption = completions.find(c => c.label === 'disabled');
@@ -443,13 +382,7 @@ message Order {
       const lineText = '  int32 quantity = 1 [(buf.validate.field).int32.';
       const position: Position = { line: 3, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const gtOption = completions.find(c => c.label === 'gt');
       const gteOption = completions.find(c => c.label === 'gte');
@@ -474,13 +407,7 @@ message Order {
       const lineText = '  repeated string items = 1 [(buf.validate.field).repeated.';
       const position: Position = { line: 3, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const minItemsOption = completions.find(c => c.label === 'min_items');
       const maxItemsOption = completions.find(c => c.label === 'max_items');

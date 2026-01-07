@@ -75,10 +75,7 @@ message Test {
       const edits = provider.convertToProto3(ast, content, 'test.proto');
 
       // Should have edit removing default
-      const defaultEdit = edits.find(e =>
-        !e.newText.includes('default') &&
-        e.range.start.line > 0
-      );
+      const defaultEdit = edits.find(e => !e.newText.includes('default') && e.range.start.line > 0);
       expect(defaultEdit).toBeDefined();
     });
 

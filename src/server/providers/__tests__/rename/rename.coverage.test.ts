@@ -722,4 +722,5 @@ message Test {
 
       expect(result.changes.size).toBe(0);
     });
-  });});
+  });
+});
