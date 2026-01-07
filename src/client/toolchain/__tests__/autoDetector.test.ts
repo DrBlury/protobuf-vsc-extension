@@ -98,13 +98,14 @@ describe('AutoDetector', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.resetModules();
     mockConfiguration.clear();
     // Mock fsUtils.fileExists (async) - for config file and tool detection
     mockFileExists.mockResolvedValue(false);
     // Mock fs.existsSync (sync) - for shebang detection
     mockFsExistsSync.mockReturnValue(false);
-    // Always set up a default mock spawn
-    mockSpawn.mockReturnValue(createMockProcess('', '', 1, new Error('ENOENT')));
+    // Always set up a default mock spawn (return new process each time)
+    mockSpawn.mockImplementation(() => createMockProcess('', '', 1, new Error('ENOENT')));
 
     mockContext = {
       globalStorageUri: { fsPath: getTestGlobalStorage() },
@@ -127,8 +128,8 @@ describe('AutoDetector', () => {
         return false;
       });
 
-      const mockProcess = createMockProcess('libprotoc 33.0\n', '', 0);
-      mockSpawn.mockReturnValue(mockProcess);
+      // Use mockImplementation to return a new process for each spawn call
+      mockSpawn.mockImplementation(() => createMockProcess('libprotoc 33.0\n', '', 0));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
@@ -149,8 +150,8 @@ describe('AutoDetector', () => {
         return false;
       });
 
-      // Set up spawn to not throw for tool detection
-      mockSpawn.mockReturnValue(createMockProcess('', '', 1, new Error('ENOENT')));
+      // Set up spawn to fail for tool detection (return new process each time)
+      mockSpawn.mockImplementation(() => createMockProcess('', '', 1, new Error('ENOENT')));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
@@ -170,7 +171,7 @@ describe('AutoDetector', () => {
         return false;
       });
 
-      mockSpawn.mockReturnValue(createMockProcess('', '', 1, new Error('ENOENT')));
+      mockSpawn.mockImplementation(() => createMockProcess('', '', 1, new Error('ENOENT')));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
@@ -190,7 +191,7 @@ describe('AutoDetector', () => {
         return false;
       });
 
-      mockSpawn.mockReturnValue(createMockProcess('', '', 1, new Error('ENOENT')));
+      mockSpawn.mockImplementation(() => createMockProcess('', '', 1, new Error('ENOENT')));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
@@ -210,7 +211,7 @@ describe('AutoDetector', () => {
         return false;
       });
 
-      mockSpawn.mockReturnValue(createMockProcess('', '', 1, new Error('ENOENT')));
+      mockSpawn.mockImplementation(() => createMockProcess('', '', 1, new Error('ENOENT')));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
@@ -223,8 +224,8 @@ describe('AutoDetector', () => {
     it('should handle tool detection failure gracefully', async () => {
       mockFileExists.mockResolvedValue(false);
 
-      // All spawns fail
-      mockSpawn.mockReturnValue(createMockProcess('', 'command not found', 127, new Error('ENOENT')));
+      // All spawns fail (return new process each time)
+      mockSpawn.mockImplementation(() => createMockProcess('', 'command not found', 127, new Error('ENOENT')));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
@@ -241,7 +242,7 @@ describe('AutoDetector', () => {
       mockFileExists.mockImplementation(async (p: string) => p === expectedProtocPath);
 
       // Protoc outputs "libprotoc X.Y.Z"
-      mockSpawn.mockReturnValue(createMockProcess('libprotoc 33.0\n', '', 0));
+      mockSpawn.mockImplementation(() => createMockProcess('libprotoc 33.0\n', '', 0));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
@@ -256,7 +257,7 @@ describe('AutoDetector', () => {
       mockFileExists.mockImplementation(async (p: string) => p === expectedBufPath);
 
       // Buf outputs just the version
-      mockSpawn.mockReturnValue(createMockProcess('1.28.1\n', '', 0));
+      mockSpawn.mockImplementation(() => createMockProcess('1.28.1\n', '', 0));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
@@ -323,7 +324,7 @@ describe('AutoDetector', () => {
       const vscode = await import('vscode');
 
       mockFileExists.mockResolvedValue(false);
-      mockSpawn.mockReturnValue(createMockProcess('', '', 1, new Error('ENOENT')));
+      mockSpawn.mockImplementation(() => createMockProcess('', '', 1, new Error('ENOENT')));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
