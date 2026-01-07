@@ -48,14 +48,16 @@ describe('SchemaDiffManager', () => {
     // Use fake timers but don't fake setImmediate so we can use it to flush promises
     jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     jest.clearAllMocks();
-    jest.resetModules();
+    // Note: Don't use jest.resetModules() here as it can cause issues with mock references
     mockWriteFile.mockClear();
     mockWriteFile.mockResolvedValue(undefined);
+    mockSpawn.mockClear();
     mockOutputChannel = mockVscode.window.createOutputChannel();
     mockVscode.window.activeTextEditor = undefined;
     mockVscode.workspace.getWorkspaceFolder = jest.fn();
     mockVscode.commands.executeCommand.mockClear();
     mockVscode.window.showErrorMessage.mockClear();
+    mockVscode.window.showInputBox.mockClear();
     manager = new SchemaDiffManager(mockOutputChannel);
   });
 
