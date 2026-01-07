@@ -436,5 +436,233 @@ message User {
       expect(protovalidateLens?.command?.title).toContain('$(beaker)');
       expect(protovalidateLens?.command?.title).toContain('Protovalidate Playground');
     });
+
+    it('should handle int32 validation rules', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message Request {
+  int32 count = 1 [(buf.validate.field).int32 = { gt: 0, lte: 100 }];
+}`;
+      const uri = 'file:///request.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBeGreaterThan(0);
+    });
+
+    it('should handle double validation rules', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message Price {
+  double amount = 1 [(buf.validate.field).double = { gte: 0.0 }];
+}`;
+      const uri = 'file:///price.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBeGreaterThan(0);
+    });
+
+    it('should handle float validation rules', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message Score {
+  float value = 1 [(buf.validate.field).float = { gte: 0.0, lte: 1.0 }];
+}`;
+      const uri = 'file:///score.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBeGreaterThan(0);
+    });
+
+    it('should handle repeated field validation rules', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message Tags {
+  repeated string items = 1 [(buf.validate.field).repeated = { min_items: 1, max_items: 10, unique: true }];
+}`;
+      const uri = 'file:///tags.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBeGreaterThan(0);
+    });
+
+    it('should handle CEL expression rules', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message DateRange {
+  string start_date = 1;
+  string end_date = 2 [(buf.validate.field).cel = { expression: "this >= rules.start_date" }];
+}`;
+      const uri = 'file:///daterange.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBeGreaterThan(0);
+    });
+
+    it('should handle required field rules', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message Required {
+  string name = 1 [(buf.validate.field).required = true];
+}`;
+      const uri = 'file:///required.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBeGreaterThan(0);
+    });
+
+    it('should handle fields in oneof with protovalidate rules', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message Contact {
+  oneof contact_method {
+    string email = 1 [(buf.validate.field).string.email = true];
+    string phone = 2 [(buf.validate.field).string.pattern = "^\\+[1-9]\\d{1,14}$"];
+  }
+}`;
+      const uri = 'file:///contact.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBeGreaterThan(0);
+    });
+
+    it('should not add protovalidate lenses to empty messages', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message Empty {}`;
+      const uri = 'file:///empty.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBe(0);
+    });
+
+    it('should not add protovalidate lenses to enums', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_ACTIVE = 1;
+}`;
+      const uri = 'file:///status.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBe(0);
+    });
+
+    it('should not add protovalidate lenses to services', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message Request {}
+message Response {}
+
+service MyService {
+  rpc DoSomething(Request) returns (Response);
+}`;
+      const uri = 'file:///service.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBe(0);
+    });
+
+    it('should handle multiple nested levels with protovalidate rules', () => {
+      const content = `syntax = "proto3";
+import "buf/validate/validate.proto";
+
+message Level1 {
+  message Level2 {
+    message Level3 {
+      string value = 1 [(buf.validate.field).string.min_len = 1];
+    }
+    Level3 nested = 1;
+  }
+  Level2 nested = 1;
+}`;
+      const uri = 'file:///nested-levels.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBeGreaterThan(0);
+    });
+
+    it('should handle validate.rules option name variant', () => {
+      const content = `syntax = "proto3";
+import "validate/validate.proto";
+
+message Request {
+  string name = 1 [(validate.rules).string.min_len = 1];
+}`;
+      const uri = 'file:///validate-rules.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const lenses = codeLensProvider.getCodeLenses(uri, file);
+      const protovalidateLenses = lenses.filter(l =>
+        l.command?.command === 'protobuf.openProtovalidatePlayground'
+      );
+      expect(protovalidateLenses.length).toBeGreaterThan(0);
+    });
   });
 });

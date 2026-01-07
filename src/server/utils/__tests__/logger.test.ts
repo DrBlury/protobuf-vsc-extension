@@ -289,4 +289,197 @@ describe('Logger', () => {
       expect(mockConnection.console?.info).toHaveBeenCalled();
     });
   });
+
+  describe('formatArg (via format)', () => {
+    beforeEach(() => {
+      logger.initialize(mockConnection as Connection);
+    });
+
+    it('should format null values', () => {
+      logger.info('Message', null);
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('null'));
+    });
+
+    it('should format undefined values', () => {
+      logger.info('Message', undefined);
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('undefined'));
+    });
+
+    it('should format Error objects with name and message', () => {
+      const error = new Error('Test error');
+      error.name = 'CustomError';
+      logger.info('Message', error);
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('CustomError'));
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('Test error'));
+    });
+
+    it('should format Error objects with stack trace', () => {
+      const error = new Error('Test error');
+      logger.info('Message', error);
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('Stack:'));
+    });
+
+    it('should format Error objects with cause (ES2022+)', () => {
+      const cause = new Error('Root cause');
+      const error = new Error('Wrapper error', { cause });
+      logger.info('Message', error);
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('Cause:'));
+    });
+
+    it('should format empty objects', () => {
+      logger.info('Message', {});
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('[empty object]'));
+    });
+
+    it('should format empty objects with custom constructor name', () => {
+      class CustomClass {}
+      const instance = new CustomClass();
+      logger.info('Message', instance);
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('CustomClass'));
+    });
+
+    it('should format objects as JSON', () => {
+      logger.info('Message', { key: 'value', nested: { a: 1 } });
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('"key":"value"'));
+    });
+
+    it('should handle circular references in objects', () => {
+      const circular: any = { a: 1 };
+      circular.self = circular;
+      logger.info('Message', circular);
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('non-serializable'));
+    });
+
+    it('should format primitive values as strings', () => {
+      logger.info('Message', 42, true, 'string');
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('42'));
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('true'));
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('string'));
+    });
+
+    it('should format arrays as JSON', () => {
+      logger.info('Message', [1, 2, 3]);
+      expect(mockConnection.console?.info).toHaveBeenCalledWith(expect.stringContaining('[1,2,3]'));
+    });
+  });
+
+  describe('sanitizeErrorMessage (via errorWithContext)', () => {
+    beforeEach(() => {
+      logger.initialize(mockConnection as Connection);
+    });
+
+    it('should redact Unix paths', () => {
+      const error = new Error('Error at /home/user/project/file.ts');
+      logger.errorWithContext('Error occurred', { error });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('[REDACTED_PATH]'));
+      expect(mockConnection.console?.error).not.toHaveBeenCalledWith(expect.stringContaining('/home/user'));
+    });
+
+    it('should redact Windows-style paths with drive letters', () => {
+      const error = new Error('Error at C:/Users/user/project/');
+      logger.errorWithContext('Error occurred', { error });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('[REDACTED_PATH]'));
+    });
+
+    it('should redact environment variable exposures', () => {
+      const error = new Error('API_KEY=secret123');
+      logger.errorWithContext('Error occurred', { error });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('[REDACTED_ENV]'));
+    });
+
+    it('should redact /home directory paths', () => {
+      const error = new Error('Error in /home/john/Documents');
+      logger.errorWithContext('Error occurred', { error });
+      // The general path regex runs first, so this becomes [REDACTED_PATH]
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('[REDACTED_PATH]'));
+    });
+
+    it('should redact localhost ports', () => {
+      const error = new Error('Connection to localhost:8080 failed');
+      logger.errorWithContext('Error occurred', { error });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('localhost:[PORT]'));
+    });
+
+    it('should redact 127.0.0.1 ports', () => {
+      const error = new Error('Connection to 127.0.0.1:3000 refused');
+      logger.errorWithContext('Error occurred', { error });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('127.0.0.1:[PORT]'));
+    });
+
+    it('should redact sensitive file extensions', () => {
+      const error = new Error('Could not load certificate.pem');
+      logger.errorWithContext('Error occurred', { error });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('[REDACTED_EXT]'));
+    });
+
+    it('should sanitize URI in context', () => {
+      logger.errorWithContext('Error', { uri: 'file:///home/user/secret/file.proto' });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('[REDACTED_PATH]'));
+    });
+
+    it('should handle non-Error objects', () => {
+      logger.errorWithContext('Error', { error: 'String error with /path/to/file' });
+      expect(mockConnection.console?.error).toHaveBeenCalledWith(expect.stringContaining('[REDACTED_PATH]'));
+    });
+  });
+
+  describe('console fallbacks', () => {
+    let consoleSpy: { [key: string]: jest.SpyInstance };
+
+    beforeEach(() => {
+      consoleSpy = {
+        error: jest.spyOn(console, 'error').mockImplementation(),
+        warn: jest.spyOn(console, 'warn').mockImplementation(),
+        info: jest.spyOn(console, 'info').mockImplementation(),
+        debug: jest.spyOn(console, 'debug').mockImplementation(),
+        log: jest.spyOn(console, 'log').mockImplementation()
+      };
+    });
+
+    afterEach(() => {
+      Object.values(consoleSpy).forEach(spy => spy.mockRestore());
+    });
+
+    it('should use console.error when no connection for error()', () => {
+      const logger2 = new Logger();
+      logger2.setLevel(LogLevel.ERROR);
+      logger2.error('Error message');
+      expect(consoleSpy.error).toHaveBeenCalledWith('Error message');
+    });
+
+    it('should use console.warn when no connection for warn()', () => {
+      const logger2 = new Logger();
+      logger2.setLevel(LogLevel.WARN);
+      logger2.warn('Warning message');
+      expect(consoleSpy.warn).toHaveBeenCalledWith('Warning message');
+    });
+
+    it('should use console.info when no connection for info()', () => {
+      const logger2 = new Logger();
+      logger2.setLevel(LogLevel.INFO);
+      logger2.info('Info message');
+      expect(consoleSpy.info).toHaveBeenCalledWith('Info message');
+    });
+
+    it('should use console.debug when no connection for debug()', () => {
+      const logger2 = new Logger();
+      logger2.setLevel(LogLevel.DEBUG);
+      logger2.debug('Debug message');
+      expect(consoleSpy.debug).toHaveBeenCalledWith('Debug message');
+    });
+
+    it('should use console.log when no connection for verbose()', () => {
+      const logger2 = new Logger();
+      logger2.setVerboseLogging(true);
+      logger2.verbose('Verbose message');
+      expect(consoleSpy.log).toHaveBeenCalledWith(expect.stringContaining('[VERBOSE]'));
+    });
+
+    it('should use console.log when no connection for verboseWithContext()', () => {
+      const logger2 = new Logger();
+      logger2.setVerboseLogging(true);
+      logger2.verboseWithContext('Message', { uri: 'test.proto' });
+      expect(consoleSpy.log).toHaveBeenCalled();
+    });
+  });
 });

@@ -75,9 +75,9 @@ describe('ParserFactory', () => {
 message User {
   string name = 1;
 }`;
-      
+
       const result = factory.parse(content, 'file:///test.proto');
-      
+
       expect(result).toBeDefined();
       expect(result.type).toBe('file');
       expect(result.messages.length).toBe(1);
@@ -87,11 +87,11 @@ message User {
     it('should fall back to custom parser on tree-sitter error', () => {
       const content = `syntax = "proto3";
 message Test {}`;
-      
+
       // Even with tree-sitter requested, should fall back to custom parser
       factory.setUseTreeSitter(true);
       const result = factory.parse(content, 'file:///test.proto');
-      
+
       expect(result).toBeDefined();
       expect(result.type).toBe('file');
     });
@@ -100,7 +100,7 @@ message Test {}`;
   describe('getParser', () => {
     it('should return custom parser when tree-sitter is not enabled', () => {
       const parser = factory.getParser();
-      
+
       expect(parser).toBeDefined();
       expect(parser).toBeInstanceOf(ProtoParser);
     });
@@ -121,7 +121,7 @@ describe('IProtoParser interface', () => {
         extends: []
       })
     };
-    
+
     const result = mockParser.parse('', 'file:///test.proto');
     expect(result.type).toBe('file');
   });
@@ -132,12 +132,12 @@ describe('ParserFactory with Tree-sitter initialized', () => {
   let factory: ParserFactory;
   let mockTreeSitterParser: any;
   const treeSitterModule = require('../../core/treeSitterParser');
-  
+
   beforeEach(() => {
     jest.clearAllMocks();
     // Configure mock to return tree-sitter as initialized
     (treeSitterModule.isTreeSitterInitialized as jest.Mock).mockReturnValue(true);
-    
+
     mockTreeSitterParser = {
       parse: jest.fn().mockReturnValue({
         type: 'file',
@@ -151,7 +151,7 @@ describe('ParserFactory with Tree-sitter initialized', () => {
       })
     };
     (treeSitterModule.TreeSitterProtoParser as jest.Mock).mockImplementation(() => mockTreeSitterParser);
-    
+
     factory = new ParserFactory();
   });
 
@@ -179,11 +179,11 @@ describe('ParserFactory with Tree-sitter initialized', () => {
       // Create a new factory without tree-sitter parser initially
       (treeSitterModule.isTreeSitterInitialized as jest.Mock).mockReturnValue(false);
       const factoryWithoutTreeSitter = new ParserFactory();
-      
+
       // Now enable tree-sitter
       (treeSitterModule.isTreeSitterInitialized as jest.Mock).mockReturnValue(true);
       factoryWithoutTreeSitter.initializeTreeSitter();
-      
+
       // Should have called TreeSitterProtoParser
       expect(treeSitterModule.TreeSitterProtoParser).toHaveBeenCalled();
     });
@@ -192,12 +192,12 @@ describe('ParserFactory with Tree-sitter initialized', () => {
   describe('parse', () => {
     it('should use tree-sitter parser when enabled', () => {
       factory.setUseTreeSitter(true);
-      
+
       const content = `syntax = "proto3";
 message Test {}`;
-      
+
       const result = factory.parse(content, 'file:///test.proto');
-      
+
       expect(mockTreeSitterParser.parse).toHaveBeenCalledWith(content, 'file:///test.proto');
       expect(result.messages[0].name).toBe('TreeSitterParsed');
     });
@@ -206,14 +206,14 @@ message Test {}`;
       mockTreeSitterParser.parse.mockImplementation(() => {
         throw new Error('Tree-sitter parse error');
       });
-      
+
       factory.setUseTreeSitter(true);
-      
+
       const content = `syntax = "proto3";
 message Test {}`;
-      
+
       const result = factory.parse(content, 'file:///test.proto');
-      
+
       // Should fall back to custom parser
       expect(result).toBeDefined();
       expect(result.type).toBe('file');
@@ -224,10 +224,271 @@ message Test {}`;
   describe('getParser', () => {
     it('should return tree-sitter parser when enabled', () => {
       factory.setUseTreeSitter(true);
-      
+
       const parser = factory.getParser();
-      
+
       expect(parser).toBe(mockTreeSitterParser);
     });
+  });
+});
+
+// Tests for getStats, resetStats, and getDiagnosticReport
+describe('ParserFactory statistics and diagnostics', () => {
+  let factory: ParserFactory;
+  let mockTreeSitterParser: any;
+  const treeSitterModule = require('../../core/treeSitterParser');
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (treeSitterModule.isTreeSitterInitialized as jest.Mock).mockReturnValue(true);
+    (treeSitterModule.getTreeSitterInitError as jest.Mock).mockReturnValue(null);
+
+    mockTreeSitterParser = {
+      parse: jest.fn().mockReturnValue({
+        type: 'file',
+        range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+        imports: [],
+        options: [],
+        messages: [],
+        enums: [],
+        services: [],
+        extends: []
+      })
+    };
+    (treeSitterModule.TreeSitterProtoParser as jest.Mock).mockImplementation(() => mockTreeSitterParser);
+
+    factory = new ParserFactory();
+  });
+
+  afterEach(() => {
+    (treeSitterModule.isTreeSitterInitialized as jest.Mock).mockReturnValue(false);
+    (treeSitterModule.getTreeSitterInitError as jest.Mock).mockReturnValue(null);
+  });
+
+  describe('getStats', () => {
+    it('should return initial stats with zeros', () => {
+      const stats = factory.getStats();
+
+      expect(stats.treeSitterAttempts).toBe(0);
+      expect(stats.treeSitterSuccesses).toBe(0);
+      expect(stats.treeSitterFailures).toBe(0);
+      expect(stats.fallbackUses).toBe(0);
+      expect(stats.lastError).toBeNull();
+      expect(stats.lastErrorTime).toBeNull();
+    });
+
+    it('should track successful tree-sitter parses', () => {
+      factory.setUseTreeSitter(true);
+      factory.parse('syntax = "proto3";', 'file:///test.proto');
+
+      const stats = factory.getStats();
+
+      expect(stats.treeSitterAttempts).toBe(1);
+      expect(stats.treeSitterSuccesses).toBe(1);
+      expect(stats.treeSitterFailures).toBe(0);
+    });
+
+    it('should track tree-sitter failures and fallbacks', () => {
+      mockTreeSitterParser.parse.mockImplementation(() => {
+        throw new Error('Parse failed');
+      });
+
+      factory.setUseTreeSitter(true);
+      factory.parse('syntax = "proto3";', 'file:///test.proto');
+
+      const stats = factory.getStats();
+
+      expect(stats.treeSitterAttempts).toBe(1);
+      expect(stats.treeSitterSuccesses).toBe(0);
+      expect(stats.treeSitterFailures).toBe(1);
+      expect(stats.fallbackUses).toBe(1);
+      expect(stats.lastError).toBeDefined();
+      expect(stats.lastError?.message).toBe('Parse failed');
+      expect(stats.lastErrorTime).toBeInstanceOf(Date);
+    });
+
+    it('should track fallback uses when tree-sitter is disabled', () => {
+      factory.setUseTreeSitter(false);
+      factory.parse('syntax = "proto3";', 'file:///test.proto');
+
+      const stats = factory.getStats();
+
+      expect(stats.treeSitterAttempts).toBe(0);
+      expect(stats.fallbackUses).toBe(1);
+    });
+
+    it('should return a copy of stats (not the original)', () => {
+      const stats1 = factory.getStats();
+      const stats2 = factory.getStats();
+
+      expect(stats1).not.toBe(stats2);
+      expect(stats1).toEqual(stats2);
+    });
+  });
+
+  describe('resetStats', () => {
+    it('should reset all statistics to initial values', () => {
+      factory.setUseTreeSitter(true);
+
+      // Generate some stats
+      factory.parse('syntax = "proto3";', 'file:///test1.proto');
+
+      mockTreeSitterParser.parse.mockImplementation(() => {
+        throw new Error('Parse failed');
+      });
+      factory.parse('syntax = "proto3";', 'file:///test2.proto');
+
+      // Verify stats are non-zero
+      let stats = factory.getStats();
+      expect(stats.treeSitterAttempts).toBeGreaterThan(0);
+
+      // Reset stats
+      factory.resetStats();
+
+      stats = factory.getStats();
+      expect(stats.treeSitterAttempts).toBe(0);
+      expect(stats.treeSitterSuccesses).toBe(0);
+      expect(stats.treeSitterFailures).toBe(0);
+      expect(stats.fallbackUses).toBe(0);
+      expect(stats.lastError).toBeNull();
+      expect(stats.lastErrorTime).toBeNull();
+    });
+  });
+
+  describe('getDiagnosticReport', () => {
+    it('should generate diagnostic report with basic info', () => {
+      const report = factory.getDiagnosticReport();
+
+      expect(report).toContain('=== Parser Factory Diagnostic Report ===');
+      expect(report).toContain('Tree-sitter enabled:');
+      expect(report).toContain('Tree-sitter initialized:');
+      expect(report).toContain('Tree-sitter parser available:');
+      expect(report).toContain('--- Statistics ---');
+    });
+
+    it('should include success rate when there are attempts', () => {
+      factory.setUseTreeSitter(true);
+      factory.parse('syntax = "proto3";', 'file:///test.proto');
+
+      const report = factory.getDiagnosticReport();
+
+      expect(report).toContain('Success rate:');
+      expect(report).toContain('100.0%');
+    });
+
+    it('should include last error info when there was an error', () => {
+      mockTreeSitterParser.parse.mockImplementation(() => {
+        throw new Error('Test error message');
+      });
+
+      factory.setUseTreeSitter(true);
+      factory.parse('syntax = "proto3";', 'file:///test.proto');
+
+      const report = factory.getDiagnosticReport();
+
+      expect(report).toContain('--- Last Error ---');
+      expect(report).toContain('Time:');
+      expect(report).toContain('Message: Test error message');
+    });
+
+    it('should include initialization error when present', () => {
+      const initError = new Error('Init failed');
+      (treeSitterModule.getTreeSitterInitError as jest.Mock).mockReturnValue(initError);
+
+      const report = factory.getDiagnosticReport();
+
+      expect(report).toContain('--- Initialization Error ---');
+      expect(report).toContain('Message: Init failed');
+    });
+
+    it('should include TreeSitterInitError type when applicable', () => {
+      const { TreeSitterInitError } = treeSitterModule;
+      const initError = new TreeSitterInitError('WASM_LOAD_FAILED', 'Failed to load WASM');
+      (treeSitterModule.getTreeSitterInitError as jest.Mock).mockReturnValue(initError);
+
+      const report = factory.getDiagnosticReport();
+
+      expect(report).toContain('--- Initialization Error ---');
+      expect(report).toContain('Type: WASM_LOAD_FAILED');
+    });
+  });
+
+  describe('parse error handling', () => {
+    it('should handle non-Error thrown values', () => {
+      mockTreeSitterParser.parse.mockImplementation(() => {
+        // eslint-disable-next-line no-throw-literal
+        throw 'String error';
+      });
+
+      factory.setUseTreeSitter(true);
+      const result = factory.parse('syntax = "proto3";', 'file:///test.proto');
+
+      expect(result).toBeDefined();
+      const stats = factory.getStats();
+      expect(stats.lastError?.message).toBe('String error');
+    });
+
+    it('should log warning every 10 failures', () => {
+      mockTreeSitterParser.parse.mockImplementation(() => {
+        throw new Error('Parse failed');
+      });
+
+      factory.setUseTreeSitter(true);
+
+      // Parse 10 times to trigger the warning
+      for (let i = 0; i < 10; i++) {
+        factory.parse('syntax = "proto3";', `file:///test${i}.proto`);
+      }
+
+      const stats = factory.getStats();
+      expect(stats.treeSitterFailures).toBe(10);
+    });
+  });
+});
+
+// Tests for setUseTreeSitter warning messages
+describe('ParserFactory setUseTreeSitter warnings', () => {
+  const treeSitterModule = require('../../core/treeSitterParser');
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    (treeSitterModule.isTreeSitterInitialized as jest.Mock).mockReturnValue(false);
+    (treeSitterModule.getTreeSitterInitError as jest.Mock).mockReturnValue(null);
+  });
+
+  it('should warn with TreeSitterInitError when initialization failed', () => {
+    (treeSitterModule.isTreeSitterInitialized as jest.Mock).mockReturnValue(false);
+    const { TreeSitterInitError } = treeSitterModule;
+    const initError = new TreeSitterInitError('WASM_LOAD_FAILED', 'Failed to load WASM module');
+    (treeSitterModule.getTreeSitterInitError as jest.Mock).mockReturnValue(initError);
+
+    const factory = new ParserFactory();
+    factory.setUseTreeSitter(true);
+
+    expect(factory.isUsingTreeSitter()).toBe(false);
+  });
+
+  it('should warn with generic error when initialization failed', () => {
+    (treeSitterModule.isTreeSitterInitialized as jest.Mock).mockReturnValue(false);
+    const genericError = new Error('Generic init error');
+    (treeSitterModule.getTreeSitterInitError as jest.Mock).mockReturnValue(genericError);
+
+    const factory = new ParserFactory();
+    factory.setUseTreeSitter(true);
+
+    expect(factory.isUsingTreeSitter()).toBe(false);
+  });
+
+  it('should warn when tree-sitter not initialized and no error available', () => {
+    (treeSitterModule.isTreeSitterInitialized as jest.Mock).mockReturnValue(false);
+    (treeSitterModule.getTreeSitterInitError as jest.Mock).mockReturnValue(null);
+
+    const factory = new ParserFactory();
+    factory.setUseTreeSitter(true);
+
+    expect(factory.isUsingTreeSitter()).toBe(false);
   });
 });
