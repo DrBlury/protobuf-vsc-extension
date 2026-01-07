@@ -32,10 +32,12 @@ import { SchemaDiffManager } from '../schemaDiff';
 /**
  * Helper to flush promises and setImmediate callbacks.
  * Since mock child process uses setImmediate (not faked), we just need to flush the queue.
+ * Uses 20 iterations to handle triple-nested setImmediate in mock child process.
  */
 async function flushPromisesAndTimers(): Promise<void> {
   // Flush multiple times to handle nested setImmediate calls
-  for (let i = 0; i < 10; i++) {
+  // The mock child process uses triple-nested setImmediate for close event
+  for (let i = 0; i < 20; i++) {
     await new Promise(resolve => setImmediate(resolve));
   }
 }

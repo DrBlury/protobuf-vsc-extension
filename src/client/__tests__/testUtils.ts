@@ -415,6 +415,7 @@ export function createMockChildProcess(stdout: string = '', stderr: string = '',
 
   // Use setImmediate for callbacks since it's not faked by jest.useFakeTimers({ doNotFake: ['setImmediate'] })
   // This provides deterministic behavior across all platforms
+  // Use multiple nested setImmediate to ensure proper ordering even in CI environments
   return {
     stdout: {
       on: jest.fn((event: string, callback: (data: Buffer) => void) => {
@@ -423,6 +424,7 @@ export function createMockChildProcess(stdout: string = '', stderr: string = '',
         }
         stdoutHandlers[event].push(callback);
         if (event === 'data' && stdout) {
+          // Single setImmediate for data - fires first
           setImmediate(() => callback(Buffer.from(stdout)));
         }
       }),
@@ -434,6 +436,7 @@ export function createMockChildProcess(stdout: string = '', stderr: string = '',
         }
         stderrHandlers[event].push(callback);
         if (event === 'data' && stderr) {
+          // Single setImmediate for data - fires first
           setImmediate(() => callback(Buffer.from(stderr)));
         }
       }),
@@ -444,8 +447,9 @@ export function createMockChildProcess(stdout: string = '', stderr: string = '',
       }
       procHandlers[event].push(callback);
       if (event === 'close') {
-        // Use nested setImmediate to ensure data handlers run first
-        setImmediate(() => setImmediate(() => callback(exitCode)));
+        // Use triple nested setImmediate to ensure data handlers run first
+        // This provides extra margin for CI environments with different timing
+        setImmediate(() => setImmediate(() => setImmediate(() => callback(exitCode))));
       }
       if (event === 'error' && error) {
         setImmediate(() => callback(error));

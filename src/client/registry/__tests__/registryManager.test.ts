@@ -74,10 +74,12 @@ import { RegistryManager } from '../registryManager';
 /**
  * Helper to flush promises and setImmediate callbacks.
  * Since mock child process uses setImmediate (not faked), we just need to flush the queue.
+ * Uses 20 iterations to handle triple-nested setImmediate in mock child process.
  */
 async function flushPromisesAndTimers(): Promise<void> {
   // Flush multiple times to handle nested setImmediate calls
-  for (let i = 0; i < 10; i++) {
+  // The mock child process uses triple-nested setImmediate for close event
+  for (let i = 0; i < 20; i++) {
     await new Promise(resolve => setImmediate(resolve));
   }
 }
@@ -113,8 +115,8 @@ describe('RegistryManager', () => {
 
     mockProc.on.mockImplementation((event: string, callback: (code?: number | Error) => void) => {
       if (event === 'close') {
-        // Use setImmediate for deterministic behavior (not faked by jest)
-        setImmediate(() => setImmediate(() => callback(0)));
+        // Use triple-nested setImmediate for deterministic behavior in CI
+        setImmediate(() => setImmediate(() => setImmediate(() => callback(0))));
       }
       return mockProc;
     });
@@ -308,7 +310,7 @@ describe('RegistryManager', () => {
 
       mockProc.on.mockImplementation((event: string, callback: (code?: number | Error) => void) => {
         if (event === 'close') {
-          setImmediate(() => setImmediate(() => callback(1)));
+          setImmediate(() => setImmediate(() => setImmediate(() => callback(1))));
         }
         return mockProc;
       });
