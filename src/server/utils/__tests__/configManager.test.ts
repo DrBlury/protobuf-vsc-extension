@@ -113,7 +113,14 @@ describe('ConfigManager', () => {
       deprecatedUsage: true,
       unusedSymbols: false,
       circularDependencies: true,
-      documentationComments: true
+      documentationComments: true,
+      severity: {
+        discouragedConstructs: settings.protobuf.diagnostics.severity.discouragedConstructs,
+        fieldTagIssues: settings.protobuf.diagnostics.severity.fieldTagIssues,
+        namingConventions: settings.protobuf.diagnostics.severity.namingConventions,
+        referenceErrors: settings.protobuf.diagnostics.severity.referenceErrors,
+        nonCanonicalImportPath: settings.protobuf.diagnostics.severity.nonCanonicalImportPath,
+      },
     });
   });
 

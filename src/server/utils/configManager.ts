@@ -8,7 +8,7 @@ import * as path from 'path';
 import { LogLevel } from './logger';
 import { logger } from './logger';
 import type { Settings } from './types';
-import type { DiagnosticsProvider } from '../providers/diagnostics';
+import type { DiagnosticsProvider, DiagnosticsSettings } from '../providers/diagnostics';
 import type { ProtoFormatter } from '../providers/formatter';
 import type { RenumberProvider } from '../providers/renumber';
 import type { SemanticAnalyzer } from '../core/analyzer';
@@ -178,7 +178,7 @@ export function updateProvidersWithSettings(
 ): { includePaths: string[]; protoSrcsDir: string } {
   // Update diagnostics settings
   const diag = settings.protobuf.diagnostics;
-  const diagSettings = {
+  const diagSettings: Partial<DiagnosticsSettings> = {
     namingConventions: diag.namingConventions,
     referenceChecks: diag.referenceChecks,
     importChecks: diag.importChecks,
@@ -188,10 +188,17 @@ export function updateProvidersWithSettings(
     deprecatedUsage: diag.deprecatedUsage ?? true,
     unusedSymbols: diag.unusedSymbols ?? false,
     circularDependencies: diag.circularDependencies ?? true,
-    documentationComments: diag.documentationComments ?? true
+    documentationComments: diag.documentationComments ?? true,
+    severity: {
+      namingConventions: diag.severity.namingConventions,
+      referenceErrors: diag.severity.referenceErrors,
+      fieldTagIssues: diag.severity.fieldTagIssues,
+      discouragedConstructs: diag.severity.discouragedConstructs,
+      nonCanonicalImportPath: diag.severity.nonCanonicalImportPath,
+    },
   };
   diagnosticsProvider.updateSettings(diagSettings);
-  logger.info(`Diagnostics settings: enabled=${diag.enabled}, fieldTagChecks=${diagSettings.fieldTagChecks}, duplicateFieldChecks=${diagSettings.duplicateFieldChecks}`);
+  logger.info(`Diagnostics settings:\n${JSON.stringify(diagSettings, null, 2)}`);
 
   // Update formatter settings
   const formatterSettings = {

@@ -363,6 +363,17 @@
           "default": "warning",
           "description": "Severity level for discouraged constructs"
         },
+        "protobuf.diagnostics.severity.nonCanonicalImportPath": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warning",
+            "information",
+            "hint"
+          ],
+          "default": "error",
+          "description": "Severity level for reporting of a non-canonical import path"
+        },
         "protobuf.completion.autoImport": {
           "type": "boolean",
           "default": true,
@@ -861,7 +872,7 @@
       ]
     }
   },
-   "scripts": {
+  "scripts": {
     "pretest": "node -e \"require('fs').mkdirSync('.vscode-test',{recursive:true});\"",
     "vscode:prepublish": "npm run compile && npm run build:tree-sitter",
     "compile": "tsc -b",
