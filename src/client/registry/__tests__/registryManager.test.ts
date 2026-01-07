@@ -32,14 +32,16 @@ const mockVscode = {
 
 jest.mock('vscode', () => mockVscode, { virtual: true });
 
-// Mock fsUtils instead of fs - the source uses async functions from fsUtils
-const mockFsUtils = {
-  fileExists: jest.fn(),
-  readFile: jest.fn(),
-  writeFile: jest.fn(),
-};
+// Mock fsUtils - use jest.fn() inside the factory to avoid hoisting issues
+const mockFileExists = jest.fn();
+const mockReadFile = jest.fn();
+const mockWriteFile = jest.fn();
 
-jest.mock('../../utils/fsUtils', () => mockFsUtils);
+jest.mock('../../utils/fsUtils', () => ({
+  fileExists: mockFileExists,
+  readFile: mockReadFile,
+  writeFile: mockWriteFile,
+}));
 
 jest.mock('path', () => ({
   join: (...args: string[]) => args.join('/'),
@@ -74,9 +76,9 @@ describe('RegistryManager', () => {
     mockVscode.workspace.workspaceFolders = [
       { uri: { fsPath: '/test/workspace' } }
     ];
-    mockFsUtils.fileExists.mockResolvedValue(true);
-    mockFsUtils.readFile.mockResolvedValue('version: v1\nname: test\n\ndeps:\n  - existing-module');
-    mockFsUtils.writeFile.mockResolvedValue(undefined);
+    mockFileExists.mockResolvedValue(true);
+    mockReadFile.mockResolvedValue('version: v1\nname: test\n\ndeps:\n  - existing-module');
+    mockWriteFile.mockResolvedValue(undefined);
     mockVscode.window.showInputBox.mockResolvedValue(undefined);
     mockVscode.window.showInformationMessage.mockResolvedValue(undefined);
 
@@ -108,7 +110,7 @@ describe('RegistryManager', () => {
         prompt: 'Enter Buf module name (e.g., buf.build/acme/weather)',
         placeHolder: 'buf.build/owner/repository'
       });
-      expect(mockFsUtils.fileExists).not.toHaveBeenCalled();
+      expect(mockFileExists).not.toHaveBeenCalled();
     });
 
     it('should show error when no workspace is open', async () => {
@@ -122,7 +124,7 @@ describe('RegistryManager', () => {
 
     it('should prompt to create buf.yaml when it does not exist', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/test/module');
-      mockFsUtils.fileExists.mockResolvedValue(false);
+      mockFileExists.mockResolvedValue(false);
       mockVscode.window.showInformationMessage.mockResolvedValue('No');
 
       await registryManager.addDependency();
@@ -136,9 +138,9 @@ describe('RegistryManager', () => {
 
     it('should run buf mod init when user chooses to create buf.yaml', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/test/module');
-      mockFsUtils.fileExists.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+      mockFileExists.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
       mockVscode.window.showInformationMessage.mockResolvedValue('Yes');
-      mockFsUtils.readFile.mockResolvedValue('version: v1\nname: test\n');
+      mockReadFile.mockResolvedValue('version: v1\nname: test\n');
 
       await registryManager.addDependency();
 
@@ -152,11 +154,11 @@ describe('RegistryManager', () => {
     it('should return early when user declines to create buf.yaml', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/test/module');
       mockVscode.workspace.workspaceFolders = [{ uri: { fsPath: '/test/workspace' } }];
-      mockFsUtils.fileExists.mockReset();
-      mockFsUtils.fileExists.mockResolvedValue(false);
+      mockFileExists.mockReset();
+      mockFileExists.mockResolvedValue(false);
       mockVscode.window.showInformationMessage.mockReset();
       mockVscode.window.showInformationMessage.mockResolvedValue('No');
-      mockFsUtils.writeFile.mockReset();
+      mockWriteFile.mockReset();
       mockSpawn.mockClear();
 
       await registryManager.addDependency();
@@ -166,18 +168,18 @@ describe('RegistryManager', () => {
         'Yes',
         'No'
       );
-      expect(mockFsUtils.writeFile).not.toHaveBeenCalled();
+      expect(mockWriteFile).not.toHaveBeenCalled();
       expect(mockSpawn).not.toHaveBeenCalled();
     });
 
     it('should add dependency to existing deps section', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/new/module');
-      mockFsUtils.fileExists.mockResolvedValue(true);
-      mockFsUtils.readFile.mockResolvedValue('version: v1\nname: test\n\ndeps:\n  - buf.build/existing/module');
+      mockFileExists.mockResolvedValue(true);
+      mockReadFile.mockResolvedValue('version: v1\nname: test\n\ndeps:\n  - buf.build/existing/module');
 
       await registryManager.addDependency();
 
-      expect(mockFsUtils.writeFile).toHaveBeenCalledWith(
+      expect(mockWriteFile).toHaveBeenCalledWith(
         '/test/workspace/buf.yaml',
         expect.stringContaining('buf.build/new/module')
       );
@@ -185,12 +187,12 @@ describe('RegistryManager', () => {
 
     it('should add deps section when it does not exist', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/new/module');
-      mockFsUtils.fileExists.mockResolvedValue(true);
-      mockFsUtils.readFile.mockResolvedValue('version: v1\nname: test\n');
+      mockFileExists.mockResolvedValue(true);
+      mockReadFile.mockResolvedValue('version: v1\nname: test\n');
 
       await registryManager.addDependency();
 
-      expect(mockFsUtils.writeFile).toHaveBeenCalledWith(
+      expect(mockWriteFile).toHaveBeenCalledWith(
         '/test/workspace/buf.yaml',
         expect.stringContaining('deps:\n  - buf.build/new/module')
       );
@@ -198,12 +200,12 @@ describe('RegistryManager', () => {
 
     it('should not duplicate existing dependency', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/existing/module');
-      mockFsUtils.fileExists.mockResolvedValue(true);
-      mockFsUtils.readFile.mockResolvedValue('version: v1\nname: test\n\ndeps:\n  - buf.build/existing/module');
+      mockFileExists.mockResolvedValue(true);
+      mockReadFile.mockResolvedValue('version: v1\nname: test\n\ndeps:\n  - buf.build/existing/module');
 
       await registryManager.addDependency();
 
-      const writeCall = mockFsUtils.writeFile.mock.calls[0];
+      const writeCall = mockWriteFile.mock.calls[0];
       if (writeCall) {
         const content = writeCall[1] as string;
         const matches = content.match(/buf\.build\/existing\/module/g);
@@ -213,8 +215,8 @@ describe('RegistryManager', () => {
 
     it('should run buf dep update after adding dependency', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/new/module');
-      mockFsUtils.fileExists.mockResolvedValue(true);
-      mockFsUtils.readFile.mockResolvedValue('version: v1\nname: test\n');
+      mockFileExists.mockResolvedValue(true);
+      mockReadFile.mockResolvedValue('version: v1\nname: test\n');
 
       await registryManager.addDependency();
 
@@ -227,8 +229,8 @@ describe('RegistryManager', () => {
 
     it('should show success message after adding dependency', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/new/module');
-      mockFsUtils.fileExists.mockResolvedValue(true);
-      mockFsUtils.readFile.mockResolvedValue('version: v1\nname: test\n');
+      mockFileExists.mockResolvedValue(true);
+      mockReadFile.mockResolvedValue('version: v1\nname: test\n');
 
       await registryManager.addDependency();
 
@@ -239,8 +241,8 @@ describe('RegistryManager', () => {
 
     it('should log to output channel', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/new/module');
-      mockFsUtils.fileExists.mockResolvedValue(true);
-      mockFsUtils.readFile.mockResolvedValue('version: v1\nname: test\n');
+      mockFileExists.mockResolvedValue(true);
+      mockReadFile.mockResolvedValue('version: v1\nname: test\n');
 
       await registryManager.addDependency();
 
@@ -251,8 +253,8 @@ describe('RegistryManager', () => {
 
     it('should show error message when file operation fails', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/new/module');
-      mockFsUtils.fileExists.mockResolvedValue(true);
-      mockFsUtils.readFile.mockRejectedValue(new Error('File read error'));
+      mockFileExists.mockResolvedValue(true);
+      mockReadFile.mockRejectedValue(new Error('File read error'));
 
       await registryManager.addDependency();
 
@@ -263,8 +265,8 @@ describe('RegistryManager', () => {
 
     it('should handle buf command failure', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/new/module');
-      mockFsUtils.fileExists.mockResolvedValue(true);
-      mockFsUtils.readFile.mockResolvedValue('version: v1\nname: test\n');
+      mockFileExists.mockResolvedValue(true);
+      mockReadFile.mockResolvedValue('version: v1\nname: test\n');
 
       mockProc.on.mockImplementation((event: string, callback: (code?: number | Error) => void) => {
         if (event === 'close') {
@@ -282,8 +284,8 @@ describe('RegistryManager', () => {
 
     it('should handle spawn error event', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/new/module');
-      mockFsUtils.fileExists.mockResolvedValue(true);
-      mockFsUtils.readFile.mockResolvedValue('version: v1\nname: test\n');
+      mockFileExists.mockResolvedValue(true);
+      mockReadFile.mockResolvedValue('version: v1\nname: test\n');
 
       mockProc.on.mockImplementation((event: string, callback: (code?: number | Error) => void) => {
         if (event === 'error') {
@@ -301,8 +303,8 @@ describe('RegistryManager', () => {
 
     it('should use custom buf path from configuration', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/new/module');
-      mockFsUtils.fileExists.mockResolvedValue(true);
-      mockFsUtils.readFile.mockResolvedValue('version: v1\nname: test\n');
+      mockFileExists.mockResolvedValue(true);
+      mockReadFile.mockResolvedValue('version: v1\nname: test\n');
       (mockVscode.workspace.getConfiguration as jest.Mock).mockReturnValue({
         get: jest.fn((key: string) => {
           if (key === 'buf.path') {return '/custom/path/buf';}
@@ -321,8 +323,8 @@ describe('RegistryManager', () => {
 
     it('should fallback to externalLinter.bufPath if buf.path is not set', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/new/module');
-      mockFsUtils.fileExists.mockResolvedValue(true);
-      mockFsUtils.readFile.mockResolvedValue('version: v1\nname: test\n');
+      mockFileExists.mockResolvedValue(true);
+      mockReadFile.mockResolvedValue('version: v1\nname: test\n');
       (mockVscode.workspace.getConfiguration as jest.Mock).mockReturnValue({
         get: jest.fn((key: string) => {
           if (key === 'buf.path') {return undefined;}
@@ -344,8 +346,8 @@ describe('RegistryManager', () => {
   describe('runBufCommand (private)', () => {
     it('should capture stdout output', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/new/module');
-      mockFsUtils.fileExists.mockResolvedValue(true);
-      mockFsUtils.readFile.mockResolvedValue('version: v1\nname: test\n');
+      mockFileExists.mockResolvedValue(true);
+      mockReadFile.mockResolvedValue('version: v1\nname: test\n');
 
       mockStdout.on.mockImplementation((event: string, callback: (data: Buffer) => void) => {
         if (event === 'data') {
@@ -361,8 +363,8 @@ describe('RegistryManager', () => {
 
     it('should capture stderr output', async () => {
       mockVscode.window.showInputBox.mockResolvedValue('buf.build/new/module');
-      mockFsUtils.fileExists.mockResolvedValue(true);
-      mockFsUtils.readFile.mockResolvedValue('version: v1\nname: test\n');
+      mockFileExists.mockResolvedValue(true);
+      mockReadFile.mockResolvedValue('version: v1\nname: test\n');
 
       mockStderr.on.mockImplementation((event: string, callback: (data: Buffer) => void) => {
         if (event === 'data') {

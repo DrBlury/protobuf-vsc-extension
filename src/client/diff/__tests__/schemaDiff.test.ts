@@ -5,15 +5,21 @@ const mockVscode = createMockVscode();
 
 jest.mock('vscode', () => mockVscode, { virtual: true });
 
+// Define mocks before jest.mock to ensure they're properly captured
 const mockWriteFile = jest.fn().mockResolvedValue(undefined);
+const mockFileExists = jest.fn().mockResolvedValue(true);
+const mockReadFile = jest.fn().mockResolvedValue('');
+
 jest.mock('../../utils/fsUtils', () => ({
   writeFile: mockWriteFile,
-  fileExists: jest.fn().mockResolvedValue(true),
-  readFile: jest.fn().mockResolvedValue(''),
+  fileExists: mockFileExists,
+  readFile: mockReadFile,
 }));
 
+// Mock os.tmpdir to return a consistent path
+const mockTmpdir = jest.fn(() => '/tmp');
 jest.mock('os', () => ({
-  tmpdir: jest.fn(() => '/tmp'),
+  tmpdir: mockTmpdir,
 }));
 
 const mockSpawn = jest.fn();
