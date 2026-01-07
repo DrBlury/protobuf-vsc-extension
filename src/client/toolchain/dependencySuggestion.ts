@@ -322,7 +322,8 @@ breaking:
 
     return new Promise((resolve, reject) => {
       this.outputChannel.appendLine(`Running: ${bufPath} dep update`);
-      const proc = spawn(bufPath, ['dep', 'update'], { cwd, shell: true });
+      // Don't use shell: true as it breaks paths with spaces
+      const proc = spawn(bufPath, ['dep', 'update'], { cwd });
 
       let stderrOutput = '';
 

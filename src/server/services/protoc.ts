@@ -254,8 +254,11 @@ export class ProtocCompiler {
       });
 
       proc.on('error', () => {
-        // If we didn't use shell, fallback to shell (needed for some PATH configurations)
-        if (!useShell) {
+        // If we didn't use shell and path is a simple command name,
+        // fallback to shell (needed for some PATH configurations)
+        // Don't use shell fallback for full paths as they may contain spaces
+        const isSimpleCommand = !this.settings.path.includes(path.sep) && !this.settings.path.includes('/');
+        if (!useShell && isSimpleCommand) {
           const procWithShell = spawn(this.settings.path, ['--version'], { shell: true });
           procWithShell.on('close', (code: number | null) => resolve(code === 0));
           procWithShell.on('error', () => resolve(false));
@@ -318,8 +321,10 @@ export class ProtocCompiler {
       });
 
       proc.on('error', () => {
-        // If we didn't use shell, fallback with shell
-        if (!useShell) {
+        // If we didn't use shell and path is a simple command name, fallback with shell
+        // Don't use shell fallback for full paths as they may contain spaces
+        const isSimpleCommand = !this.settings.path.includes(path.sep) && !this.settings.path.includes('/');
+        if (!useShell && isSimpleCommand) {
           const procWithShell = spawn(this.settings.path, ['--version'], { shell: true });
           let shellOutput = '';
           procWithShell.stdout?.on('data', (data: Buffer) => {

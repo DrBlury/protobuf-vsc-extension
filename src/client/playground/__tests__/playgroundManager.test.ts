@@ -92,7 +92,7 @@ describe('PlaygroundManager', () => {
         uri: 'file:///test/project/api.proto',
       });
       mockVscode.window.activeTextEditor = mockEditor;
-      
+
       const mockProc = createMockChildProcess('service.MyService\n', '', 0);
       mockSpawn.mockReturnValue(mockProc);
 
@@ -131,10 +131,11 @@ describe('PlaygroundManager', () => {
 
       await new Promise(resolve => setTimeout(resolve, 20));
 
+      // Should use managed grpcurl path (full path without shell: true to handle spaces)
       expect(mockSpawn).toHaveBeenCalledWith(
-        'grpcurl',
+        '/test/global-storage/bin/grpcurl',
         expect.arrayContaining(['-proto', '/test/project/api.proto', 'list']),
-        expect.objectContaining({ shell: true })
+        expect.objectContaining({ cwd: '/test/project' })
       );
     });
   });
@@ -157,8 +158,9 @@ describe('PlaygroundManager', () => {
 
         await new Promise(resolve => setTimeout(resolve, 20));
 
+        // Uses managed grpcurl path (full path to handle spaces in path)
         expect(mockSpawn).toHaveBeenCalledWith(
-          'grpcurl',
+          '/test/global-storage/bin/grpcurl',
           expect.arrayContaining(['-proto', '/test/api.proto', 'list']),
           expect.any(Object)
         );
@@ -178,8 +180,9 @@ describe('PlaygroundManager', () => {
 
         await new Promise(resolve => setTimeout(resolve, 20));
 
+        // Uses managed grpcurl path and includes configured import paths
         expect(mockSpawn).toHaveBeenCalledWith(
-          'grpcurl',
+          '/test/global-storage/bin/grpcurl',
           expect.arrayContaining([
             '-import-path', '/imports/common',
             '-import-path', '/imports/shared',
@@ -236,8 +239,9 @@ describe('PlaygroundManager', () => {
 
         await new Promise(resolve => setTimeout(resolve, 20));
 
+        // Uses managed grpcurl path (full path to handle spaces in path)
         expect(mockSpawn).toHaveBeenCalledWith(
-          'grpcurl',
+          '/test/global-storage/bin/grpcurl',
           expect.arrayContaining([
             '-proto', '/test/user.proto',
             '-d', '{"id": 1}',
@@ -257,8 +261,9 @@ describe('PlaygroundManager', () => {
 
         await new Promise(resolve => setTimeout(resolve, 20));
 
+        // Logs the full managed path
         expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
-          expect.stringContaining('Running: grpcurl')
+          expect.stringContaining('Running: /test/global-storage/bin/grpcurl')
         );
       });
 
@@ -304,8 +309,9 @@ describe('PlaygroundManager', () => {
 
         await new Promise(resolve => setTimeout(resolve, 20));
 
+        // Uses managed grpcurl path and includes configured import paths
         expect(mockSpawn).toHaveBeenCalledWith(
-          'grpcurl',
+          '/test/global-storage/bin/grpcurl',
           expect.arrayContaining(['-import-path', '/common/protos']),
           expect.any(Object)
         );

@@ -7,20 +7,42 @@ The Protobuf Playground is an interactive webview that allows you to test gRPC s
 The Playground provides:
 
 - **gRPC request testing** - Send requests to gRPC services
-- **Service discovery** - Automatically lists available services
+- **Service discovery** - Automatically lists available services (via proto files or server reflection)
 - **JSON request bodies** - Easy-to-use JSON input
 - **Response viewing** - See responses in real-time
 - **File context** - Works with your current `.proto` file
+- **Server Reflection** - Discover services from running servers without proto files
 
 ## Prerequisites
 
 The Playground requires:
 
-- **grpcurl** - Must be installed and available in your PATH
+- **grpcurl** - Must be installed (can be installed via the toolchain manager)
 - **gRPC server** - A running gRPC server to test against
-- **Proto file** - A `.proto` file with service definitions
+- **Proto file** - A `.proto` file with service definitions (or use Server Reflection mode)
+
+### Protobuf Editions Limitation
+
+> ⚠️ **Important**: `grpcurl` does not currently support Protobuf Editions syntax (`edition = "2023"`). If your proto files use Editions, you must use **Server Reflection mode** instead. This requires your gRPC server to have reflection enabled.
+
+To enable server reflection in your server:
+- **Go**: Import `google.golang.org/grpc/reflection` and call `reflection.Register(server)`
+- **Python**: Use `grpc_reflection.v1alpha.reflection.enable_server_reflection()`
+- **Java**: Add `ProtoReflectionService` to your server
 
 ### Installing grpcurl
+
+#### Using the Toolchain Manager (Recommended)
+
+The easiest way to install grpcurl is through the built-in toolchain manager:
+
+1. Open Command Palette (`Cmd/Ctrl+Shift+P`)
+2. Run: `Protobuf: Manage Toolchain`
+3. Select `Install grpcurl`
+
+The extension will automatically download and install the correct version for your platform.
+
+#### Manual Installation
 
 **macOS**:
 
@@ -42,6 +64,16 @@ brew install grpcurl
 # Add to PATH
 ```
 
+### Configuring grpcurl Path
+
+If grpcurl is installed in a non-standard location, configure the path in your settings:
+
+```json
+{
+  "protobuf.grpcurl.path": "/path/to/grpcurl"
+}
+```
+
 ## Usage
 
 ### Opening the Playground
@@ -52,7 +84,7 @@ brew install grpcurl
 
 2. **Prerequisites**:
    - Open a `.proto` file with service definitions
-   - Have `grpcurl` installed
+   - Have `grpcurl` installed (via toolchain manager or manually)
 
 ### Playground Interface
 

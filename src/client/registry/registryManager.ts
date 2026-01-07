@@ -86,7 +86,8 @@ export class RegistryManager {
 
       return new Promise((resolve, reject) => {
           this.outputChannel.appendLine(`Running: ${bufPath} ${args.join(' ')}`);
-          const proc = spawn(bufPath, args, { cwd, shell: true });
+          // Don't use shell: true as it breaks paths with spaces
+          const proc = spawn(bufPath, args, { cwd });
 
           proc.stdout.on('data', d => this.outputChannel.append(d.toString()));
           proc.stderr.on('data', d => this.outputChannel.append(d.toString()));

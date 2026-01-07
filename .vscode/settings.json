@@ -53,7 +53,8 @@
   "typescript.tsc.autoDetect": "off",
   "protobuf.protoc.path": "/opt/homebrew/bin/protoc",
   "protobuf.buf.path": "/opt/homebrew/bin/buf",
-  "protobuf.externalLinter.bufPath": "/opt/homebrew/bin/buf"
+  "protobuf.externalLinter.bufPath": "/opt/homebrew/bin/buf",
+  "protobuf.grpcurl.path": "grpcurl"
   // "protobuf.semanticHighlighting.enabled": "textmate"
   // "editor.semanticTokenColorCustomizations": {
   //   "[*]": {

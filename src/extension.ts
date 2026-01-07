@@ -28,6 +28,7 @@ import { RegistryManager } from './client/registry/registryManager';
 import { SaveStateTracker } from './client/formatting/saveState';
 import { BinaryDecoderProvider } from './client/binary-decoder/binaryDecoder';
 import { fileExists, readFile, writeFile } from './client/utils/fsUtils';
+import { registerProtobufSidebar } from './client/sidebar/protobufSidebarProvider';
 
 let client: LanguageClient;
 let outputChannel: vscode.OutputChannel;
@@ -239,6 +240,10 @@ export async function activate(context: vscode.ExtensionContext) {
   // Register Binary Decoder Provider
   context.subscriptions.push(BinaryDecoderProvider.register(context, outputChannel));
 
+  // Register Protobuf Sidebar
+  registerProtobufSidebar(context);
+  outputChannel.appendLine('Protobuf sidebar registered');
+
   // Register quick add dependency command (used by code actions)
   context.subscriptions.push(vscode.commands.registerCommand('protobuf.addBufDependencyQuick', async (moduleName: string, _importPath: string) => {
     if (!moduleName) {
@@ -363,7 +368,8 @@ breaking:
 
         return new Promise<void>((resolve, reject) => {
           outputChannel.appendLine(`Running: ${bufPath} dep update`);
-          const proc = spawn(bufPath, ['dep', 'update'], { cwd: bufYamlDir, shell: true });
+          // Don't use shell: true as it breaks paths with spaces
+          const proc = spawn(bufPath, ['dep', 'update'], { cwd: bufYamlDir });
 
           let stderrOutput = '';
 

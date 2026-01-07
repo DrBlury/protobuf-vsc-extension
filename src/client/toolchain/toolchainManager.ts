@@ -93,6 +93,7 @@ export class ToolchainManager {
     this.tools.set('buf', { name: 'buf', status: ToolStatus.Unknown });
     this.tools.set('protolint', { name: 'protolint', status: ToolStatus.Unknown });
     this.tools.set('api-linter', { name: 'api-linter', status: ToolStatus.Unknown });
+    this.tools.set('grpcurl', { name: 'grpcurl', status: ToolStatus.Unknown });
 
     // Initialize asynchronously (ensure bin directory exists and check tools)
     this.initialize();
@@ -215,6 +216,8 @@ export class ToolchainManager {
         return { section: 'protobuf.externalLinter', key: 'protolintPath' };
       case 'api-linter':
         return { section: 'protobuf.externalLinter', key: 'apiLinterPath' };
+      case 'grpcurl':
+        return { section: 'protobuf.grpcurl', key: 'path' };
       default:
         return { section: `protobuf.${name}`, key: 'path' };
     }
@@ -246,6 +249,13 @@ export class ToolchainManager {
       proc.on('error', () => {
         // Fallback: try with shell to pick up PATH from shell configuration
         // GUI apps on macOS/Linux don't inherit shell PATH
+        // Only use shell fallback for simple command names (no path separators)
+        // to avoid breaking paths with spaces
+        const isSimpleCommand = !cmd.includes(path.sep) && !cmd.includes('/');
+        if (!isSimpleCommand) {
+          reject(new Error(`Command not found: ${cmd}`));
+          return;
+        }
         const procWithShell = spawn(cmd, [flag], { shell: true });
         let shellOutput = '';
         let shellErrorOutput = '';
@@ -270,40 +280,16 @@ export class ToolchainManager {
     const allTools = Array.from(this.tools.entries());
     const installed = allTools.filter(([_, info]) => info.status === ToolStatus.Installed);
 
-    // Build detailed tooltip with all tools
-    const detailLines: string[] = [];
-    for (const [name, info] of this.tools.entries()) {
-      const status = info.status === ToolStatus.Installed ? '✓' : '✗';
-      if (info.status === ToolStatus.Installed) {
-        detailLines.push(`${status} ${name}: ${info.version}`);
-        detailLines.push(`    Path: ${info.path}`);
-      } else {
-        detailLines.push(`${status} ${name}: not detected`);
-      }
-    }
-
     if (installed.length > 0) {
-      // Tools detected - show versions
-      const toolVersions = installed
-        .map(([name, info]) => {
-          const ver = info.version?.split('\n')[0] || 'unknown';
-          // Extract short version (e.g., "libprotoc 33.0" -> "33.0")
-          const shortVer = ver.match(/[\d.]+/)?.[0] || ver;
-          return `${name}:${shortVer}`;
-        })
-        .join(' ');
-
-      this.statusBarItem.text = `$(check) Protobuf: ${toolVersions}`;
-      this.statusBarItem.tooltip = `Protobuf Toolchain\n\n${detailLines.join('\n')}\n\nClick to manage.`;
-      this.statusBarItem.backgroundColor = undefined;
+      // Tools detected - hide status bar (no issues)
+      this.statusBarItem.hide();
     } else {
-      // No tools detected at all
-      this.statusBarItem.text = `$(info) Protobuf`;
-      this.statusBarItem.tooltip = `Protobuf Toolchain\n\n${detailLines.join('\n')}\n\nClick to install tools.`;
-      this.statusBarItem.backgroundColor = undefined;
+      // No tools detected - show warning
+      this.statusBarItem.text = `$(warning) Protobuf: No tools`;
+      this.statusBarItem.tooltip = `Click to install protobuf tools`;
+      this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+      this.statusBarItem.show();
     }
-
-    this.statusBarItem.show();
   }
 
   public async manageToolchain(): Promise<void> {
@@ -385,14 +371,24 @@ export class ToolchainManager {
       await this.installTool('protoc');
     } else if (selection.label.includes('Install buf')) {
       await this.installTool('buf');
+    } else if (selection.label.includes('Install grpcurl')) {
+      await this.installTool('grpcurl');
+    } else if (selection.label.includes('Install protolint')) {
+      await this.installTool('protolint');
+    } else if (selection.label.includes('Install api-linter')) {
+      await this.installTool('api-linter');
     } else if (selection.label.includes('Use system protoc')) {
       await this.useSystemTool('protoc');
     } else if (selection.label.includes('Use system buf')) {
       await this.useSystemTool('buf');
+    } else if (selection.label.includes('Use system grpcurl')) {
+      await this.useSystemTool('grpcurl');
     } else if (selection.label.includes('Use managed protoc')) {
       await this.useManagedTool('protoc');
     } else if (selection.label.includes('Use managed buf')) {
       await this.useManagedTool('buf');
+    } else if (selection.label.includes('Use managed grpcurl')) {
+      await this.useManagedTool('grpcurl');
     }
   }
 
@@ -407,7 +403,7 @@ export class ToolchainManager {
     const commonPaths = getCommonPaths();
     const updates: { tool: string; path: string; source: string }[] = [];
 
-    for (const toolName of ['protoc', 'buf']) {
+    for (const toolName of ['protoc', 'buf', 'grpcurl']) {
       const binaryName = toolName + ext;
       let foundPath: string | undefined;
       let source = '';
@@ -551,6 +547,23 @@ export class ToolchainManager {
   }
 
   private async installTool(toolName: string): Promise<void> {
+      // Handle tools that require external installation (Go, Homebrew, etc.)
+      if (toolName === 'protolint') {
+          await this.showExternalInstallInstructions(
+              'protolint',
+              this.getInstallCommands('protolint'),
+              'https://github.com/yoheimuta/protolint#installation'
+          );
+          return;
+      } else if (toolName === 'api-linter') {
+          await this.showExternalInstallInstructions(
+              'api-linter',
+              this.getInstallCommands('api-linter'),
+              'https://linter.aip.dev/'
+          );
+          return;
+      }
+
       return vscode.window.withProgress({
           location: vscode.ProgressLocation.Notification,
           title: `Installing ${toolName}...`,
@@ -561,6 +574,10 @@ export class ToolchainManager {
                   await this.installProtoc(progress);
               } else if (toolName === 'buf') {
                   await this.installBuf(progress);
+              } else if (toolName === 'grpcurl') {
+                  await this.installGrpcurl(progress);
+              } else {
+                  throw new Error(`Automatic installation not supported for ${toolName}`);
               }
 
               // Refresh status
@@ -614,7 +631,7 @@ export class ToolchainManager {
 
       this.outputChannel.appendLine(`Downloading protoc from: ${url}`);
       progress.report({ message: 'Downloading...', increment: 0 });
-      
+
       const expectedHash = protocHashes[assetName];
       if (expectedHash) {
         await this.downloadFileWithIntegrity(url, zipPath, expectedHash);
@@ -685,7 +702,7 @@ export class ToolchainManager {
       this.outputChannel.appendLine(`Downloading buf from: ${url}`);
       this.outputChannel.appendLine(`Destination: ${destPath}`);
       progress.report({ message: 'Downloading...', increment: 0 });
-      
+
       const expectedHash = bufHashes[assetName];
       if (expectedHash) {
         await this.downloadFileWithIntegrity(url, destPath, expectedHash);
@@ -703,6 +720,146 @@ export class ToolchainManager {
       } else {
           throw new Error(`buf binary not found after download`);
       }
+  }
+
+  private async installGrpcurl(progress: vscode.Progress<{ message?: string; increment?: number }>): Promise<void> {
+      const version = '1.9.1';
+      const platform = os.platform();
+      const arch = os.arch();
+
+      let assetName = '';
+      if (platform === 'win32') {
+          assetName = arch === 'arm64' ? `grpcurl_${version}_windows_arm64.zip` : `grpcurl_${version}_windows_x86_64.zip`;
+      } else if (platform === 'darwin') {
+          assetName = arch === 'arm64' ? `grpcurl_${version}_osx_arm64.tar.gz` : `grpcurl_${version}_osx_x86_64.tar.gz`;
+      } else {
+          // Linux
+          assetName = arch === 'arm64' ? `grpcurl_${version}_linux_arm64.tar.gz` : `grpcurl_${version}_linux_x86_64.tar.gz`;
+      }
+
+      const url = `https://github.com/fullstorydev/grpcurl/releases/download/v${version}/${assetName}`;
+      const archivePath = path.join(this.globalStoragePath, assetName);
+
+      // TODO: Add SHA256 integrity verification once real checksums are obtained from:
+      // https://github.com/fullstorydev/grpcurl/releases/download/v${version}/grpcurl_${version}_checksums.txt
+
+      this.outputChannel.appendLine(`Downloading grpcurl from: ${url}`);
+      progress.report({ message: 'Downloading...', increment: 0 });
+
+      // For now, download without integrity verification
+      this.outputChannel.appendLine(`⚠️  Downloading grpcurl (hash verification not yet implemented for this release)`);
+      await this.downloadFile(url, archivePath);
+
+      this.outputChannel.appendLine(`Extracting to: ${this.binPath}`);
+      progress.report({ message: 'Extracting...', increment: 50 });
+
+      if (assetName.endsWith('.tar.gz')) {
+          await this.extractTarGz(archivePath, this.binPath);
+      } else {
+          await this.extractZip(archivePath, this.binPath);
+      }
+
+      // Cleanup archive file
+      fs.unlinkSync(archivePath);
+
+      // On macOS/Linux, ensure executable permission
+      const ext = platform === 'win32' ? '.exe' : '';
+      const binaryPath = path.join(this.binPath, 'grpcurl' + ext);
+      this.outputChannel.appendLine(`Expected binary path: ${binaryPath}`);
+
+      if (await fileExists(binaryPath)) {
+          if (platform !== 'win32') {
+              fs.chmodSync(binaryPath, 0o755);
+          }
+          this.outputChannel.appendLine(`✓ grpcurl installed successfully at: ${binaryPath}`);
+      } else {
+          // List what was extracted to help debug
+          this.outputChannel.appendLine(`✗ Binary not found at expected path. Checking extracted contents...`);
+          if (await fileExists(this.binPath)) {
+              const files = await readDirectory(this.binPath);
+              this.outputChannel.appendLine(`  Contents of bin/: ${files.map(([name]) => name).join(', ')}`);
+          }
+          throw new Error(`grpcurl binary not found after extraction`);
+      }
+  }
+
+  /**
+   * Get OS-specific installation commands for a tool
+   */
+  private getInstallCommands(toolName: string): string[] {
+      const platform = os.platform();
+      const commands: string[] = [];
+
+      if (toolName === 'protolint') {
+          if (platform === 'darwin') {
+              commands.push('brew install protolint');
+          } else if (platform === 'win32') {
+              commands.push('scoop install protolint');
+              commands.push('go install github.com/yoheimuta/protolint/cmd/protolint@latest');
+          } else {
+              // Linux
+              commands.push('go install github.com/yoheimuta/protolint/cmd/protolint@latest');
+          }
+      } else if (toolName === 'api-linter') {
+          // api-linter is Go-only, works on all platforms
+          commands.push('go install github.com/googleapis/api-linter/cmd/api-linter@latest');
+      }
+
+      return commands;
+  }
+
+  /**
+   * Show installation instructions for tools that require external package managers
+   * (Go, Homebrew, etc.) and cannot be directly downloaded as binaries.
+   */
+  private async showExternalInstallInstructions(toolName: string, commands: string[], docUrl: string): Promise<void> {
+      const platform = os.platform();
+      const platformName = platform === 'darwin' ? 'macOS' : platform === 'win32' ? 'Windows' : 'Linux';
+
+      this.outputChannel.appendLine(`\n${toolName} Installation Instructions (${platformName}):`);
+      this.outputChannel.appendLine('='.repeat(40));
+      commands.forEach(cmd => this.outputChannel.appendLine(`  ${cmd}`));
+      this.outputChannel.appendLine(`\nOfficial documentation: ${docUrl}`);
+      this.outputChannel.appendLine('');
+
+      const selection = await vscode.window.showInformationMessage(
+          `${toolName} must be installed manually.`,
+          { modal: false },
+          'Copy Install Command',
+          'Open Documentation',
+          'Open Terminal'
+      );
+
+      if (selection === 'Copy Install Command' && commands.length > 0) {
+          // Copy the first (most common) command for this OS
+          const cmd = commands[0]!;
+          await vscode.env.clipboard.writeText(cmd);
+          vscode.window.showInformationMessage(`Copied: ${cmd}`);
+      } else if (selection === 'Open Documentation') {
+          vscode.env.openExternal(vscode.Uri.parse(docUrl));
+      } else if (selection === 'Open Terminal') {
+          const terminal = vscode.window.createTerminal(`Install ${toolName}`);
+          terminal.show();
+          if (commands.length > 0) {
+              terminal.sendText(`# Install ${toolName} (${platformName}):`);
+              terminal.sendText(commands[0]!);
+          }
+      }
+  }
+
+  private async extractTarGz(archivePath: string, destDir: string): Promise<void> {
+      return new Promise((resolve, reject) => {
+          // Use system tar to extract .tar.gz files
+          const proc = spawn('tar', ['-xzf', archivePath, '-C', destDir]);
+          proc.on('close', (code) => {
+              if (code === 0) {
+                  resolve();
+              } else {
+                  reject(new Error(`Extraction failed with code ${code}`));
+              }
+          });
+          proc.on('error', reject);
+      });
   }
 
   private async downloadFile(url: string, dest: string): Promise<void> {
@@ -735,14 +892,14 @@ export class ToolchainManager {
    * Download a binary file with integrity verification
    */
   private async downloadFileWithIntegrity(
-    url: string, 
-    dest: string, 
+    url: string,
+    dest: string,
     expectedSha256: string
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const file = fs.createWriteStream(dest);
       const hash = crypto.createHash('sha256');
-      
+
       https.get(url, { headers: { 'User-Agent': 'VSCode-Protobuf-Extension' } }, (response) => {
         if (response.statusCode !== 200 && response.statusCode !== 302) {
           reject(new Error(`Failed to download ${url}: Status ${response.statusCode}`));
@@ -760,10 +917,10 @@ export class ToolchainManager {
         });
 
         response.pipe(file);
-        
+
         file.on('finish', () => {
           file.close();
-          
+
           // Verify integrity
           const calculatedHash = hash.digest('hex');
           if (calculatedHash !== expectedSha256.toLowerCase()) {
@@ -776,7 +933,7 @@ export class ToolchainManager {
             ));
             return;
           }
-          
+
           resolve();
         });
       }).on('error', (err) => {

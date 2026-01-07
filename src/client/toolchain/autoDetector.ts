@@ -316,9 +316,12 @@ export class AutoDetector {
       });
 
       proc.on('error', () => {
-        // If we didn't use shell, fallback to shell to pick up PATH from shell configuration
+        // If we didn't use shell and cmd is a simple command name (no path separators),
+        // fallback to shell to pick up PATH from shell configuration
         // GUI apps on macOS/Linux don't inherit shell PATH
-        if (!useShell) {
+        // Don't use shell fallback for full paths as they may contain spaces
+        const isSimpleCommand = !cmd.includes(path.sep) && !cmd.includes('/');
+        if (!useShell && isSimpleCommand) {
           const procWithShell = spawn(cmd, [flag], { timeout: 5000, shell: true });
           let shellOutput = '';
           let shellErrorOutput = '';

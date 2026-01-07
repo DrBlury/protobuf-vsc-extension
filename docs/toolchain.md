@@ -1,12 +1,12 @@
 # Toolchain Management
 
-The Protobuf VSC extension includes a built-in toolchain manager that helps you install, manage, and monitor the protobuf tools (`protoc` and `buf`) required for working with Protocol Buffers.
+The Protobuf VSC extension includes a built-in toolchain manager that helps you install, manage, and monitor the protobuf tools (`protoc`, `buf`, and `grpcurl`) required for working with Protocol Buffers.
 
 ## Overview
 
 The toolchain manager provides:
 
-- **Automatic tool detection** - Checks if `protoc` and `buf` are installed
+- **Automatic tool detection** - Checks if `protoc`, `buf`, and `grpcurl` are installed
 - **Status bar indicator** - Visual feedback on toolchain health
 - **One-click installation** - Install missing tools directly from VS Code
 - **Version management** - View installed versions and update tools
@@ -71,6 +71,7 @@ The extension installs specific versions:
 
 - **protoc**: v25.1
 - **buf**: v1.28.1
+- **grpcurl**: v1.9.1
 
 These versions are tested and known to work well with the extension. You can update tools by reinstalling them through the toolchain manager.
 
@@ -83,7 +84,8 @@ Configure custom tool paths in your settings:
 ```json
 {
   "protobuf.protoc.path": "/usr/local/bin/protoc",
-  "protobuf.buf.path": "/usr/local/bin/buf"
+  "protobuf.buf.path": "/usr/local/bin/buf",
+  "protobuf.grpcurl.path": "/usr/local/bin/grpcurl"
 }
 ```
 

@@ -124,7 +124,14 @@ export class ExternalLinterProvider {
         }
       });
       proc.on('error', () => {
-        // Fallback with shell for PATH resolution
+        // Fallback with shell for PATH resolution, but only for simple command names
+        // Don't use shell fallback for full paths as they may contain spaces
+        const isSimpleCommand = !linterPath.includes(path.sep) && !linterPath.includes('/');
+        if (!isSimpleCommand) {
+          logger.info(`${this.settings.linter} not found at ${linterPath}. Check that the path is correct.`);
+          resolve(false);
+          return;
+        }
         const procWithShell = spawn(linterPath, ['--version'], { shell: true });
         procWithShell.on('close', (code: number | null) => {
           if (code === 0) {
@@ -216,10 +223,10 @@ export class ExternalLinterProvider {
         const configArg = '--config';
         const configPath = this.settings.bufConfigPath;
         args.push(configArg, configPath);
-        
+
         // Validate the config path as well
         validateLinterArgs([configArg, configPath]);
-        
+
         // Use the config file's directory as cwd for consistent behavior
         cwd = path.dirname(path.resolve(this.workspaceRoot, this.settings.bufConfigPath));
         logger.debug(`Using user-configured buf config: ${this.settings.bufConfigPath}`);
