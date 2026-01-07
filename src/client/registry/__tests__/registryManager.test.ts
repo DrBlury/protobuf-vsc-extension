@@ -72,6 +72,10 @@ describe('RegistryManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFileExists.mockReset();
+    mockReadFile.mockReset();
+    mockWriteFile.mockReset();
+    mockSpawn.mockClear();
 
     mockVscode.workspace.workspaceFolders = [
       { uri: { fsPath: '/test/workspace' } }
@@ -81,6 +85,13 @@ describe('RegistryManager', () => {
     mockWriteFile.mockResolvedValue(undefined);
     mockVscode.window.showInputBox.mockResolvedValue(undefined);
     mockVscode.window.showInformationMessage.mockResolvedValue(undefined);
+    (mockVscode.workspace.getConfiguration as jest.Mock).mockReturnValue({
+      get: jest.fn((key: string) => {
+        if (key === 'buf.path') {return 'buf';}
+        if (key === 'externalLinter.bufPath') {return undefined;}
+        return undefined;
+      }),
+    });
 
     mockProc.on.mockImplementation((event: string, callback: (code?: number | Error) => void) => {
       if (event === 'close') {
@@ -90,6 +101,8 @@ describe('RegistryManager', () => {
     });
     mockStdout.on.mockImplementation(() => mockStdout);
     mockStderr.on.mockImplementation(() => mockStderr);
+
+    mockSpawn.mockReturnValue(mockProc);
 
     registryManager = new RegistryManager(mockOutputChannel as unknown as vscode.OutputChannel);
   });
