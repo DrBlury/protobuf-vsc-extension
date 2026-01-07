@@ -29,17 +29,41 @@ jest.mock('child_process', () => ({
 
 import { SchemaDiffManager } from '../schemaDiff';
 
+/**
+ * Helper to flush all pending promises and timers.
+ * This ensures async operations complete deterministically.
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  // Run all pending timers (for mock child process events)
+  jest.runAllTimers();
+  // Flush the microtask queue to let promises resolve
+  await Promise.resolve();
+  // Run any timers that were scheduled by promise handlers
+  jest.runAllTimers();
+  await Promise.resolve();
+}
+
 describe('SchemaDiffManager', () => {
   let manager: SchemaDiffManager;
   let mockOutputChannel: ReturnType<typeof mockVscode.window.createOutputChannel>;
 
   beforeEach(() => {
+    // Use fake timers for deterministic async behavior
+    jest.useFakeTimers();
     jest.clearAllMocks();
+    jest.resetModules();
     mockWriteFile.mockClear();
+    mockWriteFile.mockResolvedValue(undefined);
     mockOutputChannel = mockVscode.window.createOutputChannel();
     mockVscode.window.activeTextEditor = undefined;
     mockVscode.workspace.getWorkspaceFolder = jest.fn();
+    mockVscode.commands.executeCommand.mockClear();
+    mockVscode.window.showErrorMessage.mockClear();
     manager = new SchemaDiffManager(mockOutputChannel);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -114,9 +138,9 @@ describe('SchemaDiffManager', () => {
       const mockProc = createMockChildProcess('syntax = "proto3";', '', 0);
       mockSpawn.mockReturnValue(mockProc);
 
-      await manager.diffSchema(uri);
-
-      await new Promise(resolve => setTimeout(resolve, 20));
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
       expect(mockSpawn).toHaveBeenCalledWith(
         'git',
@@ -136,9 +160,9 @@ describe('SchemaDiffManager', () => {
       const mockProc = createMockChildProcess(oldContent, '', 0);
       mockSpawn.mockReturnValue(mockProc);
 
-      await manager.diffSchema(uri);
-
-      await new Promise(resolve => setTimeout(resolve, 20));
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
       const expectedTmpPath = path.join('/tmp', 'schema.proto.main.proto');
       expect(mockWriteFile).toHaveBeenCalledWith(
@@ -164,9 +188,9 @@ describe('SchemaDiffManager', () => {
       const mockProc = createMockChildProcess('content', '', 0);
       mockSpawn.mockReturnValue(mockProc);
 
-      await manager.diffSchema(uri);
-
-      await new Promise(resolve => setTimeout(resolve, 20));
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
       const expectedTmpPath = path.join('/tmp', 'schema.proto.origin_main.proto');
       expect(mockWriteFile).toHaveBeenCalledWith(
@@ -185,9 +209,9 @@ describe('SchemaDiffManager', () => {
       const mockProc = createMockChildProcess('', '', 0);
       mockSpawn.mockReturnValue(mockProc);
 
-      await manager.diffSchema(uri);
-
-      await new Promise(resolve => setTimeout(resolve, 20));
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
       expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
         'Could not find file at HEAD~1'
@@ -204,9 +228,9 @@ describe('SchemaDiffManager', () => {
       const mockProc = createMockChildProcess('', 'fatal: bad revision', 128);
       mockSpawn.mockReturnValue(mockProc);
 
-      await manager.diffSchema(uri);
-
-      await new Promise(resolve => setTimeout(resolve, 20));
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
       expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
         expect.stringContaining('Failed to diff schema:')
@@ -227,9 +251,9 @@ describe('SchemaDiffManager', () => {
       const mockProc = createMockChildProcess('content', '', 0);
       mockSpawn.mockReturnValue(mockProc);
 
-      await manager.diffSchema();
-
-      await new Promise(resolve => setTimeout(resolve, 20));
+      const diffPromise = manager.diffSchema();
+      await flushPromisesAndTimers();
+      await diffPromise;
 
       expect(mockSpawn).toHaveBeenCalledWith(
         'git',
@@ -246,9 +270,9 @@ describe('SchemaDiffManager', () => {
       const mockProc = createMockChildProcess('content', '', 0);
       mockSpawn.mockReturnValue(mockProc);
 
-      await manager.diffSchema(uri);
-
-      await new Promise(resolve => setTimeout(resolve, 20));
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
       expect(mockSpawn).toHaveBeenCalledWith(
         'git',
@@ -267,9 +291,9 @@ describe('SchemaDiffManager', () => {
       const mockProc = createMockChildProcess('content', '', 0);
       mockSpawn.mockReturnValue(mockProc);
 
-      await manager.diffSchema(uri);
-
-      await new Promise(resolve => setTimeout(resolve, 20));
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
       expect(mockSpawn).toHaveBeenCalledWith(
         'git',
@@ -288,9 +312,9 @@ describe('SchemaDiffManager', () => {
       const mockProc = createMockChildProcess('', 'fatal: not a git repository', 128);
       mockSpawn.mockReturnValue(mockProc);
 
-      await manager.diffSchema(uri);
-
-      await new Promise(resolve => setTimeout(resolve, 20));
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
       expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
         expect.stringContaining('Git exited with code 128')
