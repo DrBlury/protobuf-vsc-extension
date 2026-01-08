@@ -3,10 +3,7 @@
  * Handles find-references requests
  */
 
-import type {
-  ReferenceParams,
-  Location
-} from 'vscode-languageserver/node';
+import type { ReferenceParams, Location } from 'vscode-languageserver/node';
 
 import type { TextDocuments } from 'vscode-languageserver/node';
 import type { TextDocument } from 'vscode-languageserver-textdocument';

@@ -3,13 +3,8 @@
  */
 
 import * as path from 'path';
-import type {
-  LanguageClientOptions,
-  ServerOptions} from 'vscode-languageclient/node';
-import {
-  LanguageClient,
-  TransportKind
-} from 'vscode-languageclient/node';
+import type { LanguageClientOptions, ServerOptions } from 'vscode-languageclient/node';
+import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
 import { DEBUG_PORT } from '../server/utils/constants';
 
 let client: LanguageClient;
@@ -22,32 +17,27 @@ export function createLanguageClient(context: { extensionPath: string }): Langua
   const serverOptions: ServerOptions = {
     run: {
       module: serverModule,
-      transport: TransportKind.ipc
+      transport: TransportKind.ipc,
     },
     debug: {
       module: serverModule,
       transport: TransportKind.ipc,
       options: {
-        execArgv: ['--nolazy', `--inspect=${DEBUG_PORT}`]
-      }
-    }
+        execArgv: ['--nolazy', `--inspect=${DEBUG_PORT}`],
+      },
+    },
   };
 
   // Client options
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: 'file', language: 'proto' }],
     synchronize: {
-      configurationSection: 'protobuf'
-    }
+      configurationSection: 'protobuf',
+    },
   };
 
   // Create and return the client
-  client = new LanguageClient(
-    'protobufLanguageServer',
-    'Protobuf Language Server',
-    serverOptions,
-    clientOptions
-  );
+  client = new LanguageClient('protobufLanguageServer', 'Protobuf Language Server', serverOptions, clientOptions);
 
   return client;
 }

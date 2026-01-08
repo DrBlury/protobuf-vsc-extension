@@ -2,12 +2,7 @@
  * Tests for builtin hover support
  */
 
-import {
-  getBuiltinTypeHover,
-  getKeywordHover,
-  BUILTIN_TYPE_DESCRIPTIONS,
-  KEYWORD_DESCRIPTIONS
-} from '../builtinHover';
+import { getBuiltinTypeHover, getKeywordHover, BUILTIN_TYPE_DESCRIPTIONS, KEYWORD_DESCRIPTIONS } from '../builtinHover';
 import type { MarkupContent } from 'vscode-languageserver';
 
 describe('Builtin Hover', () => {

@@ -28,7 +28,7 @@ export type {
   OneofDefinition,
   ExtendDefinition,
   ReservedStatement,
-  MapFieldDefinition
+  MapFieldDefinition,
 } from './ast';
 
 export { SymbolKind } from './ast';

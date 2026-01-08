@@ -2,23 +2,14 @@
  * Completion Provider for Protocol Buffers
  */
 
-import type {
-  CompletionItem,
-  Position,
-  Range} from 'vscode-languageserver/node';
-import {
-  CompletionItemKind,
-  InsertTextFormat,
-  TextEdit
-} from 'vscode-languageserver/node';
+import type { CompletionItem, Position, Range } from 'vscode-languageserver/node';
+import { CompletionItemKind, InsertTextFormat, TextEdit } from 'vscode-languageserver/node';
 
 import type { MessageDefinition, SymbolInfo } from '../core/ast';
 import { BUILTIN_TYPES, SymbolKind } from '../core/ast';
 import type { SemanticAnalyzer } from '../core/analyzer';
 import { FIELD_NUMBER } from '../utils/constants';
-import type {
-  TypePrefix
-} from './completion/index';
+import type { TypePrefix } from './completion/index';
 import {
   isTypeContext,
   getTypePrefix,
@@ -27,13 +18,13 @@ import {
   getContainerInfo,
   isFieldAssignmentContext,
   isEnumValueContext,
-  isFieldNameContext
+  isFieldNameContext,
 } from './completion/index';
 import {
   getEditionFeatureNameCompletions,
   getEditionFeatureValueCompletions,
   getEditionVersionCompletions,
-  getFieldFeaturesOptionCompletion
+  getFieldFeaturesOptionCompletion,
 } from './completion/editionFeatures';
 
 export class CompletionProvider {
@@ -72,8 +63,8 @@ export class CompletionProvider {
           documentation: 'Declares the protobuf edition for this file',
           insertText: 'edition = ${1|"2023","2024"|};',
           insertTextFormat: InsertTextFormat.Snippet,
-          sortText: '0edition'
-        }
+          sortText: '0edition',
+        },
       ];
     }
 
@@ -88,7 +79,14 @@ export class CompletionProvider {
     }
 
     // Edition feature value completion - check for "features.{feature_name} ="
-    const featureNames = ['field_presence', 'enum_type', 'repeated_field_encoding', 'utf8_validation', 'message_encoding', 'json_format'];
+    const featureNames = [
+      'field_presence',
+      'enum_type',
+      'repeated_field_encoding',
+      'utf8_validation',
+      'message_encoding',
+      'json_format',
+    ];
     const featurePattern = new RegExp(`features\\.(${featureNames.join('|')})\\s*=\\s*$`);
     const featureMatch = beforeCursor.match(featurePattern);
     if (featureMatch) {
@@ -104,7 +102,7 @@ export class CompletionProvider {
         detail: 'Edition features option',
         documentation: 'Configure edition-specific behavior for this scope (enum_type, json_format, etc.)',
         insertText: 'features.',
-        sortText: '0features'
+        sortText: '0features',
       });
     }
 
@@ -119,7 +117,7 @@ export class CompletionProvider {
           detail: 'Edition features',
           documentation: 'Configure edition-specific field behavior (field_presence, enum_type, etc.)',
           insertText: 'features.',
-          sortText: '0features'
+          sortText: '0features',
         });
       }
     }
@@ -168,7 +166,11 @@ export class CompletionProvider {
     }
 
     // Enum value number suggestion right after the value name
-    if (isEnumValueContext(beforeCursor, position, documentText) && !hasAssignmentAfterCursor && !hasContentAfterCursor) {
+    if (
+      isEnumValueContext(beforeCursor, position, documentText) &&
+      !hasAssignmentAfterCursor &&
+      !hasContentAfterCursor
+    ) {
       completions.push(...this.getEnumValueAssignmentCompletions(position, documentText));
     }
 
@@ -195,7 +197,7 @@ export class CompletionProvider {
             detail: `Suggested field name for ${typeName}`,
             insertText: `${suggestion} = `,
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '0' + suggestion
+            sortText: '0' + suggestion,
           });
         }
       }
@@ -213,9 +215,9 @@ export class CompletionProvider {
    * Helper to determine if option completions should be shown
    */
   private shouldShowOptionCompletions(beforeCursor: string): boolean {
-    return beforeCursor.includes('option') ||
-           beforeCursor.includes('buf.validate') ||
-           beforeCursor.includes('features');
+    return (
+      beforeCursor.includes('option') || beforeCursor.includes('buf.validate') || beforeCursor.includes('features')
+    );
   }
 
   /**
@@ -227,21 +229,25 @@ export class CompletionProvider {
 
     for (let i = 0; i < beforeCursor.length; i++) {
       const char = beforeCursor[i];
-      if (char === '[') { bracketDepth++; }
-      if (char === ']') { bracketDepth--; }
-      if (char === '{') { braceDepth++; }
-      if (char === '}') { braceDepth--; }
+      if (char === '[') {
+        bracketDepth++;
+      }
+      if (char === ']') {
+        bracketDepth--;
+      }
+      if (char === '{') {
+        braceDepth++;
+      }
+      if (char === '}') {
+        braceDepth--;
+      }
     }
 
     // We're inside field options if we have unclosed brackets and no unclosed braces
     return bracketDepth > 0 && braceDepth === 0;
   }
 
-  private getTypeCompletions(
-    uri: string,
-    position: Position,
-    prefix?: TypePrefix
-  ): CompletionItem[] {
+  private getTypeCompletions(uri: string, position: Position, prefix?: TypePrefix): CompletionItem[] {
     const completions: CompletionItem[] = [];
 
     const qualifier = prefix?.qualifier?.toLowerCase();
@@ -254,7 +260,7 @@ export class CompletionProvider {
     const prefixLength = (prefix?.qualifier ? prefix.qualifier.length + 1 : 0) + (prefix?.partial?.length || 0);
     const replaceRange: Range = {
       start: { line: position.line, character: position.character - prefixLength },
-      end: { line: position.line, character: position.character }
+      end: { line: position.line, character: position.character },
     };
 
     // Get current file's package for determining if full qualification is needed
@@ -272,7 +278,7 @@ export class CompletionProvider {
           kind: CompletionItemKind.Keyword,
           detail: 'Built-in type',
           sortText: '0' + type,
-          textEdit: TextEdit.replace(replaceRange, type)
+          textEdit: TextEdit.replace(replaceRange, type),
         });
       }
     }
@@ -306,14 +312,12 @@ export class CompletionProvider {
       completions.push({
         label: symbol.name,
         labelDetails: symbol.containerName ? { description: symbol.containerName } : undefined,
-        kind: symbol.kind === SymbolKind.Message
-          ? CompletionItemKind.Class
-          : CompletionItemKind.Enum,
+        kind: symbol.kind === SymbolKind.Message ? CompletionItemKind.Class : CompletionItemKind.Enum,
         detail: symbol.fullName,
         filterText: `${symbol.fullName} ${symbol.name}`,
         documentation: `${symbol.kind} defined in ${symbol.containerName || 'root'}`,
         sortText: '1' + symbol.name,
-        textEdit: TextEdit.replace(replaceRange, insertText)
+        textEdit: TextEdit.replace(replaceRange, insertText),
       });
     }
 
@@ -361,7 +365,7 @@ export class CompletionProvider {
       { label: 'optional', detail: 'Optional field modifier' },
       { label: 'required', detail: 'Required field modifier (proto2)' },
       { label: 'repeated', detail: 'Repeated field modifier' },
-      { label: 'stream', detail: 'Streaming modifier' }
+      { label: 'stream', detail: 'Streaming modifier' },
     ];
 
     // Calculate the range of the partial keyword being typed
@@ -369,7 +373,7 @@ export class CompletionProvider {
     const partial = partialMatch?.[1] || '';
     const replaceRange: Range = {
       start: { line: position.line, character: position.character - partial.length },
-      end: { line: position.line, character: position.character }
+      end: { line: position.line, character: position.character },
     };
 
     for (const kw of simpleKeywords) {
@@ -378,7 +382,7 @@ export class CompletionProvider {
         kind: CompletionItemKind.Keyword,
         detail: kw.detail,
         sortText: '2' + kw.label,
-        textEdit: TextEdit.replace(replaceRange, kw.label)
+        textEdit: TextEdit.replace(replaceRange, kw.label),
       });
     }
 
@@ -395,7 +399,7 @@ export class CompletionProvider {
     const partialLower = partial.toLowerCase();
     const replaceRange: Range = {
       start: { line: position.line, character: position.character - partial.length },
-      end: { line: position.line, character: position.character }
+      end: { line: position.line, character: position.character },
     };
 
     const keyTypes = [
@@ -410,7 +414,7 @@ export class CompletionProvider {
       'fixed32',
       'fixed64',
       'sfixed32',
-      'sfixed64'
+      'sfixed64',
     ];
 
     return keyTypes
@@ -420,7 +424,7 @@ export class CompletionProvider {
         kind: CompletionItemKind.Keyword,
         detail: 'Map key type',
         sortText: '0' + type,
-        textEdit: TextEdit.replace(replaceRange, type)
+        textEdit: TextEdit.replace(replaceRange, type),
       }));
   }
 
@@ -462,7 +466,7 @@ export class CompletionProvider {
           sortText: '0' + nextNumber.toString().padStart(5, '0'),
           preselect: true,
           insertText: `${nextNumber};`,
-          insertTextFormat: InsertTextFormat.Snippet
+          insertTextFormat: InsertTextFormat.Snippet,
         });
       }
     }
@@ -476,7 +480,7 @@ export class CompletionProvider {
           detail: `Field number ${n}`,
           sortText: (i + 1).toString().padStart(3, '0'),
           insertText: `${n};`,
-          insertTextFormat: InsertTextFormat.Snippet
+          insertTextFormat: InsertTextFormat.Snippet,
         });
       }
     });
@@ -569,47 +573,44 @@ export class CompletionProvider {
     return nextNumber;
   }
 
-  private getFieldAssignmentCompletions(
-    _uri: string,
-    position: Position,
-    documentText?: string
-  ): CompletionItem[] {
+  private getFieldAssignmentCompletions(_uri: string, position: Position, documentText?: string): CompletionItem[] {
     if (!documentText) {
       return [];
     }
 
     const nextNumber = this.findNextFieldNumber(position, documentText);
 
-    return [{
-      label: `= ${nextNumber};`,
-      kind: CompletionItemKind.Snippet,
-      detail: 'Insert next field tag and semicolon',
-      documentation: 'Automatically assigns the next available field number and appends a semicolon',
-      insertText: `= ${nextNumber};$0`,
-      insertTextFormat: InsertTextFormat.Snippet,
-      sortText: '00'
-    }];
+    return [
+      {
+        label: `= ${nextNumber};`,
+        kind: CompletionItemKind.Snippet,
+        detail: 'Insert next field tag and semicolon',
+        documentation: 'Automatically assigns the next available field number and appends a semicolon',
+        insertText: `= ${nextNumber};$0`,
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '00',
+      },
+    ];
   }
 
-  private getEnumValueAssignmentCompletions(
-    position: Position,
-    documentText?: string
-  ): CompletionItem[] {
+  private getEnumValueAssignmentCompletions(position: Position, documentText?: string): CompletionItem[] {
     if (!documentText) {
       return [];
     }
 
     const nextNumber = this.findNextEnumValueNumber(position, documentText);
 
-    return [{
-      label: `= ${nextNumber};`,
-      kind: CompletionItemKind.Snippet,
-      detail: 'Insert next enum value number',
-      documentation: 'Automatically assigns the next available enum value number and appends a semicolon',
-      insertText: `= ${nextNumber};$0`,
-      insertTextFormat: InsertTextFormat.Snippet,
-      sortText: '00'
-    }];
+    return [
+      {
+        label: `= ${nextNumber};`,
+        kind: CompletionItemKind.Snippet,
+        detail: 'Insert next enum value number',
+        documentation: 'Automatically assigns the next available enum value number and appends a semicolon',
+        insertText: `= ${nextNumber};$0`,
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: '00',
+      },
+    ];
   }
 
   private findNextEnumValueNumber(position: Position, documentText: string): number {
@@ -670,16 +671,18 @@ export class CompletionProvider {
       { name: 'csharp_namespace', value: '"Namespace"' },
       { name: 'swift_prefix', value: '"PREFIX"' },
       { name: 'php_namespace', value: '"Namespace"' },
-      { name: 'ruby_package', value: '"Package"' }
+      { name: 'ruby_package', value: '"Package"' },
     ];
 
-    completions.push(...options.map(opt => ({
-      label: opt.name,
-      kind: CompletionItemKind.Property,
-      detail: `Option: ${opt.name}`,
-      insertText: `${opt.name} = ${opt.value}`,
-      insertTextFormat: InsertTextFormat.PlainText
-    })));
+    completions.push(
+      ...options.map(opt => ({
+        label: opt.name,
+        kind: CompletionItemKind.Property,
+        detail: `Option: ${opt.name}`,
+        insertText: `${opt.name} = ${opt.value}`,
+        insertTextFormat: InsertTextFormat.PlainText,
+      }))
+    );
 
     // Add edition features option for field options
     completions.push(getFieldFeaturesOptionCompletion());
@@ -705,7 +708,7 @@ export class CompletionProvider {
         documentation: 'Maps gRPC methods to HTTP REST endpoints for gRPC transcoding',
         insertText: '(google.api.http) = {\n  ${1|get,post,put,delete,patch|}: "/${2:v1}/${3:resource}"\n}',
         insertTextFormat: InsertTextFormat.Snippet,
-        sortText: '0google.api.http'
+        sortText: '0google.api.http',
       },
       {
         label: '(google.api.field_behavior)',
@@ -714,16 +717,17 @@ export class CompletionProvider {
         documentation: 'Specifies field behavior (REQUIRED, OUTPUT_ONLY, INPUT_ONLY, IMMUTABLE, OPTIONAL)',
         insertText: '(google.api.field_behavior) = ${1|REQUIRED,OUTPUT_ONLY,INPUT_ONLY,IMMUTABLE,OPTIONAL|}',
         insertTextFormat: InsertTextFormat.Snippet,
-        sortText: '0google.api.field_behavior'
+        sortText: '0google.api.field_behavior',
       },
       {
         label: '(google.api.resource)',
         kind: CompletionItemKind.Module,
         detail: 'google/api - Resource descriptor',
         documentation: 'Defines the message as an API resource with type and naming pattern',
-        insertText: '(google.api.resource) = {\n  type: "${1:example.googleapis.com}/${2:Resource}"\n  pattern: "${3:resources}/{${4:resource}}"\n}',
+        insertText:
+          '(google.api.resource) = {\n  type: "${1:example.googleapis.com}/${2:Resource}"\n  pattern: "${3:resources}/{${4:resource}}"\n}',
         insertTextFormat: InsertTextFormat.Snippet,
-        sortText: '0google.api.resource'
+        sortText: '0google.api.resource',
       },
       {
         label: '(google.api.resource_reference)',
@@ -732,7 +736,7 @@ export class CompletionProvider {
         documentation: 'Indicates that a field references another resource',
         insertText: '(google.api.resource_reference) = {\n  type: "${1:example.googleapis.com/Resource}"\n}',
         insertTextFormat: InsertTextFormat.Snippet,
-        sortText: '0google.api.resource_reference'
+        sortText: '0google.api.resource_reference',
       },
       {
         label: '(google.api.method_signature)',
@@ -741,7 +745,7 @@ export class CompletionProvider {
         documentation: 'Defines simplified method signatures for client library generation',
         insertText: '(google.api.method_signature) = "${1:field1,field2}"',
         insertTextFormat: InsertTextFormat.Snippet,
-        sortText: '0google.api.method_signature'
+        sortText: '0google.api.method_signature',
       },
       {
         label: '(google.api.default_host)',
@@ -750,7 +754,7 @@ export class CompletionProvider {
         documentation: 'Specifies the default API endpoint host',
         insertText: '(google.api.default_host) = "${1:api.example.com}"',
         insertTextFormat: InsertTextFormat.Snippet,
-        sortText: '0google.api.default_host'
+        sortText: '0google.api.default_host',
       },
       {
         label: '(google.api.oauth_scopes)',
@@ -759,8 +763,8 @@ export class CompletionProvider {
         documentation: 'Specifies OAuth scopes required for the service',
         insertText: '(google.api.oauth_scopes) = "${1:https://www.googleapis.com/auth/cloud-platform}"',
         insertTextFormat: InsertTextFormat.Snippet,
-        sortText: '0google.api.oauth_scopes'
-      }
+        sortText: '0google.api.oauth_scopes',
+      },
     ];
   }
 
@@ -774,9 +778,10 @@ export class CompletionProvider {
         kind: CompletionItemKind.Module,
         detail: 'buf/validate - Message validation',
         documentation: 'Custom validation rules for the entire message using CEL expressions',
-        insertText: '(buf.validate.message).cel = {\n  id: "${1:validation_id}"\n  message: "${2:Validation failed}"\n  expression: "${3:this.field > 0}"\n}',
+        insertText:
+          '(buf.validate.message).cel = {\n  id: "${1:validation_id}"\n  message: "${2:Validation failed}"\n  expression: "${3:this.field > 0}"\n}',
         insertTextFormat: InsertTextFormat.Snippet,
-        sortText: '0buf.validate.message'
+        sortText: '0buf.validate.message',
       },
       {
         label: '(buf.validate.field)',
@@ -785,7 +790,7 @@ export class CompletionProvider {
         documentation: 'Custom validation rules for a field using type-specific constraints or CEL',
         insertText: '(buf.validate.field)',
         insertTextFormat: InsertTextFormat.PlainText,
-        sortText: '0buf.validate.field'
+        sortText: '0buf.validate.field',
       },
       {
         label: '(buf.validate.oneof)',
@@ -794,8 +799,8 @@ export class CompletionProvider {
         documentation: 'Validation rules for oneof fields (e.g., required)',
         insertText: '(buf.validate.oneof).required = ${1:true};',
         insertTextFormat: InsertTextFormat.Snippet,
-        sortText: '0buf.validate.oneof'
-      }
+        sortText: '0buf.validate.oneof',
+      },
     ];
   }
 
@@ -807,7 +812,9 @@ export class CompletionProvider {
 
     // Check for buf.validate.field type-specific options
     // Pattern: (buf.validate.field).string. or (buf.validate.field).int32. etc.
-    const fieldTypeMatch = beforeCursor.match(/\(buf\.validate\.field\)\.(string|bytes|int32|int64|uint32|uint64|sint32|sint64|fixed32|fixed64|sfixed32|sfixed64|float|double|bool|enum|repeated|map|any|duration|timestamp)\.$/);
+    const fieldTypeMatch = beforeCursor.match(
+      /\(buf\.validate\.field\)\.(string|bytes|int32|int64|uint32|uint64|sint32|sint64|fixed32|fixed64|sfixed32|sfixed64|float|double|bool|enum|repeated|map|any|duration|timestamp)\.$/
+    );
     if (fieldTypeMatch) {
       const fieldType = fieldTypeMatch[1]!;
       return this.getBufValidateFieldTypeOptions(fieldType);
@@ -833,7 +840,7 @@ export class CompletionProvider {
           documentation: 'Apply validation rules to individual fields',
           insertText: 'field)',
           insertTextFormat: InsertTextFormat.PlainText,
-          sortText: '0field'
+          sortText: '0field',
         },
         {
           label: 'message',
@@ -842,7 +849,7 @@ export class CompletionProvider {
           documentation: 'Apply validation rules to the entire message',
           insertText: 'message)',
           insertTextFormat: InsertTextFormat.PlainText,
-          sortText: '0message'
+          sortText: '0message',
         },
         {
           label: 'oneof',
@@ -851,8 +858,8 @@ export class CompletionProvider {
           documentation: 'Apply validation rules to oneof fields',
           insertText: 'oneof)',
           insertTextFormat: InsertTextFormat.PlainText,
-          sortText: '0oneof'
-        }
+          sortText: '0oneof',
+        },
       ];
     }
 
@@ -869,9 +876,10 @@ export class CompletionProvider {
         kind: CompletionItemKind.Property,
         detail: 'CEL validation expression',
         documentation: 'Custom CEL expression with id, message, and expression fields',
-        insertText: 'cel = {\n  id: "${1:validation_id}"\n  message: "${2:Validation failed}"\n  expression: "${3:this.field > 0}"\n}',
+        insertText:
+          'cel = {\n  id: "${1:validation_id}"\n  message: "${2:Validation failed}"\n  expression: "${3:this.field > 0}"\n}',
         insertTextFormat: InsertTextFormat.Snippet,
-        sortText: '0cel'
+        sortText: '0cel',
       },
       {
         label: 'disabled',
@@ -880,8 +888,8 @@ export class CompletionProvider {
         documentation: 'Disable all validation for this message',
         insertText: 'disabled = ${1:true}',
         insertTextFormat: InsertTextFormat.Snippet,
-        sortText: '1disabled'
-      }
+        sortText: '1disabled',
+      },
     ];
   }
 
@@ -891,7 +899,13 @@ export class CompletionProvider {
   private getBufValidateFieldOptions(): CompletionItem[] {
     const options = [
       // Common options
-      { name: 'cel', detail: 'CEL validation expression', insert: 'cel = {\n  id: "${1:validation_id}"\n  message: "${2:Validation failed}"\n  expression: "${3:this > 0}"\n}', sort: '0' },
+      {
+        name: 'cel',
+        detail: 'CEL validation expression',
+        insert:
+          'cel = {\n  id: "${1:validation_id}"\n  message: "${2:Validation failed}"\n  expression: "${3:this > 0}"\n}',
+        sort: '0',
+      },
       { name: 'required', detail: 'Field must be set', insert: 'required = ${1:true}', sort: '0' },
       { name: 'ignore', detail: 'Ignore validation', insert: 'ignore = ${1:IGNORE_UNSPECIFIED}', sort: '1' },
       // Type-specific options
@@ -915,7 +929,7 @@ export class CompletionProvider {
       { name: 'map', detail: 'Map constraints', insert: 'map.', sort: '2' },
       { name: 'any', detail: 'Any type constraints', insert: 'any.', sort: '2' },
       { name: 'duration', detail: 'Duration constraints', insert: 'duration.', sort: '2' },
-      { name: 'timestamp', detail: 'Timestamp constraints', insert: 'timestamp.', sort: '2' }
+      { name: 'timestamp', detail: 'Timestamp constraints', insert: 'timestamp.', sort: '2' },
     ];
 
     return options.map(opt => ({
@@ -924,7 +938,7 @@ export class CompletionProvider {
       detail: opt.detail,
       insertText: opt.insert,
       insertTextFormat: opt.insert.includes('$') ? InsertTextFormat.Snippet : InsertTextFormat.PlainText,
-      sortText: opt.sort + opt.name
+      sortText: opt.sort + opt.name,
     }));
   }
 
@@ -932,7 +946,7 @@ export class CompletionProvider {
    * Get buf.validate.field type-specific option completions
    */
   private getBufValidateFieldTypeOptions(fieldType: string): CompletionItem[] {
-    const typeOptions: Record<string, Array<{name: string, detail: string, value?: string}>> = {
+    const typeOptions: Record<string, Array<{ name: string; detail: string; value?: string }>> = {
       string: [
         { name: 'const', detail: 'Must equal this value', value: '"${1:value}"' },
         { name: 'len', detail: 'Exact length', value: '${1:10}' },
@@ -962,7 +976,7 @@ export class CompletionProvider {
         { name: 'ipv4_prefix', detail: 'IPv4 prefix', value: 'true' },
         { name: 'ipv6_prefix', detail: 'IPv6 prefix', value: 'true' },
         { name: 'host_and_port', detail: 'Host and port', value: 'true' },
-        { name: 'well_known_regex', detail: 'Well-known regex', value: '${1:KNOWN_REGEX_HTTP_HEADER_NAME}' }
+        { name: 'well_known_regex', detail: 'Well-known regex', value: '${1:KNOWN_REGEX_HTTP_HEADER_NAME}' },
       ],
       bytes: [
         { name: 'const', detail: 'Must equal this value' },
@@ -977,7 +991,7 @@ export class CompletionProvider {
         { name: 'not_in', detail: 'Must not be one of' },
         { name: 'ip', detail: 'Must be valid IP bytes', value: 'true' },
         { name: 'ipv4', detail: 'Must be valid IPv4 bytes', value: 'true' },
-        { name: 'ipv6', detail: 'Must be valid IPv6 bytes', value: 'true' }
+        { name: 'ipv6', detail: 'Must be valid IPv6 bytes', value: 'true' },
       ],
       int32: [
         { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
@@ -986,7 +1000,7 @@ export class CompletionProvider {
         { name: 'gt', detail: 'Greater than', value: '${1:0}' },
         { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
         { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
-        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' },
       ],
       int64: [
         { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
@@ -995,7 +1009,7 @@ export class CompletionProvider {
         { name: 'gt', detail: 'Greater than', value: '${1:0}' },
         { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
         { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
-        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' },
       ],
       uint32: [
         { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
@@ -1004,7 +1018,7 @@ export class CompletionProvider {
         { name: 'gt', detail: 'Greater than', value: '${1:0}' },
         { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
         { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
-        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' },
       ],
       uint64: [
         { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
@@ -1013,7 +1027,7 @@ export class CompletionProvider {
         { name: 'gt', detail: 'Greater than', value: '${1:0}' },
         { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
         { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
-        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' },
       ],
       sint32: [
         { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
@@ -1022,7 +1036,7 @@ export class CompletionProvider {
         { name: 'gt', detail: 'Greater than', value: '${1:0}' },
         { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
         { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
-        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' },
       ],
       sint64: [
         { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
@@ -1031,7 +1045,7 @@ export class CompletionProvider {
         { name: 'gt', detail: 'Greater than', value: '${1:0}' },
         { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
         { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
-        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' },
       ],
       fixed32: [
         { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
@@ -1040,7 +1054,7 @@ export class CompletionProvider {
         { name: 'gt', detail: 'Greater than', value: '${1:0}' },
         { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
         { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
-        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' },
       ],
       fixed64: [
         { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
@@ -1049,7 +1063,7 @@ export class CompletionProvider {
         { name: 'gt', detail: 'Greater than', value: '${1:0}' },
         { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
         { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
-        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' },
       ],
       sfixed32: [
         { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
@@ -1058,7 +1072,7 @@ export class CompletionProvider {
         { name: 'gt', detail: 'Greater than', value: '${1:0}' },
         { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
         { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
-        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' },
       ],
       sfixed64: [
         { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
@@ -1067,7 +1081,7 @@ export class CompletionProvider {
         { name: 'gt', detail: 'Greater than', value: '${1:0}' },
         { name: 'gte', detail: 'Greater than or equal', value: '${1:0}' },
         { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}, ${3:3}]' },
-        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' },
       ],
       float: [
         { name: 'const', detail: 'Must equal this value', value: '${1:0.0}' },
@@ -1077,7 +1091,7 @@ export class CompletionProvider {
         { name: 'gte', detail: 'Greater than or equal', value: '${1:0.0}' },
         { name: 'in', detail: 'Must be one of', value: '[${1:1.0}, ${2:2.0}]' },
         { name: 'not_in', detail: 'Must not be one of', value: '[${1:0.0}]' },
-        { name: 'finite', detail: 'Must be finite (not NaN or Inf)', value: 'true' }
+        { name: 'finite', detail: 'Must be finite (not NaN or Inf)', value: 'true' },
       ],
       double: [
         { name: 'const', detail: 'Must equal this value', value: '${1:0.0}' },
@@ -1087,32 +1101,30 @@ export class CompletionProvider {
         { name: 'gte', detail: 'Greater than or equal', value: '${1:0.0}' },
         { name: 'in', detail: 'Must be one of', value: '[${1:1.0}, ${2:2.0}]' },
         { name: 'not_in', detail: 'Must not be one of', value: '[${1:0.0}]' },
-        { name: 'finite', detail: 'Must be finite (not NaN or Inf)', value: 'true' }
+        { name: 'finite', detail: 'Must be finite (not NaN or Inf)', value: 'true' },
       ],
-      bool: [
-        { name: 'const', detail: 'Must equal this value', value: '${1:true}' }
-      ],
+      bool: [{ name: 'const', detail: 'Must equal this value', value: '${1:true}' }],
       enum: [
         { name: 'const', detail: 'Must equal this value', value: '${1:0}' },
         { name: 'defined_only', detail: 'Must be a defined enum value', value: 'true' },
         { name: 'in', detail: 'Must be one of', value: '[${1:1}, ${2:2}]' },
-        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' }
+        { name: 'not_in', detail: 'Must not be one of', value: '[${1:0}]' },
       ],
       repeated: [
         { name: 'min_items', detail: 'Minimum items', value: '${1:1}' },
         { name: 'max_items', detail: 'Maximum items', value: '${1:100}' },
         { name: 'unique', detail: 'Items must be unique', value: 'true' },
-        { name: 'items', detail: 'Constraints for each item' }
+        { name: 'items', detail: 'Constraints for each item' },
       ],
       map: [
         { name: 'min_pairs', detail: 'Minimum key-value pairs', value: '${1:1}' },
         { name: 'max_pairs', detail: 'Maximum key-value pairs', value: '${1:100}' },
         { name: 'keys', detail: 'Constraints for keys' },
-        { name: 'values', detail: 'Constraints for values' }
+        { name: 'values', detail: 'Constraints for values' },
       ],
       any: [
         { name: 'in', detail: 'Type URLs must be one of', value: '["${1:type.googleapis.com/Example}"]' },
-        { name: 'not_in', detail: 'Type URLs must not be one of', value: '["${1:type.googleapis.com/Forbidden}"]' }
+        { name: 'not_in', detail: 'Type URLs must not be one of', value: '["${1:type.googleapis.com/Forbidden}"]' },
       ],
       duration: [
         { name: 'const', detail: 'Must equal this duration' },
@@ -1121,7 +1133,7 @@ export class CompletionProvider {
         { name: 'gt', detail: 'Greater than', value: '{ seconds: ${1:0} }' },
         { name: 'gte', detail: 'Greater than or equal', value: '{ seconds: ${1:0} }' },
         { name: 'in', detail: 'Must be one of' },
-        { name: 'not_in', detail: 'Must not be one of' }
+        { name: 'not_in', detail: 'Must not be one of' },
       ],
       timestamp: [
         { name: 'const', detail: 'Must equal this timestamp' },
@@ -1131,8 +1143,8 @@ export class CompletionProvider {
         { name: 'gte', detail: 'Greater than or equal' },
         { name: 'lt_now', detail: 'Must be in the past', value: 'true' },
         { name: 'gt_now', detail: 'Must be in the future', value: 'true' },
-        { name: 'within', detail: 'Must be within duration of now', value: '{ seconds: ${1:3600} }' }
-      ]
+        { name: 'within', detail: 'Must be within duration of now', value: '{ seconds: ${1:3600} }' },
+      ],
     };
 
     const options = typeOptions[fieldType] || [];
@@ -1143,7 +1155,7 @@ export class CompletionProvider {
       detail: opt.detail,
       insertText: opt.value ? `${opt.name} = ${opt.value}` : `${opt.name} = `,
       insertTextFormat: opt.value?.includes('$') ? InsertTextFormat.Snippet : InsertTextFormat.PlainText,
-      sortText: String(index).padStart(2, '0')
+      sortText: String(index).padStart(2, '0'),
     }));
   }
 
@@ -1187,7 +1199,7 @@ export class CompletionProvider {
       'google/longrunning/operations.proto',
       'google/logging/type/http_request.proto',
       'google/logging/type/log_severity.proto',
-      'google/cloud/audit/audit_log.proto'
+      'google/cloud/audit/audit_log.proto',
     ];
 
     for (const path of googleTypes) {
@@ -1195,7 +1207,7 @@ export class CompletionProvider {
         label: path,
         kind: CompletionItemKind.File,
         detail: 'Google well-known type',
-        insertText: path
+        insertText: path,
       });
     }
 
@@ -1212,7 +1224,7 @@ export class CompletionProvider {
             kind: CompletionItemKind.File,
             detail: 'Workspace proto file (recommended path)',
             insertText: importPath,
-            sortText: '0' + importPath
+            sortText: '0' + importPath,
           });
         }
 
@@ -1221,7 +1233,7 @@ export class CompletionProvider {
           kind: CompletionItemKind.File,
           detail: 'Workspace proto file',
           insertText: fileName,
-          sortText: '1' + fileName
+          sortText: '1' + fileName,
         });
       }
     }
@@ -1237,18 +1249,27 @@ export class CompletionProvider {
 
     // Common patterns based on type
     const typePatterns: Record<string, string[]> = {
-      'string': ['name', 'id', 'title', 'description', 'value', 'text', 'content', 'message', 'label'],
-      'int32': ['count', 'size', 'number', 'index', 'id', 'value', 'amount', 'quantity'],
-      'int64': ['id', 'timestamp', 'count', 'size', 'number', 'value'],
-      'bool': ['enabled', 'active', 'visible', 'is_valid', 'has_value', 'is_set'],
-      'bytes': ['data', 'content', 'payload', 'body', 'value'],
-      'Timestamp': ['created_at', 'updated_at', 'timestamp', 'time', 'date'],
-      'google.protobuf.Timestamp': ['created_at', 'updated_at', 'deleted_at', 'timestamp', 'time', 'expire_time', 'start_time', 'end_time'],
-      'Duration': ['duration', 'timeout', 'interval', 'period'],
+      string: ['name', 'id', 'title', 'description', 'value', 'text', 'content', 'message', 'label'],
+      int32: ['count', 'size', 'number', 'index', 'id', 'value', 'amount', 'quantity'],
+      int64: ['id', 'timestamp', 'count', 'size', 'number', 'value'],
+      bool: ['enabled', 'active', 'visible', 'is_valid', 'has_value', 'is_set'],
+      bytes: ['data', 'content', 'payload', 'body', 'value'],
+      Timestamp: ['created_at', 'updated_at', 'timestamp', 'time', 'date'],
+      'google.protobuf.Timestamp': [
+        'created_at',
+        'updated_at',
+        'deleted_at',
+        'timestamp',
+        'time',
+        'expire_time',
+        'start_time',
+        'end_time',
+      ],
+      Duration: ['duration', 'timeout', 'interval', 'period'],
       'google.protobuf.Duration': ['duration', 'timeout', 'interval', 'period', 'ttl', 'delay', 'max_duration'],
-      'Date': ['date', 'birth_date', 'created_date', 'updated_date'],
-      'FieldMask': ['update_mask', 'field_mask', 'read_mask'],
-      'google.protobuf.FieldMask': ['update_mask', 'field_mask', 'read_mask', 'output_mask']
+      Date: ['date', 'birth_date', 'created_date', 'updated_date'],
+      FieldMask: ['update_mask', 'field_mask', 'read_mask'],
+      'google.protobuf.FieldMask': ['update_mask', 'field_mask', 'read_mask', 'output_mask'],
     };
 
     // Direct match
@@ -1337,15 +1358,18 @@ export class CompletionProvider {
       const trimmedLine = line.trim();
 
       // Check for buf.validate CEL option start
-      if (trimmedLine.includes('option') &&
-          (trimmedLine.includes('buf.validate') || trimmedLine.includes('.cel'))) {
+      if (trimmedLine.includes('option') && (trimmedLine.includes('buf.validate') || trimmedLine.includes('.cel'))) {
         if (trimmedLine.includes('{')) {
           inCelOption = true;
           optionBraceDepth = 1;
           // Count any additional braces on the same line
           for (let j = line.indexOf('{') + 1; j < line.length; j++) {
-            if (line[j] === '{') { optionBraceDepth++; }
-            if (line[j] === '}') { optionBraceDepth--; }
+            if (line[j] === '{') {
+              optionBraceDepth++;
+            }
+            if (line[j] === '}') {
+              optionBraceDepth--;
+            }
           }
           continue;
         }
@@ -1353,8 +1377,12 @@ export class CompletionProvider {
 
       if (inCelOption) {
         for (const char of line) {
-          if (char === '{') { optionBraceDepth++; }
-          if (char === '}') { optionBraceDepth--; }
+          if (char === '{') {
+            optionBraceDepth++;
+          }
+          if (char === '}') {
+            optionBraceDepth--;
+          }
         }
         if (optionBraceDepth === 0) {
           inCelOption = false;
@@ -1413,7 +1441,7 @@ export class CompletionProvider {
           detail: 'Reference to current message',
           documentation: 'Use "this" to access fields of the current message in CEL expressions',
           insertText: 'this.',
-          sortText: '0this'
+          sortText: '0this',
         });
         completions.push(...this.getCelFunctionCompletions());
       }
@@ -1427,7 +1455,7 @@ export class CompletionProvider {
             kind: CompletionItemKind.Variable,
             detail: 'Reference to current message',
             insertText: 'this.',
-            sortText: '0this'
+            sortText: '0this',
           });
         }
       }
@@ -1452,10 +1480,7 @@ export class CompletionProvider {
     }
 
     // Find the message definition
-    const findMessage = (
-      messages: MessageDefinition[],
-      name: string
-    ): MessageDefinition | undefined => {
+    const findMessage = (messages: MessageDefinition[], name: string): MessageDefinition | undefined => {
       for (const msg of messages) {
         if (msg.name === name) {
           return msg;
@@ -1481,7 +1506,7 @@ export class CompletionProvider {
         detail: `${field.fieldType}${field.modifier ? ` (${field.modifier})` : ''}`,
         documentation: `Field ${field.name} with type ${field.fieldType}`,
         insertText: field.name,
-        sortText: '0' + field.name
+        sortText: '0' + field.name,
       });
     }
 
@@ -1493,7 +1518,7 @@ export class CompletionProvider {
         detail: `map<${mapField.keyType}, ${mapField.valueType}>`,
         documentation: `Map field ${mapField.name}`,
         insertText: mapField.name,
-        sortText: '0' + mapField.name
+        sortText: '0' + mapField.name,
       });
     }
 
@@ -1506,7 +1531,7 @@ export class CompletionProvider {
           detail: `${field.fieldType} (oneof ${oneof.name})`,
           documentation: `Oneof field ${field.name} in ${oneof.name}`,
           insertText: field.name,
-          sortText: '0' + field.name
+          sortText: '0' + field.name,
         });
       }
     }
@@ -1520,50 +1545,190 @@ export class CompletionProvider {
   private getCelFunctionCompletions(): CompletionItem[] {
     const celFunctions = [
       // Field presence
-      { name: 'has', snippet: 'has(this.${1:field})', detail: 'Check if field is set', doc: 'Returns true if the field is set (not default value)' },
+      {
+        name: 'has',
+        snippet: 'has(this.${1:field})',
+        detail: 'Check if field is set',
+        doc: 'Returns true if the field is set (not default value)',
+      },
 
       // String functions
-      { name: 'size', snippet: 'size(${1:value})', detail: 'Get size/length', doc: 'Returns the size of a string, bytes, list, or map' },
-      { name: 'startsWith', snippet: '${1:string}.startsWith(${2:prefix})', detail: 'Check string prefix', doc: 'Returns true if string starts with prefix' },
-      { name: 'endsWith', snippet: '${1:string}.endsWith(${2:suffix})', detail: 'Check string suffix', doc: 'Returns true if string ends with suffix' },
-      { name: 'contains', snippet: '${1:string}.contains(${2:substring})', detail: 'Check substring', doc: 'Returns true if string contains substring' },
-      { name: 'matches', snippet: '${1:string}.matches(${2:regex})', detail: 'Regex match', doc: 'Returns true if string matches the regex pattern' },
+      {
+        name: 'size',
+        snippet: 'size(${1:value})',
+        detail: 'Get size/length',
+        doc: 'Returns the size of a string, bytes, list, or map',
+      },
+      {
+        name: 'startsWith',
+        snippet: '${1:string}.startsWith(${2:prefix})',
+        detail: 'Check string prefix',
+        doc: 'Returns true if string starts with prefix',
+      },
+      {
+        name: 'endsWith',
+        snippet: '${1:string}.endsWith(${2:suffix})',
+        detail: 'Check string suffix',
+        doc: 'Returns true if string ends with suffix',
+      },
+      {
+        name: 'contains',
+        snippet: '${1:string}.contains(${2:substring})',
+        detail: 'Check substring',
+        doc: 'Returns true if string contains substring',
+      },
+      {
+        name: 'matches',
+        snippet: '${1:string}.matches(${2:regex})',
+        detail: 'Regex match',
+        doc: 'Returns true if string matches the regex pattern',
+      },
 
       // List functions
-      { name: 'all', snippet: '${1:list}.all(${2:x}, ${3:predicate})', detail: 'Check all elements', doc: 'Returns true if predicate is true for all elements' },
-      { name: 'exists', snippet: '${1:list}.exists(${2:x}, ${3:predicate})', detail: 'Check any element', doc: 'Returns true if predicate is true for any element' },
-      { name: 'exists_one', snippet: '${1:list}.exists_one(${2:x}, ${3:predicate})', detail: 'Check exactly one', doc: 'Returns true if predicate is true for exactly one element' },
-      { name: 'filter', snippet: '${1:list}.filter(${2:x}, ${3:predicate})', detail: 'Filter list', doc: 'Returns elements where predicate is true' },
-      { name: 'map', snippet: '${1:list}.map(${2:x}, ${3:transform})', detail: 'Map list', doc: 'Transforms each element' },
+      {
+        name: 'all',
+        snippet: '${1:list}.all(${2:x}, ${3:predicate})',
+        detail: 'Check all elements',
+        doc: 'Returns true if predicate is true for all elements',
+      },
+      {
+        name: 'exists',
+        snippet: '${1:list}.exists(${2:x}, ${3:predicate})',
+        detail: 'Check any element',
+        doc: 'Returns true if predicate is true for any element',
+      },
+      {
+        name: 'exists_one',
+        snippet: '${1:list}.exists_one(${2:x}, ${3:predicate})',
+        detail: 'Check exactly one',
+        doc: 'Returns true if predicate is true for exactly one element',
+      },
+      {
+        name: 'filter',
+        snippet: '${1:list}.filter(${2:x}, ${3:predicate})',
+        detail: 'Filter list',
+        doc: 'Returns elements where predicate is true',
+      },
+      {
+        name: 'map',
+        snippet: '${1:list}.map(${2:x}, ${3:transform})',
+        detail: 'Map list',
+        doc: 'Transforms each element',
+      },
 
       // Type conversions and denotations
       { name: 'int', snippet: 'int(${1:value})', detail: 'Convert to int', doc: 'Converts value to integer' },
-      { name: 'uint', snippet: 'uint(${1:value})', detail: 'Convert to uint', doc: 'Converts value to unsigned integer' },
+      {
+        name: 'uint',
+        snippet: 'uint(${1:value})',
+        detail: 'Convert to uint',
+        doc: 'Converts value to unsigned integer',
+      },
       { name: 'double', snippet: 'double(${1:value})', detail: 'Convert to double', doc: 'Converts value to double' },
       { name: 'string', snippet: 'string(${1:value})', detail: 'Convert to string', doc: 'Converts value to string' },
       { name: 'bytes', snippet: 'bytes(${1:value})', detail: 'Convert to bytes', doc: 'Converts value to bytes' },
       { name: 'bool', snippet: 'bool(${1:value})', detail: 'Convert to bool', doc: 'Converts value to boolean' },
       { name: 'type', snippet: 'type(${1:value})', detail: 'Get type', doc: 'Returns the type of the value' },
-      { name: 'dyn', snippet: 'dyn(${1:value})', detail: 'Type denotation (dynamic)', doc: 'Disables strong type agreement checks during type-checking' },
-      { name: 'list', snippet: 'list(${1:value})', detail: 'Type denotation (list)', doc: 'Type denotation for list type' },
-      { name: 'map', snippet: 'map(${1:key}, ${2:value})', detail: 'Type denotation (map)', doc: 'Type denotation for map type' },
-      { name: 'null_type', snippet: 'null_type(${1:value})', detail: 'Type denotation (null)', doc: 'Type denotation for null type' },
+      {
+        name: 'dyn',
+        snippet: 'dyn(${1:value})',
+        detail: 'Type denotation (dynamic)',
+        doc: 'Disables strong type agreement checks during type-checking',
+      },
+      {
+        name: 'list',
+        snippet: 'list(${1:value})',
+        detail: 'Type denotation (list)',
+        doc: 'Type denotation for list type',
+      },
+      {
+        name: 'map',
+        snippet: 'map(${1:key}, ${2:value})',
+        detail: 'Type denotation (map)',
+        doc: 'Type denotation for map type',
+      },
+      {
+        name: 'null_type',
+        snippet: 'null_type(${1:value})',
+        detail: 'Type denotation (null)',
+        doc: 'Type denotation for null type',
+      },
 
       // Duration/Timestamp conversions
-      { name: 'duration', snippet: 'duration(${1:value})', detail: 'Create duration', doc: 'Creates a duration from a string like "1h30m" or "3600s"' },
-      { name: 'timestamp', snippet: 'timestamp(${1:value})', detail: 'Create timestamp', doc: 'Creates a timestamp from a string (RFC3339 format)' },
+      {
+        name: 'duration',
+        snippet: 'duration(${1:value})',
+        detail: 'Create duration',
+        doc: 'Creates a duration from a string like "1h30m" or "3600s"',
+      },
+      {
+        name: 'timestamp',
+        snippet: 'timestamp(${1:value})',
+        detail: 'Create timestamp',
+        doc: 'Creates a timestamp from a string (RFC3339 format)',
+      },
 
       // Timestamp getter methods
-      { name: 'getDate', snippet: '${1:timestamp}.getDate(${2:timezone?})', detail: 'Get date from timestamp', doc: 'Get the date component of a timestamp (optionally with timezone)' },
-      { name: 'getDayOfMonth', snippet: '${1:timestamp}.getDayOfMonth(${2:timezone?})', detail: 'Get day of month', doc: 'Get the day of month (1-31) from a timestamp' },
-      { name: 'getDayOfWeek', snippet: '${1:timestamp}.getDayOfWeek(${2:timezone?})', detail: 'Get day of week', doc: 'Get the day of week (0=Sunday, 6=Saturday) from a timestamp' },
-      { name: 'getDayOfYear', snippet: '${1:timestamp}.getDayOfYear(${2:timezone?})', detail: 'Get day of year', doc: 'Get the day of year (1-366) from a timestamp' },
-      { name: 'getFullYear', snippet: '${1:timestamp}.getFullYear(${2:timezone?})', detail: 'Get full year', doc: 'Get the full year from a timestamp' },
-      { name: 'getHours', snippet: '${1:timestamp}.getHours(${2:timezone?})', detail: 'Get hours', doc: 'Get the hours component (0-23) from a timestamp, or convert duration to hours' },
-      { name: 'getMilliseconds', snippet: '${1:timestamp}.getMilliseconds(${2:timezone?})', detail: 'Get milliseconds', doc: 'Get the milliseconds component from a timestamp or duration' },
-      { name: 'getMinutes', snippet: '${1:timestamp}.getMinutes(${2:timezone?})', detail: 'Get minutes', doc: 'Get the minutes component from a timestamp, or convert duration to minutes' },
-      { name: 'getMonth', snippet: '${1:timestamp}.getMonth(${2:timezone?})', detail: 'Get month', doc: 'Get the month (0-11, 0=January) from a timestamp' },
-      { name: 'getSeconds', snippet: '${1:timestamp}.getSeconds(${2:timezone?})', detail: 'Get seconds', doc: 'Get the seconds component from a timestamp, or convert duration to seconds' },
+      {
+        name: 'getDate',
+        snippet: '${1:timestamp}.getDate(${2:timezone?})',
+        detail: 'Get date from timestamp',
+        doc: 'Get the date component of a timestamp (optionally with timezone)',
+      },
+      {
+        name: 'getDayOfMonth',
+        snippet: '${1:timestamp}.getDayOfMonth(${2:timezone?})',
+        detail: 'Get day of month',
+        doc: 'Get the day of month (1-31) from a timestamp',
+      },
+      {
+        name: 'getDayOfWeek',
+        snippet: '${1:timestamp}.getDayOfWeek(${2:timezone?})',
+        detail: 'Get day of week',
+        doc: 'Get the day of week (0=Sunday, 6=Saturday) from a timestamp',
+      },
+      {
+        name: 'getDayOfYear',
+        snippet: '${1:timestamp}.getDayOfYear(${2:timezone?})',
+        detail: 'Get day of year',
+        doc: 'Get the day of year (1-366) from a timestamp',
+      },
+      {
+        name: 'getFullYear',
+        snippet: '${1:timestamp}.getFullYear(${2:timezone?})',
+        detail: 'Get full year',
+        doc: 'Get the full year from a timestamp',
+      },
+      {
+        name: 'getHours',
+        snippet: '${1:timestamp}.getHours(${2:timezone?})',
+        detail: 'Get hours',
+        doc: 'Get the hours component (0-23) from a timestamp, or convert duration to hours',
+      },
+      {
+        name: 'getMilliseconds',
+        snippet: '${1:timestamp}.getMilliseconds(${2:timezone?})',
+        detail: 'Get milliseconds',
+        doc: 'Get the milliseconds component from a timestamp or duration',
+      },
+      {
+        name: 'getMinutes',
+        snippet: '${1:timestamp}.getMinutes(${2:timezone?})',
+        detail: 'Get minutes',
+        doc: 'Get the minutes component from a timestamp, or convert duration to minutes',
+      },
+      {
+        name: 'getMonth',
+        snippet: '${1:timestamp}.getMonth(${2:timezone?})',
+        detail: 'Get month',
+        doc: 'Get the month (0-11, 0=January) from a timestamp',
+      },
+      {
+        name: 'getSeconds',
+        snippet: '${1:timestamp}.getSeconds(${2:timezone?})',
+        detail: 'Get seconds',
+        doc: 'Get the seconds component from a timestamp, or convert duration to seconds',
+      },
     ];
 
     return celFunctions.map(fn => ({
@@ -1573,7 +1738,7 @@ export class CompletionProvider {
       documentation: fn.doc,
       insertText: fn.snippet,
       insertTextFormat: InsertTextFormat.Snippet,
-      sortText: '1' + fn.name
+      sortText: '1' + fn.name,
     }));
   }
 
@@ -1592,7 +1757,7 @@ export class CompletionProvider {
           documentation: 'Unique identifier for this validation rule',
           insertText: 'id: "${1:RuleName}"',
           insertTextFormat: InsertTextFormat.Snippet,
-          sortText: '0id'
+          sortText: '0id',
         },
         {
           label: 'message',
@@ -1601,7 +1766,7 @@ export class CompletionProvider {
           documentation: 'Human-readable error message when validation fails',
           insertText: 'message: "${1:Validation failed}"',
           insertTextFormat: InsertTextFormat.Snippet,
-          sortText: '1message'
+          sortText: '1message',
         },
         {
           label: 'expression',
@@ -1610,8 +1775,8 @@ export class CompletionProvider {
           documentation: 'CEL expression that evaluates to true for valid data or returns error string',
           insertText: 'expression:\n      "${1:this.field != \\"\\"}"',
           insertTextFormat: InsertTextFormat.Snippet,
-          sortText: '2expression'
-        }
+          sortText: '2expression',
+        },
       ];
     }
 
@@ -1678,8 +1843,12 @@ export class CompletionProvider {
           braceDepth = 1;
           // Count any additional braces on the same line after the opening brace
           for (let j = braceIndex + 1; j < line.length; j++) {
-            if (line[j] === '{') { braceDepth++; }
-            if (line[j] === '}') { braceDepth--; }
+            if (line[j] === '{') {
+              braceDepth++;
+            }
+            if (line[j] === '}') {
+              braceDepth--;
+            }
           }
           continue;
         }
@@ -1687,8 +1856,12 @@ export class CompletionProvider {
 
       if (inHttpOption) {
         for (const char of line) {
-          if (char === '{') { braceDepth++; }
-          if (char === '}') { braceDepth--; }
+          if (char === '{') {
+            braceDepth++;
+          }
+          if (char === '}') {
+            braceDepth--;
+          }
         }
         if (braceDepth <= 0) {
           inHttpOption = false;
@@ -1711,15 +1884,17 @@ export class CompletionProvider {
 
     // Check if we're typing the option name
     if (beforeCursor.match(/option\s*\(google\.api\.$/)) {
-      return [{
-        label: 'http',
-        kind: CompletionItemKind.Property,
-        detail: 'Google API HTTP annotation',
-        documentation: 'Maps RPC methods to HTTP REST endpoints',
-        insertText: 'http) = {\n  ${1|get,post,put,delete,patch|}: "/${2:v1}/${3:resource}"\n}',
-        insertTextFormat: InsertTextFormat.Snippet,
-        sortText: '0http'
-      }];
+      return [
+        {
+          label: 'http',
+          kind: CompletionItemKind.Property,
+          detail: 'Google API HTTP annotation',
+          documentation: 'Maps RPC methods to HTTP REST endpoints',
+          insertText: 'http) = {\n  ${1|get,post,put,delete,patch|}: "/${2:v1}/${3:resource}"\n}',
+          insertTextFormat: InsertTextFormat.Snippet,
+          sortText: '0http',
+        },
+      ];
     }
 
     // Check if inside google.api.http block
@@ -1736,7 +1911,7 @@ export class CompletionProvider {
             documentation: 'Maps to HTTP GET request. Used for reading resources.',
             insertText: 'get: "/${1:v1}/${2:resources}/{${3:id}}"',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '0get'
+            sortText: '0get',
           },
           {
             label: 'post',
@@ -1745,7 +1920,7 @@ export class CompletionProvider {
             documentation: 'Maps to HTTP POST request. Used for creating resources.',
             insertText: 'post: "/${1:v1}/${2:resources}"',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '1post'
+            sortText: '1post',
           },
           {
             label: 'put',
@@ -1754,7 +1929,7 @@ export class CompletionProvider {
             documentation: 'Maps to HTTP PUT request. Used for full resource updates.',
             insertText: 'put: "/${1:v1}/${2:resources}/{${3:id}}"',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '2put'
+            sortText: '2put',
           },
           {
             label: 'delete',
@@ -1763,7 +1938,7 @@ export class CompletionProvider {
             documentation: 'Maps to HTTP DELETE request. Used for deleting resources.',
             insertText: 'delete: "/${1:v1}/${2:resources}/{${3:id}}"',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '3delete'
+            sortText: '3delete',
           },
           {
             label: 'patch',
@@ -1772,7 +1947,7 @@ export class CompletionProvider {
             documentation: 'Maps to HTTP PATCH request. Used for partial resource updates.',
             insertText: 'patch: "/${1:v1}/${2:resources}/{${3:id}}"',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '4patch'
+            sortText: '4patch',
           },
           {
             label: 'custom',
@@ -1781,7 +1956,7 @@ export class CompletionProvider {
             documentation: 'Custom HTTP method (e.g., for non-standard verbs)',
             insertText: 'custom: {\n  kind: "${1:CUSTOM_METHOD}"\n  path: "/${2:v1}/${3:resources}:${4:action}"\n}',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '5custom'
+            sortText: '5custom',
           },
           {
             label: 'body',
@@ -1790,7 +1965,7 @@ export class CompletionProvider {
             documentation: 'Specifies which request field maps to the HTTP body. Use "*" for entire request.',
             insertText: 'body: "${1:*}"',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '6body'
+            sortText: '6body',
           },
           {
             label: 'response_body',
@@ -1799,7 +1974,7 @@ export class CompletionProvider {
             documentation: 'Specifies which response field maps to the HTTP response body.',
             insertText: 'response_body: "${1:field_name}"',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '7response_body'
+            sortText: '7response_body',
           },
           {
             label: 'additional_bindings',
@@ -1808,7 +1983,7 @@ export class CompletionProvider {
             documentation: 'Define additional HTTP mappings for the same RPC method.',
             insertText: 'additional_bindings {\n  ${1|get,post,put,delete,patch|}: "/${2:v1}/${3:alternate_path}"\n}',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '8additional_bindings'
+            sortText: '8additional_bindings',
           }
         );
       }
@@ -1821,21 +1996,21 @@ export class CompletionProvider {
             kind: CompletionItemKind.Value,
             detail: 'Simple resource path',
             insertText: '/v1/${1:resources}/{${2:id}}',
-            insertTextFormat: InsertTextFormat.Snippet
+            insertTextFormat: InsertTextFormat.Snippet,
           },
           {
             label: '/v1/{parent}/children',
             kind: CompletionItemKind.Value,
             detail: 'Nested resource path',
             insertText: '/v1/${1:parents}/{${2:parent_id}}/${3:children}',
-            insertTextFormat: InsertTextFormat.Snippet
+            insertTextFormat: InsertTextFormat.Snippet,
           },
           {
             label: '/v1/{resource}:action',
             kind: CompletionItemKind.Value,
             detail: 'Custom action path',
             insertText: '/v1/${1:resources}/{${2:id}}:${3:action}',
-            insertTextFormat: InsertTextFormat.Snippet
+            insertTextFormat: InsertTextFormat.Snippet,
           }
         );
       }
@@ -1860,7 +2035,7 @@ export class CompletionProvider {
         { name: 'OPTIONAL', doc: 'Field is explicitly optional (for documentation purposes)' },
         { name: 'NON_EMPTY_DEFAULT', doc: 'Field has a non-empty default value' },
         { name: 'IDENTIFIER', doc: 'Field uniquely identifies a resource' },
-        { name: 'UNORDERED_LIST', doc: 'Repeated field values are unordered' }
+        { name: 'UNORDERED_LIST', doc: 'Repeated field values are unordered' },
       ];
 
       for (const behavior of behaviors) {
@@ -1870,7 +2045,7 @@ export class CompletionProvider {
           detail: 'Field behavior',
           documentation: behavior.doc,
           insertText: behavior.name,
-          sortText: '0' + behavior.name
+          sortText: '0' + behavior.name,
         });
       }
     }
@@ -1884,7 +2059,7 @@ export class CompletionProvider {
         documentation: 'Specifies the behavior of a field (REQUIRED, OUTPUT_ONLY, etc.)',
         insertText: 'field_behavior) = ${1|REQUIRED,OUTPUT_ONLY,INPUT_ONLY,IMMUTABLE,OPTIONAL|}',
         insertTextFormat: InsertTextFormat.Snippet,
-        sortText: '0field_behavior'
+        sortText: '0field_behavior',
       });
     }
 
@@ -1910,8 +2085,12 @@ export class CompletionProvider {
           inResourceOption = true;
           braceDepth = 1;
           for (let j = braceIndex + 1; j < line.length; j++) {
-            if (line[j] === '{') { braceDepth++; }
-            if (line[j] === '}') { braceDepth--; }
+            if (line[j] === '{') {
+              braceDepth++;
+            }
+            if (line[j] === '}') {
+              braceDepth--;
+            }
           }
           continue;
         }
@@ -1919,8 +2098,12 @@ export class CompletionProvider {
 
       if (inResourceOption) {
         for (const char of line) {
-          if (char === '{') { braceDepth++; }
-          if (char === '}') { braceDepth--; }
+          if (char === '{') {
+            braceDepth++;
+          }
+          if (char === '}') {
+            braceDepth--;
+          }
         }
         if (braceDepth <= 0) {
           inResourceOption = false;
@@ -1948,9 +2131,10 @@ export class CompletionProvider {
         kind: CompletionItemKind.Property,
         detail: 'Resource descriptor',
         documentation: 'Defines this message as an API resource with type and pattern',
-        insertText: 'resource) = {\n  type: "${1:example.googleapis.com}/${2:Resource}"\n  pattern: "${3:resources}/{${4:resource}}"\n}',
+        insertText:
+          'resource) = {\n  type: "${1:example.googleapis.com}/${2:Resource}"\n  pattern: "${3:resources}/{${4:resource}}"\n}',
         insertTextFormat: InsertTextFormat.Snippet,
-        sortText: '0resource'
+        sortText: '0resource',
       });
     }
 
@@ -1967,16 +2151,17 @@ export class CompletionProvider {
             documentation: 'The resource type name in the format {service}/{resource}',
             insertText: 'type: "${1:example.googleapis.com}/${2:Resource}"',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '0type'
+            sortText: '0type',
           },
           {
             label: 'pattern',
             kind: CompletionItemKind.Property,
             detail: 'Resource name pattern',
-            documentation: 'Pattern for the resource name (e.g., "projects/{project}/locations/{location}/resources/{resource}")',
+            documentation:
+              'Pattern for the resource name (e.g., "projects/{project}/locations/{location}/resources/{resource}")',
             insertText: 'pattern: "${1:resources}/{${2:resource}}"',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '1pattern'
+            sortText: '1pattern',
           },
           {
             label: 'name_field',
@@ -1985,7 +2170,7 @@ export class CompletionProvider {
             documentation: 'The field that contains the resource name (defaults to "name")',
             insertText: 'name_field: "${1:name}"',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '2name_field'
+            sortText: '2name_field',
           },
           {
             label: 'plural',
@@ -1994,7 +2179,7 @@ export class CompletionProvider {
             documentation: 'Plural name of the resource (e.g., "users")',
             insertText: 'plural: "${1:resources}"',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '3plural'
+            sortText: '3plural',
           },
           {
             label: 'singular',
@@ -2003,7 +2188,7 @@ export class CompletionProvider {
             documentation: 'Singular name of the resource (e.g., "user")',
             insertText: 'singular: "${1:resource}"',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '4singular'
+            sortText: '4singular',
           },
           {
             label: 'history',
@@ -2012,7 +2197,7 @@ export class CompletionProvider {
             documentation: 'The historical or future-versioning behavior of the resource pattern',
             insertText: 'history: ${1|ORIGINALLY_SINGLE_PATTERN,FUTURE_MULTI_PATTERN|}',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '5history'
+            sortText: '5history',
           },
           {
             label: 'style',
@@ -2021,7 +2206,7 @@ export class CompletionProvider {
             documentation: 'Style of resource (DECLARATIVE_FRIENDLY for terraform-style resources)',
             insertText: 'style: ${1|DECLARATIVE_FRIENDLY|}',
             insertTextFormat: InsertTextFormat.Snippet,
-            sortText: '6style'
+            sortText: '6style',
           }
         );
       }
@@ -2046,7 +2231,7 @@ export class CompletionProvider {
           documentation: 'Reference to a specific resource type (e.g., "example.googleapis.com/Resource")',
           insertText: 'type: "${1:example.googleapis.com/Resource}"',
           insertTextFormat: InsertTextFormat.Snippet,
-          sortText: '0type'
+          sortText: '0type',
         },
         {
           label: 'child_type',
@@ -2055,7 +2240,7 @@ export class CompletionProvider {
           documentation: 'Reference to the resource type that is the child in a parent-child relationship',
           insertText: 'child_type: "${1:example.googleapis.com/ChildResource}"',
           insertTextFormat: InsertTextFormat.Snippet,
-          sortText: '1child_type'
+          sortText: '1child_type',
         }
       );
     }
@@ -2069,7 +2254,7 @@ export class CompletionProvider {
         documentation: 'Indicates this field references another resource',
         insertText: 'resource_reference) = {\n  type: "${1:example.googleapis.com/Resource}"\n}',
         insertTextFormat: InsertTextFormat.Snippet,
-        sortText: '1resource_reference'
+        sortText: '1resource_reference',
       });
     }
 

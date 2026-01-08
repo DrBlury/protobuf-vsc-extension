@@ -2,7 +2,7 @@
  * Built-in types and keyword descriptions for hover
  */
 
-import type { Hover, MarkupContent} from 'vscode-languageserver/node';
+import type { Hover, MarkupContent } from 'vscode-languageserver/node';
 import { MarkupKind } from 'vscode-languageserver/node';
 
 /**
@@ -23,7 +23,7 @@ export const BUILTIN_TYPE_DESCRIPTIONS: Record<string, string> = {
   sfixed64: '64-bit signed integer. Always 8 bytes.',
   bool: 'Boolean value (true or false)',
   string: 'UTF-8 encoded or 7-bit ASCII text string',
-  bytes: 'Arbitrary byte sequence'
+  bytes: 'Arbitrary byte sequence',
 };
 
 /**
@@ -49,9 +49,10 @@ export const KEYWORD_DESCRIPTIONS: Record<string, string> = {
   required: 'Field modifier indicating the field is required (proto2, deprecated)',
   repeated: 'Field modifier indicating the field can have multiple values',
   map: 'Defines a map field with key-value pairs',
-  group: 'Defines a group field (proto2, deprecated). Groups combine a message type and field in one declaration. Use nested messages instead.',
+  group:
+    'Defines a group field (proto2, deprecated). Groups combine a message type and field in one declaration. Use nested messages instead.',
   weak: 'Import modifier for weak dependencies',
-  public: 'Import modifier to re-export imported definitions'
+  public: 'Import modifier to re-export imported definitions',
 };
 
 /**
@@ -60,11 +61,7 @@ export const KEYWORD_DESCRIPTIONS: Record<string, string> = {
 export function getBuiltinTypeHover(type: string): Hover {
   const content: MarkupContent = {
     kind: MarkupKind.Markdown,
-    value: [
-      `**${type}**`,
-      '',
-      BUILTIN_TYPE_DESCRIPTIONS[type] || 'Built-in protobuf scalar type'
-    ].join('\n')
+    value: [`**${type}**`, '', BUILTIN_TYPE_DESCRIPTIONS[type] || 'Built-in protobuf scalar type'].join('\n'),
   };
 
   return { contents: content };
@@ -77,11 +74,7 @@ export function getKeywordHover(word: string): Hover | null {
   if (KEYWORD_DESCRIPTIONS[word]) {
     const content: MarkupContent = {
       kind: MarkupKind.Markdown,
-      value: [
-        `**${word}**`,
-        '',
-        KEYWORD_DESCRIPTIONS[word]
-      ].join('\n')
+      value: [`**${word}**`, '', KEYWORD_DESCRIPTIONS[word]].join('\n'),
     };
 
     return { contents: content };

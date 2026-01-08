@@ -20,7 +20,7 @@ import {
   REQUEST_METHODS,
   DIAGNOSTIC_SOURCE,
   OUTPUT_CHANNEL_NAME,
-  SERVER_IDS
+  SERVER_IDS,
 } from '../constants';
 
 describe('constants', () => {

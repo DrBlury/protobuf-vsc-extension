@@ -1,4 +1,3 @@
-
 import { DiagnosticsProvider } from '../../diagnostics';
 import { ProtoParser } from '../../../core/parser';
 import { SemanticAnalyzer } from '../../../core/analyzer';

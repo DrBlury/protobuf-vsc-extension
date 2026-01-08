@@ -2,11 +2,7 @@
  * Handler for textDocument/inlayHint requests
  */
 
-import type {
-  InlayHint,
-  InlayHintParams,
-  TextDocuments
-} from 'vscode-languageserver/node';
+import type { InlayHint, InlayHintParams, TextDocuments } from 'vscode-languageserver/node';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 
 import type { InlayHintsSettings } from '../providers/inlayHints';

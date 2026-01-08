@@ -136,7 +136,11 @@ message Test {}`;
         enums: [],
         services: [],
         extends: [],
-        package: { type: 'package', name: '', range: { start: { line: 0, character: 0 }, end: { line: 0, character: 10 } } }
+        package: {
+          type: 'package',
+          name: '',
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 10 } },
+        },
       } as any);
 
       const results = symbolProvider.getDocumentSymbols(uri);
@@ -165,12 +169,12 @@ message Test {}`;
             reserved: [],
             extensions: [],
             maps: [],
-            groups: []
-          }
+            groups: [],
+          },
         ],
         enums: [],
         services: [],
-        extends: []
+        extends: [],
       } as any);
 
       const results = symbolProvider.getDocumentSymbols(uri);
@@ -192,11 +196,11 @@ message Test {}`;
             nameRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
             range: { start: { line: 0, character: 0 }, end: { line: 0, character: 10 } },
             values: [],
-            options: []
-          }
+            options: [],
+          },
         ],
         services: [],
-        extends: []
+        extends: [],
       } as any);
 
       const results = symbolProvider.getDocumentSymbols(uri);
@@ -219,10 +223,10 @@ message Test {}`;
             nameRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
             range: { start: { line: 0, character: 0 }, end: { line: 0, character: 10 } },
             rpcs: [],
-            options: []
-          }
+            options: [],
+          },
         ],
-        extends: []
+        extends: [],
       } as any);
 
       const results = symbolProvider.getDocumentSymbols(uri);
@@ -236,32 +240,36 @@ message Test {}`;
         range: { start: { line: 0, character: 0 }, end: { line: 5, character: 0 } },
         imports: [],
         options: [],
-        messages: [{
-          type: 'message',
-          name: 'Test',
-          nameRange: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } },
-          range: { start: { line: 0, character: 0 }, end: { line: 2, character: 1 } },
-          fields: [{
-            type: 'field',
-            name: '',
-            nameRange: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
-            fieldType: 'string',
-            fieldTypeRange: { start: { line: 1, character: 0 }, end: { line: 1, character: 6 } },
-            number: 1,
-            range: { start: { line: 1, character: 0 }, end: { line: 1, character: 10 } }
-          }],
-          nestedMessages: [],
-          nestedEnums: [],
-          oneofs: [],
-          options: [],
-          reserved: [],
-          extensions: [],
-          maps: [],
-          groups: []
-        }],
+        messages: [
+          {
+            type: 'message',
+            name: 'Test',
+            nameRange: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } },
+            range: { start: { line: 0, character: 0 }, end: { line: 2, character: 1 } },
+            fields: [
+              {
+                type: 'field',
+                name: '',
+                nameRange: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
+                fieldType: 'string',
+                fieldTypeRange: { start: { line: 1, character: 0 }, end: { line: 1, character: 6 } },
+                number: 1,
+                range: { start: { line: 1, character: 0 }, end: { line: 1, character: 10 } },
+              },
+            ],
+            nestedMessages: [],
+            nestedEnums: [],
+            oneofs: [],
+            options: [],
+            reserved: [],
+            extensions: [],
+            maps: [],
+            groups: [],
+          },
+        ],
         enums: [],
         services: [],
-        extends: []
+        extends: [],
       } as any);
 
       const results = symbolProvider.getDocumentSymbols(uri);
@@ -278,32 +286,36 @@ message Test {}`;
         range: { start: { line: 0, character: 0 }, end: { line: 5, character: 0 } },
         imports: [],
         options: [],
-        messages: [{
-          type: 'message',
-          name: 'Test',
-          nameRange: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } },
-          range: { start: { line: 0, character: 0 }, end: { line: 2, character: 1 } },
-          fields: [],
-          nestedMessages: [],
-          nestedEnums: [],
-          oneofs: [],
-          options: [],
-          reserved: [],
-          extensions: [],
-          maps: [{
-            type: 'map_field',
-            name: '',
-            nameRange: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
-            keyType: 'string',
-            valueType: 'int32',
-            number: 1,
-            range: { start: { line: 1, character: 0 }, end: { line: 1, character: 20 } }
-          }],
-          groups: []
-        }],
+        messages: [
+          {
+            type: 'message',
+            name: 'Test',
+            nameRange: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } },
+            range: { start: { line: 0, character: 0 }, end: { line: 2, character: 1 } },
+            fields: [],
+            nestedMessages: [],
+            nestedEnums: [],
+            oneofs: [],
+            options: [],
+            reserved: [],
+            extensions: [],
+            maps: [
+              {
+                type: 'map_field',
+                name: '',
+                nameRange: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
+                keyType: 'string',
+                valueType: 'int32',
+                number: 1,
+                range: { start: { line: 1, character: 0 }, end: { line: 1, character: 20 } },
+              },
+            ],
+            groups: [],
+          },
+        ],
         enums: [],
         services: [],
-        extends: []
+        extends: [],
       } as any);
 
       const results = symbolProvider.getDocumentSymbols(uri);
@@ -318,30 +330,34 @@ message Test {}`;
         range: { start: { line: 0, character: 0 }, end: { line: 5, character: 0 } },
         imports: [],
         options: [],
-        messages: [{
-          type: 'message',
-          name: 'Test',
-          nameRange: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } },
-          range: { start: { line: 0, character: 0 }, end: { line: 4, character: 1 } },
-          fields: [],
-          nestedMessages: [],
-          nestedEnums: [],
-          oneofs: [{
-            type: 'oneof',
-            name: '',
-            nameRange: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
-            range: { start: { line: 1, character: 0 }, end: { line: 3, character: 1 } },
-            fields: []
-          }],
-          options: [],
-          reserved: [],
-          extensions: [],
-          maps: [],
-          groups: []
-        }],
+        messages: [
+          {
+            type: 'message',
+            name: 'Test',
+            nameRange: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } },
+            range: { start: { line: 0, character: 0 }, end: { line: 4, character: 1 } },
+            fields: [],
+            nestedMessages: [],
+            nestedEnums: [],
+            oneofs: [
+              {
+                type: 'oneof',
+                name: '',
+                nameRange: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
+                range: { start: { line: 1, character: 0 }, end: { line: 3, character: 1 } },
+                fields: [],
+              },
+            ],
+            options: [],
+            reserved: [],
+            extensions: [],
+            maps: [],
+            groups: [],
+          },
+        ],
         enums: [],
         services: [],
-        extends: []
+        extends: [],
       } as any);
 
       const results = symbolProvider.getDocumentSymbols(uri);
@@ -356,38 +372,44 @@ message Test {}`;
         range: { start: { line: 0, character: 0 }, end: { line: 5, character: 0 } },
         imports: [],
         options: [],
-        messages: [{
-          type: 'message',
-          name: 'Test',
-          nameRange: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } },
-          range: { start: { line: 0, character: 0 }, end: { line: 4, character: 1 } },
-          fields: [],
-          nestedMessages: [],
-          nestedEnums: [],
-          oneofs: [{
-            type: 'oneof',
-            name: 'choice',
-            nameRange: { start: { line: 1, character: 6 }, end: { line: 1, character: 12 } },
-            range: { start: { line: 1, character: 0 }, end: { line: 3, character: 1 } },
-            fields: [{
-              type: 'field',
-              name: '',
-              nameRange: { start: { line: 2, character: 0 }, end: { line: 2, character: 0 } },
-              fieldType: 'string',
-              fieldTypeRange: { start: { line: 2, character: 0 }, end: { line: 2, character: 6 } },
-              number: 1,
-              range: { start: { line: 2, character: 0 }, end: { line: 2, character: 15 } }
-            }]
-          }],
-          options: [],
-          reserved: [],
-          extensions: [],
-          maps: [],
-          groups: []
-        }],
+        messages: [
+          {
+            type: 'message',
+            name: 'Test',
+            nameRange: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } },
+            range: { start: { line: 0, character: 0 }, end: { line: 4, character: 1 } },
+            fields: [],
+            nestedMessages: [],
+            nestedEnums: [],
+            oneofs: [
+              {
+                type: 'oneof',
+                name: 'choice',
+                nameRange: { start: { line: 1, character: 6 }, end: { line: 1, character: 12 } },
+                range: { start: { line: 1, character: 0 }, end: { line: 3, character: 1 } },
+                fields: [
+                  {
+                    type: 'field',
+                    name: '',
+                    nameRange: { start: { line: 2, character: 0 }, end: { line: 2, character: 0 } },
+                    fieldType: 'string',
+                    fieldTypeRange: { start: { line: 2, character: 0 }, end: { line: 2, character: 6 } },
+                    number: 1,
+                    range: { start: { line: 2, character: 0 }, end: { line: 2, character: 15 } },
+                  },
+                ],
+              },
+            ],
+            options: [],
+            reserved: [],
+            extensions: [],
+            maps: [],
+            groups: [],
+          },
+        ],
         enums: [],
         services: [],
-        extends: []
+        extends: [],
       } as any);
 
       const results = symbolProvider.getDocumentSymbols(uri);
@@ -406,22 +428,26 @@ message Test {}`;
         imports: [],
         options: [],
         messages: [],
-        enums: [{
-          type: 'enum',
-          name: 'Status',
-          nameRange: { start: { line: 0, character: 5 }, end: { line: 0, character: 11 } },
-          range: { start: { line: 0, character: 0 }, end: { line: 2, character: 1 } },
-          values: [{
-            type: 'enum_value',
-            name: '',
-            nameRange: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
-            number: 0,
-            range: { start: { line: 1, character: 0 }, end: { line: 1, character: 10 } }
-          }],
-          options: []
-        }],
+        enums: [
+          {
+            type: 'enum',
+            name: 'Status',
+            nameRange: { start: { line: 0, character: 5 }, end: { line: 0, character: 11 } },
+            range: { start: { line: 0, character: 0 }, end: { line: 2, character: 1 } },
+            values: [
+              {
+                type: 'enum_value',
+                name: '',
+                nameRange: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
+                number: 0,
+                range: { start: { line: 1, character: 0 }, end: { line: 1, character: 10 } },
+              },
+            ],
+            options: [],
+          },
+        ],
         services: [],
-        extends: []
+        extends: [],
       } as any);
 
       const results = symbolProvider.getDocumentSymbols(uri);
@@ -438,22 +464,26 @@ message Test {}`;
         options: [],
         messages: [],
         enums: [],
-        services: [{
-          type: 'service',
-          name: 'TestService',
-          nameRange: { start: { line: 0, character: 8 }, end: { line: 0, character: 19 } },
-          range: { start: { line: 0, character: 0 }, end: { line: 2, character: 1 } },
-          rpcs: [{
-            type: 'rpc',
-            name: '',
-            nameRange: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
-            inputType: 'Request',
-            outputType: 'Response',
-            range: { start: { line: 1, character: 0 }, end: { line: 1, character: 30 } }
-          }],
-          options: []
-        }],
-        extends: []
+        services: [
+          {
+            type: 'service',
+            name: 'TestService',
+            nameRange: { start: { line: 0, character: 8 }, end: { line: 0, character: 19 } },
+            range: { start: { line: 0, character: 0 }, end: { line: 2, character: 1 } },
+            rpcs: [
+              {
+                type: 'rpc',
+                name: '',
+                nameRange: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
+                inputType: 'Request',
+                outputType: 'Response',
+                range: { start: { line: 1, character: 0 }, end: { line: 1, character: 30 } },
+              },
+            ],
+            options: [],
+          },
+        ],
+        extends: [],
       } as any);
 
       const results = symbolProvider.getDocumentSymbols(uri);
@@ -468,24 +498,26 @@ message Test {}`;
         range: { start: { line: NaN, character: NaN }, end: { line: NaN, character: NaN } },
         imports: [],
         options: [],
-        messages: [{
-          type: 'message',
-          name: 'Test',
-          nameRange: { start: { line: NaN, character: NaN }, end: { line: NaN, character: NaN } },
-          range: { start: { line: NaN, character: NaN }, end: { line: NaN, character: NaN } },
-          fields: [],
-          nestedMessages: [],
-          nestedEnums: [],
-          oneofs: [],
-          options: [],
-          reserved: [],
-          extensions: [],
-          maps: [],
-          groups: []
-        }],
+        messages: [
+          {
+            type: 'message',
+            name: 'Test',
+            nameRange: { start: { line: NaN, character: NaN }, end: { line: NaN, character: NaN } },
+            range: { start: { line: NaN, character: NaN }, end: { line: NaN, character: NaN } },
+            fields: [],
+            nestedMessages: [],
+            nestedEnums: [],
+            oneofs: [],
+            options: [],
+            reserved: [],
+            extensions: [],
+            maps: [],
+            groups: [],
+          },
+        ],
         enums: [],
         services: [],
-        extends: []
+        extends: [],
       } as any);
 
       const results = symbolProvider.getDocumentSymbols(uri);
@@ -503,25 +535,27 @@ message Test {}`;
         range: { start: { line: 0, character: 0 }, end: { line: 5, character: 0 } },
         imports: [],
         options: [],
-        messages: [{
-          type: 'message',
-          name: 'Test',
-          // nameRange is outside the message range
-          nameRange: { start: { line: 10, character: 0 }, end: { line: 10, character: 4 } },
-          range: { start: { line: 0, character: 0 }, end: { line: 2, character: 1 } },
-          fields: [],
-          nestedMessages: [],
-          nestedEnums: [],
-          oneofs: [],
-          options: [],
-          reserved: [],
-          extensions: [],
-          maps: [],
-          groups: []
-        }],
+        messages: [
+          {
+            type: 'message',
+            name: 'Test',
+            // nameRange is outside the message range
+            nameRange: { start: { line: 10, character: 0 }, end: { line: 10, character: 4 } },
+            range: { start: { line: 0, character: 0 }, end: { line: 2, character: 1 } },
+            fields: [],
+            nestedMessages: [],
+            nestedEnums: [],
+            oneofs: [],
+            options: [],
+            reserved: [],
+            extensions: [],
+            maps: [],
+            groups: [],
+          },
+        ],
         enums: [],
         services: [],
-        extends: []
+        extends: [],
       } as any);
 
       const results = symbolProvider.getDocumentSymbols(uri);

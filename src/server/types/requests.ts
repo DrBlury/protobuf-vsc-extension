@@ -149,7 +149,12 @@ export interface CheckBreakingChangesRequest {
  */
 export interface BreakingChange {
   /** Type of breaking change */
-  type: 'field_removed' | 'field_type_changed' | 'field_number_changed' | 'enum_value_removed' | 'service_method_removed';
+  type:
+    | 'field_removed'
+    | 'field_type_changed'
+    | 'field_number_changed'
+    | 'enum_value_removed'
+    | 'service_method_removed';
   /** Message describing the change */
   message: string;
   /** Location of the change */

@@ -245,7 +245,7 @@ export class BufConfigProvider {
     // Simple YAML parser for buf.yaml
     // This is a basic implementation - for production, consider using a proper YAML parser
     const config: BufConfig = {
-      version: 'v1'
+      version: 'v1',
     };
 
     const lines = content.split('\n');
@@ -302,7 +302,10 @@ export class BufConfigProvider {
         }
       } else if (trimmed.startsWith('-')) {
         // Array item - only process for relevant sections
-        const item = trimmed.substring(1).trim().replace(/^["']|["']$/g, '');
+        const item = trimmed
+          .substring(1)
+          .trim()
+          .replace(/^["']|["']$/g, '');
 
         if (currentSection === 'deps') {
           if (!config.deps) {
@@ -324,7 +327,7 @@ export class BufConfigProvider {
 
   private parseBufWorkYaml(content: string): BufWorkConfig {
     const config: BufWorkConfig = {
-      version: 'v1'
+      version: 'v1',
     };
 
     const lines = content.split('\n');
@@ -343,7 +346,10 @@ export class BufConfigProvider {
       }
 
       if (inDirectories && trimmed.startsWith('-')) {
-        const dir = trimmed.substring(1).trim().replace(/^["']|["']$/g, '');
+        const dir = trimmed
+          .substring(1)
+          .trim()
+          .replace(/^["']|["']$/g, '');
         if (!config.directories) {
           config.directories = [];
         }

@@ -5,14 +5,21 @@ const mockVscode = createMockVscode();
 
 jest.mock('vscode', () => mockVscode, { virtual: true });
 
-jest.mock('fs', () => ({
-  writeFileSync: jest.fn(),
-  existsSync: jest.fn(),
-  readFileSync: jest.fn(),
+// Define mocks before jest.mock to ensure they're properly captured
+const mockWriteFile = jest.fn().mockResolvedValue(undefined);
+const mockFileExists = jest.fn().mockResolvedValue(true);
+const mockReadFile = jest.fn().mockResolvedValue('');
+
+jest.mock('../../utils/fsUtils', () => ({
+  writeFile: mockWriteFile,
+  fileExists: mockFileExists,
+  readFile: mockReadFile,
 }));
 
+// Mock os.tmpdir to return a consistent path
+const mockTmpdir = jest.fn(() => '/tmp');
 jest.mock('os', () => ({
-  tmpdir: jest.fn(() => '/tmp'),
+  tmpdir: mockTmpdir,
 }));
 
 const mockSpawn = jest.fn();
@@ -21,18 +28,68 @@ jest.mock('child_process', () => ({
 }));
 
 import { SchemaDiffManager } from '../schemaDiff';
-import * as fs from 'fs';
+
+/**
+ * Helper to flush promises and setImmediate callbacks.
+ * Since mock child process uses setImmediate (not faked), we just need to flush the queue.
+ * Uses 20 iterations to handle triple-nested setImmediate in mock child process.
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  // Flush multiple times to handle nested setImmediate calls
+  // The mock child process uses triple-nested setImmediate for close event
+  for (let i = 0; i < 20; i++) {
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
+
+type GitMockOptions = {
+  root?: string;
+  rootExitCode?: number;
+  rootStderr?: string;
+  showStdout?: string;
+  showStderr?: string;
+  showExitCode?: number;
+};
+
+function setupGitMock({
+  root = '/test/project',
+  rootExitCode = 0,
+  rootStderr = '',
+  showStdout = 'content',
+  showStderr = '',
+  showExitCode = 0,
+}: GitMockOptions = {}): void {
+  mockSpawn.mockImplementation((_cmd: string, args: string[]) => {
+    if (args[0] === 'rev-parse') {
+      return createMockChildProcess(root, rootStderr, rootExitCode) as never;
+    }
+    return createMockChildProcess(showStdout, showStderr, showExitCode) as never;
+  });
+}
 
 describe('SchemaDiffManager', () => {
   let manager: SchemaDiffManager;
   let mockOutputChannel: ReturnType<typeof mockVscode.window.createOutputChannel>;
 
   beforeEach(() => {
+    // Use fake timers but don't fake setImmediate so we can use it to flush promises
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     jest.clearAllMocks();
+    // Note: Don't use jest.resetModules() here as it can cause issues with mock references
+    mockWriteFile.mockClear();
+    mockWriteFile.mockResolvedValue(undefined);
+    mockSpawn.mockClear();
     mockOutputChannel = mockVscode.window.createOutputChannel();
     mockVscode.window.activeTextEditor = undefined;
     mockVscode.workspace.getWorkspaceFolder = jest.fn();
+    mockVscode.commands.executeCommand.mockClear();
+    mockVscode.window.showErrorMessage.mockClear();
+    mockVscode.window.showInputBox.mockClear();
     manager = new SchemaDiffManager(mockOutputChannel);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -47,9 +104,7 @@ describe('SchemaDiffManager', () => {
 
       await manager.diffSchema();
 
-      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
-        'Please open a .proto file to diff.'
-      );
+      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith('Please open a .proto file to diff.');
     });
 
     it('should show error when URI is not a proto file', async () => {
@@ -57,9 +112,7 @@ describe('SchemaDiffManager', () => {
 
       await manager.diffSchema(uri);
 
-      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
-        'Please open a .proto file to diff.'
-      );
+      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith('Please open a .proto file to diff.');
     });
 
     it('should show error when active editor file is not proto', async () => {
@@ -70,9 +123,7 @@ describe('SchemaDiffManager', () => {
 
       await manager.diffSchema();
 
-      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
-        'Please open a .proto file to diff.'
-      );
+      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith('Please open a .proto file to diff.');
     });
 
     it('should prompt for git reference', async () => {
@@ -104,18 +155,14 @@ describe('SchemaDiffManager', () => {
         uri: { fsPath: '/test/project' },
       });
 
-      const mockProc = createMockChildProcess('syntax = "proto3";', '', 0);
-      mockSpawn.mockReturnValue(mockProc);
+      setupGitMock({ showStdout: 'syntax = "proto3";' });
 
-      await manager.diffSchema(uri);
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
-      await new Promise(resolve => setTimeout(resolve, 20));
-
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'git',
-        ['show', 'HEAD~1:schema.proto'],
-        { cwd: '/test/project' }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], { cwd: '/test/project' });
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD~1:schema.proto'], { cwd: '/test/project' });
     });
 
     it('should write temp file and open diff view on success', async () => {
@@ -126,18 +173,14 @@ describe('SchemaDiffManager', () => {
       });
 
       const oldContent = 'syntax = "proto2";';
-      const mockProc = createMockChildProcess(oldContent, '', 0);
-      mockSpawn.mockReturnValue(mockProc);
+      setupGitMock({ showStdout: oldContent });
 
-      await manager.diffSchema(uri);
-
-      await new Promise(resolve => setTimeout(resolve, 20));
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
       const expectedTmpPath = path.join('/tmp', 'schema.proto.main.proto');
-      expect(fs.writeFileSync).toHaveBeenCalledWith(
-        expectedTmpPath,
-        oldContent
-      );
+      expect(mockWriteFile).toHaveBeenCalledWith(expectedTmpPath, oldContent);
 
       expect(mockVscode.commands.executeCommand).toHaveBeenCalledWith(
         'vscode.diff',
@@ -154,18 +197,14 @@ describe('SchemaDiffManager', () => {
         uri: { fsPath: '/test/project' },
       });
 
-      const mockProc = createMockChildProcess('content', '', 0);
-      mockSpawn.mockReturnValue(mockProc);
+      setupGitMock({ showStdout: 'content' });
 
-      await manager.diffSchema(uri);
-
-      await new Promise(resolve => setTimeout(resolve, 20));
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
       const expectedTmpPath = path.join('/tmp', 'schema.proto.origin_main.proto');
-      expect(fs.writeFileSync).toHaveBeenCalledWith(
-        expectedTmpPath,
-        'content'
-      );
+      expect(mockWriteFile).toHaveBeenCalledWith(expectedTmpPath, 'content');
     });
 
     it('should show error when git returns no content', async () => {
@@ -175,16 +214,13 @@ describe('SchemaDiffManager', () => {
         uri: { fsPath: '/test/project' },
       });
 
-      const mockProc = createMockChildProcess('', '', 0);
-      mockSpawn.mockReturnValue(mockProc);
+      setupGitMock({ showStdout: '' });
 
-      await manager.diffSchema(uri);
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
-      await new Promise(resolve => setTimeout(resolve, 20));
-
-      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
-        'Could not find file at HEAD~1'
-      );
+      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith('Could not find file at HEAD~1');
     });
 
     it('should show error when git command fails', async () => {
@@ -194,12 +230,11 @@ describe('SchemaDiffManager', () => {
         uri: { fsPath: '/test/project' },
       });
 
-      const mockProc = createMockChildProcess('', 'fatal: bad revision', 128);
-      mockSpawn.mockReturnValue(mockProc);
+      setupGitMock({ showStdout: '', showStderr: 'fatal: bad revision', showExitCode: 128 });
 
-      await manager.diffSchema(uri);
-
-      await new Promise(resolve => setTimeout(resolve, 20));
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
       expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
         expect.stringContaining('Failed to diff schema:')
@@ -217,18 +252,14 @@ describe('SchemaDiffManager', () => {
         uri: { fsPath: '/test/project' },
       });
 
-      const mockProc = createMockChildProcess('content', '', 0);
-      mockSpawn.mockReturnValue(mockProc);
+      setupGitMock({ showStdout: 'content' });
 
-      await manager.diffSchema();
+      const diffPromise = manager.diffSchema();
+      await flushPromisesAndTimers();
+      await diffPromise;
 
-      await new Promise(resolve => setTimeout(resolve, 20));
-
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'git',
-        ['show', 'HEAD:active.proto'],
-        { cwd: '/test/project' }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], { cwd: '/test/project' });
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD:active.proto'], { cwd: '/test/project' });
     });
 
     it('should use file directory when no workspace folder', async () => {
@@ -236,18 +267,14 @@ describe('SchemaDiffManager', () => {
       mockVscode.window.showInputBox.mockResolvedValue('HEAD~1');
       mockVscode.workspace.getWorkspaceFolder.mockReturnValue(undefined);
 
-      const mockProc = createMockChildProcess('content', '', 0);
-      mockSpawn.mockReturnValue(mockProc);
+      setupGitMock({ rootExitCode: 128, showStdout: 'content' });
 
-      await manager.diffSchema(uri);
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
-      await new Promise(resolve => setTimeout(resolve, 20));
-
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'git',
-        ['show', 'HEAD~1:schema.proto'],
-        { cwd: '/standalone/dir' }
-      );
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], { cwd: '/standalone/dir' });
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD~1:schema.proto'], { cwd: '/standalone/dir' });
     });
 
     it('should handle nested file paths relative to workspace', async () => {
@@ -257,18 +284,37 @@ describe('SchemaDiffManager', () => {
         uri: { fsPath: '/test/project' },
       });
 
-      const mockProc = createMockChildProcess('content', '', 0);
-      mockSpawn.mockReturnValue(mockProc);
+      setupGitMock({ showStdout: 'content' });
 
-      await manager.diffSchema(uri);
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
-      await new Promise(resolve => setTimeout(resolve, 20));
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], { cwd: '/test/project' });
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD~1:protos/api/v1/schema.proto'], {
+        cwd: '/test/project',
+      });
+    });
 
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'git',
-        ['show', 'HEAD~1:protos/api/v1/schema.proto'],
-        { cwd: '/test/project' }
-      );
+    it('should resolve git root when workspace folder is a subdirectory', async () => {
+      const uri = mockVscode.Uri.file('/test/monorepo/packages/service/schema.proto') as never;
+      mockVscode.window.showInputBox.mockResolvedValue('HEAD');
+      mockVscode.workspace.getWorkspaceFolder.mockReturnValue({
+        uri: { fsPath: '/test/monorepo/packages/service' },
+      });
+
+      setupGitMock({ root: '/test/monorepo', showStdout: 'content' });
+
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
+
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], {
+        cwd: '/test/monorepo/packages/service',
+      });
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD:packages/service/schema.proto'], {
+        cwd: '/test/monorepo',
+      });
     });
 
     it('should handle git command failure with non-zero exit code', async () => {
@@ -278,12 +324,11 @@ describe('SchemaDiffManager', () => {
         uri: { fsPath: '/test/project' },
       });
 
-      const mockProc = createMockChildProcess('', 'fatal: not a git repository', 128);
-      mockSpawn.mockReturnValue(mockProc);
+      setupGitMock({ showStdout: '', showStderr: 'fatal: not a git repository', showExitCode: 128 });
 
-      await manager.diffSchema(uri);
-
-      await new Promise(resolve => setTimeout(resolve, 20));
+      const diffPromise = manager.diffSchema(uri);
+      await flushPromisesAndTimers();
+      await diffPromise;
 
       expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
         expect.stringContaining('Git exited with code 128')

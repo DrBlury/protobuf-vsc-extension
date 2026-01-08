@@ -25,12 +25,11 @@ export function registerSchemaGraphCommand(
     }
 
     const editor = vscode.window.activeTextEditor;
-    const uri =
-      editor?.document.languageId === 'proto' ? editor.document.uri.toString() : undefined;
+    const uri = editor?.document.languageId === 'proto' ? editor.document.uri.toString() : undefined;
 
     SchemaGraphPanel.createOrShow(context.extensionUri, client, {
       uri,
-      scope: 'workspace'
+      scope: 'workspace',
     });
   });
 }

@@ -10,11 +10,9 @@ import type {
   EnumDefinition,
   ServiceDefinition,
   SymbolInfo,
-  Location} from '../core/ast';
-import {
-  SymbolKind,
-  BUILTIN_TYPES
+  Location,
 } from '../core/ast';
+import { SymbolKind, BUILTIN_TYPES } from '../core/ast';
 import * as path from 'path';
 import { bufConfigProvider } from '../services/bufConfig';
 import { logger } from '../utils/logger';
@@ -35,7 +33,7 @@ export class SemanticAnalyzer {
     files: new Map(),
     symbols: new Map(),
     imports: new Map(),
-    importResolutions: new Map()
+    importResolutions: new Map(),
   };
 
   // Configured import paths to search for proto files (e.g., from protobuf.includes setting)
@@ -211,8 +209,7 @@ export class SemanticAnalyzer {
     const normalizedImport = importPath.replace(/\\/g, '/');
 
     // Direct suffix match (most common case)
-    if (normalizedUri.endsWith('/' + normalizedImport) ||
-        normalizedUri.endsWith(normalizedImport)) {
+    if (normalizedUri.endsWith('/' + normalizedImport) || normalizedUri.endsWith(normalizedImport)) {
       return true;
     }
 
@@ -390,7 +387,7 @@ export class SemanticAnalyzer {
       fullName,
       kind: SymbolKind.Message,
       location: { uri, range: message.nameRange },
-      containerName: prefix || undefined
+      containerName: prefix || undefined,
     });
 
     // Also register by simple name for easier lookup
@@ -400,7 +397,7 @@ export class SemanticAnalyzer {
         fullName,
         kind: SymbolKind.Message,
         location: { uri, range: message.nameRange },
-        containerName: prefix || undefined
+        containerName: prefix || undefined,
       });
     }
 
@@ -411,7 +408,7 @@ export class SemanticAnalyzer {
         fullName: `${fullName}.${field.name}`,
         kind: SymbolKind.Field,
         location: { uri, range: field.nameRange },
-        containerName: fullName
+        containerName: fullName,
       });
     }
 
@@ -422,7 +419,7 @@ export class SemanticAnalyzer {
         fullName: `${fullName}.${oneof.name}`,
         kind: SymbolKind.Oneof,
         location: { uri, range: oneof.nameRange },
-        containerName: fullName
+        containerName: fullName,
       });
 
       for (const field of oneof.fields) {
@@ -431,7 +428,7 @@ export class SemanticAnalyzer {
           fullName: `${fullName}.${field.name}`,
           kind: SymbolKind.Field,
           location: { uri, range: field.nameRange },
-          containerName: fullName
+          containerName: fullName,
         });
       }
     }
@@ -457,7 +454,7 @@ export class SemanticAnalyzer {
         fullName: groupFullName,
         kind: SymbolKind.Message,
         location: { uri, range: group.range },
-        containerName: fullName
+        containerName: fullName,
       });
 
       // Extract nested messages and enums from the group
@@ -479,7 +476,7 @@ export class SemanticAnalyzer {
       fullName,
       kind: SymbolKind.Enum,
       location: { uri, range: enumDef.nameRange },
-      containerName: prefix || undefined
+      containerName: prefix || undefined,
     });
 
     // Also register by simple name for easier lookup
@@ -489,7 +486,7 @@ export class SemanticAnalyzer {
         fullName,
         kind: SymbolKind.Enum,
         location: { uri, range: enumDef.nameRange },
-        containerName: prefix || undefined
+        containerName: prefix || undefined,
       });
     }
 
@@ -500,7 +497,7 @@ export class SemanticAnalyzer {
         fullName: `${fullName}.${value.name}`,
         kind: SymbolKind.EnumValue,
         location: { uri, range: value.nameRange },
-        containerName: fullName
+        containerName: fullName,
       });
     }
   }
@@ -513,7 +510,7 @@ export class SemanticAnalyzer {
       fullName,
       kind: SymbolKind.Service,
       location: { uri, range: service.nameRange },
-      containerName: prefix || undefined
+      containerName: prefix || undefined,
     });
 
     // Extract RPCs
@@ -523,7 +520,7 @@ export class SemanticAnalyzer {
         fullName: `${fullName}.${rpc.name}`,
         kind: SymbolKind.Rpc,
         location: { uri, range: rpc.nameRange },
-        containerName: fullName
+        containerName: fullName,
       });
     }
   }
@@ -591,8 +588,7 @@ export class SemanticAnalyzer {
   }
 
   getSymbolsInFile(uri: string): SymbolInfo[] {
-    return Array.from(this.workspace.symbols.values())
-      .filter(s => s.location.uri === uri);
+    return Array.from(this.workspace.symbols.values()).filter(s => s.location.uri === uri);
   }
 
   /**
@@ -612,7 +608,9 @@ export class SemanticAnalyzer {
       }
     }
 
-    logger.verbose(`getImportedFileUris for ${uri}: imports=${JSON.stringify(imports)}, resolved=${resolvedUris.length}`);
+    logger.verbose(
+      `getImportedFileUris for ${uri}: imports=${JSON.stringify(imports)}, resolved=${resolvedUris.length}`
+    );
     return resolvedUris;
   }
 
@@ -724,7 +722,7 @@ export class SemanticAnalyzer {
             name: message.name,
             fullName,
             kind: SymbolKind.Message,
-            location: { uri: currentUri, range: message.range }
+            location: { uri: currentUri, range: message.range },
           };
         }
         // Check nested messages
@@ -742,7 +740,7 @@ export class SemanticAnalyzer {
             name: enumDef.name,
             fullName,
             kind: SymbolKind.Enum,
-            location: { uri: currentUri, range: enumDef.range }
+            location: { uri: currentUri, range: enumDef.range },
           };
         }
       }
@@ -764,8 +762,7 @@ export class SemanticAnalyzer {
 
         // Try finding symbol in imported file by simple name
         for (const [fullName, sym] of this.workspace.symbols) {
-          if (sym.location.uri === importedUri &&
-              (sym.name === typeName || fullName.endsWith(`.${typeName}`))) {
+          if (sym.location.uri === importedUri && (sym.name === typeName || fullName.endsWith(`.${typeName}`))) {
             logger.verbose(`resolveType: Found "${typeName}" as "${fullName}" in imported file`);
             return sym;
           }
@@ -776,7 +773,9 @@ export class SemanticAnalyzer {
     // Note: We do NOT fall back to searching all workspace files by simple name.
     // Types from non-imported files should not be resolved - they need an import.
     // The diagnostics will flag unresolved types, and the user can add the import.
-    logger.verbose(`resolveType: Could not resolve "${typeName}" from ${currentUri} (importedUris: ${importedUris.length})`);
+    logger.verbose(
+      `resolveType: Could not resolve "${typeName}" from ${currentUri} (importedUris: ${importedUris.length})`
+    );
 
     return undefined;
   }
@@ -800,7 +799,7 @@ export class SemanticAnalyzer {
           name: nested.name,
           fullName,
           kind: SymbolKind.Message,
-          location: { uri, range: nested.range }
+          location: { uri, range: nested.range },
         };
       }
       // Recursively check deeper nesting
@@ -818,7 +817,7 @@ export class SemanticAnalyzer {
           name: nested.name,
           fullName,
           kind: SymbolKind.Enum,
-          location: { uri, range: nested.range }
+          location: { uri, range: nested.range },
         };
       }
     }
@@ -850,7 +849,10 @@ export class SemanticAnalyzer {
         const extendTypeName = extend.extendType ?? extend.messageName;
         const extendTypeRange = extend.extendTypeRange ?? extend.messageNameRange;
 
-        if (extendTypeName && this.matchesSymbolInContext(extendTypeName, symbolName, fullyQualifiedName, uri, packageName)) {
+        if (
+          extendTypeName &&
+          this.matchesSymbolInContext(extendTypeName, symbolName, fullyQualifiedName, uri, packageName)
+        ) {
           if (extendTypeRange) {
             references.push({ uri, range: extendTypeRange });
           }
@@ -970,14 +972,16 @@ export class SemanticAnalyzer {
 
   private matchesSymbol(typeName: string, symbolName: string, fullyQualifiedName?: string): boolean {
     if (fullyQualifiedName) {
-      if (typeName === fullyQualifiedName || fullyQualifiedName.endsWith(`.${typeName}`) || typeName.endsWith(`.${fullyQualifiedName}`)) {
+      if (
+        typeName === fullyQualifiedName ||
+        fullyQualifiedName.endsWith(`.${typeName}`) ||
+        typeName.endsWith(`.${fullyQualifiedName}`)
+      ) {
         return true;
       }
     }
 
-    return typeName === symbolName ||
-           typeName.endsWith(`.${symbolName}`) ||
-           symbolName.endsWith(`.${typeName}`);
+    return typeName === symbolName || typeName.endsWith(`.${symbolName}`) || symbolName.endsWith(`.${typeName}`);
   }
 
   /**
@@ -990,8 +994,7 @@ export class SemanticAnalyzer {
     // First add symbols from current file and imports
     const accessibleSymbols = this.getAccessibleSymbols(currentUri);
     for (const symbol of accessibleSymbols) {
-      if ((symbol.kind === SymbolKind.Message || symbol.kind === SymbolKind.Enum) &&
-          !seenNames.has(symbol.fullName)) {
+      if ((symbol.kind === SymbolKind.Message || symbol.kind === SymbolKind.Enum) && !seenNames.has(symbol.fullName)) {
         completions.push(symbol);
         seenNames.add(symbol.fullName);
       }
@@ -999,8 +1002,7 @@ export class SemanticAnalyzer {
 
     // Also add all workspace symbols for discoverability
     for (const symbol of this.workspace.symbols.values()) {
-      if ((symbol.kind === SymbolKind.Message || symbol.kind === SymbolKind.Enum) &&
-          !seenNames.has(symbol.fullName)) {
+      if ((symbol.kind === SymbolKind.Message || symbol.kind === SymbolKind.Enum) && !seenNames.has(symbol.fullName)) {
         completions.push(symbol);
         seenNames.add(symbol.fullName);
       }
@@ -1013,8 +1015,7 @@ export class SemanticAnalyzer {
    * Get message symbols for RPC type completions
    */
   getMessageCompletions(): SymbolInfo[] {
-    return Array.from(this.workspace.symbols.values())
-      .filter(s => s.kind === SymbolKind.Message);
+    return Array.from(this.workspace.symbols.values()).filter(s => s.kind === SymbolKind.Message);
   }
 
   /**
@@ -1104,9 +1105,7 @@ export class SemanticAnalyzer {
     }
 
     // Clean and deduplicate candidates
-    const cleaned = candidates
-      .map(c => ({ ...c, path: c.path.replace(/\\/g, '/') }))
-      .filter(c => c.path);
+    const cleaned = candidates.map(c => ({ ...c, path: c.path.replace(/\\/g, '/') })).filter(c => c.path);
 
     // Remove duplicates, keeping the first occurrence
     const seen = new Set<string>();
@@ -1159,11 +1158,7 @@ export class SemanticAnalyzer {
     return undefined;
   }
 
-  private findEnumDefinition(
-    enums: EnumDefinition[],
-    prefix: string,
-    target: string
-  ): EnumDefinition | undefined {
+  private findEnumDefinition(enums: EnumDefinition[], prefix: string, target: string): EnumDefinition | undefined {
     for (const e of enums) {
       const current = prefix ? `${prefix}.${e.name}` : e.name;
       if (current === target) {

@@ -12,5 +12,5 @@ export {
   toScreamingSnakeCase,
   isValidNaming,
   getConventionName,
-  type ProtoElementType
+  type ProtoElementType,
 } from '../../../shared/namingUtils';

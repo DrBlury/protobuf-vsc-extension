@@ -25,13 +25,16 @@ describe('Message Detection', () => {
 
   describe('Messages within the same file', () => {
     it('should detect a simple top-level message', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {
           string name = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -44,7 +47,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect multiple top-level messages', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {
@@ -56,7 +60,9 @@ describe('Message Detection', () => {
         message Product {
           string sku = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -65,7 +71,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect message used as field type in same file', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message Address {
@@ -76,7 +83,9 @@ describe('Message Detection', () => {
           string name = 1;
           Address address = 2;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -93,7 +102,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect forward references to messages defined later', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message GetUserResponse {
@@ -102,7 +112,9 @@ describe('Message Detection', () => {
         message User {
           string name = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -114,7 +126,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect self-referential messages', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message TreeNode {
@@ -122,7 +135,9 @@ describe('Message Detection', () => {
           repeated TreeNode children = 2;
           TreeNode parent = 3;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -134,7 +149,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect circular references between messages', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message Person {
@@ -145,7 +161,9 @@ describe('Message Detection', () => {
           string name = 1;
           repeated Person employees = 2;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -159,7 +177,8 @@ describe('Message Detection', () => {
 
   describe('Nested/inline messages', () => {
     it('should detect a single nested message', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {
@@ -169,7 +188,9 @@ describe('Message Detection', () => {
           string name = 1;
           Address home_address = 2;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -182,7 +203,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect multiple nested messages', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {
@@ -197,7 +219,9 @@ describe('Message Detection', () => {
           }
           string name = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -206,7 +230,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect deeply nested messages (3 levels)', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message Level1 {
@@ -218,7 +243,9 @@ describe('Message Detection', () => {
           }
           Level2 child = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -232,7 +259,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect nested message referenced from parent', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message Request {
@@ -243,7 +271,9 @@ describe('Message Detection', () => {
           string query = 1;
           Options options = 2;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -256,7 +286,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect nested message referenced from sibling message', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {
@@ -268,7 +299,9 @@ describe('Message Detection', () => {
           User user = 1;
           User.Status status = 2;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -281,7 +314,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect nested enums within messages', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {
@@ -293,7 +327,9 @@ describe('Message Detection', () => {
           string name = 1;
           Status status = 2;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -311,16 +347,20 @@ describe('Message Detection', () => {
 
   describe('Messages from imported files', () => {
     it('should detect message from imported file with full path', () => {
-      const commonFile = parser.parse(`
+      const commonFile = parser.parse(
+        `
         syntax = "proto3";
         package common.v1;
         message Timestamp {
           int64 seconds = 1;
           int32 nanos = 2;
         }
-      `, 'file:///common.proto');
+      `,
+        'file:///common.proto'
+      );
 
-      const mainFile = parser.parse(`
+      const mainFile = parser.parse(
+        `
         syntax = "proto3";
         package main.v1;
         import "common.proto";
@@ -328,7 +368,9 @@ describe('Message Detection', () => {
           string name = 1;
           common.v1.Timestamp created_at = 2;
         }
-      `, 'file:///main.proto');
+      `,
+        'file:///main.proto'
+      );
 
       analyzer.updateFile('file:///common.proto', commonFile);
       analyzer.updateFile('file:///main.proto', mainFile);
@@ -342,23 +384,29 @@ describe('Message Detection', () => {
     });
 
     it('should detect message from imported file with simple name', () => {
-      const commonFile = parser.parse(`
+      const commonFile = parser.parse(
+        `
         syntax = "proto3";
         package common.v1;
         message Error {
           int32 code = 1;
           string message = 2;
         }
-      `, 'file:///common.proto');
+      `,
+        'file:///common.proto'
+      );
 
-      const mainFile = parser.parse(`
+      const mainFile = parser.parse(
+        `
         syntax = "proto3";
         package main.v1;
         import "common.proto";
         message Response {
           Error error = 1;
         }
-      `, 'file:///main.proto');
+      `,
+        'file:///main.proto'
+      );
 
       analyzer.updateFile('file:///common.proto', commonFile);
       analyzer.updateFile('file:///main.proto', mainFile);
@@ -370,24 +418,31 @@ describe('Message Detection', () => {
     });
 
     it('should detect messages from multiple imported files', () => {
-      const timestampFile = parser.parse(`
+      const timestampFile = parser.parse(
+        `
         syntax = "proto3";
         package google.protobuf;
         message Timestamp {
           int64 seconds = 1;
         }
-      `, 'file:///timestamp.proto');
+      `,
+        'file:///timestamp.proto'
+      );
 
-      const moneyFile = parser.parse(`
+      const moneyFile = parser.parse(
+        `
         syntax = "proto3";
         package google.type;
         message Money {
           string currency_code = 1;
           int64 units = 2;
         }
-      `, 'file:///money.proto');
+      `,
+        'file:///money.proto'
+      );
 
-      const mainFile = parser.parse(`
+      const mainFile = parser.parse(
+        `
         syntax = "proto3";
         package shop.v1;
         import "timestamp.proto";
@@ -396,7 +451,9 @@ describe('Message Detection', () => {
           google.protobuf.Timestamp created_at = 1;
           google.type.Money total = 2;
         }
-      `, 'file:///main.proto');
+      `,
+        'file:///main.proto'
+      );
 
       analyzer.updateFile('file:///timestamp.proto', timestampFile);
       analyzer.updateFile('file:///money.proto', moneyFile);
@@ -410,7 +467,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect nested message from imported file', () => {
-      const commonFile = parser.parse(`
+      const commonFile = parser.parse(
+        `
         syntax = "proto3";
         package common.v1;
         message Pagination {
@@ -419,16 +477,21 @@ describe('Message Detection', () => {
             int32 page_size = 2;
           }
         }
-      `, 'file:///common.proto');
+      `,
+        'file:///common.proto'
+      );
 
-      const mainFile = parser.parse(`
+      const mainFile = parser.parse(
+        `
         syntax = "proto3";
         package main.v1;
         import "common.proto";
         message ListResponse {
           common.v1.Pagination.PageInfo page_info = 1;
         }
-      `, 'file:///main.proto');
+      `,
+        'file:///main.proto'
+      );
 
       analyzer.updateFile('file:///common.proto', commonFile);
       analyzer.updateFile('file:///main.proto', mainFile);
@@ -439,15 +502,19 @@ describe('Message Detection', () => {
     });
 
     it('should prefer local message over imported message with same name', () => {
-      const importedFile = parser.parse(`
+      const importedFile = parser.parse(
+        `
         syntax = "proto3";
         package imported.v1;
         message User {
           string external_name = 1;
         }
-      `, 'file:///imported.proto');
+      `,
+        'file:///imported.proto'
+      );
 
-      const mainFile = parser.parse(`
+      const mainFile = parser.parse(
+        `
         syntax = "proto3";
         package main.v1;
         import "imported.proto";
@@ -457,7 +524,9 @@ describe('Message Detection', () => {
         message Request {
           User user = 1;
         }
-      `, 'file:///main.proto');
+      `,
+        'file:///main.proto'
+      );
 
       analyzer.updateFile('file:///imported.proto', importedFile);
       analyzer.updateFile('file:///main.proto', mainFile);
@@ -471,13 +540,16 @@ describe('Message Detection', () => {
 
   describe('Messages in different packages', () => {
     it('should detect message with fully qualified package name', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package company.department.team.v1;
         message Config {
           string value = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -487,12 +559,15 @@ describe('Message Detection', () => {
     });
 
     it('should detect message without package', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         message GlobalMessage {
           string value = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -502,7 +577,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect message with leading dot (absolute reference)', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {
@@ -511,7 +587,9 @@ describe('Message Detection', () => {
         enum Status {
           UNKNOWN = 0;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -519,21 +597,27 @@ describe('Message Detection', () => {
     });
 
     it('should resolve same-named messages in different packages', () => {
-      const file1 = parser.parse(`
+      const file1 = parser.parse(
+        `
         syntax = "proto3";
         package api.v1;
         message Error {
           string message = 1;
         }
-      `, 'file:///api.proto');
+      `,
+        'file:///api.proto'
+      );
 
-      const file2 = parser.parse(`
+      const file2 = parser.parse(
+        `
         syntax = "proto3";
         package internal.v1;
         message Error {
           int32 code = 1;
         }
-      `, 'file:///internal.proto');
+      `,
+        'file:///internal.proto'
+      );
 
       analyzer.updateFile('file:///api.proto', file1);
       analyzer.updateFile('file:///internal.proto', file2);
@@ -550,7 +634,8 @@ describe('Message Detection', () => {
 
   describe('Complex message structures', () => {
     it('should detect message with map field using message value type', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {
@@ -559,7 +644,9 @@ describe('Message Detection', () => {
         message UserCache {
           map<string, User> users = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -568,7 +655,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect message in oneof field', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message TextContent {
@@ -583,7 +671,9 @@ describe('Message Detection', () => {
             ImageContent image = 2;
           }
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -593,7 +683,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect message in repeated field', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message Item {
@@ -602,7 +693,9 @@ describe('Message Detection', () => {
         message Container {
           repeated Item items = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -612,7 +705,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect message in RPC request and response', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message GetUserRequest {
@@ -627,7 +721,9 @@ describe('Message Detection', () => {
         service UserService {
           rpc GetUser(GetUserRequest) returns (GetUserResponse);
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -642,7 +738,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect message in streaming RPC', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message Event {
@@ -658,7 +755,9 @@ describe('Message Detection', () => {
         message BatchResponse {
           int32 count = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -672,14 +771,17 @@ describe('Message Detection', () => {
 
   describe('Message detection with extensions', () => {
     it('should detect messages with extension ranges', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto2";
         package test.v1;
         message Base {
           extensions 100 to 200;
           required string name = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -694,14 +796,17 @@ describe('Message Detection', () => {
 
   describe('Message detection with options', () => {
     it('should detect message with message-level options', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {
           option deprecated = true;
           string name = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -710,7 +815,8 @@ describe('Message Detection', () => {
     });
 
     it('should detect message fields with complex options', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {
@@ -719,7 +825,9 @@ describe('Message Detection', () => {
             json_name = "userName"
           ];
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -729,11 +837,14 @@ describe('Message Detection', () => {
 
   describe('Edge cases', () => {
     it('should handle empty message', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message Empty {}
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -742,14 +853,17 @@ describe('Message Detection', () => {
     });
 
     it('should handle message with only reserved fields', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message Deprecated {
           reserved 1, 2, 3;
           reserved "old_field";
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -758,13 +872,16 @@ describe('Message Detection', () => {
     });
 
     it('should handle message with unicode names', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User_V2 {
           string name_123 = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -773,23 +890,32 @@ describe('Message Detection', () => {
     });
 
     it('should handle multiple files updating the same analyzer', () => {
-      const file1 = parser.parse(`
+      const file1 = parser.parse(
+        `
         syntax = "proto3";
         package pkg1.v1;
         message Msg1 { string f = 1; }
-      `, 'file:///file1.proto');
+      `,
+        'file:///file1.proto'
+      );
 
-      const file2 = parser.parse(`
+      const file2 = parser.parse(
+        `
         syntax = "proto3";
         package pkg2.v1;
         message Msg2 { string f = 1; }
-      `, 'file:///file2.proto');
+      `,
+        'file:///file2.proto'
+      );
 
-      const file3 = parser.parse(`
+      const file3 = parser.parse(
+        `
         syntax = "proto3";
         package pkg3.v1;
         message Msg3 { string f = 1; }
-      `, 'file:///file3.proto');
+      `,
+        'file:///file3.proto'
+      );
 
       analyzer.updateFile('file:///file1.proto', file1);
       analyzer.updateFile('file:///file2.proto', file2);
@@ -805,11 +931,14 @@ describe('Message Detection', () => {
     });
 
     it('should handle removing and re-adding files', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User { string name = 1; }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
       expect(analyzer.resolveType('User', 'file:///test.proto', 'test.v1')).toBeDefined();

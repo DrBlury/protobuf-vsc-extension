@@ -808,7 +808,7 @@ message AuditLog {
   string principal_subject = 13;
   google.rpc.Status status = 2;
 }
-`
+`,
 };
 
 // File locations within the packaged extension (resources/google-protos)
@@ -819,5 +819,5 @@ export const GOOGLE_WELL_KNOWN_FILES: Record<string, string> = {
   'google/protobuf/empty.proto': 'google-protos/google/protobuf/empty.proto',
   'google/protobuf/field_mask.proto': 'google-protos/google/protobuf/field_mask.proto',
   'google/protobuf/struct.proto': 'google-protos/google/protobuf/struct.proto',
-  'google/protobuf/wrappers.proto': 'google-protos/google/protobuf/wrappers.proto'
+  'google/protobuf/wrappers.proto': 'google-protos/google/protobuf/wrappers.proto',
 };

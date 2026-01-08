@@ -13,10 +13,7 @@ import { VALIDATION_MESSAGES } from '../../server/utils/constants';
  * @param client - The language client instance
  * @returns A disposable for the registered command
  */
-export function registerDebugCommand(
-  _context: vscode.ExtensionContext,
-  _client: LanguageClient
-): vscode.Disposable {
+export function registerDebugCommand(_context: vscode.ExtensionContext, _client: LanguageClient): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.debugDefinition', async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor || editor.document.languageId !== 'proto') {
@@ -27,9 +24,7 @@ export function registerDebugCommand(
     const position = editor.selection.active;
     const line = editor.document.lineAt(position.line).text;
 
-    vscode.window.showInformationMessage(
-      `Debug: Line ${position.line}, Char ${position.character}, Text: "${line}"`
-    );
+    vscode.window.showInformationMessage(`Debug: Line ${position.line}, Char ${position.character}, Text: "${line}"`);
 
     // Try to trigger go to definition
     try {

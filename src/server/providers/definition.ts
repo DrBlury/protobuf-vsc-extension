@@ -61,7 +61,6 @@ export class DefinitionProvider {
       return symbol.location;
     }
 
-
     return null;
   }
 
@@ -237,8 +236,8 @@ export class DefinitionProvider {
         uri: resolvedUri,
         range: {
           start: { line: 0, character: 0 },
-          end: { line: 0, character: 0 }
-        }
+          end: { line: 0, character: 0 },
+        },
       };
     }
 
@@ -249,14 +248,13 @@ export class DefinitionProvider {
       const normalizedUri = fileUri.replace(/\\/g, '/');
 
       // Strategy 1: Direct suffix match
-      if (normalizedUri.endsWith('/' + normalizedImport) ||
-          normalizedUri.endsWith(normalizedImport)) {
+      if (normalizedUri.endsWith('/' + normalizedImport) || normalizedUri.endsWith(normalizedImport)) {
         return {
           uri: fileUri,
           range: {
             start: { line: 0, character: 0 },
-            end: { line: 0, character: 0 }
-          }
+            end: { line: 0, character: 0 },
+          },
         };
       }
 
@@ -267,8 +265,8 @@ export class DefinitionProvider {
           uri: fileUri,
           range: {
             start: { line: 0, character: 0 },
-            end: { line: 0, character: 0 }
-          }
+            end: { line: 0, character: 0 },
+          },
         };
       }
     }
@@ -286,8 +284,8 @@ export class DefinitionProvider {
           uri: fileUri,
           range: {
             start: { line: 0, character: 0 },
-            end: { line: 0, character: 0 }
-          }
+            end: { line: 0, character: 0 },
+          },
         };
       }
     }
@@ -302,8 +300,8 @@ export class DefinitionProvider {
             uri: fileUri,
             range: {
               start: { line: 0, character: 0 },
-              end: { line: 0, character: 0 }
-            }
+              end: { line: 0, character: 0 },
+            },
           };
         }
       }

@@ -12,8 +12,8 @@ export function createMarkdownHover(lines: string[]): { contents: MarkupContent 
   return {
     contents: {
       kind: MarkupKind.Markdown,
-      value: lines.join('\n')
-    }
+      value: lines.join('\n'),
+    },
   };
 }
 

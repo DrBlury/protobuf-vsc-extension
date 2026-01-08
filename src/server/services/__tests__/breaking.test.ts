@@ -8,16 +8,31 @@ import { spawn } from 'child_process';
 
 jest.mock('child_process');
 
+/**
+ * Helper to flush promises and advance fake timers
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    jest.advanceTimersByTime(20);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
+
 describe('BreakingChangeDetector', () => {
   let detector: BreakingChangeDetector;
   let parser: ProtoParser;
   let mockSpawn: jest.MockedFunction<typeof spawn>;
 
   beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     detector = new BreakingChangeDetector();
     parser = new ProtoParser();
     mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('updateSettings', () => {
@@ -99,7 +114,7 @@ describe('BreakingChangeDetector', () => {
               setTimeout(() => callback(Buffer.from('syntax = "proto3";')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stderr: { on: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -107,12 +122,14 @@ describe('BreakingChangeDetector', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await detector.getBaselineFromGit('/workspace/test.proto');
+      const resultPromise = detector.getBaselineFromGit('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe('syntax = "proto3";');
     });
 
@@ -126,12 +143,14 @@ describe('BreakingChangeDetector', () => {
             setTimeout(() => callback(1), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await detector.getBaselineFromGit('/workspace/test.proto');
+      const resultPromise = detector.getBaselineFromGit('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBeNull();
     });
 
@@ -143,12 +162,14 @@ describe('BreakingChangeDetector', () => {
             setTimeout(() => callback(), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await detector.getBaselineFromGit('/workspace/test.proto');
+      const resultPromise = detector.getBaselineFromGit('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBeNull();
     });
   });

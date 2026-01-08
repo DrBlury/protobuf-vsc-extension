@@ -37,13 +37,7 @@ service UserService {
       const lineText = '      ';
       const position: Position = { line: 5, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const getCompletion = completions.find(c => c.label === 'get');
       const postCompletion = completions.find(c => c.label === 'post');
@@ -77,13 +71,7 @@ service UserService {
       const lineText = '      ';
       const position: Position = { line: 5, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const customCompletion = completions.find(c => c.label === 'custom');
       expect(customCompletion).toBeDefined();
@@ -107,13 +95,7 @@ service UserService {
       const lineText = '      ';
       const position: Position = { line: 6, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const bindingsCompletion = completions.find(c => c.label === 'additional_bindings');
       expect(bindingsCompletion).toBeDefined();
@@ -133,13 +115,7 @@ service UserService {
       const lineText = '    option (google.api.';
       const position: Position = { line: 4, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const httpCompletion = completions.find(c => c.label === 'http');
       expect(httpCompletion).toBeDefined();
@@ -162,13 +138,7 @@ message User {
       const lineText = '  string id = 1 [(google.api.field_behavior) = ';
       const position: Position = { line: 3, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const requiredCompletion = completions.find(c => c.label === 'REQUIRED');
       const outputOnlyCompletion = completions.find(c => c.label === 'OUTPUT_ONLY');
@@ -196,13 +166,7 @@ message User {
       const lineText = '  string id = 1 [(google.api.';
       const position: Position = { line: 3, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const fieldBehaviorCompletion = completions.find(c => c.label === 'field_behavior');
       expect(fieldBehaviorCompletion).toBeDefined();
@@ -227,13 +191,7 @@ message User {
       const lineText = '    ';
       const position: Position = { line: 4, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const typeCompletion = completions.find(c => c.label === 'type');
       const patternCompletion = completions.find(c => c.label === 'pattern');
@@ -259,19 +217,13 @@ message User {
       const lineText = '  option (google.api.';
       const position: Position = { line: 3, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       // The completion for resource should be available either directly or via option context
       // Since the current line includes 'option' keyword, getOptionCompletions should be triggered
       // which includes google.api top-level options
-      const _hasGoogleApiOptions = completions.some(c =>
-        c.label.includes('google.api') || c.label === 'resource' || c.label === 'http'
+      const _hasGoogleApiOptions = completions.some(
+        c => c.label.includes('google.api') || c.label === 'resource' || c.label === 'http'
       );
 
       // At minimum, standard options should be available
@@ -295,13 +247,7 @@ message Order {
       const lineText = '  string user = 1 [(google.api.resource_reference) = {';
       const position: Position = { line: 3, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const typeCompletion = completions.find(c => c.label === 'type');
       const childTypeCompletion = completions.find(c => c.label === 'child_type');
@@ -322,13 +268,7 @@ message Order {
       const lineText = '  string user = 1 [(google.api.';
       const position: Position = { line: 3, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       // resource_reference option is suggested on field options
       const resourceRefCompletion = completions.find(c => c.label === 'resource_reference');
@@ -354,13 +294,7 @@ message User {
       const lineText = '  option ';
       const position: Position = { line: 3, character: lineText.length };
 
-      const completions = completionProvider.getCompletions(
-        uri,
-        position,
-        lineText,
-        undefined,
-        documentText
-      );
+      const completions = completionProvider.getCompletions(uri, position, lineText, undefined, documentText);
 
       const httpOption = completions.find(c => c.label === '(google.api.http)');
       const fieldBehaviorOption = completions.find(c => c.label === '(google.api.field_behavior)');

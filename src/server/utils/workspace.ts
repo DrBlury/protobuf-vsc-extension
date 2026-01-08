@@ -138,11 +138,7 @@ export function scanWorkspaceForProtoFiles(
  * @param parser - Proto parser instance
  * @param analyzer - Semantic analyzer instance
  */
-export function scanImportPaths(
-  importPaths: string[],
-  parser: IProtoParser,
-  analyzer: SemanticAnalyzer
-): void {
+export function scanImportPaths(importPaths: string[], parser: IProtoParser, analyzer: SemanticAnalyzer): void {
   if (importPaths.length === 0) {
     return;
   }

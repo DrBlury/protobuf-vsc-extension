@@ -2,6 +2,8 @@
 
 The Protobuf VSC extension provides comprehensive gRPC support, including service analysis, code generation, and development tools.
 
+> **Note**: For the complete gRPC Client feature specification including planned features like native gRPC client, server reflection, streaming UI, and more, see [GRPC_CLIENT_FEATURE_SPECIFICATION.md](./GRPC_CLIENT_FEATURE_SPECIFICATION.md).
+
 ## Overview
 
 gRPC (gRPC Remote Procedure Calls) is a high-performance RPC framework. This extension helps you:
@@ -386,7 +388,9 @@ Automatic checks for:
 
 ## See Also
 
+- [gRPC Client Feature Specification](./GRPC_CLIENT_FEATURE_SPECIFICATION.md) - Complete feature spec for the full gRPC client
 - [Snippets](./snippets.md) - gRPC code snippets
 - [Completions](./completions.md) - Smart IntelliSense for services
 - [Schema Graph](./schema-graph.md) - Visualize service relationships
 - [Templates](./templates.md) - Service templates
+- [Playground](./playground.md) - Interactive request testing

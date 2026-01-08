@@ -71,7 +71,15 @@ export function createMockVscode() {
       openTextDocument: jest.fn(),
       onDidSaveTextDocument: jest.fn(() => ({ dispose: jest.fn() })),
       onDidChangeTextDocument: jest.fn(() => ({ dispose: jest.fn() })),
+      onDidChangeConfiguration: jest.fn(() => ({ dispose: jest.fn() })),
       getWorkspaceFolder: jest.fn(),
+      findFiles: jest.fn().mockResolvedValue([]),
+      createFileSystemWatcher: jest.fn(() => ({
+        onDidCreate: jest.fn(() => ({ dispose: jest.fn() })),
+        onDidChange: jest.fn(() => ({ dispose: jest.fn() })),
+        onDidDelete: jest.fn(() => ({ dispose: jest.fn() })),
+        dispose: jest.fn(),
+      })),
       fs: {
         readFile: jest.fn(),
         writeFile: jest.fn(),
@@ -330,20 +338,16 @@ export function createMockExtensionContext() {
   };
 }
 
-export function createMockTextEditor(options: {
-  languageId?: string;
-  uri?: string;
-  text?: string;
-  line?: number;
-  character?: number;
-} = {}) {
-  const {
-    languageId = 'proto',
-    uri = 'file:///test/test.proto',
-    text = '',
-    line = 0,
-    character = 0,
-  } = options;
+export function createMockTextEditor(
+  options: {
+    languageId?: string;
+    uri?: string;
+    text?: string;
+    line?: number;
+    character?: number;
+  } = {}
+) {
+  const { languageId = 'proto', uri = 'file:///test/test.proto', text = '', line = 0, character = 0 } = options;
 
   return {
     document: {
@@ -385,12 +389,14 @@ export function createMockTextEditor(options: {
       isReversed: false,
       isSingleLine: true,
     },
-    selections: [{
-      active: { line, character },
-      anchor: { line, character },
-      start: { line, character },
-      end: { line, character },
-    }],
+    selections: [
+      {
+        active: { line, character },
+        anchor: { line, character },
+        start: { line, character },
+        end: { line, character },
+      },
+    ],
     visibleRanges: [],
     options: {},
     viewColumn: 1,
@@ -403,16 +409,14 @@ export function createMockTextEditor(options: {
   };
 }
 
-export function createMockChildProcess(
-  stdout: string = '',
-  stderr: string = '',
-  exitCode: number = 0,
-  error?: Error
-) {
+export function createMockChildProcess(stdout: string = '', stderr: string = '', exitCode: number = 0, error?: Error) {
   const stdoutHandlers: Record<string, ((data: Buffer) => void)[]> = {};
   const stderrHandlers: Record<string, ((data: Buffer) => void)[]> = {};
   const procHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};
 
+  // Use setImmediate for callbacks since it's not faked by jest.useFakeTimers({ doNotFake: ['setImmediate'] })
+  // This provides deterministic behavior across all platforms
+  // Use multiple nested setImmediate to ensure proper ordering even in CI environments
   return {
     stdout: {
       on: jest.fn((event: string, callback: (data: Buffer) => void) => {
@@ -421,7 +425,8 @@ export function createMockChildProcess(
         }
         stdoutHandlers[event].push(callback);
         if (event === 'data' && stdout) {
-          setTimeout(() => callback(Buffer.from(stdout)), 5);
+          // Single setImmediate for data - fires first
+          setImmediate(() => callback(Buffer.from(stdout)));
         }
       }),
     },
@@ -432,7 +437,8 @@ export function createMockChildProcess(
         }
         stderrHandlers[event].push(callback);
         if (event === 'data' && stderr) {
-          setTimeout(() => callback(Buffer.from(stderr)), 5);
+          // Single setImmediate for data - fires first
+          setImmediate(() => callback(Buffer.from(stderr)));
         }
       }),
     },
@@ -442,10 +448,12 @@ export function createMockChildProcess(
       }
       procHandlers[event].push(callback);
       if (event === 'close') {
-        setTimeout(() => callback(exitCode), 10);
+        // Use triple nested setImmediate to ensure data handlers run first
+        // This provides extra margin for CI environments with different timing
+        setImmediate(() => setImmediate(() => setImmediate(() => callback(exitCode))));
       }
       if (event === 'error' && error) {
-        setTimeout(() => callback(error), 5);
+        setImmediate(() => callback(error));
       }
     }),
     kill: jest.fn(),

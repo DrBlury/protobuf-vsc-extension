@@ -14,7 +14,7 @@ export const FIELD_NUMBER = {
   /** Internal reserved range start */
   RESERVED_RANGE_START: 19000,
   /** Internal reserved range end */
-  RESERVED_RANGE_END: 19999
+  RESERVED_RANGE_END: 19999,
 } as const;
 
 /**
@@ -49,7 +49,7 @@ export const DEFAULT_CONFIG = {
   /** Default clang-format fallback style */
   CLANG_FORMAT_FALLBACK_STYLE: 'Google',
   /** Default breaking change detection git reference */
-  BREAKING_GIT_REF: 'HEAD~1'
+  BREAKING_GIT_REF: 'HEAD~1',
 } as const;
 
 /**
@@ -59,7 +59,7 @@ export const TIMING = {
   /** Default debounce delay for document validation (ms) */
   VALIDATION_DEBOUNCE_MS: 300,
   /** Default cache TTL (ms) - not currently used but available */
-  CACHE_TTL_MS: 5 * 60 * 1000 // 5 minutes
+  CACHE_TTL_MS: 5 * 60 * 1000, // 5 minutes
 } as const;
 
 /**
@@ -71,7 +71,7 @@ export const DEFAULT_POSITIONS = {
   /** Default start character for error diagnostics */
   ERROR_START_CHAR: 0,
   /** Default end character for error diagnostics */
-  ERROR_END_CHAR: 1
+  ERROR_END_CHAR: 1,
 } as const;
 
 /**
@@ -83,7 +83,7 @@ export const PROTOC_INCLUDE_PATHS = [
   '/usr/include',
   'C:/Program Files/protobuf/include',
   'C:/Program Files (x86)/protobuf/include',
-  'C:/ProgramData/chocolatey/lib/protobuf/tools/include'
+  'C:/ProgramData/chocolatey/lib/protobuf/tools/include',
 ] as const;
 
 /**
@@ -158,7 +158,7 @@ export const ERROR_CODES = {
   // Option Validation (900-999)
   INVALID_OPTION: 'PROTO900',
   INVALID_OPTION_TYPE: 'PROTO901',
-  UNKNOWN_OPTION: 'PROTO902'
+  UNKNOWN_OPTION: 'PROTO902',
 } as const;
 
 /**
@@ -168,7 +168,7 @@ export const SEVERITY = {
   ERROR: 'error',
   WARNING: 'warning',
   INFORMATION: 'information',
-  HINT: 'hint'
+  HINT: 'hint',
 } as const;
 
 /**
@@ -181,7 +181,7 @@ export const FILE_EXTENSIONS = {
   PROTOTXT: '.prototxt',
   TXTPB: '.txtpb',
   TEXTPB: '.textpb',
-  PB_TXT: '.pb.txt'
+  PB_TXT: '.pb.txt',
 } as const;
 
 /**
@@ -189,7 +189,7 @@ export const FILE_EXTENSIONS = {
  */
 export const LANGUAGE_IDS = {
   PROTO: 'proto',
-  TEXTPROTO: 'textproto'
+  TEXTPROTO: 'textproto',
 } as const;
 
 /**
@@ -207,7 +207,7 @@ export const VALIDATION_MESSAGES = {
   NO_FIELDS_FROM_POSITION: 'No fields to renumber from this position',
   NO_REFERENCES: 'No proto file available to find references.',
   IMPORT_NOT_RESOLVED: (importPath: string) => `Import "${importPath}" is not resolved.`,
-  CLIENT_NOT_READY: 'Language client is not ready yet.'
+  CLIENT_NOT_READY: 'Language client is not ready yet.',
 } as const;
 
 /**
@@ -220,10 +220,8 @@ export const SUCCESS_MESSAGES = {
   LINTER_PASSED: 'Linter passed with no issues',
   LINTER_FOUND_ISSUES: (count: number) => `Linter found ${count} issue(s)`,
   RENUMBERED_FIELDS: (count: number) => `Renumbered ${count} field(s)`,
-  RENUMBERED_MESSAGE_FIELDS: (count: number, messageName: string) =>
-    `Renumbered ${count} field(s) in '${messageName}'`,
-  RENUMBERED_ENUM_VALUES: (count: number, enumName: string) =>
-    `Renumbered ${count} value(s) in '${enumName}'`
+  RENUMBERED_MESSAGE_FIELDS: (count: number, messageName: string) => `Renumbered ${count} field(s) in '${messageName}'`,
+  RENUMBERED_ENUM_VALUES: (count: number, enumName: string) => `Renumbered ${count} value(s) in '${enumName}'`,
 } as const;
 
 /**
@@ -236,7 +234,7 @@ export const ERROR_MESSAGES = {
   LINTER_ERROR: 'Linter error',
   ERROR_CHECKING_BREAKING_CHANGES: 'Error checking breaking changes',
   ERROR_GETTING_LINT_RULES: 'Error getting lint rules',
-  UNKNOWN_ERROR: 'Unknown error'
+  UNKNOWN_ERROR: 'Unknown error',
 } as const;
 
 /**
@@ -271,7 +269,8 @@ export const REQUEST_METHODS = {
   GET_GRPC_RPCS_USING_TYPE: 'protobuf/getGrpcRpcsUsingType',
   GENERATE_GRPC_CLIENT_STUB: 'protobuf/generateGrpcClientStub',
   GENERATE_GRPC_SERVER_TEMPLATE: 'protobuf/generateGrpcServerTemplate',
-  GET_GRPC_SERVICE_STATS: 'protobuf/getGrpcServiceStats'
+  GET_GRPC_SERVICE_STATS: 'protobuf/getGrpcServiceStats',
+  GET_DOCUMENTATION: 'protobuf/getDocumentation',
 } as const;
 
 /**
@@ -289,5 +288,5 @@ export const OUTPUT_CHANNEL_NAME = 'Protobuf VSC' as const;
  */
 export const SERVER_IDS = {
   LANGUAGE_SERVER: 'protobufLanguageServer',
-  LANGUAGE_SERVER_NAME: 'Protobuf Language Server'
+  LANGUAGE_SERVER_NAME: 'Protobuf Language Server',
 } as const;

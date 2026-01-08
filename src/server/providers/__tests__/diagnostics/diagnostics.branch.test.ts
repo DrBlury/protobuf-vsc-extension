@@ -24,7 +24,7 @@ describe('DiagnosticsProvider Branch Coverage', () => {
       discouragedConstructs: true,
       importChecks: true,
       deprecatedUsage: true,
-      editionFeatures: true
+      editionFeatures: true,
     });
   });
 
@@ -601,9 +601,7 @@ message test_message {
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
       const diagnostics = provider.validate(uri, file, text);
-      const namingDiags = diagnostics.filter(d => 
-        d.message.includes('PascalCase') || d.message.includes('snake_case')
-      );
+      const namingDiags = diagnostics.filter(d => d.message.includes('PascalCase') || d.message.includes('snake_case'));
       expect(namingDiags.length).toBe(0);
     });
   });

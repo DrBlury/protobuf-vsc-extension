@@ -16,11 +16,7 @@ import type { HoverProvider } from '../providers/hover';
  * @param hoverProvider - Hover provider
  * @returns Hover information or null
  */
-export function handleHover(
-  params: HoverParams,
-  documents: TextDocuments<TextDocument>,
-  hoverProvider: HoverProvider
-) {
+export function handleHover(params: HoverParams, documents: TextDocuments<TextDocument>, hoverProvider: HoverProvider) {
   const document = documents.get(params.textDocument.uri);
   if (!document) {
     return null;
@@ -29,9 +25,5 @@ export function handleHover(
   const lines = document.getText().split('\n');
   const lineText = lines[params.position.line] || '';
 
-  return hoverProvider.getHover(
-    params.textDocument.uri,
-    params.position,
-    lineText
-  );
+  return hoverProvider.getHover(params.textDocument.uri, params.position, lineText);
 }

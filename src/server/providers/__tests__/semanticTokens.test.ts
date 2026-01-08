@@ -47,7 +47,7 @@ describe('SemanticTokensProvider', () => {
       const content = `syntax = "proto3";`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -56,7 +56,7 @@ describe('SemanticTokensProvider', () => {
       const content = `edition = "2023";`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result).toBeDefined();
     });
@@ -66,7 +66,7 @@ describe('SemanticTokensProvider', () => {
 package test.v1;`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -78,7 +78,7 @@ import public "other.proto";
 import weak "weak.proto";`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -91,7 +91,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'hybrid');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -103,7 +103,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -118,7 +118,7 @@ message Outer {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'hybrid');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -131,7 +131,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -145,7 +145,7 @@ enum Status {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'hybrid');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -157,7 +157,7 @@ enum Status {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -173,7 +173,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'hybrid');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -189,7 +189,7 @@ service UserService {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'hybrid');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -205,7 +205,7 @@ service UserService {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -223,7 +223,7 @@ service StreamService {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -239,7 +239,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -251,7 +251,7 @@ message Test {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result).toBeDefined();
     });
@@ -263,7 +263,7 @@ message Test {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result).toBeDefined();
     });
@@ -276,7 +276,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'hybrid');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -288,7 +288,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -303,7 +303,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'hybrid');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -317,7 +317,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -333,7 +333,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'hybrid');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -346,7 +346,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'hybrid');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -372,7 +372,7 @@ message AllTypes {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'hybrid');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -384,7 +384,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content);
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -395,7 +395,7 @@ message Empty {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'hybrid');
       expect(result).toBeDefined();
     });
@@ -410,7 +410,7 @@ enum Status {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -427,7 +427,7 @@ service TestService {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -445,7 +445,7 @@ service TestService {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -458,7 +458,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Provide truncated content
       const truncatedContent = `syntax = "proto3";`;
       const result = provider.getSemanticTokens('file:///test.proto', truncatedContent, 'semantic');
@@ -472,7 +472,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Provide content with only the first line
       const result = provider.getSemanticTokens('file:///test.proto', `syntax = "proto3";`, 'hybrid');
       expect(result).toBeDefined();
@@ -485,7 +485,7 @@ enum Status {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const truncatedContent = `syntax = "proto3";`;
       const result = provider.getSemanticTokens('file:///test.proto', truncatedContent, 'semantic');
       expect(result).toBeDefined();
@@ -498,7 +498,7 @@ enum Status {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Only syntax line exists
       const result = provider.getSemanticTokens('file:///test.proto', `syntax = "proto3";`, 'hybrid');
       expect(result).toBeDefined();
@@ -513,7 +513,7 @@ service UserService {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', `syntax = "proto3";`, 'semantic');
       expect(result).toBeDefined();
     });
@@ -527,7 +527,7 @@ service UserService {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const truncatedContent = `syntax = "proto3";
 message Request {}`;
       const result = provider.getSemanticTokens('file:///test.proto', truncatedContent, 'semantic');
@@ -543,7 +543,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', `syntax = "proto3";`, 'semantic');
       expect(result).toBeDefined();
     });
@@ -555,7 +555,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', `syntax = "proto3";`, 'semantic');
       expect(result).toBeDefined();
     });
@@ -565,7 +565,7 @@ message User {
 option java_package = "com.example";`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', `syntax = "proto3";`, 'semantic');
       expect(result).toBeDefined();
     });
@@ -575,7 +575,7 @@ option java_package = "com.example";`;
 import 'other.proto';`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result).toBeDefined();
     });
@@ -585,7 +585,7 @@ import 'other.proto';`;
 package test;`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Modify content so 'package' keyword is not found on the package line
       const modifiedContent = `syntax = "proto3";
          test;`;
@@ -598,7 +598,7 @@ package test;`;
 message User {}`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content where 'message' keyword is missing but message name exists
       const modifiedContent = `syntax = "proto3";
 User {}`;
@@ -613,7 +613,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content where '=' is on a different line
       const modifiedContent = `syntax = "proto3";
 message User {
@@ -632,7 +632,7 @@ service Svc {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -646,7 +646,7 @@ service Svc {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content without 'returns' keyword
       const modifiedContent = `syntax = "proto3";
 message Request {}
@@ -665,7 +665,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content without comma
       const modifiedContent = `syntax = "proto3";
 message User {
@@ -682,7 +682,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content without closing bracket
       const modifiedContent = `syntax = "proto3";
 message User {
@@ -699,7 +699,7 @@ enum Status {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content without '='
       const modifiedContent = `syntax = "proto3";
 enum Status {
@@ -717,7 +717,7 @@ service Svc {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content without 'service' keyword
       const modifiedContent = `syntax = "proto3";
 message Request {}
@@ -736,7 +736,7 @@ service Svc {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content without 'rpc' keyword
       const modifiedContent = `syntax = "proto3";
 message Request {}
@@ -754,7 +754,7 @@ enum Status {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content without 'enum' keyword
       const modifiedContent = `syntax = "proto3";
 Status {
@@ -773,7 +773,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content without 'oneof' keyword
       const modifiedContent = `syntax = "proto3";
 message User {
@@ -792,7 +792,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content without field type - just name
       const modifiedContent = `syntax = "proto3";
 message User {
@@ -807,7 +807,7 @@ message User {
 option java_package = "com.example";`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content without the value
       const modifiedContent = `syntax = "proto3";
 option java_package = ;`;
@@ -824,7 +824,7 @@ option test = null;`;
         (file.options[0] as any).value = null;
       }
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result).toBeDefined();
     });
@@ -837,7 +837,7 @@ option test = null;`;
         (file.syntax as any).version = '';
       }
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result).toBeDefined();
     });
@@ -850,7 +850,7 @@ option test = null;`;
         (file.edition as any).edition = '';
       }
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'semantic');
       expect(result).toBeDefined();
     });
@@ -860,7 +860,7 @@ option test = null;`;
 package test;`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content with only syntax line
       const modifiedContent = `syntax = "proto3";`;
       const result = provider.getSemanticTokens('file:///test.proto', modifiedContent, 'semantic');
@@ -871,7 +871,7 @@ package test;`;
       const content = `syntax = "proto3";`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Empty content
       const result = provider.getSemanticTokens('file:///test.proto', '', 'semantic');
       expect(result).toBeDefined();
@@ -882,7 +882,7 @@ package test;`;
 import "other.proto";`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', `syntax = "proto3";`, 'semantic');
       expect(result).toBeDefined();
     });
@@ -894,7 +894,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content without '<' bracket
       const modifiedContent = `syntax = "proto3";
 message User {
@@ -911,7 +911,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content that causes name not to be found
       const modifiedContent = `syntax = "proto3";
 message User {
@@ -928,7 +928,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       const result = provider.getSemanticTokens('file:///test.proto', content, 'hybrid');
       expect(result.data.length).toBeGreaterThan(0);
     });
@@ -940,7 +940,7 @@ message User {
 }`;
       const file = parser.parse(content, 'file:///test.proto');
       analyzer.updateFile('file:///test.proto', file);
-      
+
       // Content without the type
       const modifiedContent = `syntax = "proto3";
 message User {

@@ -13,14 +13,14 @@ describe('SemanticTokensHandler', () => {
 
   beforeEach(() => {
     semanticTokensProvider = {
-      getSemanticTokens: jest.fn()
+      getSemanticTokens: jest.fn(),
     } as any;
     getDocumentMock = jest.fn();
   });
 
   it('should return empty tokens in textmate mode', () => {
     const params: SemanticTokensParams = {
-      textDocument: { uri: 'file:///test.proto' }
+      textDocument: { uri: 'file:///test.proto' },
     };
 
     const result = handleSemanticTokensFull(params, semanticTokensProvider, getDocumentMock as any, 'textmate');
@@ -30,7 +30,7 @@ describe('SemanticTokensHandler', () => {
 
   it('should return empty tokens when document not found', () => {
     const params: SemanticTokensParams = {
-      textDocument: { uri: 'file:///nonexistent.proto' }
+      textDocument: { uri: 'file:///nonexistent.proto' },
     };
 
     getDocumentMock.mockReturnValue(undefined);
@@ -47,7 +47,7 @@ describe('SemanticTokensHandler', () => {
     getDocumentMock.mockReturnValue(doc);
 
     const params: SemanticTokensParams = {
-      textDocument: { uri }
+      textDocument: { uri },
     };
 
     const tokens = { data: [0, 0, 7, 1, 0, 0, 0, 14, 1, 0] };
@@ -66,7 +66,7 @@ describe('SemanticTokensHandler', () => {
     getDocumentMock.mockReturnValue(doc);
 
     const params: SemanticTokensParams = {
-      textDocument: { uri }
+      textDocument: { uri },
     };
 
     const tokens = { data: [0, 0, 7, 1, 0] };
@@ -79,7 +79,7 @@ describe('SemanticTokensHandler', () => {
 
   it('should return empty tokens in semantic mode', () => {
     const params: SemanticTokensParams = {
-      textDocument: { uri: 'file:///test.proto' }
+      textDocument: { uri: 'file:///test.proto' },
     };
 
     const result = handleSemanticTokensFull(params, semanticTokensProvider, getDocumentMock as any, 'semantic');

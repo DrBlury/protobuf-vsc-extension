@@ -37,21 +37,17 @@ message Person {
       analyzer.updateFile(uri, file);
 
       const diagnostics = diagnosticsProvider.validate(uri, file, content);
-      const optionalDiag = diagnostics.find(d =>
-        d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED
-      );
+      const optionalDiag = diagnostics.find(d => d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED);
 
       expect(optionalDiag).toBeDefined();
 
       const context: CodeActionContext = {
-        diagnostics: [optionalDiag!]
+        diagnostics: [optionalDiag!],
       };
 
       const actions = codeActionsProvider.getCodeActions(uri, optionalDiag!.range, context, content);
 
-      const convertAction = actions.find(a =>
-        a.title.includes('features.field_presence = EXPLICIT')
-      );
+      const convertAction = actions.find(a => a.title.includes('features.field_presence = EXPLICIT'));
 
       expect(convertAction).toBeDefined();
       expect(convertAction?.edit?.changes?.[uri]).toBeDefined();
@@ -74,21 +70,17 @@ message Person {
       analyzer.updateFile(uri, file);
 
       const diagnostics = diagnosticsProvider.validate(uri, file, content);
-      const optionalDiag = diagnostics.find(d =>
-        d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED
-      );
+      const optionalDiag = diagnostics.find(d => d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED);
 
       expect(optionalDiag).toBeDefined();
 
       const context: CodeActionContext = {
-        diagnostics: [optionalDiag!]
+        diagnostics: [optionalDiag!],
       };
 
       const actions = codeActionsProvider.getCodeActions(uri, optionalDiag!.range, context, content);
 
-      const removeAction = actions.find(a =>
-        a.title.includes("Remove 'optional' modifier")
-      );
+      const removeAction = actions.find(a => a.title.includes("Remove 'optional' modifier"));
 
       expect(removeAction).toBeDefined();
       expect(removeAction?.edit?.changes?.[uri]).toBeDefined();
@@ -110,21 +102,17 @@ message Person {
       analyzer.updateFile(uri, file);
 
       const diagnostics = diagnosticsProvider.validate(uri, file, content);
-      const optionalDiag = diagnostics.find(d =>
-        d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED
-      );
+      const optionalDiag = diagnostics.find(d => d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED);
 
       expect(optionalDiag).toBeDefined();
 
       const context: CodeActionContext = {
-        diagnostics: [optionalDiag!]
+        diagnostics: [optionalDiag!],
       };
 
       const actions = codeActionsProvider.getCodeActions(uri, optionalDiag!.range, context, content);
 
-      const convertAction = actions.find(a =>
-        a.title.includes('features.field_presence = EXPLICIT')
-      );
+      const convertAction = actions.find(a => a.title.includes('features.field_presence = EXPLICIT'));
 
       expect(convertAction).toBeDefined();
 
@@ -147,21 +135,17 @@ message Person {
       analyzer.updateFile(uri, file);
 
       const diagnostics = diagnosticsProvider.validate(uri, file, content);
-      const requiredDiag = diagnostics.find(d =>
-        d.message.includes("'required' label is not allowed in editions")
-      );
+      const requiredDiag = diagnostics.find(d => d.message.includes("'required' label is not allowed in editions"));
 
       expect(requiredDiag).toBeDefined();
 
       const context: CodeActionContext = {
-        diagnostics: [requiredDiag!]
+        diagnostics: [requiredDiag!],
       };
 
       const actions = codeActionsProvider.getCodeActions(uri, requiredDiag!.range, context, content);
 
-      const convertAction = actions.find(a =>
-        a.title.includes('features.field_presence = LEGACY_REQUIRED')
-      );
+      const convertAction = actions.find(a => a.title.includes('features.field_presence = LEGACY_REQUIRED'));
 
       expect(convertAction).toBeDefined();
       expect(convertAction?.edit?.changes?.[uri]).toBeDefined();
@@ -183,21 +167,17 @@ message Person {
       analyzer.updateFile(uri, file);
 
       const diagnostics = diagnosticsProvider.validate(uri, file, content);
-      const requiredDiag = diagnostics.find(d =>
-        d.message.includes("'required' label is not allowed in editions")
-      );
+      const requiredDiag = diagnostics.find(d => d.message.includes("'required' label is not allowed in editions"));
 
       expect(requiredDiag).toBeDefined();
 
       const context: CodeActionContext = {
-        diagnostics: [requiredDiag!]
+        diagnostics: [requiredDiag!],
       };
 
       const actions = codeActionsProvider.getCodeActions(uri, requiredDiag!.range, context, content);
 
-      const removeAction = actions.find(a =>
-        a.title.includes("Remove 'required' modifier")
-      );
+      const removeAction = actions.find(a => a.title.includes("Remove 'required' modifier"));
 
       expect(removeAction).toBeDefined();
       expect(removeAction?.edit?.changes?.[uri]).toBeDefined();
@@ -223,7 +203,7 @@ message Person {
 
       const context: CodeActionContext = {
         diagnostics: [],
-        only: ['source.fixAll' as any]
+        only: ['source.fixAll' as any],
       };
 
       const actions = codeActionsProvider.getCodeActions(
@@ -233,9 +213,7 @@ message Person {
         content
       );
 
-      const fixAllAction = actions.find(a =>
-        a.title.includes('Fix editions modifiers')
-      );
+      const fixAllAction = actions.find(a => a.title.includes('Fix editions modifiers'));
 
       expect(fixAllAction).toBeDefined();
       expect(fixAllAction?.kind).toBe('source.fixAll');
@@ -272,7 +250,7 @@ message Person {
 
       const context: CodeActionContext = {
         diagnostics: [],
-        only: ['source.fixAll' as any]
+        only: ['source.fixAll' as any],
       };
 
       const actions = codeActionsProvider.getCodeActions(
@@ -282,9 +260,7 @@ message Person {
         content
       );
 
-      const fixAllAction = actions.find(a =>
-        a.title.includes('Fix editions modifiers')
-      );
+      const fixAllAction = actions.find(a => a.title.includes('Fix editions modifiers'));
 
       expect(fixAllAction).toBeUndefined();
     });
@@ -302,7 +278,7 @@ message Person {
 
       const context: CodeActionContext = {
         diagnostics: [],
-        only: ['source.fixAll' as any]
+        only: ['source.fixAll' as any],
       };
 
       const actions = codeActionsProvider.getCodeActions(
@@ -312,9 +288,7 @@ message Person {
         content
       );
 
-      const fixAllAction = actions.find(a =>
-        a.title.includes('Fix editions modifiers')
-      );
+      const fixAllAction = actions.find(a => a.title.includes('Fix editions modifiers'));
 
       expect(fixAllAction).toBeDefined();
 

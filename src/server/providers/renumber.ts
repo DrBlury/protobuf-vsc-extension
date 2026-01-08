@@ -3,17 +3,18 @@
  * Provides automatic field number adjustment
  */
 
-import type {
-  TextEdit,
-  Range,
-  CodeAction,
-  Position
-} from 'vscode-languageserver/node';
-import {
-  CodeActionKind
-} from 'vscode-languageserver/node';
+import type { TextEdit, Range, CodeAction, Position } from 'vscode-languageserver/node';
+import { CodeActionKind } from 'vscode-languageserver/node';
 
-import type { ProtoFile, MessageDefinition, EnumDefinition, FieldDefinition, MapFieldDefinition, EnumValue, Range as AstRange} from '../core/ast';
+import type {
+  ProtoFile,
+  MessageDefinition,
+  EnumDefinition,
+  FieldDefinition,
+  MapFieldDefinition,
+  EnumValue,
+  Range as AstRange,
+} from '../core/ast';
 import { MAX_FIELD_NUMBER } from '../core/ast';
 import type { IProtoParser } from '../core/parserFactory';
 import { FIELD_NUMBER } from '../utils/constants';
@@ -29,7 +30,7 @@ const DEFAULT_SETTINGS: RenumberSettings = {
   startNumber: 1,
   preserveReserved: true,
   skipReservedRange: true,
-  increment: 1
+  increment: 1,
 };
 
 export class RenumberProvider {
@@ -47,11 +48,7 @@ export class RenumberProvider {
   /**
    * Renumber all fields in a message
    */
-  renumberMessage(
-    text: string,
-    uri: string,
-    messageName: string
-  ): TextEdit[] {
+  renumberMessage(text: string, uri: string, messageName: string): TextEdit[] {
     const file = this.parser.parse(text, uri);
     const message = this.findMessage(file, messageName);
 
@@ -85,11 +82,7 @@ export class RenumberProvider {
   /**
    * Renumber fields in a message starting from a specific field
    */
-  renumberFromField(
-    text: string,
-    uri: string,
-    position: Position
-  ): TextEdit[] {
+  renumberFromField(text: string, uri: string, position: Position): TextEdit[] {
     const file = this.parser.parse(text, uri);
     const lines = text.split('\n');
 
@@ -100,11 +93,7 @@ export class RenumberProvider {
     }
 
     // Find which field is at or after this position
-    const allFields = [
-      ...message.fields,
-      ...message.maps,
-      ...message.oneofs.flatMap(o => o.fields)
-    ];
+    const allFields = [...message.fields, ...message.maps, ...message.oneofs.flatMap(o => o.fields)];
 
     // Sort fields by their position in the document
     allFields.sort((a, b) => {
@@ -115,9 +104,7 @@ export class RenumberProvider {
     });
 
     // Find fields at or after the cursor position
-    const fieldsToRenumber = allFields.filter(
-      f => f.range.start.line >= position.line
-    );
+    const fieldsToRenumber = allFields.filter(f => f.range.start.line >= position.line);
 
     if (fieldsToRenumber.length === 0) {
       return [];
@@ -165,11 +152,7 @@ export class RenumberProvider {
   /**
    * Renumber enum values
    */
-  renumberEnum(
-    text: string,
-    uri: string,
-    enumName: string
-  ): TextEdit[] {
+  renumberEnum(text: string, uri: string, enumName: string): TextEdit[] {
     const file = this.parser.parse(text, uri);
     const enumDef = this.findEnum(file, enumName);
 
@@ -191,11 +174,7 @@ export class RenumberProvider {
       return this.settings.startNumber;
     }
 
-    const allFields = [
-      ...message.fields,
-      ...message.maps,
-      ...message.oneofs.flatMap(o => o.fields)
-    ];
+    const allFields = [...message.fields, ...message.maps, ...message.oneofs.flatMap(o => o.fields)];
 
     if (allFields.length === 0) {
       return this.settings.startNumber;
@@ -237,11 +216,7 @@ export class RenumberProvider {
     const lines = text.split('\n');
     const edits: TextEdit[] = [];
 
-    const allFields = [
-      ...message.fields,
-      ...message.maps,
-      ...message.oneofs.flatMap(o => o.fields)
-    ];
+    const allFields = [...message.fields, ...message.maps, ...message.oneofs.flatMap(o => o.fields)];
 
     // Sort fields by their position in the document
     allFields.sort((a, b) => {
@@ -324,7 +299,11 @@ export class RenumberProvider {
     return edits;
   }
 
-  private createFieldNumberEdit(lines: string[], field: FieldDefinition | MapFieldDefinition, newNumber: number): TextEdit | null {
+  private createFieldNumberEdit(
+    lines: string[],
+    field: FieldDefinition | MapFieldDefinition,
+    newNumber: number
+  ): TextEdit | null {
     const line = lines[field.range.start.line];
     if (!line) {
       return null;
@@ -342,9 +321,9 @@ export class RenumberProvider {
     return {
       range: {
         start: { line: field.range.start.line, character: numberStart },
-        end: { line: field.range.start.line, character: numberEnd }
+        end: { line: field.range.start.line, character: numberEnd },
       },
-      newText: newNumber.toString()
+      newText: newNumber.toString(),
     };
   }
 
@@ -366,9 +345,9 @@ export class RenumberProvider {
     return {
       range: {
         start: { line: value.range.start.line, character: numberStart },
-        end: { line: value.range.start.line, character: numberEnd }
+        end: { line: value.range.start.line, character: numberEnd },
       },
-      newText: newNumber.toString()
+      newText: newNumber.toString(),
     };
   }
 
@@ -492,11 +471,7 @@ export class RenumberProvider {
   /**
    * Create code actions for renumbering
    */
-  getCodeActions(
-    text: string,
-    uri: string,
-    range: Range
-  ): CodeAction[] {
+  getCodeActions(text: string, uri: string, range: Range): CodeAction[] {
     const file = this.parser.parse(text, uri);
     const actions: CodeAction[] = [];
 
@@ -509,8 +484,8 @@ export class RenumberProvider {
         command: {
           title: 'Renumber Fields',
           command: 'protobuf.renumberMessage',
-          arguments: [uri, message.name]
-        }
+          arguments: [uri, message.name],
+        },
       });
 
       actions.push({
@@ -519,8 +494,8 @@ export class RenumberProvider {
         command: {
           title: 'Renumber From Here',
           command: 'protobuf.renumberFromCursor',
-          arguments: [uri, range.start]
-        }
+          arguments: [uri, range.start],
+        },
       });
     }
 
@@ -531,8 +506,8 @@ export class RenumberProvider {
       command: {
         title: 'Renumber Document',
         command: 'protobuf.renumberDocument',
-        arguments: [uri]
-      }
+        arguments: [uri],
+      },
     });
 
     return actions;

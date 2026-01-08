@@ -10,7 +10,7 @@ import {
   NUMERIC_CONSTRAINTS,
   REPEATED_CONSTRAINTS,
   CEL_FIELDS,
-  COMMON_CONSTRAINTS
+  COMMON_CONSTRAINTS,
 } from '../protovalidateHover';
 import type { MarkupContent } from 'vscode-languageserver';
 
@@ -240,7 +240,10 @@ describe('Protovalidate Hover', () => {
       });
 
       it('should return hover for well_known_regex constraint', () => {
-        const result = getProtovalidateHover('well_known_regex', 'option (buf.validate.field).string.well_known_regex = HTTP_HEADER_NAME');
+        const result = getProtovalidateHover(
+          'well_known_regex',
+          'option (buf.validate.field).string.well_known_regex = HTTP_HEADER_NAME'
+        );
         expect(result).not.toBeNull();
       });
     });
@@ -384,7 +387,10 @@ describe('Protovalidate Hover', () => {
 
     describe('edge cases', () => {
       it('should return null for unknown constraint', () => {
-        const result = getProtovalidateHover('unknown_constraint', 'option (buf.validate.field).unknown_constraint = true');
+        const result = getProtovalidateHover(
+          'unknown_constraint',
+          'option (buf.validate.field).unknown_constraint = true'
+        );
         expect(result).toBeNull();
       });
 

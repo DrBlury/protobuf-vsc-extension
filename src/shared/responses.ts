@@ -102,8 +102,8 @@ export function createErrorResponse<T extends { success: boolean; errorInfo?: Er
     success: false,
     errorInfo: {
       message,
-      ...options
-    }
+      ...options,
+    },
   } as Partial<T>;
 }
 

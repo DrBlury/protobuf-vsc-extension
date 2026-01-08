@@ -35,12 +35,7 @@ message User {
       const uri = 'file:///test.proto';
       const range: Range = { start: { line: 0, character: 0 }, end: { line: 10, character: 0 } };
 
-      const actions = codeActionsProvider.getCodeActions(
-        uri,
-        range,
-        { diagnostics: [] },
-        content
-      );
+      const actions = codeActionsProvider.getCodeActions(uri, range, { diagnostics: [] }, content);
 
       const organizeAction = actions.find(a => a.title?.includes('Organize imports'));
       expect(organizeAction).toBeDefined();
@@ -59,12 +54,7 @@ message User {
       const uri = 'file:///test.proto';
       const range: Range = { start: { line: 0, character: 0 }, end: { line: 10, character: 0 } };
 
-      const actions = codeActionsProvider.getCodeActions(
-        uri,
-        range,
-        { diagnostics: [] },
-        content
-      );
+      const actions = codeActionsProvider.getCodeActions(uri, range, { diagnostics: [] }, content);
 
       const organizeAction = actions.find(a => a.title?.includes('Organize imports'));
       expect(organizeAction).toBeDefined();
@@ -99,18 +89,10 @@ message User {
       // Select the message line
       const range: Range = { start: { line: 3, character: 0 }, end: { line: 3, character: 20 } };
 
-      const actions = codeActionsProvider.getCodeActions(
-        uri,
-        range,
-        { diagnostics: [] },
-        content
-      );
+      const actions = codeActionsProvider.getCodeActions(uri, range, { diagnostics: [] }, content);
 
       // The conversion action might be in refactoring actions
-      const _convertAction = actions.find(a =>
-        a.title?.includes('Convert to proto3') ||
-        a.title?.includes('proto3')
-      );
+      const _convertAction = actions.find(a => a.title?.includes('Convert to proto3') || a.title?.includes('proto3'));
       // Note: This action might not appear if the message detection logic doesn't match
       // The test verifies the action provider is called correctly
       expect(actions.length).toBeGreaterThanOrEqual(0);
@@ -129,22 +111,19 @@ message User {
       const file = parser.parse(content, uri);
       analyzer.updateFile(uri, file);
 
-      const diagnostics: Diagnostic[] = [{
-        severity: DiagnosticSeverity.Warning,
-        range: { start: { line: 4, character: 0 }, end: { line: 4, character: 20 } },
-        message: "Field 'old_field' is deprecated",
-        source: 'protobuf',
-        code: 'deprecated-field'
-      }];
+      const diagnostics: Diagnostic[] = [
+        {
+          severity: DiagnosticSeverity.Warning,
+          range: { start: { line: 4, character: 0 }, end: { line: 4, character: 20 } },
+          message: "Field 'old_field' is deprecated",
+          source: 'protobuf',
+          code: 'deprecated-field',
+        },
+      ];
 
       const range: Range = { start: { line: 4, character: 0 }, end: { line: 4, character: 20 } };
 
-      const actions = codeActionsProvider.getCodeActions(
-        uri,
-        range,
-        { diagnostics },
-        content
-      );
+      const actions = codeActionsProvider.getCodeActions(uri, range, { diagnostics }, content);
 
       expect(actions.length).toBeGreaterThan(0);
     });

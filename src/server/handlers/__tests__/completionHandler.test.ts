@@ -14,17 +14,17 @@ describe('CompletionHandler', () => {
 
   beforeEach(() => {
     documents = {
-      get: jest.fn()
+      get: jest.fn(),
     } as any;
     completionProvider = {
-      getCompletions: jest.fn()
+      getCompletions: jest.fn(),
     } as any;
   });
 
   it('should return empty array when document not found', () => {
     const params: TextDocumentPositionParams = {
       textDocument: { uri: 'file:///nonexistent.proto' },
-      position: { line: 0, character: 0 }
+      position: { line: 0, character: 0 },
     };
 
     documents.get.mockReturnValue(undefined);
@@ -42,7 +42,7 @@ describe('CompletionHandler', () => {
 
     const params: TextDocumentPositionParams = {
       textDocument: { uri },
-      position: { line: 1, character: 10 }
+      position: { line: 1, character: 10 },
     };
 
     completionProvider.getCompletions.mockReturnValue([]);
@@ -66,20 +66,14 @@ describe('CompletionHandler', () => {
 
     const params: TextDocumentPositionParams = {
       textDocument: { uri },
-      position: { line: 1, character: 0 }
+      position: { line: 1, character: 0 },
     };
 
     completionProvider.getCompletions.mockReturnValue([]);
 
     handleCompletion(params, documents, completionProvider);
 
-    expect(completionProvider.getCompletions).toHaveBeenCalledWith(
-      uri,
-      params.position,
-      '',
-      undefined,
-      content
-    );
+    expect(completionProvider.getCompletions).toHaveBeenCalledWith(uri, params.position, '', undefined, content);
   });
 
   it('should handle position beyond document lines', () => {
@@ -90,20 +84,14 @@ describe('CompletionHandler', () => {
 
     const params: TextDocumentPositionParams = {
       textDocument: { uri },
-      position: { line: 10, character: 0 }
+      position: { line: 10, character: 0 },
     };
 
     completionProvider.getCompletions.mockReturnValue([]);
 
     handleCompletion(params, documents, completionProvider);
 
-    expect(completionProvider.getCompletions).toHaveBeenCalledWith(
-      uri,
-      params.position,
-      '',
-      undefined,
-      content
-    );
+    expect(completionProvider.getCompletions).toHaveBeenCalledWith(uri, params.position, '', undefined, content);
   });
 
   it('should return completion items from provider', () => {
@@ -114,12 +102,12 @@ describe('CompletionHandler', () => {
 
     const params: TextDocumentPositionParams = {
       textDocument: { uri },
-      position: { line: 0, character: 0 }
+      position: { line: 0, character: 0 },
     };
 
     const completions = [
       { label: 'message', kind: 1 },
-      { label: 'enum', kind: 1 }
+      { label: 'enum', kind: 1 },
     ];
 
     completionProvider.getCompletions.mockReturnValue(completions as any);

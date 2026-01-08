@@ -55,9 +55,8 @@ message TestA {
     diagnosticsProvider.updateSettings({ referenceChecks: true });
     const diags = diagnosticsProvider.validate(testaUri, testaFile, testaContent);
 
-    const unqualifiedDiag = diags.find(d =>
-      d.message.includes('must be fully qualified') &&
-      d.message.includes('test.testb.TestB')
+    const unqualifiedDiag = diags.find(
+      d => d.message.includes('must be fully qualified') && d.message.includes('test.testb.TestB')
     );
 
     expect(unqualifiedDiag).toBeDefined();
@@ -154,9 +153,8 @@ message TestA {
     diagnosticsProvider.updateSettings({ referenceChecks: true });
     const diags = diagnosticsProvider.validate(testaUri, testaFile, testaContent);
 
-    const unqualifiedDiag = diags.find(d =>
-      d.message.includes('must be fully qualified') &&
-      d.message.includes('test.testb.Value')
+    const unqualifiedDiag = diags.find(
+      d => d.message.includes('must be fully qualified') && d.message.includes('test.testb.Value')
     );
 
     expect(unqualifiedDiag).toBeDefined();
@@ -197,13 +195,11 @@ service TestService {
     diagnosticsProvider.updateSettings({ referenceChecks: true });
     const diags = diagnosticsProvider.validate(testaUri, testaFile, testaContent);
 
-    const requestDiag = diags.find(d =>
-      d.message.includes('must be fully qualified') &&
-      d.message.includes('test.testb.Request')
+    const requestDiag = diags.find(
+      d => d.message.includes('must be fully qualified') && d.message.includes('test.testb.Request')
     );
-    const responseDiag = diags.find(d =>
-      d.message.includes('must be fully qualified') &&
-      d.message.includes('test.testb.Response')
+    const responseDiag = diags.find(
+      d => d.message.includes('must be fully qualified') && d.message.includes('test.testb.Response')
     );
 
     expect(requestDiag).toBeDefined();
@@ -252,10 +248,7 @@ message TestA {
         testaContent
       );
 
-      const quickFix = actions.find(a =>
-        a.kind === CodeActionKind.QuickFix &&
-        a.title.includes('test.testb.TestB')
-      );
+      const quickFix = actions.find(a => a.kind === CodeActionKind.QuickFix && a.title.includes('test.testb.TestB'));
 
       expect(quickFix).toBeDefined();
       expect(quickFix?.edit?.changes?.[testaUri]).toBeDefined();
@@ -295,10 +288,11 @@ message SimpleMessage {
     const diags = diagnosticsProvider.validate(testBUri, testBFile, testBContent);
 
     // Should show PROTO206 (unqualified type) instead of "Unknown type"
-    const unqualifiedDiag = diags.find(d =>
-      d.message.includes('must be fully qualified') &&
-      d.message.includes('testA.TestDuplicates') &&
-      d.message.includes('requires import')
+    const unqualifiedDiag = diags.find(
+      d =>
+        d.message.includes('must be fully qualified') &&
+        d.message.includes('testA.TestDuplicates') &&
+        d.message.includes('requires import')
     );
 
     expect(unqualifiedDiag).toBeDefined();
@@ -338,9 +332,8 @@ message SimpleMessage {
     diagnosticsProvider.updateSettings({ referenceChecks: true });
     const diags = diagnosticsProvider.validate(testBUri, testBFile, testBContent);
 
-    const unqualifiedDiag = diags.find(d =>
-      d.message.includes('must be fully qualified') &&
-      d.message.includes('requires import')
+    const unqualifiedDiag = diags.find(
+      d => d.message.includes('must be fully qualified') && d.message.includes('requires import')
     );
 
     expect(unqualifiedDiag).toBeDefined();
@@ -354,10 +347,11 @@ message SimpleMessage {
       );
 
       // Should have combined action
-      const combinedFix = actions.find(a =>
-        a.kind === CodeActionKind.QuickFix &&
-        a.title.includes("'testA.TestDuplicates'") &&
-        a.title.includes('add import')
+      const combinedFix = actions.find(
+        a =>
+          a.kind === CodeActionKind.QuickFix &&
+          a.title.includes("'testA.TestDuplicates'") &&
+          a.title.includes('add import')
       );
 
       expect(combinedFix).toBeDefined();
@@ -544,9 +538,8 @@ message MyMessage {
     const diags = diagnosticsProvider.validate(fooBazUri, fooBazFile, fooBazContent);
 
     // SHOULD report "must be fully qualified" for types from sibling package
-    const unqualifiedDiag = diags.find(d =>
-      d.message.includes('must be fully qualified') &&
-      d.message.includes('foo.bar.BarType')
+    const unqualifiedDiag = diags.find(
+      d => d.message.includes('must be fully qualified') && d.message.includes('foo.bar.BarType')
     );
     expect(unqualifiedDiag).toBeDefined();
   });

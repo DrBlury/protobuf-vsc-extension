@@ -3,24 +3,11 @@
  * Provides document and workspace symbols
  */
 
-import type {
-  DocumentSymbol,
-  SymbolInformation,
-  Range
-} from 'vscode-languageserver/node';
-import {
-  SymbolKind as VSCodeSymbolKind
-} from 'vscode-languageserver/node';
+import type { DocumentSymbol, SymbolInformation, Range } from 'vscode-languageserver/node';
+import { SymbolKind as VSCodeSymbolKind } from 'vscode-languageserver/node';
 
-import type {
-  MessageDefinition,
-  EnumDefinition,
-  ServiceDefinition,
-  Range as AstRange
-} from '../core/ast';
-import {
-  SymbolKind
-} from '../core/ast';
+import type { MessageDefinition, EnumDefinition, ServiceDefinition, Range as AstRange } from '../core/ast';
+import { SymbolKind } from '../core/ast';
 import type { SemanticAnalyzer } from '../core/analyzer';
 
 export class SymbolProvider {
@@ -44,7 +31,7 @@ export class SymbolProvider {
         name: file.package.name,
         kind: VSCodeSymbolKind.Namespace,
         range: this.toRange(file.package.range),
-        selectionRange: this.toRange(file.package.range)
+        selectionRange: this.toRange(file.package.range),
       });
     }
 
@@ -91,10 +78,10 @@ export class SymbolProvider {
           kind: this.toVSCodeSymbolKind(symbol.kind),
           location: {
             uri: symbol.location.uri,
-            range: this.toRange(symbol.location.range)
+            range: this.toRange(symbol.location.range),
           },
           containerName: symbol.containerName,
-          score: 0
+          score: 0,
         });
         continue;
       }
@@ -107,10 +94,10 @@ export class SymbolProvider {
           kind: this.toVSCodeSymbolKind(symbol.kind),
           location: {
             uri: symbol.location.uri,
-            range: this.toRange(symbol.location.range)
+            range: this.toRange(symbol.location.range),
           },
           containerName: symbol.containerName,
-          score
+          score,
         });
       }
     }
@@ -224,7 +211,7 @@ export class SymbolProvider {
         detail: `${field.fieldType} = ${field.number}`,
         kind: VSCodeSymbolKind.Field,
         range: fieldRange,
-        selectionRange: this.safeSelectionRange(fieldRange, fieldSelectionRange)
+        selectionRange: this.safeSelectionRange(fieldRange, fieldSelectionRange),
       });
     }
 
@@ -240,7 +227,7 @@ export class SymbolProvider {
         detail: `map<${mapField.keyType}, ${mapField.valueType}> = ${mapField.number}`,
         kind: VSCodeSymbolKind.Field,
         range: mapRange,
-        selectionRange: this.safeSelectionRange(mapRange, mapSelectionRange)
+        selectionRange: this.safeSelectionRange(mapRange, mapSelectionRange),
       });
     }
 
@@ -259,7 +246,7 @@ export class SymbolProvider {
             detail: `${f.fieldType} = ${f.number}`,
             kind: VSCodeSymbolKind.Field,
             range: fRange,
-            selectionRange: this.safeSelectionRange(fRange, fSelectionRange)
+            selectionRange: this.safeSelectionRange(fRange, fSelectionRange),
           };
         });
 
@@ -270,7 +257,7 @@ export class SymbolProvider {
         kind: VSCodeSymbolKind.Struct,
         range: oneofRange,
         selectionRange: this.safeSelectionRange(oneofRange, oneofSelectionRange),
-        children: oneofChildren
+        children: oneofChildren,
       });
     }
 
@@ -291,7 +278,7 @@ export class SymbolProvider {
       kind: VSCodeSymbolKind.Class,
       range: messageRange,
       selectionRange: this.safeSelectionRange(messageRange, messageSelectionRange),
-      children
+      children,
     };
   }
 
@@ -306,7 +293,7 @@ export class SymbolProvider {
           detail: `= ${value.number}`,
           kind: VSCodeSymbolKind.EnumMember,
           range: valueRange,
-          selectionRange: this.safeSelectionRange(valueRange, valueSelectionRange)
+          selectionRange: this.safeSelectionRange(valueRange, valueSelectionRange),
         };
       });
 
@@ -317,7 +304,7 @@ export class SymbolProvider {
       kind: VSCodeSymbolKind.Enum,
       range: enumRange,
       selectionRange: this.safeSelectionRange(enumRange, enumSelectionRange),
-      children
+      children,
     };
   }
 
@@ -335,7 +322,7 @@ export class SymbolProvider {
           detail: `(${inputDesc}) returns (${outputDesc})`,
           kind: VSCodeSymbolKind.Method,
           range: rpcRange,
-          selectionRange: this.safeSelectionRange(rpcRange, rpcSelectionRange)
+          selectionRange: this.safeSelectionRange(rpcRange, rpcSelectionRange),
         };
       });
 
@@ -346,7 +333,7 @@ export class SymbolProvider {
       kind: VSCodeSymbolKind.Interface,
       range: serviceRange,
       selectionRange: this.safeSelectionRange(serviceRange, serviceSelectionRange),
-      children
+      children,
     };
   }
 
@@ -382,7 +369,7 @@ export class SymbolProvider {
 
     return {
       start: { line: startLine, character: startChar },
-      end: { line: endLine, character: endChar }
+      end: { line: endLine, character: endChar },
     };
   }
 
@@ -394,9 +381,9 @@ export class SymbolProvider {
     // Check if selectionRange is within range
     const selectionIsValid =
       (selectionRange.start.line > range.start.line ||
-       (selectionRange.start.line === range.start.line && selectionRange.start.character >= range.start.character)) &&
+        (selectionRange.start.line === range.start.line && selectionRange.start.character >= range.start.character)) &&
       (selectionRange.end.line < range.end.line ||
-       (selectionRange.end.line === range.end.line && selectionRange.end.character <= range.end.character));
+        (selectionRange.end.line === range.end.line && selectionRange.end.character <= range.end.character));
 
     return selectionIsValid ? selectionRange : range;
   }

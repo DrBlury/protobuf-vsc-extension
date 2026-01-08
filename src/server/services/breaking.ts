@@ -5,7 +5,14 @@
 
 import type { Diagnostic, Range } from 'vscode-languageserver/node';
 import { DiagnosticSeverity } from 'vscode-languageserver/node';
-import type { ProtoFile, MessageDefinition, EnumDefinition, ServiceDefinition, FieldDefinition, RpcDefinition } from '../core/ast';
+import type {
+  ProtoFile,
+  MessageDefinition,
+  EnumDefinition,
+  ServiceDefinition,
+  FieldDefinition,
+  RpcDefinition,
+} from '../core/ast';
 import { spawn } from 'child_process';
 import * as path from 'path';
 
@@ -68,8 +75,8 @@ const DEFAULT_SETTINGS: BreakingChangeSettings = {
     'SERVICE_NO_DELETE',
     'RPC_NO_DELETE',
     'RPC_SAME_REQUEST_TYPE',
-    'RPC_SAME_RESPONSE_TYPE'
-  ]
+    'RPC_SAME_RESPONSE_TYPE',
+  ],
 };
 
 export class BreakingChangeDetector {
@@ -87,11 +94,7 @@ export class BreakingChangeDetector {
   /**
    * Check for breaking changes between current and baseline proto files
    */
-  detectBreakingChanges(
-    currentFile: ProtoFile,
-    baselineFile: ProtoFile | null,
-    _currentUri: string
-  ): Diagnostic[] {
+  detectBreakingChanges(currentFile: ProtoFile, baselineFile: ProtoFile | null, _currentUri: string): Diagnostic[] {
     if (!this.settings.enabled || !baselineFile) {
       return [];
     }
@@ -106,7 +109,7 @@ export class BreakingChangeDetector {
           range: change.range,
           message: `Breaking change: ${change.message}`,
           source: 'protobuf-breaking',
-          code: change.rule
+          code: change.rule,
         });
       }
     }
@@ -118,24 +121,24 @@ export class BreakingChangeDetector {
    * Get baseline file content from git
    */
   async getBaselineFromGit(filePath: string): Promise<string | null> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const relativePath = path.relative(this.workspaceRoot, filePath);
       const ref = this.settings.againstGitRef || 'HEAD~1';
 
       const proc = spawn('git', ['show', `${ref}:${relativePath}`], {
         cwd: this.workspaceRoot,
-        shell: true
+        shell: true,
       });
 
       let content = '';
 
       proc.stdout?.on('data', (data: Buffer) => {
-        content += data.toString();
+        content += data.toString('utf8');
       });
 
       proc.stderr?.on('data', (data: Buffer) => {
         // Capture stderr for debugging purposes (not currently used)
-        data.toString();
+        data.toString('utf8');
       });
 
       proc.on('close', (code: number | null) => {
@@ -162,7 +165,7 @@ export class BreakingChangeDetector {
         rule: 'PACKAGE_NO_DELETE',
         severity: 'error',
         message: `Package '${baseline.package.name}' was deleted`,
-        range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }
+        range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
       });
     }
 
@@ -178,7 +181,7 @@ export class BreakingChangeDetector {
           rule: 'MESSAGE_NO_DELETE',
           severity: 'error',
           message: `Message '${name}' was deleted`,
-          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
         });
       } else {
         changes.push(...this.compareMessages(currentMsg, baselineMsg));
@@ -197,7 +200,7 @@ export class BreakingChangeDetector {
           rule: 'ENUM_NO_DELETE',
           severity: 'error',
           message: `Enum '${name}' was deleted`,
-          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
         });
       } else {
         changes.push(...this.compareEnums(currentEnum, baselineEnum));
@@ -216,7 +219,7 @@ export class BreakingChangeDetector {
           rule: 'SERVICE_NO_DELETE',
           severity: 'error',
           message: `Service '${name}' was deleted`,
-          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
         });
       } else {
         changes.push(...this.compareServices(currentService, baselineService));
@@ -256,7 +259,7 @@ export class BreakingChangeDetector {
             rule: 'FIELD_NO_DELETE',
             severity: 'error',
             message: `Field '${baselineField.name}' (number ${number}) was deleted without reserving the field number`,
-            range: current.nameRange
+            range: current.nameRange,
           });
         }
       } else {
@@ -268,7 +271,7 @@ export class BreakingChangeDetector {
             message: `Field '${currentField.name}' type changed from '${baselineField.fieldType}' to '${currentField.fieldType}'`,
             range: currentField.fieldTypeRange,
             oldValue: baselineField.fieldType,
-            newValue: currentField.fieldType
+            newValue: currentField.fieldType,
           });
         }
 
@@ -280,7 +283,7 @@ export class BreakingChangeDetector {
             message: `Field ${number} name changed from '${baselineField.name}' to '${currentField.name}'`,
             range: currentField.nameRange,
             oldValue: baselineField.name,
-            newValue: currentField.name
+            newValue: currentField.name,
           });
         }
 
@@ -290,7 +293,7 @@ export class BreakingChangeDetector {
             rule: 'FIELD_SAME_LABEL',
             severity: 'warning',
             message: `Field '${currentField.name}' label changed from '${baselineField.modifier || 'singular'}' to '${currentField.modifier || 'singular'}'`,
-            range: currentField.range
+            range: currentField.range,
           });
         }
       }
@@ -305,7 +308,7 @@ export class BreakingChangeDetector {
           rule: 'MESSAGE_NO_DELETE',
           severity: 'error',
           message: `Nested message '${current.name}.${name}' was deleted`,
-          range: current.nameRange
+          range: current.nameRange,
         });
       } else {
         changes.push(...this.compareMessages(currentNested, baselineNested));
@@ -321,7 +324,7 @@ export class BreakingChangeDetector {
           rule: 'ENUM_NO_DELETE',
           severity: 'error',
           message: `Nested enum '${current.name}.${name}' was deleted`,
-          range: current.nameRange
+          range: current.nameRange,
         });
       } else {
         changes.push(...this.compareEnums(currentNested, baselineNested));
@@ -349,14 +352,14 @@ export class BreakingChangeDetector {
           rule: 'ENUM_VALUE_NO_DELETE',
           severity: 'error',
           message: `Enum value '${baselineName}' (number ${number}) was deleted from '${current.name}'`,
-          range: current.nameRange
+          range: current.nameRange,
         });
       } else if (currentValue.name !== baselineName) {
         changes.push({
           rule: 'ENUM_VALUE_SAME_NAME',
           severity: 'warning',
           message: `Enum value ${number} in '${current.name}' renamed from '${baselineName}' to '${currentValue.name}'`,
-          range: currentValue.nameRange
+          range: currentValue.nameRange,
         });
       }
     }
@@ -382,7 +385,7 @@ export class BreakingChangeDetector {
           rule: 'RPC_NO_DELETE',
           severity: 'error',
           message: `RPC '${name}' was deleted from service '${current.name}'`,
-          range: current.nameRange
+          range: current.nameRange,
         });
       } else {
         // Check request type
@@ -402,7 +405,7 @@ export class BreakingChangeDetector {
             rule: 'RPC_SAME_REQUEST_TYPE',
             severity: 'error',
             message: `RPC '${name}' request type changed from '${baselineRequestType}' to '${currentRequestType}'`,
-            range: requestTypeRange
+            range: requestTypeRange,
           });
         }
 
@@ -412,7 +415,7 @@ export class BreakingChangeDetector {
             rule: 'RPC_SAME_RESPONSE_TYPE',
             severity: 'error',
             message: `RPC '${name}' response type changed from '${baselineResponseType}' to '${currentResponseType}'`,
-            range: responseTypeRange
+            range: responseTypeRange,
           });
         }
 
@@ -422,7 +425,7 @@ export class BreakingChangeDetector {
             rule: 'RPC_SAME_CLIENT_STREAMING',
             severity: 'error',
             message: `RPC '${name}' client streaming changed from ${baselineRequestStreaming} to ${currentRequestStreaming}`,
-            range: currentRpc.nameRange
+            range: currentRpc.nameRange,
           });
         }
 
@@ -431,7 +434,7 @@ export class BreakingChangeDetector {
             rule: 'RPC_SAME_SERVER_STREAMING',
             severity: 'error',
             message: `RPC '${name}' server streaming changed from ${baselineResponseStreaming} to ${currentResponseStreaming}`,
-            range: currentRpc.nameRange
+            range: currentRpc.nameRange,
           });
         }
       }

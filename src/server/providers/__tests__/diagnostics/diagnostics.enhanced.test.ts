@@ -284,7 +284,9 @@ message User {
       analyzer.updateFile(uri, file);
 
       const diags = diagnosticsProvider.validate(uri, file, content);
-      const invalidRange = diags.find(d => d.message.includes('Extension range start') && d.message.includes('greater than end'));
+      const invalidRange = diags.find(
+        d => d.message.includes('Extension range start') && d.message.includes('greater than end')
+      );
 
       expect(invalidRange).toBeDefined();
     });
@@ -373,9 +375,8 @@ message TestMessage {
       diagnosticsProvider.updateSettings({ documentationComments: true });
       const diags = diagnosticsProvider.validate(uri, file, content);
 
-      const missingDocDiag = diags.find(d =>
-        d.message.includes('Consider adding documentation comment') &&
-        d.message.includes('TestMessage')
+      const missingDocDiag = diags.find(
+        d => d.message.includes('Consider adding documentation comment') && d.message.includes('TestMessage')
       );
       expect(missingDocDiag).toBeUndefined();
     });
@@ -398,9 +399,8 @@ message TestMessage {
       diagnosticsProvider.updateSettings({ documentationComments: true });
       const diags = diagnosticsProvider.validate(uri, file, content);
 
-      const missingDocDiag = diags.find(d =>
-        d.message.includes('Consider adding documentation comment') &&
-        d.message.includes('TestMessage')
+      const missingDocDiag = diags.find(
+        d => d.message.includes('Consider adding documentation comment') && d.message.includes('TestMessage')
       );
       expect(missingDocDiag).toBeUndefined();
     });
@@ -423,9 +423,8 @@ message TestMessage {
       diagnosticsProvider.updateSettings({ documentationComments: true });
       const diags = diagnosticsProvider.validate(uri, file, content);
 
-      const missingDocDiag = diags.find(d =>
-        d.message.includes('Consider adding documentation comment') &&
-        d.message.includes('TestMessage')
+      const missingDocDiag = diags.find(
+        d => d.message.includes('Consider adding documentation comment') && d.message.includes('TestMessage')
       );
       expect(missingDocDiag).toBeUndefined();
     });
@@ -445,9 +444,8 @@ message TestMessage {
       diagnosticsProvider.updateSettings({ documentationComments: true });
       const diags = diagnosticsProvider.validate(uri, file, content);
 
-      const missingDocDiag = diags.find(d =>
-        d.message.includes('Consider adding documentation comment') &&
-        d.message.includes('TestMessage')
+      const missingDocDiag = diags.find(
+        d => d.message.includes('Consider adding documentation comment') && d.message.includes('TestMessage')
       );
       expect(missingDocDiag).toBeUndefined();
     });
@@ -466,9 +464,8 @@ message TestMessage {
       diagnosticsProvider.updateSettings({ documentationComments: true });
       const diags = diagnosticsProvider.validate(uri, file, content);
 
-      const missingDocDiag = diags.find(d =>
-        d.message.includes('Consider adding documentation comment') &&
-        d.message.includes('TestMessage')
+      const missingDocDiag = diags.find(
+        d => d.message.includes('Consider adding documentation comment') && d.message.includes('TestMessage')
       );
       expect(missingDocDiag).toBeDefined();
     });
@@ -490,9 +487,8 @@ message User {
 
       const diags = diagnosticsProvider.validate(uri, file, content);
 
-      const syntaxError = diags.find(d =>
-        d.message.includes('unexpected semicolon') &&
-        d.severity === DiagnosticSeverity.Error
+      const syntaxError = diags.find(
+        d => d.message.includes('unexpected semicolon') && d.severity === DiagnosticSeverity.Error
       );
       expect(syntaxError).toBeDefined();
     });
@@ -512,9 +508,7 @@ message User {
 
       const diags = diagnosticsProvider.validate(uri, file, content);
 
-      const syntaxError = diags.find(d =>
-        d.message.includes('unexpected semicolon')
-      );
+      const syntaxError = diags.find(d => d.message.includes('unexpected semicolon'));
       expect(syntaxError).toBeUndefined();
     });
   });

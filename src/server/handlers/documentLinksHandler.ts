@@ -3,10 +3,7 @@
  * Handles document links requests
  */
 
-import type {
-  DocumentLinkParams,
-  DocumentLink
-} from 'vscode-languageserver/node';
+import type { DocumentLinkParams, DocumentLink } from 'vscode-languageserver/node';
 
 import type { TextDocuments } from 'vscode-languageserver/node';
 import type { TextDocument } from 'vscode-languageserver-textdocument';

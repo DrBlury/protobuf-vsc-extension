@@ -2,13 +2,8 @@
  * Server capabilities configuration
  */
 
-import type {
-  InitializeResult,
-  SemanticTokensOptions
-} from 'vscode-languageserver/node';
-import {
-  TextDocumentSyncKind
-} from 'vscode-languageserver/node';
+import type { InitializeResult, SemanticTokensOptions } from 'vscode-languageserver/node';
+import { TextDocumentSyncKind } from 'vscode-languageserver/node';
 
 import { semanticTokensLegend } from '../providers/semanticTokens';
 
@@ -21,7 +16,7 @@ export function getServerCapabilities(): InitializeResult {
       textDocumentSync: TextDocumentSyncKind.Incremental,
       completionProvider: {
         resolveProvider: false,
-        triggerCharacters: ['.', '"', '<', ' ']
+        triggerCharacters: ['.', '"', '<', ' '],
       },
       hoverProvider: true,
       definitionProvider: true,
@@ -32,7 +27,7 @@ export function getServerCapabilities(): InitializeResult {
       documentRangeFormattingProvider: true,
       foldingRangeProvider: true,
       renameProvider: {
-        prepareProvider: true
+        prepareProvider: true,
       },
       inlayHintProvider: true,
       codeActionProvider: {
@@ -43,20 +38,20 @@ export function getServerCapabilities(): InitializeResult {
           'refactor.rewrite',
           'source',
           'source.fixAll',
-          'source.organizeImports'
-        ]
+          'source.organizeImports',
+        ],
       },
       codeLensProvider: {
-        resolveProvider: false
+        resolveProvider: false,
       },
       documentLinkProvider: {
-        resolveProvider: false
+        resolveProvider: false,
       },
       semanticTokensProvider: {
         legend: semanticTokensLegend,
         full: true,
-        range: false
-      } as SemanticTokensOptions
-    }
+        range: false,
+      } as SemanticTokensOptions,
+    },
   };
 }

@@ -257,13 +257,15 @@ message User {
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
 
-      const diagnostics: Diagnostic[] = [{
-        severity: DiagnosticSeverity.Warning,
-        range: Range.create(6, 3, 6, 7),
-        message: 'Field "test" uses deprecated type "Test"',
-        source: 'protobuf',
-        code: 'deprecated-usage'
-      }];
+      const diagnostics: Diagnostic[] = [
+        {
+          severity: DiagnosticSeverity.Warning,
+          range: Range.create(6, 3, 6, 7),
+          message: 'Field "test" uses deprecated type "Test"',
+          source: 'protobuf',
+          code: 'deprecated-usage',
+        },
+      ];
 
       const range = Range.create(6, 3, 6, 7);
       const actions = provider.getCodeActions(uri, range, { diagnostics }, text);

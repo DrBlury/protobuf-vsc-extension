@@ -15,8 +15,8 @@ jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-    errorWithContext: jest.fn()
-  }
+    errorWithContext: jest.fn(),
+  },
 }));
 
 describe('wellKnown', () => {
@@ -178,7 +178,7 @@ describe('wellKnown', () => {
       expect(mockedFs.readFileSync).toHaveBeenCalled();
       const readCalls = mockedFs.readFileSync.mock.calls;
       const normalizedDiscovered = path.normalize(discoveredBase);
-      const hasDiscoveredPath = readCalls.some(call => 
+      const hasDiscoveredPath = readCalls.some(call =>
         path.normalize(String(call[0])).startsWith(normalizedDiscovered)
       );
       expect(hasDiscoveredPath).toBe(true);
@@ -243,7 +243,7 @@ describe('wellKnown', () => {
       const parser = {
         parse: jest.fn().mockImplementation(() => {
           throw new Error('Parse error');
-        })
+        }),
       };
       const analyzer = { updateFile: jest.fn() };
 

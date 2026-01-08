@@ -10,7 +10,7 @@ import {
   toSnakeCase,
   toScreamingSnakeCase,
   isValidNaming,
-  getConventionName
+  getConventionName,
 } from '../namingUtils';
 
 describe('namingUtils', () => {

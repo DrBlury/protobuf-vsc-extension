@@ -3,33 +3,16 @@
  * Provides quick fixes and refactoring actions
  */
 
-import type {
-  CodeAction,
-  Diagnostic,
-  Range,
-  TextEdit,
-  Position
-} from 'vscode-languageserver/node';
-import {
-  CodeActionKind
-} from 'vscode-languageserver/node';
+import type { CodeAction, Diagnostic, Range, TextEdit, Position } from 'vscode-languageserver/node';
+import { CodeActionKind } from 'vscode-languageserver/node';
 import type { ProtoFile } from '../core/ast';
 import type { SemanticAnalyzer } from '../core/analyzer';
 import type { RenumberProvider } from './renumber';
 import { FIELD_NUMBER } from '../utils/constants';
 import { logger } from '../utils/logger';
-import type {
-  CodeActionContext,
-  CodeActionsSettings} from './codeActions/index';
-import {
-  DEFAULT_CODE_ACTIONS_SETTINGS,
-  splitLines
-} from './codeActions/index';
-import {
-  findEnclosingMessageName,
-  findEnclosingEnumName,
-  getWordAtRange
-} from './codeActions/index';
+import type { CodeActionContext, CodeActionsSettings } from './codeActions/index';
+import { DEFAULT_CODE_ACTIONS_SETTINGS, splitLines } from './codeActions/index';
+import { findEnclosingMessageName, findEnclosingEnumName, getWordAtRange } from './codeActions/index';
 
 // Re-export types for external consumers
 export type { CodeActionContext, CodeActionsSettings } from './codeActions/index';
@@ -49,12 +32,7 @@ export class CodeActionsProvider {
     logger.info(`CodeActionsProvider settings updated: renumberOnFormat=${this.settings.renumberOnFormat}`);
   }
 
-  getCodeActions(
-    uri: string,
-    range: Range,
-    context: CodeActionContext,
-    documentText: string
-  ): CodeAction[] {
+  getCodeActions(uri: string, range: Range, context: CodeActionContext, documentText: string): CodeAction[] {
     const actions: CodeAction[] = [];
 
     const requestedKinds = context.only;
@@ -66,24 +44,32 @@ export class CodeActionsProvider {
     }
 
     // Source-organize imports: add missing imports in one go so users can hook this to codeActionsOnSave
-    if (!requestedKinds || requestedKinds.some(k => k === CodeActionKind.SourceOrganizeImports || k.startsWith(CodeActionKind.SourceOrganizeImports))) {
+    if (
+      !requestedKinds ||
+      requestedKinds.some(
+        k => k === CodeActionKind.SourceOrganizeImports || k.startsWith(CodeActionKind.SourceOrganizeImports)
+      )
+    ) {
       const missingImports = this.extractMissingImportPaths(context.diagnostics, documentText);
       if (missingImports.length > 0) {
-          actions.push(this.createAddMissingImportsAction(uri, missingImports, documentText));
+        actions.push(this.createAddMissingImportsAction(uri, missingImports, documentText));
       }
       const fixImports = this.createFixImportsAction(uri, context.diagnostics, documentText);
       if (fixImports) {
-          actions.push(fixImports);
+        actions.push(fixImports);
       }
       // Add organize imports action (sort and remove duplicates)
       const organizeImports = this.createOrganizeImportsAction(uri, documentText);
       if (organizeImports) {
-          actions.push(organizeImports);
+        actions.push(organizeImports);
       }
     }
 
     // Source.fixAll: Fix all editions-related issues (optional/required modifiers)
-    if (!requestedKinds || requestedKinds.some(k => k === CodeActionKind.SourceFixAll || k.startsWith(CodeActionKind.SourceFixAll))) {
+    if (
+      !requestedKinds ||
+      requestedKinds.some(k => k === CodeActionKind.SourceFixAll || k.startsWith(CodeActionKind.SourceFixAll))
+    ) {
       const editionsFixAction = this.createFixEditionsModifiersAction(uri, documentText);
       if (editionsFixAction) {
         actions.push(editionsFixAction);
@@ -95,7 +81,10 @@ export class CodeActionsProvider {
     actions.push(...refactorings);
 
     // Source action to renumber/complete missing field tags across the document
-    if (!requestedKinds || requestedKinds.some(k => k === CodeActionKind.Source || k.startsWith(CodeActionKind.Source))) {
+    if (
+      !requestedKinds ||
+      requestedKinds.some(k => k === CodeActionKind.Source || k.startsWith(CodeActionKind.Source))
+    ) {
       if (this.settings.renumberOnFormat) {
         const renumberAction = this.createRenumberDocumentAction(uri, documentText);
         if (renumberAction) {
@@ -138,9 +127,11 @@ export class CodeActionsProvider {
       const messageName = findEnclosingMessageName(range, documentText);
       const hasRenumberDiagnostic = context.diagnostics.some(d => {
         const msg = d.message.toLowerCase();
-        return msg.includes('not strictly increasing') ||
-               msg.includes('gap in field numbers') ||
-               (msg.includes('duplicate field number') && msg.includes('oneof'));
+        return (
+          msg.includes('not strictly increasing') ||
+          msg.includes('gap in field numbers') ||
+          (msg.includes('duplicate field number') && msg.includes('oneof'))
+        );
       });
       if (messageName && !hasRenumberDiagnostic) {
         const messageRenumber = this.createRenumberMessageAction(uri, documentText, messageName);
@@ -169,61 +160,63 @@ export class CodeActionsProvider {
     // Oneof Switch Scaffolding
     const oneofMatch = line.match(/^\s*oneof\s+(\w+)\s*\{/);
     if (oneofMatch?.[1]) {
-        const oneofName = oneofMatch[1];
+      const oneofName = oneofMatch[1];
 
-        // Find fields inside the oneof
-        const fields: string[] = [];
-        let braceDepth = 1;
-        for (let i = range.start.line + 1; i < lines.length; i++) {
-            const l = lines[i]!.trim();
-            if (l.includes('{')) {
-                braceDepth++;
-            }
-            if (l.includes('}')) {
-                braceDepth--;
-            }
-            if (braceDepth === 0) {
-                break;
-            }
-
-            // Very simple field match
-            const fieldMatch = l.match(/^(?:[\w.]+\s+)?(\w+)\s*=\s*\d+/);
-            if (fieldMatch && fieldMatch[1] && !l.startsWith('//') && !l.startsWith('option')) {
-                fields.push(fieldMatch[1]);
-            }
+      // Find fields inside the oneof
+      const fields: string[] = [];
+      let braceDepth = 1;
+      for (let i = range.start.line + 1; i < lines.length; i++) {
+        const l = lines[i]!.trim();
+        if (l.includes('{')) {
+          braceDepth++;
+        }
+        if (l.includes('}')) {
+          braceDepth--;
+        }
+        if (braceDepth === 0) {
+          break;
         }
 
-        if (fields.length > 0) {
-            // TypeScript Snippet
-            const tsSnippet = `switch (message.${oneofName ?? ''}.case) {\n` +
-                fields.map(f => `  case '${f}':\n    // Handle ${f}\n    break;`).join('\n') +
-                `\n  default:\n    // Handle default\n}`;
-
-            // Go Snippet
-            const goSnippet = `switch v := message.Get${this.toPascalCase(oneofName ?? '')}().(type) {\n` +
-                fields.map(f => `case *${this.toPascalCase(f)}:\n\t// Handle ${f}`).join('\n') +
-                `\ndefault:\n\t// Handle default\n}`;
-
-            actions.push({
-                title: 'Copy TypeScript Switch Snippet',
-                kind: CodeActionKind.Refactor,
-                command: {
-                    title: 'Copy to Clipboard',
-                    command: 'protobuf.copyToClipboard',
-                    arguments: [tsSnippet]
-                }
-            });
-
-            actions.push({
-                title: 'Copy Go Switch Snippet',
-                kind: CodeActionKind.Refactor,
-                command: {
-                    title: 'Copy to Clipboard',
-                    command: 'protobuf.copyToClipboard',
-                    arguments: [goSnippet]
-                }
-            });
+        // Very simple field match
+        const fieldMatch = l.match(/^(?:[\w.]+\s+)?(\w+)\s*=\s*\d+/);
+        if (fieldMatch && fieldMatch[1] && !l.startsWith('//') && !l.startsWith('option')) {
+          fields.push(fieldMatch[1]);
         }
+      }
+
+      if (fields.length > 0) {
+        // TypeScript Snippet
+        const tsSnippet =
+          `switch (message.${oneofName ?? ''}.case) {\n` +
+          fields.map(f => `  case '${f}':\n    // Handle ${f}\n    break;`).join('\n') +
+          `\n  default:\n    // Handle default\n}`;
+
+        // Go Snippet
+        const goSnippet =
+          `switch v := message.Get${this.toPascalCase(oneofName ?? '')}().(type) {\n` +
+          fields.map(f => `case *${this.toPascalCase(f)}:\n\t// Handle ${f}`).join('\n') +
+          `\ndefault:\n\t// Handle default\n}`;
+
+        actions.push({
+          title: 'Copy TypeScript Switch Snippet',
+          kind: CodeActionKind.Refactor,
+          command: {
+            title: 'Copy to Clipboard',
+            command: 'protobuf.copyToClipboard',
+            arguments: [tsSnippet],
+          },
+        });
+
+        actions.push({
+          title: 'Copy Go Switch Snippet',
+          kind: CodeActionKind.Refactor,
+          command: {
+            title: 'Copy to Clipboard',
+            command: 'protobuf.copyToClipboard',
+            arguments: [goSnippet],
+          },
+        });
+      }
     }
 
     return actions;
@@ -240,17 +233,13 @@ export class CodeActionsProvider {
       kind: CodeActionKind.SourceFixAll,
       edit: {
         changes: {
-          [uri]: edits
-        }
-      }
+          [uri]: edits,
+        },
+      },
     };
   }
 
-  private createRenumberMessageAction(
-    uri: string,
-    documentText: string,
-    messageName: string
-  ): CodeAction | null {
+  private createRenumberMessageAction(uri: string, documentText: string, messageName: string): CodeAction | null {
     const edits = this.renumberProvider.renumberMessage(documentText, uri, messageName);
     if (edits.length === 0) {
       return null;
@@ -261,17 +250,13 @@ export class CodeActionsProvider {
       kind: CodeActionKind.QuickFix,
       edit: {
         changes: {
-          [uri]: edits
-        }
-      }
+          [uri]: edits,
+        },
+      },
     };
   }
 
-  private createRenumberEnumAction(
-    uri: string,
-    documentText: string,
-    enumName: string
-  ): CodeAction | null {
+  private createRenumberEnumAction(uri: string, documentText: string, enumName: string): CodeAction | null {
     const edits = this.renumberProvider.renumberEnum(documentText, uri, enumName);
     if (edits.length === 0) {
       return null;
@@ -282,9 +267,9 @@ export class CodeActionsProvider {
       kind: CodeActionKind.QuickFix,
       edit: {
         changes: {
-          [uri]: edits
-        }
-      }
+          [uri]: edits,
+        },
+      },
     };
   }
 
@@ -331,13 +316,20 @@ export class CodeActionsProvider {
         const openBrackets = (lineWithoutComments.match(/\[/g) || []).length;
         const closeBrackets = (lineWithoutComments.match(/\]/g) || []).length;
 
-        inlineOptionDepth += (openBraces - closeBraces) + (openBrackets - closeBrackets);
+        inlineOptionDepth += openBraces - closeBraces + (openBrackets - closeBrackets);
         continue;
       }
 
-      if (/^(message|enum|service|oneof)\b/.test(trimmed) || trimmed.startsWith('option') ||
-          trimmed.startsWith('import') || trimmed.startsWith('syntax') || trimmed.startsWith('edition') ||
-          trimmed.startsWith('reserved') || trimmed.startsWith('rpc') || trimmed.startsWith('package')) {
+      if (
+        /^(message|enum|service|oneof)\b/.test(trimmed) ||
+        trimmed.startsWith('option') ||
+        trimmed.startsWith('import') ||
+        trimmed.startsWith('syntax') ||
+        trimmed.startsWith('edition') ||
+        trimmed.startsWith('reserved') ||
+        trimmed.startsWith('rpc') ||
+        trimmed.startsWith('package')
+      ) {
         continue;
       }
 
@@ -347,7 +339,10 @@ export class CodeActionsProvider {
 
       // Skip lines that end with '=' (with or without comment) - these are multi-line field declarations
       // e.g., "float value =" or "bool valid = // comment" where the field number is on the next line
-      const trimmedWithoutComment = trimmed.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\/$/, '').trim();
+      const trimmedWithoutComment = trimmed
+        .replace(/\/\/.*$/, '')
+        .replace(/\/\*.*?\*\/$/, '')
+        .trim();
       if (trimmedWithoutComment.endsWith('=')) {
         continue;
       }
@@ -369,7 +364,7 @@ export class CodeActionsProvider {
         const openBrackets = (lineWithoutComments.match(/\[/g) || []).length;
         const closeBrackets = (lineWithoutComments.match(/\]/g) || []).length;
 
-        const netOpen = (openBraces - closeBraces) + (openBrackets - closeBrackets);
+        const netOpen = openBraces - closeBraces + (openBrackets - closeBrackets);
         if (netOpen > 0) {
           inlineOptionDepth = netOpen;
           continue;
@@ -420,8 +415,12 @@ export class CodeActionsProvider {
       const commentIdx = (() => {
         const slIdx = trimmed.indexOf('//');
         const blkIdx = trimmed.indexOf('/*');
-        if (slIdx === -1) {return blkIdx;}
-        if (blkIdx === -1) {return slIdx;}
+        if (slIdx === -1) {
+          return blkIdx;
+        }
+        if (blkIdx === -1) {
+          return slIdx;
+        }
         return Math.min(slIdx, blkIdx);
       })();
 
@@ -448,9 +447,9 @@ export class CodeActionsProvider {
       edits.push({
         range: {
           start: { line: i, character: 0 },
-          end: { line: i, character: line.length }
+          end: { line: i, character: line.length },
         },
-        newText: newText
+        newText: newText,
       });
     }
 
@@ -463,9 +462,9 @@ export class CodeActionsProvider {
       kind: CodeActionKind.SourceFixAll,
       edit: {
         changes: {
-          [uri]: edits
-        }
-      }
+          [uri]: edits,
+        },
+      },
     };
   }
 
@@ -505,9 +504,9 @@ export class CodeActionsProvider {
         edits.push({
           range: {
             start: { line: i, character: 0 },
-            end: { line: i, character: line.length }
+            end: { line: i, character: line.length },
           },
-          newText: newLine
+          newText: newLine,
         });
         continue;
       }
@@ -526,9 +525,9 @@ export class CodeActionsProvider {
         edits.push({
           range: {
             start: { line: i, character: 0 },
-            end: { line: i, character: line.length }
+            end: { line: i, character: line.length },
           },
-          newText: newLine
+          newText: newLine,
         });
       }
     }
@@ -542,9 +541,9 @@ export class CodeActionsProvider {
       kind: CodeActionKind.SourceFixAll,
       edit: {
         changes: {
-          [uri]: edits
-        }
-      }
+          [uri]: edits,
+        },
+      },
     };
   }
 
@@ -557,13 +556,9 @@ export class CodeActionsProvider {
       const word = getWordAtRange(documentText, diagnostic.range);
       if (word) {
         const pascalCase = this.toPascalCase(word);
-        fixes.push(this.createQuickFix(
-          `Convert to PascalCase: ${pascalCase}`,
-          uri,
-          diagnostic.range,
-          pascalCase,
-          diagnostic
-        ));
+        fixes.push(
+          this.createQuickFix(`Convert to PascalCase: ${pascalCase}`, uri, diagnostic.range, pascalCase, diagnostic)
+        );
       }
     }
 
@@ -577,15 +572,17 @@ export class CodeActionsProvider {
         diagnostics: [diagnostic],
         edit: {
           changes: {
-            [uri]: [{
-              range: {
-                start: { line: diagnostic.range.start.line, character: 0 },
-                end: { line: diagnostic.range.start.line, character: line.length }
+            [uri]: [
+              {
+                range: {
+                  start: { line: diagnostic.range.start.line, character: 0 },
+                  end: { line: diagnostic.range.start.line, character: line.length },
+                },
+                newText: `${line.trimEnd()};`,
               },
-              newText: `${line.trimEnd()};`
-            }]
-          }
-        }
+            ],
+          },
+        },
       });
     }
 
@@ -597,12 +594,14 @@ export class CodeActionsProvider {
         diagnostics: [diagnostic],
         edit: {
           changes: {
-            [uri]: [{
-              range: { start: insertPos, end: insertPos },
-              newText: 'syntax = "proto3";\n'
-            }]
-          }
-        }
+            [uri]: [
+              {
+                range: { start: insertPos, end: insertPos },
+                newText: 'syntax = "proto3";\n',
+              },
+            ],
+          },
+        },
       });
       fixes.push({
         title: 'Insert edition = "2023";',
@@ -610,12 +609,14 @@ export class CodeActionsProvider {
         diagnostics: [diagnostic],
         edit: {
           changes: {
-            [uri]: [{
-              range: { start: insertPos, end: insertPos },
-              newText: 'edition = "2023";\n'
-            }]
-          }
-        }
+            [uri]: [
+              {
+                range: { start: insertPos, end: insertPos },
+                newText: 'edition = "2023";\n',
+              },
+            ],
+          },
+        },
       });
     }
 
@@ -627,12 +628,14 @@ export class CodeActionsProvider {
         diagnostics: [diagnostic],
         edit: {
           changes: {
-            [uri]: [{
-              range: { start: insertPos, end: insertPos },
-              newText: 'edition = "2023";\n'
-            }]
-          }
-        }
+            [uri]: [
+              {
+                range: { start: insertPos, end: insertPos },
+                newText: 'edition = "2023";\n',
+              },
+            ],
+          },
+        },
       });
     }
 
@@ -648,15 +651,17 @@ export class CodeActionsProvider {
         diagnostics: [diagnostic],
         edit: {
           changes: {
-            [uri]: [{
-              range: {
-                start: { line: pkgLine, character: 0 },
-                end: { line: pkgLine, character: pkgLineText.length }
+            [uri]: [
+              {
+                range: {
+                  start: { line: pkgLine, character: 0 },
+                  end: { line: pkgLine, character: pkgLineText.length },
+                },
+                newText: `package ${suggested};`,
               },
-              newText: `package ${suggested};`
-            }]
-          }
-        }
+            ],
+          },
+        },
       });
     }
 
@@ -681,15 +686,17 @@ export class CodeActionsProvider {
         diagnostics: [diagnostic],
         edit: {
           changes: {
-            [uri]: [{
-              range: {
-                start: { line: lineIndex, character: 0 },
-                end: { line: lineIndex, character: line.length }
+            [uri]: [
+              {
+                range: {
+                  start: { line: lineIndex, character: 0 },
+                  end: { line: lineIndex, character: line.length },
+                },
+                newText: newLine,
               },
-              newText: newLine
-            }]
-          }
-        }
+            ],
+          },
+        },
       });
     }
 
@@ -746,8 +753,8 @@ export class CodeActionsProvider {
             command: {
               title: 'Add Buf Dependency',
               command: 'protobuf.addBufDependencyQuick',
-              arguments: [suggestedModule, importPath]
-            }
+              arguments: [suggestedModule, importPath],
+            },
           });
         }
 
@@ -758,8 +765,8 @@ export class CodeActionsProvider {
           diagnostics: [diagnostic],
           command: {
             title: 'Export Buf Dependencies',
-            command: 'protobuf.exportBufDependencies'
-          }
+            command: 'protobuf.exportBufDependencies',
+          },
         });
       }
 
@@ -769,15 +776,17 @@ export class CodeActionsProvider {
         diagnostics: [diagnostic],
         edit: {
           changes: {
-            [uri]: [{
-              range: {
-                start: { line: lineIndex, character: 0 },
-                end: { line: lineIndex, character: line.length }
+            [uri]: [
+              {
+                range: {
+                  start: { line: lineIndex, character: 0 },
+                  end: { line: lineIndex, character: line.length },
+                },
+                newText: '',
               },
-              newText: ''
-            }]
-          }
-        }
+            ],
+          },
+        },
       });
     }
 
@@ -792,15 +801,17 @@ export class CodeActionsProvider {
         diagnostics: [diagnostic],
         edit: {
           changes: {
-            [uri]: [{
-              range: {
-                start: { line: lineIndex, character: 0 },
-                end: { line: lineIndex, character: line.length }
+            [uri]: [
+              {
+                range: {
+                  start: { line: lineIndex, character: 0 },
+                  end: { line: lineIndex, character: line.length },
+                },
+                newText: '',
               },
-              newText: ''
-            }]
-          }
-        }
+            ],
+          },
+        },
       });
     }
 
@@ -813,7 +824,9 @@ export class CodeActionsProvider {
       if (fullyQualifiedName) {
         // Check if this also requires an import (new case for types found in workspace but not imported)
         const requiresImport = message.includes('and requires import');
-        const diagnosticData = diagnostic.data as { typeName?: string; fullName?: string; symbolUri?: string } | undefined;
+        const diagnosticData = diagnostic.data as
+          | { typeName?: string; fullName?: string; symbolUri?: string }
+          | undefined;
 
         if (requiresImport && diagnosticData?.symbolUri) {
           // Get the import path for the symbol's file
@@ -831,15 +844,15 @@ export class CodeActionsProvider {
                 [uri]: [
                   {
                     range: diagnostic.range,
-                    newText: fullyQualifiedName
+                    newText: fullyQualifiedName,
                   },
                   {
                     range: { start: insertPosition, end: insertPosition },
-                    newText: `import "${importPath}";\n`
-                  }
-                ]
-              }
-            }
+                    newText: `import "${importPath}";\n`,
+                  },
+                ],
+              },
+            },
           });
 
           // Also offer separate actions
@@ -849,12 +862,14 @@ export class CodeActionsProvider {
             diagnostics: [diagnostic],
             edit: {
               changes: {
-                [uri]: [{
-                  range: diagnostic.range,
-                  newText: fullyQualifiedName
-                }]
-              }
-            }
+                [uri]: [
+                  {
+                    range: diagnostic.range,
+                    newText: fullyQualifiedName,
+                  },
+                ],
+              },
+            },
           });
 
           fixes.push({
@@ -863,12 +878,14 @@ export class CodeActionsProvider {
             diagnostics: [diagnostic],
             edit: {
               changes: {
-                [uri]: [{
-                  range: { start: insertPosition, end: insertPosition },
-                  newText: `import "${importPath}";\n`
-                }]
-              }
-            }
+                [uri]: [
+                  {
+                    range: { start: insertPosition, end: insertPosition },
+                    newText: `import "${importPath}";\n`,
+                  },
+                ],
+              },
+            },
           });
         } else {
           // Original behavior: just qualify the type name
@@ -879,12 +896,14 @@ export class CodeActionsProvider {
             diagnostics: [diagnostic],
             edit: {
               changes: {
-                [uri]: [{
-                  range: diagnostic.range,
-                  newText: fullyQualifiedName
-                }]
-              }
-            }
+                [uri]: [
+                  {
+                    range: diagnostic.range,
+                    newText: fullyQualifiedName,
+                  },
+                ],
+              },
+            },
           });
         }
       }
@@ -909,8 +928,8 @@ export class CodeActionsProvider {
           command: {
             title: 'Add Buf Dependency',
             command: 'protobuf.addBufDependencyQuick',
-            arguments: [suggestedModule, importPath]
-          }
+            arguments: [suggestedModule, importPath],
+          },
         });
       }
     }
@@ -919,13 +938,15 @@ export class CodeActionsProvider {
       const word = getWordAtRange(documentText, diagnostic.range);
       if (word) {
         const screamingSnakeCase = this.toScreamingSnakeCase(word);
-        fixes.push(this.createQuickFix(
-          `Convert to SCREAMING_SNAKE_CASE: ${screamingSnakeCase}`,
-          uri,
-          diagnostic.range,
-          screamingSnakeCase,
-          diagnostic
-        ));
+        fixes.push(
+          this.createQuickFix(
+            `Convert to SCREAMING_SNAKE_CASE: ${screamingSnakeCase}`,
+            uri,
+            diagnostic.range,
+            screamingSnakeCase,
+            diagnostic
+          )
+        );
       }
     }
 
@@ -934,13 +955,9 @@ export class CodeActionsProvider {
       // Avoid offering lowercase snake_case for identifiers that are already screaming snake case (enum values)
       if (word && !/^[A-Z][A-Z0-9_]*$/.test(word)) {
         const snakeCase = this.toSnakeCase(word);
-        fixes.push(this.createQuickFix(
-          `Convert to snake_case: ${snakeCase}`,
-          uri,
-          diagnostic.range,
-          snakeCase,
-          diagnostic
-        ));
+        fixes.push(
+          this.createQuickFix(`Convert to snake_case: ${snakeCase}`, uri, diagnostic.range, snakeCase, diagnostic)
+        );
       }
     }
 
@@ -968,12 +985,14 @@ export class CodeActionsProvider {
           diagnostics: [diagnostic],
           edit: {
             changes: {
-              [uri]: [{
-                range: { start: insertPosition, end: insertPosition },
-                newText: `import "${importPath}";\n`
-              }]
-            }
-          }
+              [uri]: [
+                {
+                  range: { start: insertPosition, end: insertPosition },
+                  newText: `import "${importPath}";\n`,
+                },
+              ],
+            },
+          },
         });
       }
     }
@@ -1004,14 +1023,14 @@ export class CodeActionsProvider {
           if (line.includes(`"${found}"`)) {
             edits.push({
               range: { start: { line: idx, character: 0 }, end: { line: idx, character: line.length } },
-              newText: ''
+              newText: '',
             });
           }
         });
 
         edits.push({
           range: { start: insertPosition, end: insertPosition },
-          newText: `import "${expected}";\n`
+          newText: `import "${expected}";\n`,
         });
 
         fixes.push({
@@ -1019,21 +1038,23 @@ export class CodeActionsProvider {
           kind: CodeActionKind.QuickFix,
           isPreferred: true,
           diagnostics: [diagnostic],
-          edit: { changes: { [uri]: edits } }
+          edit: { changes: { [uri]: edits } },
         });
       }
     }
 
     // Fix first enum value should be 0
     if (message.includes('first enum value should be 0')) {
-      fixes.push(this.createQuickFix(
-        'Add UNKNOWN = 0 as first enum value',
-        uri,
-        diagnostic.range,
-        '', // Will be handled specially
-        diagnostic,
-        this.getAddEnumZeroValueEdit(documentText, diagnostic.range)
-      ));
+      fixes.push(
+        this.createQuickFix(
+          'Add UNKNOWN = 0 as first enum value',
+          uri,
+          diagnostic.range,
+          '', // Will be handled specially
+          diagnostic,
+          this.getAddEnumZeroValueEdit(documentText, diagnostic.range)
+        )
+      );
     }
 
     // Fix required is deprecated
@@ -1045,29 +1066,33 @@ export class CodeActionsProvider {
       }
       const newLine = line.replace(/\brequired\b/, 'optional');
 
-      fixes.push(this.createQuickFix(
-        "Replace 'required' with 'optional'",
-        uri,
-        {
-          start: { line: diagnostic.range.start.line, character: 0 },
-          end: { line: diagnostic.range.start.line, character: line.length }
-        },
-        newLine,
-        diagnostic
-      ));
+      fixes.push(
+        this.createQuickFix(
+          "Replace 'required' with 'optional'",
+          uri,
+          {
+            start: { line: diagnostic.range.start.line, character: 0 },
+            end: { line: diagnostic.range.start.line, character: line.length },
+          },
+          newLine,
+          diagnostic
+        )
+      );
 
       // Also offer to remove the modifier entirely (proto3 style)
       const noModifierLine = line.replace(/\brequired\s+/, '');
-      fixes.push(this.createQuickFix(
-        "Remove 'required' modifier (proto3 style)",
-        uri,
-        {
-          start: { line: diagnostic.range.start.line, character: 0 },
-          end: { line: diagnostic.range.start.line, character: line.length }
-        },
-        noModifierLine,
-        diagnostic
-      ));
+      fixes.push(
+        this.createQuickFix(
+          "Remove 'required' modifier (proto3 style)",
+          uri,
+          {
+            start: { line: diagnostic.range.start.line, character: 0 },
+            end: { line: diagnostic.range.start.line, character: line.length },
+          },
+          noModifierLine,
+          diagnostic
+        )
+      );
     }
 
     // Fix duplicate field number - only if renumbering is enabled
@@ -1088,16 +1113,18 @@ export class CodeActionsProvider {
 
             if (numberMatch) {
               const newLine = line.replace(/=\s*\d+/, `= ${nextNumber}`);
-              fixes.push(this.createQuickFix(
-                `Change field number to ${nextNumber}`,
-                uri,
-                {
-                  start: { line: diagnostic.range.start.line, character: 0 },
-                  end: { line: diagnostic.range.start.line, character: line.length }
-                },
-                newLine,
-                diagnostic
-              ));
+              fixes.push(
+                this.createQuickFix(
+                  `Change field number to ${nextNumber}`,
+                  uri,
+                  {
+                    start: { line: diagnostic.range.start.line, character: 0 },
+                    end: { line: diagnostic.range.start.line, character: line.length },
+                  },
+                  newLine,
+                  diagnostic
+                )
+              );
             }
           }
         }
@@ -1115,16 +1142,18 @@ export class CodeActionsProvider {
 
         if (line) {
           const newLine = line.replace(/=\s*\d+/, `= ${nextNumber}`);
-          fixes.push(this.createQuickFix(
-            `Change field number to ${nextNumber}`,
-            uri,
-            {
-              start: { line: diagnostic.range.start.line, character: 0 },
-              end: { line: diagnostic.range.start.line, character: line.length }
-            },
-            newLine,
-            diagnostic
-          ));
+          fixes.push(
+            this.createQuickFix(
+              `Change field number to ${nextNumber}`,
+              uri,
+              {
+                start: { line: diagnostic.range.start.line, character: 0 },
+                end: { line: diagnostic.range.start.line, character: line.length },
+              },
+              newLine,
+              diagnostic
+            )
+          );
         }
       }
     }
@@ -1157,15 +1186,17 @@ export class CodeActionsProvider {
             diagnostics: [diagnostic],
             edit: {
               changes: {
-                [uri]: [{
-                  range: {
-                    start: { line: lineIndex, character: 0 },
-                    end: { line: lineIndex, character: line.length }
+                [uri]: [
+                  {
+                    range: {
+                      start: { line: lineIndex, character: 0 },
+                      end: { line: lineIndex, character: line.length },
+                    },
+                    newText: newLine,
                   },
-                  newText: newLine
-                }]
-              }
-            }
+                ],
+              },
+            },
           });
         }
 
@@ -1177,15 +1208,17 @@ export class CodeActionsProvider {
           diagnostics: [diagnostic],
           edit: {
             changes: {
-              [uri]: [{
-                range: {
-                  start: { line: lineIndex, character: 0 },
-                  end: { line: lineIndex, character: line.length }
+              [uri]: [
+                {
+                  range: {
+                    start: { line: lineIndex, character: 0 },
+                    end: { line: lineIndex, character: line.length },
+                  },
+                  newText: noOptionalLine,
                 },
-                newText: noOptionalLine
-              }]
-            }
-          }
+              ],
+            },
+          },
         });
       }
     }
@@ -1216,15 +1249,17 @@ export class CodeActionsProvider {
             diagnostics: [diagnostic],
             edit: {
               changes: {
-                [uri]: [{
-                  range: {
-                    start: { line: lineIndex, character: 0 },
-                    end: { line: lineIndex, character: line.length }
+                [uri]: [
+                  {
+                    range: {
+                      start: { line: lineIndex, character: 0 },
+                      end: { line: lineIndex, character: line.length },
+                    },
+                    newText: newLine,
                   },
-                  newText: newLine
-                }]
-              }
-            }
+                ],
+              },
+            },
           });
         }
 
@@ -1236,15 +1271,17 @@ export class CodeActionsProvider {
           diagnostics: [diagnostic],
           edit: {
             changes: {
-              [uri]: [{
-                range: {
-                  start: { line: lineIndex, character: 0 },
-                  end: { line: lineIndex, character: line.length }
+              [uri]: [
+                {
+                  range: {
+                    start: { line: lineIndex, character: 0 },
+                    end: { line: lineIndex, character: line.length },
+                  },
+                  newText: noRequiredLine,
                 },
-                newText: noRequiredLine
-              }]
-            }
-          }
+              ],
+            },
+          },
         });
       }
     }
@@ -1267,7 +1304,7 @@ export class CodeActionsProvider {
       actions.push({
         title: 'Extract nested types to top level',
         kind: CodeActionKind.RefactorExtract,
-        disabled: { reason: 'Not yet implemented' }
+        disabled: { reason: 'Not yet implemented' },
       });
 
       // Add "Convert to proto3" if proto2
@@ -1276,7 +1313,7 @@ export class CodeActionsProvider {
         actions.push({
           title: 'Convert message to proto3 style',
           kind: CodeActionKind.RefactorRewrite,
-          edit: this.createProto3ConversionEdit(uri, documentText, messageMatch[2])
+          edit: this.createProto3ConversionEdit(uri, documentText, messageMatch[2]),
         });
       }
     }
@@ -1289,15 +1326,17 @@ export class CodeActionsProvider {
         kind: CodeActionKind.RefactorRewrite,
         edit: {
           changes: {
-            [uri]: [{
-              range: {
-                start: { line: range.start.line, character: line.indexOf(';') },
-                end: { line: range.start.line, character: line.indexOf(';') + 1 }
+            [uri]: [
+              {
+                range: {
+                  start: { line: range.start.line, character: line.indexOf(';') },
+                  end: { line: range.start.line, character: line.indexOf(';') + 1 },
+                },
+                newText: ' [deprecated = true];',
               },
-              newText: ' [deprecated = true];'
-            }]
-          }
-        }
+            ],
+          },
+        },
       });
 
       actions.push({
@@ -1305,15 +1344,17 @@ export class CodeActionsProvider {
         kind: CodeActionKind.RefactorRewrite,
         edit: {
           changes: {
-            [uri]: [{
-              range: {
-                start: { line: range.start.line, character: line.indexOf(';') },
-                end: { line: range.start.line, character: line.indexOf(';') + 1 }
+            [uri]: [
+              {
+                range: {
+                  start: { line: range.start.line, character: line.indexOf(';') },
+                  end: { line: range.start.line, character: line.indexOf(';') + 1 },
+                },
+                newText: ` [json_name = "${this.toCamelCase(fieldMatch[2] ?? '')}"];`,
               },
-              newText: ` [json_name = "${this.toCamelCase(fieldMatch[2] ?? '')}"];`
-            }]
-          }
-        }
+            ],
+          },
+        },
       });
     }
 
@@ -1322,7 +1363,7 @@ export class CodeActionsProvider {
       actions.push({
         title: 'Sort fields by number',
         kind: CodeActionKind.SourceOrganizeImports,
-        disabled: { reason: 'Use the Format Document command instead' }
+        disabled: { reason: 'Use the Format Document command instead' },
       });
     }
 
@@ -1334,9 +1375,7 @@ export class CodeActionsProvider {
     const allSymbols = this.analyzer.getAllSymbols();
 
     // Find symbols that match the type name
-    const matchingSymbols = allSymbols.filter(s =>
-      s.name === typeName || s.fullName.endsWith(`.${typeName}`)
-    );
+    const matchingSymbols = allSymbols.filter(s => s.name === typeName || s.fullName.endsWith(`.${typeName}`));
 
     // Find the import insertion point
     const insertPosition = this.findImportInsertPosition(documentText);
@@ -1355,55 +1394,57 @@ export class CodeActionsProvider {
         kind: CodeActionKind.QuickFix,
         edit: {
           changes: {
-            [uri]: [{
-              range: {
-                start: insertPosition,
-                end: insertPosition
+            [uri]: [
+              {
+                range: {
+                  start: insertPosition,
+                  end: insertPosition,
+                },
+                newText: `import "${importPath}";\n`,
               },
-              newText: `import "${importPath}";\n`
-            }]
-          }
-        }
+            ],
+          },
+        },
       });
     }
 
     // Also suggest Google well-known types if applicable
     const googleTypes: { [key: string]: string } = {
-      'Any': 'google/protobuf/any.proto',
-      'Duration': 'google/protobuf/duration.proto',
-      'Empty': 'google/protobuf/empty.proto',
-      'FieldMask': 'google/protobuf/field_mask.proto',
-      'Struct': 'google/protobuf/struct.proto',
-      'Timestamp': 'google/protobuf/timestamp.proto',
-      'Value': 'google/protobuf/struct.proto',
-      'ListValue': 'google/protobuf/struct.proto',
-      'BoolValue': 'google/protobuf/wrappers.proto',
-      'BytesValue': 'google/protobuf/wrappers.proto',
-      'DoubleValue': 'google/protobuf/wrappers.proto',
-      'FloatValue': 'google/protobuf/wrappers.proto',
-      'Int32Value': 'google/protobuf/wrappers.proto',
-      'Int64Value': 'google/protobuf/wrappers.proto',
-      'StringValue': 'google/protobuf/wrappers.proto',
-      'UInt32Value': 'google/protobuf/wrappers.proto',
-      'UInt64Value': 'google/protobuf/wrappers.proto',
+      Any: 'google/protobuf/any.proto',
+      Duration: 'google/protobuf/duration.proto',
+      Empty: 'google/protobuf/empty.proto',
+      FieldMask: 'google/protobuf/field_mask.proto',
+      Struct: 'google/protobuf/struct.proto',
+      Timestamp: 'google/protobuf/timestamp.proto',
+      Value: 'google/protobuf/struct.proto',
+      ListValue: 'google/protobuf/struct.proto',
+      BoolValue: 'google/protobuf/wrappers.proto',
+      BytesValue: 'google/protobuf/wrappers.proto',
+      DoubleValue: 'google/protobuf/wrappers.proto',
+      FloatValue: 'google/protobuf/wrappers.proto',
+      Int32Value: 'google/protobuf/wrappers.proto',
+      Int64Value: 'google/protobuf/wrappers.proto',
+      StringValue: 'google/protobuf/wrappers.proto',
+      UInt32Value: 'google/protobuf/wrappers.proto',
+      UInt64Value: 'google/protobuf/wrappers.proto',
       // Additional google well-known-ish stubs
-      'Status': 'google/rpc/status.proto',
-      'Code': 'google/rpc/code.proto',
-      'RetryInfo': 'google/rpc/error_details.proto',
-      'Date': 'google/type/date.proto',
-      'TimeOfDay': 'google/type/timeofday.proto',
-      'DateTime': 'google/type/datetime.proto',
-      'LatLng': 'google/type/latlng.proto',
-      'Money': 'google/type/money.proto',
-      'Color': 'google/type/color.proto',
-      'PostalAddress': 'google/type/postal_address.proto',
-      'PhoneNumber': 'google/type/phone_number.proto',
-      'LocalizedText': 'google/type/localized_text.proto',
-      'Expr': 'google/type/expr.proto',
-      'Operation': 'google/longrunning/operations.proto',
-      'HttpRequest': 'google/logging/type/http_request.proto',
-      'LogSeverity': 'google/logging/type/log_severity.proto',
-      'AuditLog': 'google/cloud/audit/audit_log.proto'
+      Status: 'google/rpc/status.proto',
+      Code: 'google/rpc/code.proto',
+      RetryInfo: 'google/rpc/error_details.proto',
+      Date: 'google/type/date.proto',
+      TimeOfDay: 'google/type/timeofday.proto',
+      DateTime: 'google/type/datetime.proto',
+      LatLng: 'google/type/latlng.proto',
+      Money: 'google/type/money.proto',
+      Color: 'google/type/color.proto',
+      PostalAddress: 'google/type/postal_address.proto',
+      PhoneNumber: 'google/type/phone_number.proto',
+      LocalizedText: 'google/type/localized_text.proto',
+      Expr: 'google/type/expr.proto',
+      Operation: 'google/longrunning/operations.proto',
+      HttpRequest: 'google/logging/type/http_request.proto',
+      LogSeverity: 'google/logging/type/log_severity.proto',
+      AuditLog: 'google/cloud/audit/audit_log.proto',
     };
 
     // Check both with and without google.protobuf prefix
@@ -1420,15 +1461,17 @@ export class CodeActionsProvider {
           isPreferred: true,
           edit: {
             changes: {
-              [uri]: [{
-                range: {
-                  start: insertPosition,
-                  end: insertPosition
+              [uri]: [
+                {
+                  range: {
+                    start: insertPosition,
+                    end: insertPosition,
+                  },
+                  newText: `import "${importPath}";\n`,
                 },
-                newText: `import "${importPath}";\n`
-              }]
-            }
-          }
+              ],
+            },
+          },
         });
       }
     }
@@ -1450,8 +1493,12 @@ export class CodeActionsProvider {
         packageLine = i;
       } else if (trimmed.startsWith('import')) {
         lastImportLine = i;
-      } else if (trimmed.startsWith('message') || trimmed.startsWith('enum') ||
-                 trimmed.startsWith('service') || trimmed.startsWith('option')) {
+      } else if (
+        trimmed.startsWith('message') ||
+        trimmed.startsWith('enum') ||
+        trimmed.startsWith('service') ||
+        trimmed.startsWith('option')
+      ) {
         break;
       }
     }
@@ -1499,19 +1546,26 @@ export class CodeActionsProvider {
       diagnostics: [diagnostic],
       edit: {
         changes: {
-          [uri]: [{
-            range: {
-              start: { line: lineIndex, character: 0 },
-              end: { line: lineIndex, character: line.length }
+          [uri]: [
+            {
+              range: {
+                start: { line: lineIndex, character: 0 },
+                end: { line: lineIndex, character: line.length },
+              },
+              newText: newLine,
             },
-            newText: newLine
-          }]
-        }
-      }
+          ],
+        },
+      },
     };
   }
 
-  private fillRpcType(uri: string, range: Range, documentText: string, which: 'request' | 'response'): CodeAction | null {
+  private fillRpcType(
+    uri: string,
+    range: Range,
+    documentText: string,
+    which: 'request' | 'response'
+  ): CodeAction | null {
     const lines = splitLines(documentText);
     const lineIndex = range.start.line;
     const line = lines[lineIndex] || '';
@@ -1527,23 +1581,32 @@ export class CodeActionsProvider {
     }
 
     return {
-      title: which === 'request' ? 'Fill request with google.protobuf.Empty' : 'Fill response with google.protobuf.Empty',
+      title:
+        which === 'request' ? 'Fill request with google.protobuf.Empty' : 'Fill response with google.protobuf.Empty',
       kind: CodeActionKind.QuickFix,
       diagnostics: [],
       edit: {
         changes: {
-          [uri]: [{
-            range: {
-              start: { line: lineIndex, character: 0 },
-              end: { line: lineIndex, character: line.length }
+          [uri]: [
+            {
+              range: {
+                start: { line: lineIndex, character: 0 },
+                end: { line: lineIndex, character: line.length },
+              },
+              newText: newLine,
             },
-            newText: newLine
-          }, {
-            range: { start: this.findImportInsertPosition(documentText), end: this.findImportInsertPosition(documentText) },
-            newText: documentText.includes('google/protobuf/empty.proto') ? '' : 'import "google/protobuf/empty.proto";\n'
-          }]
-        }
-      }
+            {
+              range: {
+                start: this.findImportInsertPosition(documentText),
+                end: this.findImportInsertPosition(documentText),
+              },
+              newText: documentText.includes('google/protobuf/empty.proto')
+                ? ''
+                : 'import "google/protobuf/empty.proto";\n',
+            },
+          ],
+        },
+      },
     };
   }
 
@@ -1580,9 +1643,9 @@ export class CodeActionsProvider {
       unusedImportLines.push({
         range: {
           start: { line: lineIndex, character: 0 },
-          end: { line: lineIndex, character: line.length }
+          end: { line: lineIndex, character: line.length },
         },
-        newText: ''
+        newText: '',
       });
     }
 
@@ -1593,7 +1656,7 @@ export class CodeActionsProvider {
     const insertPosition = this.findImportInsertPosition(documentText);
     const addEdits: TextEdit[] = missingImports.map(p => ({
       range: { start: insertPosition, end: insertPosition },
-      newText: `import "${p}";\n`
+      newText: `import "${p}";\n`,
     }));
 
     return {
@@ -1601,9 +1664,9 @@ export class CodeActionsProvider {
       kind: CodeActionKind.SourceFixAll,
       edit: {
         changes: {
-          [uri]: [...unusedImportLines, ...addEdits]
-        }
-      }
+          [uri]: [...unusedImportLines, ...addEdits],
+        },
+      },
     };
   }
 
@@ -1611,7 +1674,7 @@ export class CodeActionsProvider {
     const insertPosition = this.findImportInsertPosition(documentText);
     const edits: TextEdit[] = importPaths.map(p => ({
       range: { start: insertPosition, end: insertPosition },
-      newText: `import "${p}";\n`
+      newText: `import "${p}";\n`,
     }));
 
     return {
@@ -1619,9 +1682,9 @@ export class CodeActionsProvider {
       kind: CodeActionKind.SourceOrganizeImports,
       edit: {
         changes: {
-          [uri]: edits
-        }
-      }
+          [uri]: edits,
+        },
+      },
     };
   }
 
@@ -1665,7 +1728,8 @@ export class CodeActionsProvider {
       return null;
     }
 
-    const fieldLike = /^(\s*)(?:optional|required|repeated)?\s*(?:map\s*<[^>]+>\s+|[A-Za-z_][\w.<>,]*\s+)([A-Za-z_][\w]*)(\s*.*)$/;
+    const fieldLike =
+      /^(\s*)(?:optional|required|repeated)?\s*(?:map\s*<[^>]+>\s+|[A-Za-z_][\w.<>,]*\s+)([A-Za-z_][\w]*)(\s*.*)$/;
 
     const edits: TextEdit[] = [];
     let nextNumber = 1;
@@ -1706,9 +1770,9 @@ export class CodeActionsProvider {
       edits.push({
         range: {
           start: { line: i, character: 0 },
-          end: { line: i, character: line.length }
+          end: { line: i, character: line.length },
         },
-        newText: newLine
+        newText: newLine,
       });
 
       nextNumber += 1;
@@ -1723,9 +1787,9 @@ export class CodeActionsProvider {
       kind: CodeActionKind.SourceFixAll,
       edit: {
         changes: {
-          [uri]: edits
-        }
-      }
+          [uri]: edits,
+        },
+      },
     };
   }
 
@@ -1744,12 +1808,14 @@ export class CodeActionsProvider {
       isPreferred: true,
       edit: {
         changes: {
-          [uri]: customEdit || [{
-            range,
-            newText
-          }]
-        }
-      }
+          [uri]: customEdit || [
+            {
+              range,
+              newText,
+            },
+          ],
+        },
+      },
     };
   }
 
@@ -1783,13 +1849,15 @@ export class CodeActionsProvider {
     const braceIndex = braceLine.indexOf('{');
     const indent = '  '; // Default 2-space indent
 
-    return [{
-      range: {
-        start: { line: braceLineIndex, character: braceIndex + 1 },
-        end: { line: braceLineIndex, character: braceIndex + 1 }
+    return [
+      {
+        range: {
+          start: { line: braceLineIndex, character: braceIndex + 1 },
+          end: { line: braceLineIndex, character: braceIndex + 1 },
+        },
+        newText: `\n${indent}${unknownName} = 0;`,
       },
-      newText: `\n${indent}${unknownName} = 0;`
-    }];
+    ];
   }
 
   private findNextAvailableFieldNumber(_file: ProtoFile, documentText: string, range: Range): number {
@@ -1882,9 +1950,7 @@ export class CodeActionsProvider {
   }
 
   private toPascalCase(str: string): string {
-    return str
-      .replace(/[_-](.)/g, (_, c) => c.toUpperCase())
-      .replace(/^(.)/, (_, c) => c.toUpperCase());
+    return str.replace(/[_-](.)/g, (_, c) => c.toUpperCase()).replace(/^(.)/, (_, c) => c.toUpperCase());
   }
 
   private toSnakeCase(str: string): string {
@@ -1899,12 +1965,14 @@ export class CodeActionsProvider {
   }
 
   private toCamelCase(str: string): string {
-    return str
-      .replace(/[_-](.)/g, (_, c) => c.toUpperCase())
-      .replace(/^(.)/, (_, c) => c.toLowerCase());
+    return str.replace(/[_-](.)/g, (_, c) => c.toUpperCase()).replace(/^(.)/, (_, c) => c.toLowerCase());
   }
 
-  private createProto3ConversionEdit(uri: string, documentText: string, messageName: string): { changes: { [uri: string]: TextEdit[] } } | undefined {
+  private createProto3ConversionEdit(
+    uri: string,
+    documentText: string,
+    messageName: string
+  ): { changes: { [uri: string]: TextEdit[] } } | undefined {
     const lines = splitLines(documentText);
     const edits: TextEdit[] = [];
     let inMessage = false;
@@ -1936,9 +2004,9 @@ export class CodeActionsProvider {
           edits.push({
             range: {
               start: { line: i, character: 0 },
-              end: { line: i, character: line.length }
+              end: { line: i, character: line.length },
             },
-            newText: newLine
+            newText: newLine,
           });
         }
 
@@ -1950,9 +2018,9 @@ export class CodeActionsProvider {
             edits.push({
               range: {
                 start: { line: i, character: 0 },
-                end: { line: i, character: line.length }
+                end: { line: i, character: line.length },
               },
-              newText: newLine
+              newText: newLine,
             });
           }
         }
@@ -1969,8 +2037,8 @@ export class CodeActionsProvider {
 
     return {
       changes: {
-        [uri]: edits
-      }
+        [uri]: edits,
+      },
     };
   }
 
@@ -1988,23 +2056,23 @@ export class CodeActionsProvider {
 
     // Third-party libraries patterns
     const thirdPartyPatterns = [
-      /^google\/api\//,            // googleapis
-      /^google\/type\//,           // googleapis
-      /^google\/rpc\//,            // googleapis
-      /^google\/cloud\//,          // googleapis
-      /^google\/logging\//,        // googleapis
-      /^google\/longrunning\//,    // googleapis
-      /^buf\//,                    // buf.build modules
-      /^grpc\//,                   // grpc modules
-      /^envoy\//,                  // envoy proxy
-      /^validate\//,               // protoc-gen-validate (PGV)
-      /^xds\//,                    // xDS API
-      /^opencensus\//,             // OpenCensus
-      /^opentelemetry\//,          // OpenTelemetry
-      /^cosmos\//,                 // Cosmos SDK
-      /^tendermint\//,             // Tendermint
-      /^connectrpc\//,             // Connect RPC
-      /^third_party\//,            // Common third-party folder
+      /^google\/api\//, // googleapis
+      /^google\/type\//, // googleapis
+      /^google\/rpc\//, // googleapis
+      /^google\/cloud\//, // googleapis
+      /^google\/logging\//, // googleapis
+      /^google\/longrunning\//, // googleapis
+      /^buf\//, // buf.build modules
+      /^grpc\//, // grpc modules
+      /^envoy\//, // envoy proxy
+      /^validate\//, // protoc-gen-validate (PGV)
+      /^xds\//, // xDS API
+      /^opencensus\//, // OpenCensus
+      /^opentelemetry\//, // OpenTelemetry
+      /^cosmos\//, // Cosmos SDK
+      /^tendermint\//, // Tendermint
+      /^connectrpc\//, // Connect RPC
+      /^third_party\//, // Common third-party folder
     ];
 
     if (thirdPartyPatterns.some(pattern => pattern.test(importPath))) {
@@ -2044,16 +2112,22 @@ export class CodeActionsProvider {
             line: i,
             text: line,
             modifier: modifierMatch ? modifierMatch[1] : undefined,
-            path: match[1]
+            path: match[1],
           });
         }
-      } else if (trimmed && (trimmed.startsWith('syntax') || trimmed.startsWith('package') || trimmed.startsWith('option'))) {
+      } else if (
+        trimmed &&
+        (trimmed.startsWith('syntax') || trimmed.startsWith('package') || trimmed.startsWith('option'))
+      ) {
         if (inImportsSection && lastImportLine >= 0) {
           // End of imports section
           break;
         }
         otherLines.push({ line: i, text: line });
-      } else if (trimmed && (trimmed.startsWith('message') || trimmed.startsWith('enum') || trimmed.startsWith('service'))) {
+      } else if (
+        trimmed &&
+        (trimmed.startsWith('message') || trimmed.startsWith('enum') || trimmed.startsWith('service'))
+      ) {
         if (inImportsSection && lastImportLine >= 0) {
           // End of imports section
           break;
@@ -2102,7 +2176,7 @@ export class CodeActionsProvider {
       if (groupByCategory) {
         const aCat = this.categorizeImport(a.path);
         const bCat = this.categorizeImport(b.path);
-        const categoryOrder = { 'google': 0, 'thirdParty': 1, 'local': 2 };
+        const categoryOrder = { google: 0, thirdParty: 1, local: 2 };
         if (categoryOrder[aCat] !== categoryOrder[bCat]) {
           return categoryOrder[aCat] - categoryOrder[bCat];
         }
@@ -2116,7 +2190,7 @@ export class CodeActionsProvider {
     let formattedImports: string;
     if (groupByCategory && sortedImports.length > 1) {
       const groups: string[][] = [[], [], []]; // google, thirdParty, local
-      const categoryIndex = { 'google': 0, 'thirdParty': 1, 'local': 2 };
+      const categoryIndex = { google: 0, thirdParty: 1, local: 2 };
 
       for (const imp of sortedImports) {
         const cat = this.categorizeImport(imp.path);
@@ -2139,8 +2213,14 @@ export class CodeActionsProvider {
     const originalSection = lines.slice(firstImportLine, lastImportLineNum + 1).join('\n');
 
     // Normalize both for comparison (remove trailing whitespace from each line)
-    const normalizedOriginal = originalSection.split('\n').map(l => l.trimEnd()).join('\n');
-    const normalizedFormatted = formattedImports.split('\n').map(l => l.trimEnd()).join('\n');
+    const normalizedOriginal = originalSection
+      .split('\n')
+      .map(l => l.trimEnd())
+      .join('\n');
+    const normalizedFormatted = formattedImports
+      .split('\n')
+      .map(l => l.trimEnd())
+      .join('\n');
 
     if (normalizedOriginal === normalizedFormatted) {
       return null;
@@ -2153,9 +2233,9 @@ export class CodeActionsProvider {
     edits.push({
       range: {
         start: { line: firstImportLine, character: 0 },
-        end: { line: lastImportLineNum + 1, character: 0 }
+        end: { line: lastImportLineNum + 1, character: 0 },
       },
-      newText: ''
+      newText: '',
     });
 
     // Add sorted imports
@@ -2163,9 +2243,9 @@ export class CodeActionsProvider {
     edits.push({
       range: {
         start: insertPosition,
-        end: insertPosition
+        end: insertPosition,
       },
-      newText: formattedImports + '\n'
+      newText: formattedImports + '\n',
     });
 
     return {
@@ -2173,9 +2253,9 @@ export class CodeActionsProvider {
       kind: CodeActionKind.SourceOrganizeImports,
       edit: {
         changes: {
-          [uri]: edits
-        }
-      }
+          [uri]: edits,
+        },
+      },
     };
   }
 
@@ -2194,20 +2274,20 @@ export class CodeActionsProvider {
   private isBufRegistryImport(importPath: string): boolean {
     // Common Buf Schema Registry module patterns
     const bufRegistryPatterns = [
-      /^buf\//,                    // buf.build/bufbuild/* modules
-      /^google\/api\//,            // googleapis - google/api
-      /^google\/type\//,           // googleapis - google/type
-      /^google\/rpc\//,            // googleapis - google/rpc
-      /^google\/cloud\//,          // googleapis - google/cloud
-      /^google\/logging\//,        // googleapis - google/logging
-      /^grpc\//,                   // grpc modules
-      /^envoy\//,                  // envoy proxy
-      /^validate\/validate\.proto$/,  // protoc-gen-validate (PGV)
-      /^xds\//,                    // xDS API
-      /^opencensus\//,             // OpenCensus
-      /^opentelemetry\//,          // OpenTelemetry
-      /^cosmos\//,                 // Cosmos SDK
-      /^tendermint\//,             // Tendermint
+      /^buf\//, // buf.build/bufbuild/* modules
+      /^google\/api\//, // googleapis - google/api
+      /^google\/type\//, // googleapis - google/type
+      /^google\/rpc\//, // googleapis - google/rpc
+      /^google\/cloud\//, // googleapis - google/cloud
+      /^google\/logging\//, // googleapis - google/logging
+      /^grpc\//, // grpc modules
+      /^envoy\//, // envoy proxy
+      /^validate\/validate\.proto$/, // protoc-gen-validate (PGV)
+      /^xds\//, // xDS API
+      /^opencensus\//, // OpenCensus
+      /^opentelemetry\//, // OpenTelemetry
+      /^cosmos\//, // Cosmos SDK
+      /^tendermint\//, // Tendermint
     ];
 
     return bufRegistryPatterns.some(pattern => pattern.test(importPath));

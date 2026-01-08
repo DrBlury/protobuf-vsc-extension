@@ -3,11 +3,7 @@
  * Provides rename refactoring across files
  */
 
-import type {
-  Range,
-  Position,
-  TextEdit
-} from 'vscode-languageserver/node';
+import type { Range, Position, TextEdit } from 'vscode-languageserver/node';
 import type { ProtoFile, MessageDefinition } from '../core/ast';
 import { BUILTIN_TYPES, PROTOBUF_KEYWORDS } from '../core/ast';
 import type { SemanticAnalyzer } from '../core/analyzer';
@@ -26,11 +22,7 @@ export class RenameProvider {
   /**
    * Prepare rename - check if rename is possible at position
    */
-  prepareRename(
-    uri: string,
-    position: Position,
-    lineText: string
-  ): { range: Range; placeholder: string } | null {
+  prepareRename(uri: string, position: Position, lineText: string): { range: Range; placeholder: string } | null {
     const word = this.getWordAtPosition(lineText, position.character, position.line);
     if (!word) {
       return null;
@@ -58,7 +50,7 @@ export class RenameProvider {
       if (localSymbol) {
         return {
           range: word.range,
-          placeholder: word.text
+          placeholder: word.text,
         };
       }
       return null;
@@ -66,21 +58,16 @@ export class RenameProvider {
 
     return {
       range: word.range,
-      placeholder: word.text
+      placeholder: word.text,
     };
   }
 
   /**
    * Perform rename across workspace
    */
-  rename(
-    uri: string,
-    position: Position,
-    lineText: string,
-    newName: string
-  ): RenameResult {
+  rename(uri: string, position: Position, lineText: string, newName: string): RenameResult {
     const result: RenameResult = {
-      changes: new Map()
+      changes: new Map(),
     };
 
     const word = this.getWordAtPosition(lineText, position.character, position.line);
@@ -120,14 +107,14 @@ export class RenameProvider {
     // Add the definition location
     this.addEdit(result.changes, symbol.location.uri, {
       range: symbol.location.range,
-      newText: newName
+      newText: newName,
     });
 
     // Add all reference locations
     for (const ref of references) {
       this.addEdit(result.changes, ref.uri, {
         range: ref.range,
-        newText: newName
+        newText: newName,
       });
     }
 
@@ -230,7 +217,7 @@ export class RenameProvider {
     _position: Position
   ): RenameResult {
     const result: RenameResult = {
-      changes: new Map()
+      changes: new Map(),
     };
 
     if (!file) {
@@ -251,7 +238,7 @@ export class RenameProvider {
         if (value.name === oldName) {
           edits.push({
             range: value.nameRange,
-            newText: newName
+            newText: newName,
           });
         }
       }
@@ -263,7 +250,7 @@ export class RenameProvider {
         if (rpc.name === oldName) {
           edits.push({
             range: rpc.nameRange,
-            newText: newName
+            newText: newName,
           });
         }
       }
@@ -276,18 +263,13 @@ export class RenameProvider {
     return result;
   }
 
-  private collectFieldRenames(
-    message: MessageDefinition,
-    oldName: string,
-    newName: string,
-    edits: TextEdit[]
-  ): void {
+  private collectFieldRenames(message: MessageDefinition, oldName: string, newName: string, edits: TextEdit[]): void {
     // Check fields
     for (const field of message.fields) {
       if (field.name === oldName) {
         edits.push({
           range: field.nameRange,
-          newText: newName
+          newText: newName,
         });
       }
     }
@@ -297,14 +279,14 @@ export class RenameProvider {
       if (oneof.name === oldName) {
         edits.push({
           range: oneof.nameRange,
-          newText: newName
+          newText: newName,
         });
       }
       for (const field of oneof.fields) {
         if (field.name === oldName) {
           edits.push({
             range: field.nameRange,
-            newText: newName
+            newText: newName,
           });
         }
       }
@@ -315,7 +297,7 @@ export class RenameProvider {
       if (mapField.name === oldName) {
         edits.push({
           range: mapField.nameRange,
-          newText: newName
+          newText: newName,
         });
       }
     }
@@ -331,7 +313,7 @@ export class RenameProvider {
         if (value.name === oldName) {
           edits.push({
             range: value.nameRange,
-            newText: newName
+            newText: newName,
           });
         }
       }
@@ -345,11 +327,12 @@ export class RenameProvider {
 
     // Avoid duplicate edits
     const existing = changes.get(uri)!;
-    const isDuplicate = existing.some(e =>
-      e.range.start.line === edit.range.start.line &&
-      e.range.start.character === edit.range.start.character &&
-      e.range.end.line === edit.range.end.line &&
-      e.range.end.character === edit.range.end.character
+    const isDuplicate = existing.some(
+      e =>
+        e.range.start.line === edit.range.start.line &&
+        e.range.start.character === edit.range.start.character &&
+        e.range.end.line === edit.range.end.line &&
+        e.range.end.character === edit.range.end.character
     );
 
     if (!isDuplicate) {
@@ -385,8 +368,8 @@ export class RenameProvider {
       text: line.substring(start, end),
       range: {
         start: { line: lineNumber, character: start },
-        end:   { line: lineNumber, character: end }
-      }
+        end: { line: lineNumber, character: end },
+      },
     };
   }
 
@@ -396,7 +379,7 @@ export class RenameProvider {
    */
   private findContainingMessageScope(
     file: ProtoFile,
-    position: { line: number, character: number },
+    position: { line: number; character: number },
     packageName: string
   ): string {
     const messageChain = this.findContainingMessageChain(file.messages, position);
@@ -414,7 +397,7 @@ export class RenameProvider {
    */
   private findContainingMessageChain(
     messages: MessageDefinition[],
-    position: { line: number, character: number }
+    position: { line: number; character: number }
   ): MessageDefinition[] {
     for (const msg of messages) {
       if (this.containsPosition(msg.range, position)) {
@@ -425,7 +408,7 @@ export class RenameProvider {
     return [];
   }
 
-  private containsPosition(range: Range, pos: { line: number, character: number }): boolean {
+  private containsPosition(range: Range, pos: { line: number; character: number }): boolean {
     if (pos.line < range.start.line || pos.line > range.end.line) {
       return false;
     }

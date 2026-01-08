@@ -18,7 +18,12 @@ export function getIndent(level: number, settings: FormatterSettings): string {
 /**
  * Format a basic line with indent
  */
-export function formatLine(line: string, indentLevel: number, settings: FormatterSettings, originalLine?: string): string {
+export function formatLine(
+  line: string,
+  indentLevel: number,
+  settings: FormatterSettings,
+  originalLine?: string
+): string {
   const indent = getIndent(indentLevel, settings);
 
   // Handle comment-only lines - preserve original indentation for continuation comments
@@ -103,8 +108,12 @@ export function formatLine(line: string, indentLevel: number, settings: Formatte
   }
 
   // Format syntax/edition/package/import statements (no indent)
-  if (line.startsWith('syntax') || line.startsWith('edition') ||
-      line.startsWith('package') || line.startsWith('import')) {
+  if (
+    line.startsWith('syntax') ||
+    line.startsWith('edition') ||
+    line.startsWith('package') ||
+    line.startsWith('import')
+  ) {
     return line;
   }
 

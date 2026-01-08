@@ -12,3 +12,5 @@ tree-sitter-proto/*.so
 tree-sitter-proto/*.dylib
 tree-sitter-proto/*.dll
 tree-sitter-proto/node_modules/
+.tmp
+.claude

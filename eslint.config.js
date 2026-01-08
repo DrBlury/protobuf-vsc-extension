@@ -1,6 +1,8 @@
 const eslint = require("@eslint/js");
 const tseslint = require("@typescript-eslint/eslint-plugin");
 const tsparser = require("@typescript-eslint/parser");
+const prettier = require("eslint-plugin-prettier");
+const prettierConfig = require("eslint-config-prettier");
 
 module.exports = [
   eslint.configs.recommended,
@@ -31,9 +33,12 @@ module.exports = [
     },
     plugins: {
       "@typescript-eslint": tseslint,
+      prettier: prettier,
     },
     rules: {
       ...tseslint.configs.recommended.rules,
+      ...prettierConfig.rules,
+      "prettier/prettier": "warn",
       "@typescript-eslint/naming-convention": [
         "warn",
         {
@@ -53,7 +58,6 @@ module.exports = [
       curly: "warn",
       eqeqeq: "warn",
       "no-throw-literal": "warn",
-      semi: "warn",
     },
   },
   // Test files without project reference
@@ -89,9 +93,12 @@ module.exports = [
     },
     plugins: {
       "@typescript-eslint": tseslint,
+      prettier: prettier,
     },
     rules: {
       ...tseslint.configs.recommended.rules,
+      ...prettierConfig.rules,
+      "prettier/prettier": "warn",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": [
         "warn",
@@ -105,7 +112,6 @@ module.exports = [
       curly: "warn",
       eqeqeq: "warn",
       "no-throw-literal": "warn",
-      semi: "warn",
     },
   },
   {

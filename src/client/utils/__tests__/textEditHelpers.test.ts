@@ -47,10 +47,7 @@ describe('textEditHelpers', () => {
       expect(mockPosition).toHaveBeenCalledTimes(2);
       expect(mockPosition).toHaveBeenNthCalledWith(1, 0, 5);
       expect(mockPosition).toHaveBeenNthCalledWith(2, 0, 10);
-      expect(mockRange).toHaveBeenCalledWith(
-        { line: 0, character: 5 },
-        { line: 0, character: 10 }
-      );
+      expect(mockRange).toHaveBeenCalledWith({ line: 0, character: 5 }, { line: 0, character: 10 });
       expect(result).toEqual({
         start: { line: 0, character: 5 },
         end: { line: 0, character: 10 },

@@ -13,7 +13,7 @@ import { logger } from '../utils/logger';
  * Split text into lines, handling both CRLF (\r\n) and LF (\n) line endings.
  */
 function splitLines(text: string): string[] {
-  return text.split('\n').map(line => line.endsWith('\r') ? line.slice(0, -1) : line);
+  return text.split('\n').map(line => (line.endsWith('\r') ? line.slice(0, -1) : line));
 }
 
 export interface ClangFormatSettings {
@@ -29,7 +29,7 @@ const DEFAULT_SETTINGS: ClangFormatSettings = {
   path: 'clang-format',
   style: 'file',
   fallbackStyle: 'Google',
-  configPath: ''
+  configPath: '',
 };
 
 export class ClangFormatProvider {
@@ -47,13 +47,15 @@ export class ClangFormatProvider {
       return false;
     }
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       logger.verbose(`Checking clang-format availability via "${this.settings.path}" --version`);
       const proc = spawn(this.settings.path, ['--version']);
 
       proc.on('close', (code: number | null) => resolve(code === 0));
-      proc.on('error', (err) => {
-        logger.warn(`clang-format availability check failed for path "${this.settings.path}": ${err instanceof Error ? err.message : String(err)}`);
+      proc.on('error', err => {
+        logger.warn(
+          `clang-format availability check failed for path "${this.settings.path}": ${err instanceof Error ? err.message : String(err)}`
+        );
         resolve(false);
       });
     });
@@ -63,16 +65,16 @@ export class ClangFormatProvider {
    * Get clang-format version
    */
   async getVersion(): Promise<string | null> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       logger.verbose(`Requesting clang-format version via "${this.settings.path}" --version`);
       const proc = spawn(this.settings.path, ['--version']);
 
       let output = '';
-      proc.stdout?.on('data', (data) => {
-        output += data.toString();
+      proc.stdout?.on('data', (data: Buffer) => {
+        output += data.toString('utf8');
       });
 
-      proc.on('close', (code) => {
+      proc.on('close', code => {
         if (code === 0) {
           // Parse version from output like "clang-format version 14.0.0"
           const match = output.match(/version\s+([\d.]+)/);
@@ -82,8 +84,10 @@ export class ClangFormatProvider {
         }
       });
 
-      proc.on('error', (err) => {
-        logger.warn(`Unable to read clang-format version from "${this.settings.path}": ${err instanceof Error ? err.message : String(err)}`);
+      proc.on('error', err => {
+        logger.warn(
+          `Unable to read clang-format version from "${this.settings.path}": ${err instanceof Error ? err.message : String(err)}`
+        );
         resolve(null);
       });
     });
@@ -104,13 +108,15 @@ export class ClangFormatProvider {
     }
 
     const lines = splitLines(text);
-    return [{
-      range: {
-        start: { line: 0, character: 0 },
-        end: { line: lines.length - 1, character: lines[lines.length - 1]!.length }
+    return [
+      {
+        range: {
+          start: { line: 0, character: 0 },
+          end: { line: lines.length - 1, character: lines[lines.length - 1]!.length },
+        },
+        newText: formatted,
       },
-      newText: formatted
-    }];
+    ];
   }
 
   /**
@@ -159,13 +165,15 @@ export class ClangFormatProvider {
       return []; // No changes needed - this is success, not failure
     }
 
-    return [{
-      range: {
-        start: { line: 0, character: 0 },
-        end: { line: lines.length - 1, character: lines[lines.length - 1]!.length }
+    return [
+      {
+        range: {
+          start: { line: 0, character: 0 },
+          end: { line: lines.length - 1, character: lines[lines.length - 1]!.length },
+        },
+        newText: formatted,
       },
-      newText: formatted
-    }];
+    ];
   }
 
   private async runClangFormat(
@@ -174,7 +182,7 @@ export class ClangFormatProvider {
     offset?: number,
     length?: number
   ): Promise<string | null> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const args: string[] = [];
 
       // Add style option
@@ -234,7 +242,7 @@ export class ClangFormatProvider {
         filePath,
         offset,
         length,
-        inputLength: text.length
+        inputLength: text.length,
       });
 
       const start = Date.now();
@@ -244,20 +252,20 @@ export class ClangFormatProvider {
       let stderrOutput = '';
 
       proc.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString();
+        stdout += data.toString('utf8');
       });
 
       proc.stderr?.on('data', (data: Buffer) => {
-        stderrOutput += data.toString();
+        stderrOutput += data.toString('utf8');
       });
 
-      proc.on('close', (code) => {
+      proc.on('close', code => {
         if (code === 0) {
           logger.verboseWithContext('clang-format completed successfully', {
             operation: 'clang-format',
             filePath,
             duration: Date.now() - start,
-            outputLength: stdout.length
+            outputLength: stdout.length,
           });
           resolve(stdout);
         } else {
@@ -267,9 +275,11 @@ export class ClangFormatProvider {
             duration: Date.now() - start,
             exitCode: code ?? -1,
             stderr: stderrOutput.slice(0, 2000),
-            args
+            args,
           });
-          logger.warn(`clang-format exited with code ${code} when formatting via "${this.settings.path}". Args: ${args.join(' ')}`);
+          logger.warn(
+            `clang-format exited with code ${code} when formatting via "${this.settings.path}". Args: ${args.join(' ')}`
+          );
           resolve(null);
         }
       });
@@ -280,14 +290,14 @@ export class ClangFormatProvider {
           filePath,
           duration: Date.now() - start,
           error: err.message,
-          args
+          args,
         });
         logger.warn(`Failed to run clang-format at "${this.settings.path}": ${err.message}`);
         resolve(null);
       });
 
-      // Write input to stdin
-      proc.stdin?.write(text);
+      // Write input to stdin with explicit UTF-8 encoding
+      proc.stdin?.write(text, 'utf8');
       proc.stdin?.end();
     });
   }
@@ -296,16 +306,7 @@ export class ClangFormatProvider {
    * Get style presets
    */
   getStylePresets(): string[] {
-    return [
-      'LLVM',
-      'Google',
-      'Chromium',
-      'Mozilla',
-      'WebKit',
-      'Microsoft',
-      'GNU',
-      'file'
-    ];
+    return ['LLVM', 'Google', 'Chromium', 'Mozilla', 'WebKit', 'Microsoft', 'GNU', 'file'];
   }
 
   /**

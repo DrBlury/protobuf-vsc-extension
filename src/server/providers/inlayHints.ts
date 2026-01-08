@@ -3,12 +3,8 @@
  * Shows inline hints for field numbers and type information
  */
 
-import type {
-  InlayHint} from 'vscode-languageserver/node';
-import {
-  InlayHintKind,
-  Position
-} from 'vscode-languageserver/node';
+import type { InlayHint } from 'vscode-languageserver/node';
+import { InlayHintKind, Position } from 'vscode-languageserver/node';
 
 import type { ProtoFile, FieldDefinition, MapFieldDefinition, EnumValue } from '../core/ast';
 
@@ -27,7 +23,7 @@ export interface InlayHintsSettings {
 const defaultSettings: InlayHintsSettings = {
   showFieldNumbers: true,
   showEnumValues: true,
-  showDefaults: true
+  showDefaults: true,
 };
 
 /**
@@ -71,7 +67,12 @@ export class InlayHintsProvider {
   }
 
   private processNestedMessages(
-    message: { messages?: typeof message[]; fields: FieldDefinition[]; maps?: MapFieldDefinition[]; enums?: { values: EnumValue[] }[] },
+    message: {
+      messages?: (typeof message)[];
+      fields: FieldDefinition[];
+      maps?: MapFieldDefinition[];
+      enums?: { values: EnumValue[] }[];
+    },
     hints: InlayHint[],
     lines: string[]
   ): void {
@@ -103,11 +104,7 @@ export class InlayHintsProvider {
     }
   }
 
-  private processFields(
-    fields: FieldDefinition[],
-    hints: InlayHint[],
-    lines: string[]
-  ): void {
+  private processFields(fields: FieldDefinition[], hints: InlayHint[], lines: string[]): void {
     if (!this.settings.showFieldNumbers && !this.settings.showDefaults) {
       return;
     }
@@ -137,29 +134,21 @@ export class InlayHintsProvider {
             position: Position.create(line, fieldEndMatch),
             label: ` // default: ${formatValue(defaultOpt.value)}`,
             kind: InlayHintKind.Parameter,
-            paddingLeft: false
+            paddingLeft: false,
           });
         }
       }
     }
   }
 
-  private processMaps(
-    _maps: MapFieldDefinition[],
-    _hints: InlayHint[],
-    _lines: string[]
-  ): void {
+  private processMaps(_maps: MapFieldDefinition[], _hints: InlayHint[], _lines: string[]): void {
     // Map fields don't have field numbers visible in the same way
     // We could show the field number but it's already in the syntax
     // Currently no specific hints for map fields
     // Could add hints for key/value types in the future
   }
 
-  private processEnum(
-    values: EnumValue[],
-    hints: InlayHint[],
-    lines: string[]
-  ): void {
+  private processEnum(values: EnumValue[], hints: InlayHint[], lines: string[]): void {
     for (const value of values) {
       if (!value.nameRange) {
         continue;
@@ -177,14 +166,15 @@ export class InlayHintsProvider {
       // For enum values, show the numeric value after the name = N part
       // This is already visible, but we can show hex for large values
       if (value.number !== undefined && (value.number > 1000 || value.number < 0)) {
-        const hexValue = value.number >= 0
-          ? `0x${value.number.toString(16).toUpperCase()}`
-          : `-0x${Math.abs(value.number).toString(16).toUpperCase()}`;
+        const hexValue =
+          value.number >= 0
+            ? `0x${value.number.toString(16).toUpperCase()}`
+            : `-0x${Math.abs(value.number).toString(16).toUpperCase()}`;
         hints.push({
           position: Position.create(line, endMatch),
           label: ` // ${hexValue}`,
           kind: InlayHintKind.Parameter,
-          paddingLeft: false
+          paddingLeft: false,
         });
       }
     }

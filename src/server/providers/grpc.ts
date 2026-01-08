@@ -65,7 +65,7 @@ export class GrpcProvider {
             outputStream,
             streamingType,
             uri,
-            range: rpc.range
+            range: rpc.range,
           };
         });
 
@@ -75,7 +75,7 @@ export class GrpcProvider {
           package: packageName,
           rpcs,
           uri,
-          range: service.range
+          range: service.range,
         });
       }
     }
@@ -163,7 +163,9 @@ export class GrpcProvider {
         lines.push(`}`);
         lines.push('');
         for (const rpc of service.rpcs) {
-          lines.push(`func (c *${service.name}Client) ${rpc.name}(ctx context.Context, req *${rpc.inputType}) (*${rpc.outputType}, error) {`);
+          lines.push(
+            `func (c *${service.name}Client) ${rpc.name}(ctx context.Context, req *${rpc.inputType}) (*${rpc.outputType}, error) {`
+          );
           lines.push(`  // Implementation`);
           lines.push(`}`);
           lines.push('');
@@ -232,7 +234,9 @@ export class GrpcProvider {
         lines.push(`func (s *${service.name}Server) mustEmbedUnimplemented${service.name}Server() {}`);
         lines.push('');
         for (const rpc of service.rpcs) {
-          lines.push(`func (s *${service.name}Server) ${rpc.name}(ctx context.Context, req *${rpc.inputType}) (*${rpc.outputType}, error) {`);
+          lines.push(
+            `func (s *${service.name}Server) ${rpc.name}(ctx context.Context, req *${rpc.inputType}) (*${rpc.outputType}, error) {`
+          );
           lines.push(`  // TODO: Implement ${rpc.name}`);
           lines.push(`  return nil, status.Errorf(codes.Unimplemented, "method ${rpc.name} not implemented")`);
           lines.push(`}`);
@@ -278,7 +282,9 @@ export class GrpcProvider {
         lines.push(`export class ${service.name}Service implements ${service.name}ServiceDefinition {`);
         lines.push('');
         for (const rpc of service.rpcs) {
-          lines.push(`  ${rpc.name}(call: ServerUnaryCall<${rpc.inputType}, ${rpc.outputType}>): Promise<${rpc.outputType}> {`);
+          lines.push(
+            `  ${rpc.name}(call: ServerUnaryCall<${rpc.inputType}, ${rpc.outputType}>): Promise<${rpc.outputType}> {`
+          );
           lines.push(`    // TODO: Implement ${rpc.name}`);
           lines.push(`    throw new Error('method ${rpc.name} not implemented');`);
           lines.push(`  }`);
@@ -295,7 +301,10 @@ export class GrpcProvider {
    * Convert camelCase to snake_case
    */
   private toSnakeCase(str: string): string {
-    return str.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+    return str
+      .replace(/([A-Z])/g, '_$1')
+      .toLowerCase()
+      .replace(/^_/, '');
   }
 
   /**
@@ -315,7 +324,7 @@ export class GrpcProvider {
       streamingRpcs: service.rpcs.filter(r => r.streamingType !== 'unary').length,
       serverStreamingRpcs: service.rpcs.filter(r => r.streamingType === 'server-streaming').length,
       clientStreamingRpcs: service.rpcs.filter(r => r.streamingType === 'client-streaming').length,
-      bidirectionalStreamingRpcs: service.rpcs.filter(r => r.streamingType === 'bidirectional-streaming').length
+      bidirectionalStreamingRpcs: service.rpcs.filter(r => r.streamingType === 'bidirectional-streaming').length,
     };
   }
 }

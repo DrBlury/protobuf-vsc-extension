@@ -17,19 +17,19 @@ describe('CodeLensHandler', () => {
 
   beforeEach(() => {
     documents = {
-      get: jest.fn()
+      get: jest.fn(),
     } as any;
     codeLensProvider = {
-      getCodeLenses: jest.fn()
+      getCodeLenses: jest.fn(),
     } as any;
     parser = {
-      parse: jest.fn()
+      parse: jest.fn(),
     } as any;
   });
 
   it('should return empty array when document not found', () => {
     const params: CodeLensParams = {
-      textDocument: { uri: 'file:///nonexistent.proto' }
+      textDocument: { uri: 'file:///nonexistent.proto' },
     };
 
     documents.get.mockReturnValue(undefined);
@@ -46,7 +46,7 @@ describe('CodeLensHandler', () => {
     documents.get.mockReturnValue(doc);
 
     const params: CodeLensParams = {
-      textDocument: { uri }
+      textDocument: { uri },
     };
 
     parser.parse.mockImplementation(() => {
@@ -64,10 +64,20 @@ describe('CodeLensHandler', () => {
     documents.get.mockReturnValue(doc);
 
     const params: CodeLensParams = {
-      textDocument: { uri }
+      textDocument: { uri },
     };
 
-    const parsedFile = { messages: [], enums: [], extends: [], imports: [], syntax: 'proto3', type: 'file', options: undefined, services: [], range: undefined } as unknown as ProtoFile;
+    const parsedFile = {
+      messages: [],
+      enums: [],
+      extends: [],
+      imports: [],
+      syntax: 'proto3',
+      type: 'file',
+      options: undefined,
+      services: [],
+      range: undefined,
+    } as unknown as ProtoFile;
     parser.parse.mockReturnValue(parsedFile);
 
     const codeLenses = [{ range: { start: { line: 1, character: 0 }, end: { line: 1, character: 13 } } }];
@@ -87,10 +97,20 @@ describe('CodeLensHandler', () => {
     documents.get.mockReturnValue(doc);
 
     const params: CodeLensParams = {
-      textDocument: { uri }
+      textDocument: { uri },
     };
 
-    const parsedFile = { messages: [], enums: [], extends: [], imports: [], syntax: 'proto3', type: 'file', options: undefined, services: [], range: undefined } as unknown as ProtoFile;
+    const parsedFile = {
+      messages: [],
+      enums: [],
+      extends: [],
+      imports: [],
+      syntax: 'proto3',
+      type: 'file',
+      options: undefined,
+      services: [],
+      range: undefined,
+    } as unknown as ProtoFile;
     parser.parse.mockReturnValue(parsedFile);
     codeLensProvider.getCodeLenses.mockReturnValue([]);
 

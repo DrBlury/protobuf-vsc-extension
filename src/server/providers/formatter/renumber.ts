@@ -3,7 +3,7 @@
  */
 
 import { FIELD_NUMBER } from '../../utils/constants';
-import type { FormatterSettings} from './types';
+import type { FormatterSettings } from './types';
 import { splitLines } from './types';
 
 /**
@@ -133,7 +133,8 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
     }
 
     // Check if this line starts a multi-line field declaration (ends with '=' or '= // comment')
-    const multiLineFieldStart = /^(?:optional|required|repeated)?\s*[A-Za-z_][\w<>.,\s]*\s+[A-Za-z_]\w*\s*=\s*(\/\/.*)?$/.test(trimmedLine);
+    const multiLineFieldStart =
+      /^(?:optional|required|repeated)?\s*[A-Za-z_][\w<>.,\s]*\s+[A-Za-z_]\w*\s*=\s*(\/\/.*)?$/.test(trimmedLine);
     if (multiLineFieldStart && contextStack.length > 0) {
       pendingMultiLineField = true;
       result.push(line);
@@ -144,7 +145,7 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
     if (/^(message|enum)\s+\w+\s*\{/.test(trimmedLine)) {
       const type = trimmedLine.startsWith('message') ? 'message' : 'enum';
       // For enums, start at 0; for messages, start at configured value
-      const startNum = type === 'enum' ? 0 : (settings.renumberStartNumber || 1);
+      const startNum = type === 'enum' ? 0 : settings.renumberStartNumber || 1;
       contextStack.push({ type, fieldCounter: startNum });
       result.push(line);
       continue;
@@ -167,7 +168,7 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
     // Check for nested message/enum inside a message
     if (contextStack.length > 0 && /^(message|enum)\s+\w+\s*\{/.test(trimmedLine)) {
       const type = trimmedLine.startsWith('message') ? 'message' : 'enum';
-      const startNum = type === 'enum' ? 0 : (settings.renumberStartNumber || 1);
+      const startNum = type === 'enum' ? 0 : settings.renumberStartNumber || 1;
       contextStack.push({ type, fieldCounter: startNum });
       result.push(line);
       continue;
@@ -192,12 +193,14 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
 
       // Skip reserved, option, rpc lines
       // Note: use 'option ' or 'option(' to avoid matching 'optional' field modifier
-      if (trimmedLine.startsWith('reserved') ||
-          trimmedLine.startsWith('option ') ||
-          trimmedLine.startsWith('option(') ||
-          trimmedLine.startsWith('rpc') ||
-          trimmedLine.startsWith('//') ||
-          trimmedLine.startsWith('/*')) {
+      if (
+        trimmedLine.startsWith('reserved') ||
+        trimmedLine.startsWith('option ') ||
+        trimmedLine.startsWith('option(') ||
+        trimmedLine.startsWith('rpc') ||
+        trimmedLine.startsWith('//') ||
+        trimmedLine.startsWith('/*')
+      ) {
         result.push(line);
         continue;
       }
@@ -217,8 +220,12 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
           const commentIdx = (() => {
             const slIdx = cleanedRest.indexOf('//');
             const blkIdx = cleanedRest.indexOf('/*');
-            if (slIdx === -1) {return blkIdx;}
-            if (blkIdx === -1) {return slIdx;}
+            if (slIdx === -1) {
+              return blkIdx;
+            }
+            if (blkIdx === -1) {
+              return slIdx;
+            }
             return Math.min(slIdx, blkIdx);
           })();
 

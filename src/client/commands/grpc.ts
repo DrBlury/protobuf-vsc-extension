@@ -25,26 +25,20 @@ interface GrpcRpc {
 /**
  * Registers all gRPC-related commands
  */
-export function registerGrpcCommands(
-  context: vscode.ExtensionContext,
-  client: LanguageClient
-): vscode.Disposable[] {
+export function registerGrpcCommands(context: vscode.ExtensionContext, client: LanguageClient): vscode.Disposable[] {
   return [
     registerListGrpcServicesCommand(context, client),
     registerShowGrpcServiceCommand(context, client),
     registerGenerateClientStubCommand(context, client),
     registerGenerateServerTemplateCommand(context, client),
-    registerShowGrpcServiceStatsCommand(context, client)
+    registerShowGrpcServiceStatsCommand(context, client),
   ];
 }
 
 /**
  * List all gRPC services in workspace
  */
-function registerListGrpcServicesCommand(
-  _context: vscode.ExtensionContext,
-  client: LanguageClient
-): vscode.Disposable {
+function registerListGrpcServicesCommand(_context: vscode.ExtensionContext, client: LanguageClient): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.listGrpcServices', async () => {
     try {
       const services = await client.sendRequest<GrpcService[]>(REQUEST_METHODS.GET_GRPC_SERVICES);
@@ -59,11 +53,11 @@ function registerListGrpcServicesCommand(
         label: service.fullName,
         description: `${service.rpcs.length} RPC${service.rpcs.length !== 1 ? 's' : ''}`,
         detail: service.uri,
-        service
+        service,
       }));
 
       const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: 'Select a gRPC service to view details'
+        placeHolder: 'Select a gRPC service to view details',
       });
 
       if (selected) {
@@ -84,10 +78,7 @@ function registerListGrpcServicesCommand(
 /**
  * Show gRPC service details
  */
-function registerShowGrpcServiceCommand(
-  _context: vscode.ExtensionContext,
-  client: LanguageClient
-): vscode.Disposable {
+function registerShowGrpcServiceCommand(_context: vscode.ExtensionContext, client: LanguageClient): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.showGrpcService', async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor || editor.document.languageId !== 'proto') {
@@ -112,7 +103,7 @@ function registerShowGrpcServiceCommand(
         servicesInFile.map(s => ({
           label: s.name,
           description: `${s.rpcs.length} RPCs`,
-          service: s
+          service: s,
         })),
         { placeHolder: 'Select a service' }
       );
@@ -151,7 +142,7 @@ function registerGenerateClientStubCommand(
       servicesInFile.map(s => ({
         label: s.name,
         description: s.fullName,
-        service: s
+        service: s,
       })),
       { placeHolder: 'Select a service' }
     );
@@ -166,7 +157,7 @@ function registerGenerateClientStubCommand(
         { label: 'Go', value: 'go' as const },
         { label: 'Java', value: 'java' as const },
         { label: 'Python', value: 'python' as const },
-        { label: 'TypeScript', value: 'typescript' as const }
+        { label: 'TypeScript', value: 'typescript' as const },
       ],
       { placeHolder: 'Select target language' }
     );
@@ -181,7 +172,7 @@ function registerGenerateClientStubCommand(
         {
           serviceName: serviceItem.service.name,
           language: language.value,
-          uri
+          uri,
         }
       );
 
@@ -193,7 +184,7 @@ function registerGenerateClientStubCommand(
       // Create new document with generated code
       const doc = await vscode.workspace.openTextDocument({
         content: result.code,
-        language: language.value
+        language: language.value,
       });
       await vscode.window.showTextDocument(doc);
     } catch (error) {
@@ -230,7 +221,7 @@ function registerGenerateServerTemplateCommand(
       servicesInFile.map(s => ({
         label: s.name,
         description: s.fullName,
-        service: s
+        service: s,
       })),
       { placeHolder: 'Select a service' }
     );
@@ -245,7 +236,7 @@ function registerGenerateServerTemplateCommand(
         { label: 'Go', value: 'go' as const },
         { label: 'Java', value: 'java' as const },
         { label: 'Python', value: 'python' as const },
-        { label: 'TypeScript', value: 'typescript' as const }
+        { label: 'TypeScript', value: 'typescript' as const },
       ],
       { placeHolder: 'Select target language' }
     );
@@ -260,7 +251,7 @@ function registerGenerateServerTemplateCommand(
         {
           serviceName: serviceItem.service.name,
           language: language.value,
-          uri
+          uri,
         }
       );
 
@@ -272,7 +263,7 @@ function registerGenerateServerTemplateCommand(
       // Create new document with generated code
       const doc = await vscode.workspace.openTextDocument({
         content: result.code,
-        language: language.value
+        language: language.value,
       });
       await vscode.window.showTextDocument(doc);
     } catch (error) {
@@ -308,7 +299,7 @@ function registerShowGrpcServiceStatsCommand(
       servicesInFile.map(s => ({
         label: s.name,
         description: s.fullName,
-        service: s
+        service: s,
       })),
       { placeHolder: 'Select a service' }
     );
@@ -318,13 +309,10 @@ function registerShowGrpcServiceStatsCommand(
     }
 
     try {
-      const stats = await client.sendRequest(
-        REQUEST_METHODS.GET_GRPC_SERVICE_STATS,
-        {
-          serviceName: serviceItem.service.name,
-          uri
-        }
-      ) as {
+      const stats = (await client.sendRequest(REQUEST_METHODS.GET_GRPC_SERVICE_STATS, {
+        serviceName: serviceItem.service.name,
+        uri,
+      })) as {
         totalRpcs: number;
         unaryRpcs: number;
         streamingRpcs: number;
@@ -341,7 +329,7 @@ function registerShowGrpcServiceStatsCommand(
         `Streaming RPCs: ${stats.streamingRpcs}`,
         `  - Server Streaming: ${stats.serverStreamingRpcs}`,
         `  - Client Streaming: ${stats.clientStreamingRpcs}`,
-        `  - Bidirectional: ${stats.bidirectionalStreamingRpcs}`
+        `  - Bidirectional: ${stats.bidirectionalStreamingRpcs}`,
       ].join('\n');
 
       vscode.window.showInformationMessage(message, { modal: true });
@@ -355,19 +343,26 @@ function registerShowGrpcServiceStatsCommand(
  * Show service details in a message
  */
 function showServiceDetails(service: GrpcService): void {
-  const rpcList = service.rpcs.map(rpc => {
-    const streamIcon = rpc.streamingType === 'unary' ? '→' :
-                       rpc.streamingType === 'server-streaming' ? '→→' :
-                       rpc.streamingType === 'client-streaming' ? '→→' : '⇄';
-    return `  ${streamIcon} ${rpc.name}(${rpc.inputType}) → ${rpc.outputType}`;
-  }).join('\n');
+  const rpcList = service.rpcs
+    .map(rpc => {
+      const streamIcon =
+        rpc.streamingType === 'unary'
+          ? '→'
+          : rpc.streamingType === 'server-streaming'
+            ? '→→'
+            : rpc.streamingType === 'client-streaming'
+              ? '→→'
+              : '⇄';
+      return `  ${streamIcon} ${rpc.name}(${rpc.inputType}) → ${rpc.outputType}`;
+    })
+    .join('\n');
 
   const message = [
     `**${service.fullName}**`,
     '',
     `Package: ${service.package || '<none>'}`,
     `RPCs (${service.rpcs.length}):`,
-    rpcList
+    rpcList,
   ].join('\n');
 
   vscode.window.showInformationMessage(message, { modal: true });

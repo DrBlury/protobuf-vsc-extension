@@ -47,7 +47,7 @@ message Test {
       range: Range.create(5, 2, 5, 21),
       message: 'Field "email" has duplicate field number 1',
       severity: DiagnosticSeverity.Error,
-      source: 'protobuf'
+      source: 'protobuf',
     };
 
     const actions = codeActionsProvider.getCodeActions(
@@ -88,7 +88,7 @@ message Test {
       range: Range.create(5, 2, 5, 21),
       message: 'Field "email" has duplicate field number 1',
       severity: DiagnosticSeverity.Error,
-      source: 'protobuf'
+      source: 'protobuf',
     };
 
     const actions = codeActionsProvider.getCodeActions(
@@ -127,7 +127,7 @@ message Test {
       range: Range.create(5, 2, 5, 21),
       message: 'Field "email" has duplicate field number 1',
       severity: DiagnosticSeverity.Error,
-      source: 'protobuf'
+      source: 'protobuf',
     };
 
     const actions = codeActionsProvider.getCodeActions(
@@ -163,9 +163,10 @@ message Test {
       documentText
     );
 
-    const renumberActions = actions.filter(a =>
-      (a.title ?? '').includes('Assign/normalize field numbers') ||
-      (a.title ?? '').includes('Assign field numbers in message')
+    const renumberActions = actions.filter(
+      a =>
+        (a.title ?? '').includes('Assign/normalize field numbers') ||
+        (a.title ?? '').includes('Assign field numbers in message')
     );
     expect(renumberActions.length).toBe(0);
   });
@@ -190,9 +191,10 @@ message Test {
       documentText
     );
 
-    const renumberActions = actions.filter(a =>
-      (a.title ?? '').includes('Assign/normalize field numbers') ||
-      (a.title ?? '').includes('Assign field numbers in message')
+    const renumberActions = actions.filter(
+      a =>
+        (a.title ?? '').includes('Assign/normalize field numbers') ||
+        (a.title ?? '').includes('Assign field numbers in message')
     );
     expect(renumberActions.length).toBeGreaterThan(0);
   });

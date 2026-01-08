@@ -41,51 +41,69 @@ const mockOutputChannel = {
 
 const mockConfiguration = new Map<string, unknown>();
 
-jest.mock('vscode', () => {
-   
-  const pathModule = require('path');
-  const testWorkspace = pathModule.join(pathModule.sep, 'test', 'workspace');
-  return {
-    window: {
-      createStatusBarItem: jest.fn(() => mockStatusBarItem),
-      showQuickPick: jest.fn(),
-      showInformationMessage: jest.fn(),
-      showWarningMessage: jest.fn(),
-      showErrorMessage: jest.fn(),
-      withProgress: jest.fn((options: unknown, task: (progress: { report: jest.Mock }, token: { isCancellationRequested: boolean }) => Promise<unknown>) => task({ report: jest.fn() }, { isCancellationRequested: false })),
-    },
-    workspace: {
-      getConfiguration: jest.fn((section: string) => ({
-        get: jest.fn((key: string, defaultValue?: unknown) => {
-          const fullKey = `${section}.${key}`;
-          return mockConfiguration.get(fullKey) ?? defaultValue;
-        }),
-        update: jest.fn(),
-      })),
-      workspaceFolders: [{ uri: { fsPath: testWorkspace } }],
-    },
-    StatusBarAlignment: {
-      Right: 2,
-      Left: 1,
-    },
-    ThemeColor: class {
-      constructor(public id: string) {}
-    },
-    ConfigurationTarget: {
-      Global: 1,
-      Workspace: 2,
-      WorkspaceFolder: 3,
-    },
-    ProgressLocation: {
-      Notification: 15,
-    },
-    QuickPickItemKind: {
-      Separator: -1,
-    },
-  };
-}, { virtual: true });
+jest.mock(
+  'vscode',
+  () => {
+    const pathModule = require('path');
+    const testWorkspace = pathModule.join(pathModule.sep, 'test', 'workspace');
+    return {
+      window: {
+        createStatusBarItem: jest.fn(() => mockStatusBarItem),
+        showQuickPick: jest.fn(),
+        showInformationMessage: jest.fn(),
+        showWarningMessage: jest.fn(),
+        showErrorMessage: jest.fn(),
+        withProgress: jest.fn(
+          (
+            options: unknown,
+            task: (progress: { report: jest.Mock }, token: { isCancellationRequested: boolean }) => Promise<unknown>
+          ) => task({ report: jest.fn() }, { isCancellationRequested: false })
+        ),
+      },
+      workspace: {
+        getConfiguration: jest.fn((section: string) => ({
+          get: jest.fn((key: string, defaultValue?: unknown) => {
+            const fullKey = `${section}.${key}`;
+            return mockConfiguration.get(fullKey) ?? defaultValue;
+          }),
+          update: jest.fn(),
+        })),
+        workspaceFolders: [{ uri: { fsPath: testWorkspace } }],
+      },
+      StatusBarAlignment: {
+        Right: 2,
+        Left: 1,
+      },
+      ThemeColor: class {
+        constructor(public id: string) {}
+      },
+      ConfigurationTarget: {
+        Global: 1,
+        Workspace: 2,
+        WorkspaceFolder: 3,
+      },
+      ProgressLocation: {
+        Notification: 15,
+      },
+      QuickPickItemKind: {
+        Separator: -1,
+      },
+    };
+  },
+  { virtual: true }
+);
 
-// Mock fs
+// Mock fsUtils for async operations
+const mockFileExists = jest.fn();
+const mockCreateDirectory = jest.fn();
+const mockReadDirectory = jest.fn();
+jest.mock('../../utils/fsUtils', () => ({
+  fileExists: (...args: unknown[]) => mockFileExists(...args),
+  createDirectory: (...args: unknown[]) => mockCreateDirectory(...args),
+  readDirectory: (...args: unknown[]) => mockReadDirectory(...args),
+}));
+
+// Mock fs for streaming downloads and chmod (still needed for Node.js operations)
 const mockFsExistsSync = jest.fn();
 const mockFsMkdirSync = jest.fn();
 jest.mock('fs', () => ({
@@ -93,6 +111,7 @@ jest.mock('fs', () => ({
   mkdirSync: (...args: unknown[]) => mockFsMkdirSync(...args),
   readdirSync: jest.fn(() => []),
   unlinkSync: jest.fn(),
+  unlink: jest.fn(),
   chmodSync: jest.fn(),
   createWriteStream: jest.fn(() => ({
     on: jest.fn(),
@@ -111,6 +130,16 @@ jest.mock('https', () => ({
   get: jest.fn(),
 }));
 
+/**
+ * Helper to flush promises and advance fake timers
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    jest.advanceTimersByTime(20);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
+
 describe('ToolchainManager', () => {
   let mockContext: {
     globalStorageUri: { fsPath: string };
@@ -119,6 +148,8 @@ describe('ToolchainManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.resetModules();
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     mockConfiguration.clear();
     mockStatusBarItem.text = '';
     mockStatusBarItem.tooltip = '';
@@ -129,15 +160,23 @@ describe('ToolchainManager', () => {
       subscriptions: { push: jest.fn() },
     };
 
-    // Default: bin directory doesn't exist yet
+    // Default: bin directory doesn't exist yet (for async fsUtils)
+    mockFileExists.mockResolvedValue(false);
+    mockCreateDirectory.mockResolvedValue(undefined);
+    mockReadDirectory.mockResolvedValue([]);
+    // Default: bin directory doesn't exist yet (for sync fs)
     mockFsExistsSync.mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('Tool Detection', () => {
     it('should detect protoc in common macOS paths', async () => {
       // Simulate protoc exists at /opt/homebrew/bin/protoc
       const homebrewProtocPath = path.join(getHomebrewBin(), 'protoc');
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         if (p === homebrewProtocPath) {
           return true;
         }
@@ -154,7 +193,7 @@ describe('ToolchainManager', () => {
       const _manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
       // Wait for async checkTools to complete
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await flushPromisesAndTimers();
 
       // Verify spawn was called with the detected path
       expect(mockSpawn).toHaveBeenCalled();
@@ -162,7 +201,7 @@ describe('ToolchainManager', () => {
 
     it('should detect protoc via shell PATH fallback', async () => {
       // Simulate no file exists at common paths
-      mockFsExistsSync.mockReturnValue(false);
+      mockFileExists.mockResolvedValue(false);
 
       // First spawn fails (ENOENT), second with shell succeeds
       const failProcess = createMockProcess('', '', 1, new Error('ENOENT'));
@@ -177,7 +216,7 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const _manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
       // Should have called spawn multiple times (with and without shell)
       expect(mockSpawn.mock.calls.length).toBeGreaterThanOrEqual(1);
@@ -187,7 +226,7 @@ describe('ToolchainManager', () => {
       const managedBinPath = path.join(getTestGlobalStorage(), 'bin');
       const managedProtocPath = path.join(managedBinPath, getExeName('protoc'));
 
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         if (p === managedProtocPath) {
           return true;
         }
@@ -203,13 +242,13 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const _manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await flushPromisesAndTimers();
 
-      expect(mockFsExistsSync).toHaveBeenCalledWith(managedProtocPath);
+      expect(mockFileExists).toHaveBeenCalledWith(managedProtocPath);
     });
 
     it('should handle tool not found gracefully', async () => {
-      mockFsExistsSync.mockReturnValue(false);
+      mockFileExists.mockResolvedValue(false);
 
       // Spawn always fails
       const failProcess = createMockProcess('', 'command not found', 127, new Error('ENOENT'));
@@ -218,7 +257,7 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const _manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
       // Should not throw, just log
       expect(mockOutputChannel.appendLine).toHaveBeenCalled();
@@ -230,7 +269,7 @@ describe('ToolchainManager', () => {
       const homebrewProtocPath = path.join(getHomebrewBin(), 'protoc');
       const homebrewBufPath = path.join(getHomebrewBin(), 'buf');
 
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         if (p === homebrewProtocPath) {
           return true;
         }
@@ -252,54 +291,54 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const _manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
-      // Status bar should show versions
-      expect(mockStatusBarItem.show).toHaveBeenCalled();
+      // Status bar should be hidden when tools are detected (no issues to report)
+      expect(mockStatusBarItem.hide).toHaveBeenCalled();
     });
 
     it('should show info icon when no tools detected', async () => {
-      mockFsExistsSync.mockReturnValue(false);
+      mockFileExists.mockResolvedValue(false);
       const failProcess = createMockProcess('', '', 1, new Error('ENOENT'));
       mockSpawn.mockReturnValue(failProcess);
 
       const { ToolchainManager } = await import('../toolchainManager');
       const _manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
       expect(mockStatusBarItem.text).toContain('Protobuf');
       expect(mockStatusBarItem.show).toHaveBeenCalled();
     });
 
-    it('should not show warning for "missing" optional tools', async () => {
-      // Even if tools are not detected, no warning should appear
-      // because tools are optional
-      mockFsExistsSync.mockReturnValue(false);
+    it('should show warning when no tools detected', async () => {
+      // When no tools are detected, show warning to help user install them
+      mockFileExists.mockResolvedValue(false);
       const failProcess = createMockProcess('', '', 1, new Error('ENOENT'));
       mockSpawn.mockReturnValue(failProcess);
 
       const { ToolchainManager } = await import('../toolchainManager');
       const _manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
-      // Should NOT have warning background - tools are optional
-      expect(mockStatusBarItem.backgroundColor).toBeUndefined();
+      // Should have warning background when no tools detected
+      expect(mockStatusBarItem.backgroundColor).toBeDefined();
+      expect(mockStatusBarItem.show).toHaveBeenCalled();
     });
   });
 
   describe('Manage Toolchain Menu', () => {
     it('should show "Install" option for each tool when not detected', async () => {
       const vscode = await import('vscode');
-      mockFsExistsSync.mockReturnValue(false);
+      mockFileExists.mockResolvedValue(false);
       const failProcess = createMockProcess('', '', 1, new Error('ENOENT'));
       mockSpawn.mockReturnValue(failProcess);
 
       const { ToolchainManager } = await import('../toolchainManager');
       const manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await flushPromisesAndTimers();
 
       // Simulate menu open
       (vscode.window.showQuickPick as jest.Mock).mockResolvedValue(null);
@@ -309,12 +348,8 @@ describe('ToolchainManager', () => {
       const items = quickPickCall[0];
 
       // Should have install option for each undetected tool
-      const hasInstallProtoc = items.some((item: { label?: string }) =>
-        item.label?.includes('Install protoc')
-      );
-      const hasInstallBuf = items.some((item: { label?: string }) =>
-        item.label?.includes('Install buf')
-      );
+      const hasInstallProtoc = items.some((item: { label?: string }) => item.label?.includes('Install protoc'));
+      const hasInstallBuf = items.some((item: { label?: string }) => item.label?.includes('Install buf'));
       expect(hasInstallProtoc).toBe(true);
       expect(hasInstallBuf).toBe(true);
     });
@@ -324,7 +359,7 @@ describe('ToolchainManager', () => {
       const homebrewProtocPath = path.join(getHomebrewBin(), 'protoc');
       const homebrewBufPath = path.join(getHomebrewBin(), 'buf');
 
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         if (p === homebrewProtocPath) {
           return true;
         }
@@ -340,7 +375,7 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
       (vscode.window.showQuickPick as jest.Mock).mockResolvedValue(null);
       await manager.manageToolchain();
@@ -349,12 +384,8 @@ describe('ToolchainManager', () => {
       const items = quickPickCall[0];
 
       // Should NOT have install options when tools are detected
-      const hasInstallProtoc = items.some((item: { label?: string }) =>
-        item.label?.includes('Install protoc')
-      );
-      const hasInstallBuf = items.some((item: { label?: string }) =>
-        item.label?.includes('Install buf')
-      );
+      const hasInstallProtoc = items.some((item: { label?: string }) => item.label?.includes('Install protoc'));
+      const hasInstallBuf = items.some((item: { label?: string }) => item.label?.includes('Install buf'));
       expect(hasInstallProtoc).toBe(false);
       expect(hasInstallBuf).toBe(false);
     });
@@ -366,7 +397,7 @@ describe('ToolchainManager', () => {
       const homebrewBufPath = path.join(getHomebrewBin(), 'buf');
 
       // System tools exist AND managed tools exist
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         // Managed tools exist
         if (p === path.join(managedPath, 'protoc')) {
           return true;
@@ -394,7 +425,7 @@ describe('ToolchainManager', () => {
 
       const manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
       (vscode.window.showQuickPick as jest.Mock).mockResolvedValue(null);
       await manager.manageToolchain();
@@ -412,7 +443,7 @@ describe('ToolchainManager', () => {
       const vscode = await import('vscode');
       const managedPath = path.join(getTestGlobalStorage(), 'bin');
 
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         // Only managed tools exist
         if (p === path.join(managedPath, getExeName('protoc'))) {
           return true;
@@ -432,7 +463,7 @@ describe('ToolchainManager', () => {
       const { ToolchainManager } = await import('../toolchainManager');
       const manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await flushPromisesAndTimers();
 
       (vscode.window.showQuickPick as jest.Mock).mockResolvedValue(null);
       await manager.manageToolchain();
@@ -441,12 +472,8 @@ describe('ToolchainManager', () => {
       const items = quickPickCall[0];
 
       // Should show individual "Use system X" options for managed tools
-      const hasUseSystemProtoc = items.some((item: { label?: string }) =>
-        item.label?.includes('Use system protoc')
-      );
-      const hasUseSystemBuf = items.some((item: { label?: string }) =>
-        item.label?.includes('Use system buf')
-      );
+      const hasUseSystemProtoc = items.some((item: { label?: string }) => item.label?.includes('Use system protoc'));
+      const hasUseSystemBuf = items.some((item: { label?: string }) => item.label?.includes('Use system buf'));
       // At least one should be true (depending on which tools are detected as managed)
       expect(hasUseSystemProtoc || hasUseSystemBuf).toBe(true);
     });
@@ -454,14 +481,14 @@ describe('ToolchainManager', () => {
     it('should always show "Re-detect Tools" option', async () => {
       const vscode = await import('vscode');
 
-      mockFsExistsSync.mockReturnValue(false);
+      mockFileExists.mockResolvedValue(false);
       const failProcess = createMockProcess('', '', 1, new Error('ENOENT'));
       mockSpawn.mockReturnValue(failProcess);
 
       const { ToolchainManager } = await import('../toolchainManager');
       const manager = new ToolchainManager(mockContext as any, mockOutputChannel as any);
 
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await flushPromisesAndTimers();
 
       (vscode.window.showQuickPick as jest.Mock).mockResolvedValue(null);
       await manager.manageToolchain();
@@ -469,9 +496,7 @@ describe('ToolchainManager', () => {
       const quickPickCall = (vscode.window.showQuickPick as jest.Mock).mock.calls[0];
       const items = quickPickCall[0];
 
-      const hasRedetect = items.some((item: { label?: string }) =>
-        item.label?.includes('Re-detect')
-      );
+      const hasRedetect = items.some((item: { label?: string }) => item.label?.includes('Re-detect'));
       expect(hasRedetect).toBe(true);
     });
   });
@@ -481,7 +506,7 @@ describe('ToolchainManager', () => {
       const _vscode = await import('vscode');
       const https = await import('https');
 
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         if (p.includes('global-storage/bin')) {
           return true;
         }
@@ -512,12 +537,7 @@ describe('ToolchainManager', () => {
 /**
  * Helper to create a mock child process
  */
-function createMockProcess(
-  stdout: string,
-  stderr: string,
-  exitCode: number,
-  error?: Error
-) {
+function createMockProcess(stdout: string, stderr: string, exitCode: number, error?: Error) {
   const stdoutHandlers: Record<string, ((data: Buffer) => void)[]> = {};
   const stderrHandlers: Record<string, ((data: Buffer) => void)[]> = {};
   const procHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};

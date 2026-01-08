@@ -170,7 +170,7 @@ export function createRange(
 ): { start: { line: number; character: number }; end: { line: number; character: number } } {
   return {
     start: { line: startLine, character: startChar },
-    end: { line: endLine, character: endChar }
+    end: { line: endLine, character: endChar },
   };
 }
 

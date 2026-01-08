@@ -1,0 +1,9 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Protocol Buffers inspired icon - message/schema blocks -->
+  <path d="M4 4h16v4H4V4z" fill="currentColor" opacity="0.9"/>
+  <path d="M4 10h12v4H4v-4z" fill="currentColor" opacity="0.7"/>
+  <path d="M4 16h14v4H4v-4z" fill="currentColor" opacity="0.5"/>
+  <!-- Connection dots suggesting data flow -->
+  <circle cx="20" cy="12" r="1.5" fill="currentColor"/>
+  <circle cx="20" cy="18" r="1.5" fill="currentColor"/>
+</svg>

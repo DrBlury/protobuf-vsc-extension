@@ -3,10 +3,7 @@
  * Handles code lens requests
  */
 
-import type {
-  CodeLensParams,
-  CodeLens
-} from 'vscode-languageserver/node';
+import type { CodeLensParams, CodeLens } from 'vscode-languageserver/node';
 
 import type { TextDocuments } from 'vscode-languageserver/node';
 import type { TextDocument } from 'vscode-languageserver-textdocument';

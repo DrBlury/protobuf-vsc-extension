@@ -100,10 +100,7 @@ function needsShellExecution(commandPath: string): boolean {
 }
 
 function validateShellArgument(arg: string): boolean {
-  const invalidPatterns = [
-    /\0/,
-    /\r?\n/,
-  ];
+  const invalidPatterns = [/\0/, /\r?\n/];
 
   return !invalidPatterns.some(pattern => pattern.test(arg));
 }
@@ -193,7 +190,7 @@ const DEFAULT_SETTINGS: ProtocSettings = {
   compileAllPath: '',
   useAbsolutePath: false,
   options: [],
-  excludePatterns: []
+  excludePatterns: [],
 };
 
 export class ProtocCompiler {
@@ -243,7 +240,7 @@ export class ProtocCompiler {
    * Auto-detects script-based protoc (by extension or shebang) and uses shell execution for them.
    */
   async isAvailable(): Promise<boolean> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       // Check if this protoc is a script that needs shell execution
       const useShell = needsShellExecution(this.settings.path);
 
@@ -254,8 +251,11 @@ export class ProtocCompiler {
       });
 
       proc.on('error', () => {
-        // If we didn't use shell, fallback to shell (needed for some PATH configurations)
-        if (!useShell) {
+        // If we didn't use shell and path is a simple command name,
+        // fallback to shell (needed for some PATH configurations)
+        // Don't use shell fallback for full paths as they may contain spaces
+        const isSimpleCommand = !this.settings.path.includes(path.sep) && !this.settings.path.includes('/');
+        if (!useShell && isSimpleCommand) {
           const procWithShell = spawn(this.settings.path, ['--version'], { shell: true });
           procWithShell.on('close', (code: number | null) => resolve(code === 0));
           procWithShell.on('error', () => resolve(false));
@@ -286,7 +286,7 @@ export class ProtocCompiler {
     this.versionCache = {
       version,
       timestamp: Date.now(),
-      path: this.settings.path
+      path: this.settings.path,
     };
 
     return version;
@@ -297,7 +297,7 @@ export class ProtocCompiler {
    * Auto-detects script-based protoc and uses shell execution for them.
    */
   private async fetchVersion(): Promise<string | null> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       // Check if this protoc is a script that needs shell execution
       const useShell = needsShellExecution(this.settings.path);
 
@@ -305,7 +305,7 @@ export class ProtocCompiler {
 
       let output = '';
       proc.stdout?.on('data', (data: Buffer) => {
-        output += data.toString();
+        output += data.toString('utf8');
       });
 
       proc.on('close', (code: number | null) => {
@@ -318,12 +318,14 @@ export class ProtocCompiler {
       });
 
       proc.on('error', () => {
-        // If we didn't use shell, fallback with shell
-        if (!useShell) {
+        // If we didn't use shell and path is a simple command name, fallback with shell
+        // Don't use shell fallback for full paths as they may contain spaces
+        const isSimpleCommand = !this.settings.path.includes(path.sep) && !this.settings.path.includes('/');
+        if (!useShell && isSimpleCommand) {
           const procWithShell = spawn(this.settings.path, ['--version'], { shell: true });
           let shellOutput = '';
           procWithShell.stdout?.on('data', (data: Buffer) => {
-            shellOutput += data.toString();
+            shellOutput += data.toString('utf8');
           });
           procWithShell.on('close', (code: number | null) => {
             if (code === 0) {
@@ -353,13 +355,15 @@ export class ProtocCompiler {
         success: false,
         stdout: '',
         stderr: 'File path is required',
-        errors: [{
-          file: '',
-          line: 0,
-          column: 0,
-          message: 'File path is required',
-          severity: 'error'
-        }]
+        errors: [
+          {
+            file: '',
+            line: 0,
+            column: 0,
+            message: 'File path is required',
+            severity: 'error',
+          },
+        ],
       };
     }
 
@@ -368,13 +372,15 @@ export class ProtocCompiler {
         success: false,
         stdout: '',
         stderr: `File must have .proto extension: ${filePath}`,
-        errors: [{
-          file: filePath,
-          line: 0,
-          column: 0,
-          message: 'File must have .proto extension',
-          severity: 'error'
-        }]
+        errors: [
+          {
+            file: filePath,
+            line: 0,
+            column: 0,
+            message: 'File must have .proto extension',
+            severity: 'error',
+          },
+        ],
       };
     }
 
@@ -410,7 +416,7 @@ export class ProtocCompiler {
         stdout: 'No .proto files found',
         stderr: '',
         errors: [],
-        fileCount: 0
+        fileCount: 0,
       };
     }
 
@@ -610,13 +616,15 @@ export class ProtocCompiler {
     try {
       // Write arguments to the response file, one per line
       // Arguments with spaces need to be quoted
-      const responseContent = args.map(arg => {
-        if (arg.includes(' ') || arg.includes('"')) {
-          // Escape any existing quotes and wrap in quotes
-          return `"${arg.replace(/"/g, '\\"')}"`;
-        }
-        return arg;
-      }).join('\n');
+      const responseContent = args
+        .map(arg => {
+          if (arg.includes(' ') || arg.includes('"')) {
+            // Escape any existing quotes and wrap in quotes
+            return `"${arg.replace(/"/g, '\\"')}"`;
+          }
+          return arg;
+        })
+        .join('\n');
 
       fs.writeFileSync(responseFilePath, responseContent, 'utf-8');
 
@@ -625,9 +633,7 @@ export class ProtocCompiler {
 
       // Run protoc with the response file
       // Quote the response file path if it contains spaces
-      const responseFileArg = responseFilePath.includes(' ')
-        ? `@"${responseFilePath}"`
-        : `@${responseFilePath}`;
+      const responseFileArg = responseFilePath.includes(' ') ? `@"${responseFilePath}"` : `@${responseFilePath}`;
       const result = await this.runProtoc([responseFileArg], cwd);
 
       return result;
@@ -840,7 +846,7 @@ export class ProtocCompiler {
       return this.runProtocWithResponseFile(args, cwd);
     }
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       // Resolve the command path - avoid shell: true to bypass command line length limits
       // shell: true on Windows uses cmd.exe which has an 8191 char limit
       const command = this.resolveCommand(this.settings.path);
@@ -851,7 +857,7 @@ export class ProtocCompiler {
         // This requires the command to be a direct path to an executable
         shell: false,
         // On Windows, we need to handle .cmd/.bat files specially
-        windowsVerbatimArguments: IS_WINDOWS
+        windowsVerbatimArguments: IS_WINDOWS,
       };
 
       const proc = spawn(command, args, options);
@@ -884,7 +890,7 @@ export class ProtocCompiler {
 
       proc.stdout?.on('data', (data: Buffer) => {
         if (stdout.length < MAX_OUTPUT_BUFFER) {
-          stdout += data.toString();
+          stdout += data.toString('utf8');
           if (stdout.length >= MAX_OUTPUT_BUFFER) {
             stdoutTruncated = true;
             stdout = stdout.slice(0, MAX_OUTPUT_BUFFER);
@@ -894,7 +900,7 @@ export class ProtocCompiler {
 
       proc.stderr?.on('data', (data: Buffer) => {
         if (stderr.length < MAX_OUTPUT_BUFFER) {
-          stderr += data.toString();
+          stderr += data.toString('utf8');
           if (stderr.length >= MAX_OUTPUT_BUFFER) {
             stderrTruncated = true;
             stderr = stderr.slice(0, MAX_OUTPUT_BUFFER);
@@ -919,15 +925,17 @@ export class ProtocCompiler {
             success: false,
             stdout,
             stderr: stderr + `\nProcess timed out after ${timeout}ms`,
-            errors: [{
-              file: '',
-              line: 0,
-              column: 0,
-              message: `Protoc timed out after ${timeout}ms. Consider increasing timeout or checking for issues.`,
-              severity: 'error'
-            }],
+            errors: [
+              {
+                file: '',
+                line: 0,
+                column: 0,
+                message: `Protoc timed out after ${timeout}ms. Consider increasing timeout or checking for issues.`,
+                severity: 'error',
+              },
+            ],
             timedOut: true,
-            executionTime
+            executionTime,
           });
           return;
         }
@@ -941,7 +949,7 @@ export class ProtocCompiler {
             line: 0,
             column: 0,
             message: `Output was truncated (exceeded ${MAX_OUTPUT_BUFFER / 1024 / 1024}MB limit)`,
-            severity: 'warning'
+            severity: 'warning',
           });
         }
 
@@ -950,7 +958,7 @@ export class ProtocCompiler {
           stdout,
           stderr,
           errors,
-          executionTime
+          executionTime,
         });
       });
 
@@ -968,14 +976,16 @@ export class ProtocCompiler {
           success: false,
           stdout: '',
           stderr: err.message,
-          errors: [{
-            file: '',
-            line: 0,
-            column: 0,
-            message: `Failed to run protoc: ${err.message}`,
-            severity: 'error'
-          }],
-          executionTime: Date.now() - startTime
+          errors: [
+            {
+              file: '',
+              line: 0,
+              column: 0,
+              message: `Failed to run protoc: ${err.message}`,
+              severity: 'error',
+            },
+          ],
+          executionTime: Date.now() - startTime,
         });
       });
     });
@@ -1052,7 +1062,7 @@ export class ProtocCompiler {
           line: parseInt(lineStr!, 10),
           column: colStr ? parseInt(colStr, 10) : 1,
           message: message!.trim(),
-          severity: message!.toLowerCase().includes('warning') ? 'warning' : 'error'
+          severity: message!.toLowerCase().includes('warning') ? 'warning' : 'error',
         });
       }
     }
@@ -1066,7 +1076,7 @@ export class ProtocCompiler {
           line: 0,
           column: 0,
           message: `💡 Tip: ${suggestion}`,
-          severity: 'warning'
+          severity: 'warning',
         });
       }
     }
@@ -1140,10 +1150,12 @@ export class ProtocCompiler {
         // Normalize pattern separators
         const normalizedPattern = pattern.split(/[/\\]/).join('/');
         // Check if path starts with or contains the pattern as a path prefix
-        if (relativePath.startsWith(normalizedPattern + '/') ||
-            relativePath === normalizedPattern ||
-            relativePath.includes('/' + normalizedPattern + '/') ||
-            relativePath.includes('/' + normalizedPattern)) {
+        if (
+          relativePath.startsWith(normalizedPattern + '/') ||
+          relativePath === normalizedPattern ||
+          relativePath.includes('/' + normalizedPattern + '/') ||
+          relativePath.includes('/' + normalizedPattern)
+        ) {
           return true;
         }
       }
@@ -1165,10 +1177,10 @@ export class ProtocCompiler {
     // Convert glob pattern to regex
     let regexPattern = pattern
       .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape special regex chars (except * and ?)
-      .replace(/\*\*/g, '{{GLOBSTAR}}')      // Temporarily replace **
-      .replace(/\*/g, '[^/]*')                // * matches anything except /
-      .replace(/\?/g, '.')                    // ? matches single char
-      .replace(/\{\{GLOBSTAR\}\}/g, '.*');   // ** matches anything including /
+      .replace(/\*\*/g, '{{GLOBSTAR}}') // Temporarily replace **
+      .replace(/\*/g, '[^/]*') // * matches anything except /
+      .replace(/\?/g, '.') // ? matches single char
+      .replace(/\{\{GLOBSTAR\}\}/g, '.*'); // ** matches anything including /
 
     try {
       const regex = new RegExp(`^${regexPattern}$`, 'i');

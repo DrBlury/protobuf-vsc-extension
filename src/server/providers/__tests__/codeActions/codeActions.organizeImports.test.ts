@@ -37,7 +37,7 @@ message Test {}`;
 
       // Enable grouping (default)
       codeActionsProvider.updateSettings({
-        organizeImports: { groupByCategory: true }
+        organizeImports: { groupByCategory: true },
       });
 
       const actions = codeActionsProvider.getCodeActions(
@@ -79,7 +79,7 @@ message Test {}`;
       const range: Range = { start: { line: 0, character: 0 }, end: { line: 10, character: 0 } };
 
       codeActionsProvider.updateSettings({
-        organizeImports: { groupByCategory: true }
+        organizeImports: { groupByCategory: true },
       });
 
       const actions = codeActionsProvider.getCodeActions(
@@ -120,7 +120,7 @@ message Test {}`;
 
       // Disable grouping
       codeActionsProvider.updateSettings({
-        organizeImports: { groupByCategory: false }
+        organizeImports: { groupByCategory: false },
       });
 
       const actions = codeActionsProvider.getCodeActions(
@@ -156,7 +156,7 @@ message Test {}`;
       const range: Range = { start: { line: 0, character: 0 }, end: { line: 10, character: 0 } };
 
       codeActionsProvider.updateSettings({
-        organizeImports: { groupByCategory: true }
+        organizeImports: { groupByCategory: true },
       });
 
       const actions = codeActionsProvider.getCodeActions(
@@ -200,7 +200,7 @@ message Test {}`;
       const range: Range = { start: { line: 0, character: 0 }, end: { line: 10, character: 0 } };
 
       codeActionsProvider.updateSettings({
-        organizeImports: { groupByCategory: true }
+        organizeImports: { groupByCategory: true },
       });
 
       const actions = codeActionsProvider.getCodeActions(
@@ -244,7 +244,7 @@ message Test {}`;
       const range: Range = { start: { line: 0, character: 0 }, end: { line: 15, character: 0 } };
 
       codeActionsProvider.updateSettings({
-        organizeImports: { groupByCategory: true }
+        organizeImports: { groupByCategory: true },
       });
 
       const actions = codeActionsProvider.getCodeActions(
@@ -256,9 +256,8 @@ message Test {}`;
 
       // When imports are already organized, createOrganizeImportsAction returns null
       // so there should be no organize action (or it should be empty)
-      const organizeAction = actions.find(a =>
-        a.kind === CodeActionKind.SourceOrganizeImports &&
-        a.title?.includes('Organize imports')
+      const organizeAction = actions.find(
+        a => a.kind === CodeActionKind.SourceOrganizeImports && a.title?.includes('Organize imports')
       );
 
       // The action may exist but with the "Add missing imports" title if no changes needed
@@ -279,7 +278,7 @@ message Test {}`;
       const range: Range = { start: { line: 0, character: 0 }, end: { line: 10, character: 0 } };
 
       codeActionsProvider.updateSettings({
-        organizeImports: { groupByCategory: true }
+        organizeImports: { groupByCategory: true },
       });
 
       const actions = codeActionsProvider.getCodeActions(

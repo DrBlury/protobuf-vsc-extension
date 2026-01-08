@@ -24,7 +24,7 @@ message ExampleMessage {
   string name = 2;
   int32 count = 3;
 }
-`
+`,
       },
       {
         name: 'Service with RPCs',
@@ -47,7 +47,7 @@ service ExampleService {
   rpc Create(CreateRequest) returns (CreateResponse);
   rpc Get(google.protobuf.Empty) returns (CreateResponse);
 }
-`
+`,
       },
       {
         name: 'Enum',
@@ -62,7 +62,7 @@ enum Status {
   STATUS_INACTIVE = 2;
   STATUS_DELETED = 3;
 }
-`
+`,
       },
       {
         name: 'Message with Nested Types',
@@ -84,7 +84,7 @@ message OuterMessage {
   InnerMessage inner = 1;
   InnerEnum status = 2;
 }
-`
+`,
       },
       {
         name: 'Message with Map',
@@ -97,7 +97,7 @@ message ExampleMessage {
   map<string, string> metadata = 1;
   map<int32, string> tags = 2;
 }
-`
+`,
       },
       {
         name: 'Oneof Field',
@@ -113,7 +113,7 @@ message ExampleMessage {
     bool bool_value = 3;
   }
 }
-`
+`,
       },
       {
         name: 'With Options',
@@ -130,8 +130,8 @@ message ExampleMessage {
   string id = 1;
   string name = 2;
 }
-`
-      }
+`,
+      },
     ];
   }
 

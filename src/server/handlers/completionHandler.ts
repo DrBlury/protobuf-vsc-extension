@@ -3,10 +3,7 @@
  * Handles LSP completion requests
  */
 
-import type {
-  CompletionItem,
-  TextDocumentPositionParams
-} from 'vscode-languageserver/node';
+import type { CompletionItem, TextDocumentPositionParams } from 'vscode-languageserver/node';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { TextDocuments } from 'vscode-languageserver/node';
 import type { CompletionProvider } from '../providers/completion';
@@ -33,11 +30,5 @@ export function handleCompletion(
   const lines = documentText.split('\n');
   const lineText = lines[params.position.line] || '';
 
-  return completionProvider.getCompletions(
-    params.textDocument.uri,
-    params.position,
-    lineText,
-    undefined,
-    documentText
-  );
+  return completionProvider.getCompletions(params.textDocument.uri, params.position, lineText, undefined, documentText);
 }

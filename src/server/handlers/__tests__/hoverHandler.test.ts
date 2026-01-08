@@ -14,17 +14,17 @@ describe('HoverHandler', () => {
 
   beforeEach(() => {
     documents = {
-      get: jest.fn()
+      get: jest.fn(),
     } as any;
     hoverProvider = {
-      getHover: jest.fn()
+      getHover: jest.fn(),
     } as any;
   });
 
   it('should return null when document not found', () => {
     const params: HoverParams = {
       textDocument: { uri: 'file:///nonexistent.proto' },
-      position: { line: 0, character: 0 }
+      position: { line: 0, character: 0 },
     };
 
     documents.get.mockReturnValue(undefined);
@@ -42,18 +42,14 @@ describe('HoverHandler', () => {
 
     const params: HoverParams = {
       textDocument: { uri },
-      position: { line: 1, character: 10 }
+      position: { line: 1, character: 10 },
     };
 
     hoverProvider.getHover.mockReturnValue(null);
 
     handleHover(params, documents, hoverProvider);
 
-    expect(hoverProvider.getHover).toHaveBeenCalledWith(
-      uri,
-      params.position,
-      'message Test {}'
-    );
+    expect(hoverProvider.getHover).toHaveBeenCalledWith(uri, params.position, 'message Test {}');
   });
 
   it('should handle empty line', () => {
@@ -64,18 +60,14 @@ describe('HoverHandler', () => {
 
     const params: HoverParams = {
       textDocument: { uri },
-      position: { line: 1, character: 0 }
+      position: { line: 1, character: 0 },
     };
 
     hoverProvider.getHover.mockReturnValue(null);
 
     handleHover(params, documents, hoverProvider);
 
-    expect(hoverProvider.getHover).toHaveBeenCalledWith(
-      uri,
-      params.position,
-      ''
-    );
+    expect(hoverProvider.getHover).toHaveBeenCalledWith(uri, params.position, '');
   });
 
   it('should handle position beyond document lines', () => {
@@ -86,18 +78,14 @@ describe('HoverHandler', () => {
 
     const params: HoverParams = {
       textDocument: { uri },
-      position: { line: 10, character: 0 }
+      position: { line: 10, character: 0 },
     };
 
     hoverProvider.getHover.mockReturnValue(null);
 
     handleHover(params, documents, hoverProvider);
 
-    expect(hoverProvider.getHover).toHaveBeenCalledWith(
-      uri,
-      params.position,
-      ''
-    );
+    expect(hoverProvider.getHover).toHaveBeenCalledWith(uri, params.position, '');
   });
 
   it('should return hover information from provider', () => {
@@ -108,11 +96,11 @@ describe('HoverHandler', () => {
 
     const params: HoverParams = {
       textDocument: { uri },
-      position: { line: 0, character: 0 }
+      position: { line: 0, character: 0 },
     };
 
     const hover = {
-      contents: { value: 'Hover information' }
+      contents: { value: 'Hover information' },
     };
 
     hoverProvider.getHover.mockReturnValue(hover as any);

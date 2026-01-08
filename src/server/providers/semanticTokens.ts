@@ -3,12 +3,8 @@
  * Provides context-aware syntax highlighting using Tree-sitter AST
  */
 
-import type {
-  SemanticTokensLegend} from 'vscode-languageserver/node';
-import {
-  SemanticTokenTypes,
-  SemanticTokenModifiers
-} from 'vscode-languageserver/node';
+import type { SemanticTokensLegend } from 'vscode-languageserver/node';
+import { SemanticTokenTypes, SemanticTokenModifiers } from 'vscode-languageserver/node';
 
 import { SemanticTokensBuilder } from 'vscode-languageserver/node';
 
@@ -23,7 +19,7 @@ import type {
   EnumValue,
   RpcDefinition,
   OptionStatement,
-  Range as AstRange
+  Range as AstRange,
 } from '../core/ast';
 import type { SemanticAnalyzer } from '../core/analyzer';
 
@@ -31,32 +27,32 @@ import type { SemanticAnalyzer } from '../core/analyzer';
  * Token types for Protocol Buffers semantic tokens
  */
 export const tokenTypes: string[] = [
-  SemanticTokenTypes.namespace,   // 0: package
-  SemanticTokenTypes.type,        // 1: message type references
-  SemanticTokenTypes.class,       // 2: message definitions
-  SemanticTokenTypes.enum,        // 3: enum definitions
-  SemanticTokenTypes.interface,   // 4: service definitions
-  SemanticTokenTypes.property,    // 5: field names
-  SemanticTokenTypes.enumMember,  // 6: enum values
-  SemanticTokenTypes.method,      // 7: rpc methods
-  SemanticTokenTypes.keyword,     // 8: keywords (message, enum, service, etc.)
-  SemanticTokenTypes.string,      // 9: string literals
-  SemanticTokenTypes.number,      // 10: numeric literals
-  SemanticTokenTypes.comment,     // 11: comments
-  SemanticTokenTypes.modifier,    // 12: modifiers (optional, repeated, required)
-  SemanticTokenTypes.decorator,   // 13: options/annotations
-  SemanticTokenTypes.parameter,   // 14: rpc parameters
-  SemanticTokenTypes.variable,    // 15: oneof names
+  SemanticTokenTypes.namespace, // 0: package
+  SemanticTokenTypes.type, // 1: message type references
+  SemanticTokenTypes.class, // 2: message definitions
+  SemanticTokenTypes.enum, // 3: enum definitions
+  SemanticTokenTypes.interface, // 4: service definitions
+  SemanticTokenTypes.property, // 5: field names
+  SemanticTokenTypes.enumMember, // 6: enum values
+  SemanticTokenTypes.method, // 7: rpc methods
+  SemanticTokenTypes.keyword, // 8: keywords (message, enum, service, etc.)
+  SemanticTokenTypes.string, // 9: string literals
+  SemanticTokenTypes.number, // 10: numeric literals
+  SemanticTokenTypes.comment, // 11: comments
+  SemanticTokenTypes.modifier, // 12: modifiers (optional, repeated, required)
+  SemanticTokenTypes.decorator, // 13: options/annotations
+  SemanticTokenTypes.parameter, // 14: rpc parameters
+  SemanticTokenTypes.variable, // 15: oneof names
 ];
 
 /**
  * Token modifiers for Protocol Buffers semantic tokens
  */
 export const tokenModifiers: string[] = [
-  SemanticTokenModifiers.declaration,    // 0: declaration
-  SemanticTokenModifiers.definition,     // 1: definition
-  SemanticTokenModifiers.deprecated,     // 2: deprecated
-  SemanticTokenModifiers.readonly,       // 3: readonly (for field numbers)
+  SemanticTokenModifiers.declaration, // 0: declaration
+  SemanticTokenModifiers.definition, // 1: definition
+  SemanticTokenModifiers.deprecated, // 2: deprecated
+  SemanticTokenModifiers.readonly, // 3: readonly (for field numbers)
   SemanticTokenModifiers.defaultLibrary, // 4: well-known types
 ];
 
@@ -65,7 +61,7 @@ export const tokenModifiers: string[] = [
  */
 export const semanticTokensLegend: SemanticTokensLegend = {
   tokenTypes,
-  tokenModifiers
+  tokenModifiers,
 };
 
 // Token type indices
@@ -127,19 +123,53 @@ const WELL_KNOWN_TYPES = new Set([
 
 // Simple well-known type names (without package)
 const SIMPLE_WELL_KNOWN_TYPES = new Set([
-  'Any', 'Api', 'BoolValue', 'BytesValue', 'DoubleValue',
-  'Duration', 'Empty', 'Enum', 'EnumValue', 'Field',
-  'FieldMask', 'FloatValue', 'Int32Value', 'Int64Value',
-  'ListValue', 'Method', 'Mixin', 'NullValue', 'Option',
-  'SourceContext', 'StringValue', 'Struct', 'Syntax',
-  'Timestamp', 'Type', 'UInt32Value', 'UInt64Value', 'Value'
+  'Any',
+  'Api',
+  'BoolValue',
+  'BytesValue',
+  'DoubleValue',
+  'Duration',
+  'Empty',
+  'Enum',
+  'EnumValue',
+  'Field',
+  'FieldMask',
+  'FloatValue',
+  'Int32Value',
+  'Int64Value',
+  'ListValue',
+  'Method',
+  'Mixin',
+  'NullValue',
+  'Option',
+  'SourceContext',
+  'StringValue',
+  'Struct',
+  'Syntax',
+  'Timestamp',
+  'Type',
+  'UInt32Value',
+  'UInt64Value',
+  'Value',
 ]);
 
 // Scalar types
 const SCALAR_TYPES = new Set([
-  'double', 'float', 'int32', 'int64', 'uint32', 'uint64',
-  'sint32', 'sint64', 'fixed32', 'fixed64', 'sfixed32', 'sfixed64',
-  'bool', 'string', 'bytes'
+  'double',
+  'float',
+  'int32',
+  'int64',
+  'uint32',
+  'uint64',
+  'sint32',
+  'sint64',
+  'fixed32',
+  'fixed64',
+  'sfixed32',
+  'sfixed64',
+  'bool',
+  'string',
+  'bytes',
 ]);
 
 export type SemanticHighlightingMode = 'hybrid' | 'semantic';
@@ -198,7 +228,8 @@ export class SemanticTokensProvider {
       if (line) {
         const nameStart = this.findPackageNameStart(line, file.package.name);
         if (nameStart >= 0) {
-          this.pushToken(builder,
+          this.pushToken(
+            builder,
             file.package.range.start.line,
             nameStart,
             file.package.name.length,
@@ -256,9 +287,11 @@ export class SemanticTokensProvider {
 
     // Message name
     const messageKeywordIdx = line.indexOf('message');
-    const nameStart = messageKeywordIdx >= 0 ? line.indexOf(message.name, messageKeywordIdx + 7) : line.indexOf(message.name);
+    const nameStart =
+      messageKeywordIdx >= 0 ? line.indexOf(message.name, messageKeywordIdx + 7) : line.indexOf(message.name);
     if (nameStart >= 0) {
-      this.pushToken(builder,
+      this.pushToken(
+        builder,
         message.range.start.line,
         nameStart,
         message.name.length,
@@ -330,27 +363,15 @@ export class SemanticTokensProvider {
       const isWellKnown = WELL_KNOWN_TYPES.has(typeName) || SIMPLE_WELL_KNOWN_TYPES.has(typeName);
       const typeStart = this.findTypeStart(line, typeName, lineStart);
       if (typeStart >= 0) {
-        const modifiers = (isScalar || isWellKnown) ? MOD_DEFAULT_LIBRARY : 0;
-        this.pushToken(builder,
-          field.range.start.line,
-          typeStart,
-          typeName.length,
-          TOKEN_TYPE,
-          modifiers
-        );
+        const modifiers = isScalar || isWellKnown ? MOD_DEFAULT_LIBRARY : 0;
+        this.pushToken(builder, field.range.start.line, typeStart, typeName.length, TOKEN_TYPE, modifiers);
       }
     }
 
     // Field name
     const nameStart = this.findFieldNameStart(line, field.name, field.fieldType, lineStart);
     if (nameStart >= 0) {
-      this.pushToken(builder,
-        field.range.start.line,
-        nameStart,
-        field.name.length,
-        TOKEN_PROPERTY,
-        MOD_DECLARATION
-      );
+      this.pushToken(builder, field.range.start.line, nameStart, field.name.length, TOKEN_PROPERTY, MOD_DECLARATION);
     }
 
     // Field number
@@ -360,13 +381,7 @@ export class SemanticTokensProvider {
       const equalsIdx = line.indexOf('=', nameStart >= 0 ? nameStart + field.name.length : lineStart);
       const numStart = equalsIdx >= 0 ? line.indexOf(numStr, equalsIdx + 1) : -1;
       if (numStart >= 0) {
-        this.pushToken(builder,
-          field.range.start.line,
-          numStart,
-          numStr.length,
-          TOKEN_NUMBER,
-          MOD_READONLY
-        );
+        this.pushToken(builder, field.range.start.line, numStart, numStr.length, TOKEN_NUMBER, MOD_READONLY);
       }
     }
   }
@@ -391,7 +406,8 @@ export class SemanticTokensProvider {
       const bracketIdx = line.indexOf('<', lineStart);
       const keyStart = bracketIdx >= 0 ? line.indexOf(keyType, bracketIdx + 1) : -1;
       if (keyStart >= 0) {
-        this.pushToken(builder,
+        this.pushToken(
+          builder,
           mapField.range.start.line,
           keyStart,
           keyType.length,
@@ -409,12 +425,13 @@ export class SemanticTokensProvider {
       const valueStart = commaIdx >= 0 ? line.indexOf(valueType, commaIdx + 1) : -1;
       if (valueStart >= 0) {
         const isWellKnown = WELL_KNOWN_TYPES.has(valueType) || SIMPLE_WELL_KNOWN_TYPES.has(valueType);
-        this.pushToken(builder,
+        this.pushToken(
+          builder,
           mapField.range.start.line,
           valueStart,
           valueType.length,
           TOKEN_TYPE,
-          (isScalar || isWellKnown) ? MOD_DEFAULT_LIBRARY : 0
+          isScalar || isWellKnown ? MOD_DEFAULT_LIBRARY : 0
         );
       }
     }
@@ -423,7 +440,8 @@ export class SemanticTokensProvider {
     const bracketCloseIdx = line.indexOf('>', lineStart);
     const nameStart = bracketCloseIdx >= 0 ? line.indexOf(mapField.name, bracketCloseIdx + 1) : -1;
     if (nameStart >= 0) {
-      this.pushToken(builder,
+      this.pushToken(
+        builder,
         mapField.range.start.line,
         nameStart,
         mapField.name.length,
@@ -439,13 +457,7 @@ export class SemanticTokensProvider {
       const equalsIdx = line.indexOf('=', nameStart >= 0 ? nameStart + mapField.name.length : lineStart);
       const numStart = equalsIdx >= 0 ? line.indexOf(numStr, equalsIdx + 1) : -1;
       if (numStart >= 0) {
-        this.pushToken(builder,
-          mapField.range.start.line,
-          numStart,
-          numStr.length,
-          TOKEN_NUMBER,
-          MOD_READONLY
-        );
+        this.pushToken(builder, mapField.range.start.line, numStart, numStr.length, TOKEN_NUMBER, MOD_READONLY);
       }
     }
   }
@@ -467,13 +479,7 @@ export class SemanticTokensProvider {
     const oneofKeywordIdx = line.indexOf('oneof', lineStart);
     const nameStart = oneofKeywordIdx >= 0 ? line.indexOf(oneof.name, oneofKeywordIdx + 5) : -1;
     if (nameStart >= 0) {
-      this.pushToken(builder,
-        oneof.range.start.line,
-        nameStart,
-        oneof.name.length,
-        TOKEN_VARIABLE,
-        MOD_DECLARATION
-      );
+      this.pushToken(builder, oneof.range.start.line, nameStart, oneof.name.length, TOKEN_VARIABLE, MOD_DECLARATION);
     }
 
     // Process oneof fields
@@ -499,7 +505,8 @@ export class SemanticTokensProvider {
     const enumKeywordIdx = line.indexOf('enum');
     const nameStart = enumKeywordIdx >= 0 ? line.indexOf(enumDef.name, enumKeywordIdx + 4) : -1;
     if (nameStart >= 0) {
-      this.pushToken(builder,
+      this.pushToken(
+        builder,
         enumDef.range.start.line,
         nameStart,
         enumDef.name.length,
@@ -534,13 +541,7 @@ export class SemanticTokensProvider {
     // Enum value name
     const nameStart = line.indexOf(value.name, lineStart);
     if (nameStart >= 0) {
-      this.pushToken(builder,
-        value.range.start.line,
-        nameStart,
-        value.name.length,
-        TOKEN_ENUM_MEMBER,
-        MOD_DECLARATION
-      );
+      this.pushToken(builder, value.range.start.line, nameStart, value.name.length, TOKEN_ENUM_MEMBER, MOD_DECLARATION);
     }
 
     // Enum value number
@@ -549,13 +550,7 @@ export class SemanticTokensProvider {
     const equalsIdx = line.indexOf('=', nameStart >= 0 ? nameStart + value.name.length : lineStart);
     const numStart = equalsIdx >= 0 ? line.indexOf(numStr, equalsIdx + 1) : -1;
     if (numStart >= 0) {
-      this.pushToken(builder,
-        value.range.start.line,
-        numStart,
-        numStr.length,
-        TOKEN_NUMBER,
-        MOD_READONLY
-      );
+      this.pushToken(builder, value.range.start.line, numStart, numStr.length, TOKEN_NUMBER, MOD_READONLY);
     }
   }
 
@@ -574,7 +569,8 @@ export class SemanticTokensProvider {
     const serviceKeywordIdx = line.indexOf('service');
     const nameStart = serviceKeywordIdx >= 0 ? line.indexOf(service.name, serviceKeywordIdx + 7) : -1;
     if (nameStart >= 0) {
-      this.pushToken(builder,
+      this.pushToken(
+        builder,
         service.range.start.line,
         nameStart,
         service.name.length,
@@ -615,7 +611,8 @@ export class SemanticTokensProvider {
     const rpcKeywordIdx = line.indexOf('rpc', lineStart);
     const nameStart = rpcKeywordIdx >= 0 ? line.indexOf(rpc.name, rpcKeywordIdx + 3) : -1;
     if (nameStart >= 0) {
-      this.pushToken(builder,
+      this.pushToken(
+        builder,
         rpc.range.start.line,
         nameStart,
         rpc.name.length,
@@ -628,13 +625,7 @@ export class SemanticTokensProvider {
     if (rpc.requestType) {
       const requestStart = line.indexOf(rpc.requestType, nameStart > 0 ? nameStart + rpc.name.length : lineStart);
       if (requestStart >= 0) {
-        this.pushToken(builder,
-          rpc.range.start.line,
-          requestStart,
-          rpc.requestType.length,
-          TOKEN_PARAMETER,
-          0
-        );
+        this.pushToken(builder, rpc.range.start.line, requestStart, rpc.requestType.length, TOKEN_PARAMETER, 0);
       }
     }
 
@@ -657,13 +648,7 @@ export class SemanticTokensProvider {
     if (rpc.responseType) {
       const responseStart = line.indexOf(rpc.responseType, returnsStart > 0 ? returnsStart : lineStart);
       if (responseStart >= 0) {
-        this.pushToken(builder,
-          rpc.range.start.line,
-          responseStart,
-          rpc.responseType.length,
-          TOKEN_PARAMETER,
-          0
-        );
+        this.pushToken(builder, rpc.range.start.line, responseStart, rpc.responseType.length, TOKEN_PARAMETER, 0);
       }
     }
 
@@ -699,13 +684,7 @@ export class SemanticTokensProvider {
     // Option name
     const nameStart = line.indexOf(option.name, lineStart);
     if (nameStart >= 0) {
-      this.pushToken(builder,
-        option.range.start.line,
-        nameStart,
-        option.name.length,
-        TOKEN_DECORATOR,
-        0
-      );
+      this.pushToken(builder, option.range.start.line, nameStart, option.name.length, TOKEN_DECORATOR, 0);
     }
 
     // Option value - handle different types
@@ -718,30 +697,19 @@ export class SemanticTokensProvider {
           // Check if it's a quoted string in the line
           const quotedValueStart = line.indexOf(`"${option.value}"`, nameStart > 0 ? nameStart : lineStart);
           if (quotedValueStart >= 0) {
-            this.pushToken(builder,
+            this.pushToken(
+              builder,
               option.range.start.line,
               quotedValueStart,
-              valueStr.length + 2,  // Include quotes
+              valueStr.length + 2, // Include quotes
               TOKEN_STRING,
               0
             );
           }
         } else if (typeof option.value === 'number') {
-          this.pushToken(builder,
-            option.range.start.line,
-            valueStart,
-            valueStr.length,
-            TOKEN_NUMBER,
-            0
-          );
+          this.pushToken(builder, option.range.start.line, valueStart, valueStr.length, TOKEN_NUMBER, 0);
         } else if (typeof option.value === 'boolean') {
-          this.pushToken(builder,
-            option.range.start.line,
-            valueStart,
-            valueStr.length,
-            TOKEN_KEYWORD,
-            0
-          );
+          this.pushToken(builder, option.range.start.line, valueStart, valueStr.length, TOKEN_KEYWORD, 0);
         }
       }
     }
@@ -761,7 +729,14 @@ export class SemanticTokensProvider {
     }
   }
 
-  private addKeywordAtOffset(builder: SemanticTokensBuilder, lineNum: number, line: string, keyword: string, tokenType: number, startOffset: number): void {
+  private addKeywordAtOffset(
+    builder: SemanticTokensBuilder,
+    lineNum: number,
+    line: string,
+    keyword: string,
+    tokenType: number,
+    startOffset: number
+  ): void {
     const keywordStart = line.indexOf(keyword, startOffset);
     if (keywordStart >= 0) {
       this.pushToken(builder, lineNum, keywordStart, keyword.length, tokenType, 0);

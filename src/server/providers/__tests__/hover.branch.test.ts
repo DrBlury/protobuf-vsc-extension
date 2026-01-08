@@ -361,7 +361,7 @@ message Test {
       analyzer.updateFile(uri, file);
 
       const position: Position = { line: 5, character: 20 };
-      const lineText = "    expression: \"this.matches('^[a-z]+@[a-z]+\\\\.[a-z]+$')\"";
+      const lineText = '    expression: "this.matches(\'^[a-z]+@[a-z]+\\\\.[a-z]+$\')"';
       const _hover = provider.getHover(uri, position, lineText);
 
       // Validates the CEL hover code path is exercised

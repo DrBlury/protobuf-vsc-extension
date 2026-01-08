@@ -93,7 +93,7 @@ describe('Server Capabilities', () => {
       it('should have rename provider with prepare support', () => {
         const result = getServerCapabilities();
         expect(result.capabilities.renameProvider).toEqual({
-          prepareProvider: true
+          prepareProvider: true,
         });
       });
     });

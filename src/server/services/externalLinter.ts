@@ -16,16 +16,8 @@ import { pathToUri } from '../utils/utils';
  * Shell-specific safety is handled only when we actually fall back to shell execution.
  */
 function validateLinterArgs(args: string[], useShell = false): void {
-  const basePatterns = [
-    /\0/,
-    /\r?\n/,
-  ];
-  const shellPatterns = [
-    /[;&|`]/,
-    /^\s*[|&]/,
-    /[|&]\s*$/,
-    /\$\(/,
-  ];
+  const basePatterns = [/\0/, /\r?\n/];
+  const shellPatterns = [/[;&|`]/, /^\s*[|&]/, /[|&]\s*$/, /\$\(/];
   const patterns = useShell ? basePatterns.concat(shellPatterns) : basePatterns;
 
   for (const arg of args) {
@@ -70,7 +62,7 @@ const DEFAULT_SETTINGS: ExternalLinterSettings = {
   bufConfigPath: '',
   protolintConfigPath: '',
   apiLinterConfigPath: '',
-  runOnSave: true
+  runOnSave: true,
 };
 
 export class ExternalLinterProvider {
@@ -110,7 +102,7 @@ export class ExternalLinterProvider {
 
     logger.debug(`Checking if ${this.settings.linter} is available at: ${linterPath}`);
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       // Try without shell first
       const proc = spawn(linterPath, ['--version']);
 
@@ -124,14 +116,23 @@ export class ExternalLinterProvider {
         }
       });
       proc.on('error', () => {
-        // Fallback with shell for PATH resolution
+        // Fallback with shell for PATH resolution, but only for simple command names
+        // Don't use shell fallback for full paths as they may contain spaces
+        const isSimpleCommand = !linterPath.includes(path.sep) && !linterPath.includes('/');
+        if (!isSimpleCommand) {
+          logger.info(`${this.settings.linter} not found at ${linterPath}. Check that the path is correct.`);
+          resolve(false);
+          return;
+        }
         const procWithShell = spawn(linterPath, ['--version'], { shell: true });
         procWithShell.on('close', (code: number | null) => {
           if (code === 0) {
             logger.debug(`${this.settings.linter} is available (via shell)`);
             resolve(true);
           } else {
-            logger.info(`${this.settings.linter} not found or not working. Check that it is installed and the path is correct.`);
+            logger.info(
+              `${this.settings.linter} not found or not working. Check that it is installed and the path is correct.`
+            );
             resolve(false);
           }
         });
@@ -200,7 +201,7 @@ export class ExternalLinterProvider {
   }
 
   private async runBufLint(filePath?: string): Promise<LintResult[]> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const args = ['lint', '--error-format=json'];
 
       // Validate arguments before execution
@@ -216,10 +217,10 @@ export class ExternalLinterProvider {
         const configArg = '--config';
         const configPath = this.settings.bufConfigPath;
         args.push(configArg, configPath);
-        
+
         // Validate the config path as well
         validateLinterArgs([configArg, configPath]);
-        
+
         // Use the config file's directory as cwd for consistent behavior
         cwd = path.dirname(path.resolve(this.workspaceRoot, this.settings.bufConfigPath));
         logger.debug(`Using user-configured buf config: ${this.settings.bufConfigPath}`);
@@ -242,45 +243,47 @@ export class ExternalLinterProvider {
 
       // Try without shell first to avoid command line length limits
       const proc = spawn(this.settings.bufPath, args, {
-        cwd
+        cwd,
       });
 
       let stdout = '';
       let stderr = '';
 
-      proc.stdout?.on('data', (data) => {
-        stdout += data.toString();
+      proc.stdout?.on('data', (data: Buffer) => {
+        stdout += data.toString('utf8');
       });
 
-      proc.stderr?.on('data', (data) => {
-        stderr += data.toString();
+      proc.stderr?.on('data', (data: Buffer) => {
+        stderr += data.toString('utf8');
       });
 
       proc.on('close', () => {
         resolve(this.parseBufOutput(stdout || stderr));
       });
 
-      proc.on('error', (err) => {
+      proc.on('error', err => {
         logger.debug(`buf spawn failed, trying with shell: ${err.message}`);
         try {
           validateLinterArgs(args, true);
         } catch (validationError) {
           const message = validationError instanceof Error ? validationError.message : String(validationError);
-          logger.warn(`buf lint shell fallback blocked: ${message}. Configure an explicit buf path to avoid shell fallback.`);
+          logger.warn(
+            `buf lint shell fallback blocked: ${message}. Configure an explicit buf path to avoid shell fallback.`
+          );
           resolve([]);
           return;
         }
         // Fallback with shell for PATH resolution
         const procWithShell = spawn(this.settings.bufPath, args, {
           cwd,
-          shell: true
+          shell: true,
         });
         let shellStdout = '';
         let shellStderr = '';
-        procWithShell.stdout?.on('data', (data) => shellStdout += data.toString());
-        procWithShell.stderr?.on('data', (data) => shellStderr += data.toString());
+        procWithShell.stdout?.on('data', (data: Buffer) => (shellStdout += data.toString('utf8')));
+        procWithShell.stderr?.on('data', (data: Buffer) => (shellStderr += data.toString('utf8')));
         procWithShell.on('close', () => resolve(this.parseBufOutput(shellStdout || shellStderr)));
-        procWithShell.on('error', (shellErr) => {
+        procWithShell.on('error', shellErr => {
           logger.warn(`buf lint failed: ${shellErr.message}. Ensure buf is installed and accessible.`);
           resolve([]);
         });
@@ -289,7 +292,7 @@ export class ExternalLinterProvider {
   }
 
   private async runProtolint(filePath?: string): Promise<LintResult[]> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const args = ['lint', '-reporter=json'];
 
       if (this.settings.protolintConfigPath) {
@@ -307,45 +310,47 @@ export class ExternalLinterProvider {
 
       // Try without shell first to avoid command line length limits
       const proc = spawn(this.settings.protolintPath, args, {
-        cwd: this.workspaceRoot
+        cwd: this.workspaceRoot,
       });
 
       let stdout = '';
       let stderr = '';
 
-      proc.stdout?.on('data', (data) => {
-        stdout += data.toString();
+      proc.stdout?.on('data', (data: Buffer) => {
+        stdout += data.toString('utf8');
       });
 
-      proc.stderr?.on('data', (data) => {
-        stderr += data.toString();
+      proc.stderr?.on('data', (data: Buffer) => {
+        stderr += data.toString('utf8');
       });
 
       proc.on('close', () => {
         resolve(this.parseProtolintOutput(stdout || stderr));
       });
 
-      proc.on('error', (err) => {
+      proc.on('error', err => {
         logger.debug(`protolint spawn failed, trying with shell: ${err.message}`);
         try {
           validateLinterArgs(args, true);
         } catch (validationError) {
           const message = validationError instanceof Error ? validationError.message : String(validationError);
-          logger.warn(`protolint shell fallback blocked: ${message}. Configure an explicit protolint path to avoid shell fallback.`);
+          logger.warn(
+            `protolint shell fallback blocked: ${message}. Configure an explicit protolint path to avoid shell fallback.`
+          );
           resolve([]);
           return;
         }
         // Fallback with shell for PATH resolution
         const procWithShell = spawn(this.settings.protolintPath, args, {
           cwd: this.workspaceRoot,
-          shell: true
+          shell: true,
         });
         let shellStdout = '';
         let shellStderr = '';
-        procWithShell.stdout?.on('data', (data) => shellStdout += data.toString());
-        procWithShell.stderr?.on('data', (data) => shellStderr += data.toString());
+        procWithShell.stdout?.on('data', (data: Buffer) => (shellStdout += data.toString('utf8')));
+        procWithShell.stderr?.on('data', (data: Buffer) => (shellStderr += data.toString('utf8')));
         procWithShell.on('close', () => resolve(this.parseProtolintOutput(shellStdout || shellStderr)));
-        procWithShell.on('error', (shellErr) => {
+        procWithShell.on('error', shellErr => {
           logger.warn(`protolint failed: ${shellErr.message}. Ensure protolint is installed and accessible.`);
           resolve([]);
         });
@@ -354,7 +359,7 @@ export class ExternalLinterProvider {
   }
 
   private async runApiLinter(filePath?: string): Promise<LintResult[]> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const args = ['--output-format=json'];
 
       if (this.settings.apiLinterConfigPath) {
@@ -379,45 +384,47 @@ export class ExternalLinterProvider {
 
       // Try without shell first to avoid command line length limits
       const proc = spawn(this.settings.apiLinterPath, args, {
-        cwd: this.workspaceRoot
+        cwd: this.workspaceRoot,
       });
 
       let stdout = '';
       let stderr = '';
 
-      proc.stdout?.on('data', (data) => {
-        stdout += data.toString();
+      proc.stdout?.on('data', (data: Buffer) => {
+        stdout += data.toString('utf8');
       });
 
-      proc.stderr?.on('data', (data) => {
-        stderr += data.toString();
+      proc.stderr?.on('data', (data: Buffer) => {
+        stderr += data.toString('utf8');
       });
 
       proc.on('close', () => {
         resolve(this.parseApiLinterOutput(stdout || stderr));
       });
 
-      proc.on('error', (err) => {
+      proc.on('error', err => {
         // Fallback with shell for PATH resolution
         logger.debug(`api-linter spawn failed (${err.message}), retrying with shell`);
         try {
           validateLinterArgs(args, true);
         } catch (validationError) {
           const message = validationError instanceof Error ? validationError.message : String(validationError);
-          logger.warn(`api-linter shell fallback blocked: ${message}. Configure an explicit api-linter path to avoid shell fallback.`);
+          logger.warn(
+            `api-linter shell fallback blocked: ${message}. Configure an explicit api-linter path to avoid shell fallback.`
+          );
           resolve([]);
           return;
         }
         const procWithShell = spawn(this.settings.apiLinterPath, args, {
           cwd: this.workspaceRoot,
-          shell: true
+          shell: true,
         });
         let shellStdout = '';
         let shellStderr = '';
-        procWithShell.stdout?.on('data', (data) => shellStdout += data.toString());
-        procWithShell.stderr?.on('data', (data) => shellStderr += data.toString());
+        procWithShell.stdout?.on('data', (data: Buffer) => (shellStdout += data.toString('utf8')));
+        procWithShell.stderr?.on('data', (data: Buffer) => (shellStderr += data.toString('utf8')));
         procWithShell.on('close', () => resolve(this.parseApiLinterOutput(shellStdout || shellStderr)));
-        procWithShell.on('error', (shellErr) => {
+        procWithShell.on('error', shellErr => {
           logger.warn(`api-linter failed: ${shellErr.message}. Ensure api-linter is installed and accessible.`);
           resolve([]);
         });
@@ -430,7 +437,10 @@ export class ExternalLinterProvider {
 
     try {
       // Buf outputs one JSON object per line
-      const lines = output.trim().split('\n').filter(l => l.trim());
+      const lines = output
+        .trim()
+        .split('\n')
+        .filter(l => l.trim());
 
       for (const line of lines) {
         try {
@@ -445,7 +455,7 @@ export class ExternalLinterProvider {
             endColumn: item.end_column,
             rule: item.type || 'BUF_LINT',
             message: item.message || '',
-            severity: 'warning'
+            severity: 'warning',
           });
         } catch {
           // Skip malformed lines
@@ -463,7 +473,7 @@ export class ExternalLinterProvider {
           column: parseInt(match[3]!, 10),
           rule: 'BUF_LINT',
           message: match[4]!.trim(),
-          severity: 'warning'
+          severity: 'warning',
         });
       }
     }
@@ -486,7 +496,7 @@ export class ExternalLinterProvider {
             column: lint.column || 1,
             rule: lint.rule || 'PROTOLINT',
             message: lint.message || '',
-            severity: lint.severity === 'error' ? 'error' : 'warning'
+            severity: lint.severity === 'error' ? 'error' : 'warning',
           });
         }
       }
@@ -503,7 +513,7 @@ export class ExternalLinterProvider {
           column: parseInt(match[3]!, 10),
           message: match[4]!.trim(),
           rule: match[5]!,
-          severity: 'warning'
+          severity: 'warning',
         });
       }
     }
@@ -542,7 +552,7 @@ export class ExternalLinterProvider {
               endColumn: endPos.column_number,
               rule: problem.rule_id || 'API_LINTER',
               message: message,
-              severity: 'warning'
+              severity: 'warning',
             });
           }
         }
@@ -568,7 +578,7 @@ export class ExternalLinterProvider {
           column: parseInt(match[3]!, 10),
           rule: 'API_LINTER',
           message: match[4]!.trim(),
-          severity: 'warning'
+          severity: 'warning',
         });
       }
     }
@@ -577,9 +587,7 @@ export class ExternalLinterProvider {
   }
 
   private convertToDiagnostics(results: LintResult[], currentFile: string): Diagnostic[] {
-    return results
-      .filter(r => this.matchesFile(r.file, currentFile))
-      .map(r => this.convertResult(r));
+    return results.filter(r => this.matchesFile(r.file, currentFile)).map(r => this.convertResult(r));
   }
 
   private convertResult(result: LintResult): Diagnostic {
@@ -587,8 +595,8 @@ export class ExternalLinterProvider {
       start: { line: Math.max(0, result.line - 1), character: Math.max(0, result.column - 1) },
       end: {
         line: Math.max(0, (result.endLine || result.line) - 1),
-        character: Math.max(0, (result.endColumn || result.column + 10) - 1)
-      }
+        character: Math.max(0, (result.endColumn || result.column + 10) - 1),
+      },
     };
 
     let severity: DiagnosticSeverity;
@@ -608,7 +616,7 @@ export class ExternalLinterProvider {
       range,
       message: result.message,
       source: this.settings.linter,
-      code: result.rule
+      code: result.rule,
     };
   }
 
@@ -616,15 +624,15 @@ export class ExternalLinterProvider {
     const normalizedResult = path.normalize(resultFile).toLowerCase();
     const normalizedTarget = path.normalize(targetFile).toLowerCase();
 
-    return normalizedTarget.endsWith(normalizedResult) ||
-           normalizedResult.endsWith(normalizedTarget) ||
-           path.basename(normalizedResult) === path.basename(normalizedTarget);
+    return (
+      normalizedTarget.endsWith(normalizedResult) ||
+      normalizedResult.endsWith(normalizedTarget) ||
+      path.basename(normalizedResult) === path.basename(normalizedTarget)
+    );
   }
 
   private resolveFileUri(filePath: string): string {
-    const absolutePath = path.isAbsolute(filePath)
-      ? filePath
-      : path.join(this.workspaceRoot, filePath);
+    const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(this.workspaceRoot, filePath);
     return pathToUri(absolutePath);
   }
 
@@ -643,16 +651,16 @@ export class ExternalLinterProvider {
   }
 
   private async getBufRules(): Promise<string[]> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       // Try without shell first
       const proc = spawn(this.settings.bufPath, ['config', 'ls-lint-rules'], {
-        cwd: this.workspaceRoot
+        cwd: this.workspaceRoot,
       });
 
       let stdout = '';
 
-      proc.stdout?.on('data', (data) => {
-        stdout += data.toString();
+      proc.stdout?.on('data', (data: Buffer) => {
+        stdout += data.toString('utf8');
       });
 
       proc.on('close', () => {
@@ -664,10 +672,10 @@ export class ExternalLinterProvider {
         // Fallback with shell
         const procWithShell = spawn(this.settings.bufPath, ['config', 'ls-lint-rules'], {
           cwd: this.workspaceRoot,
-          shell: true
+          shell: true,
         });
         let shellStdout = '';
-        procWithShell.stdout?.on('data', (data) => shellStdout += data.toString());
+        procWithShell.stdout?.on('data', (data: Buffer) => (shellStdout += data.toString('utf8')));
         procWithShell.on('close', () => resolve(shellStdout.split('\n').filter(r => r.trim())));
         procWithShell.on('error', () => resolve([]));
       });
@@ -694,21 +702,21 @@ export class ExternalLinterProvider {
       'SERVICE_NAMES_END_WITH',
       'SERVICE_NAMES_UPPER_CAMEL_CASE',
       'SYNTAX_CONSISTENT',
-      'INDENT'
+      'INDENT',
     ];
   }
 
   private async getApiLinterRules(): Promise<string[]> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       // api-linter supports --list-rules to list all available rules
       const proc = spawn(this.settings.apiLinterPath, ['--list-rules', '--output-format=json'], {
-        cwd: this.workspaceRoot
+        cwd: this.workspaceRoot,
       });
 
       let stdout = '';
 
-      proc.stdout?.on('data', (data) => {
-        stdout += data.toString();
+      proc.stdout?.on('data', (data: Buffer) => {
+        stdout += data.toString('utf8');
       });
 
       proc.on('close', () => {
@@ -732,10 +740,10 @@ export class ExternalLinterProvider {
         // Fallback with shell
         const procWithShell = spawn(this.settings.apiLinterPath, ['--list-rules', '--output-format=json'], {
           cwd: this.workspaceRoot,
-          shell: true
+          shell: true,
         });
         let shellStdout = '';
-        procWithShell.stdout?.on('data', (data) => shellStdout += data.toString());
+        procWithShell.stdout?.on('data', (data: Buffer) => (shellStdout += data.toString('utf8')));
         procWithShell.on('close', () => {
           try {
             const data = JSON.parse(shellStdout);

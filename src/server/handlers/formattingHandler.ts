@@ -3,11 +3,7 @@
  * Handles document formatting requests
  */
 
-import type {
-  DocumentFormattingParams,
-  DocumentRangeFormattingParams,
-  TextEdit
-} from 'vscode-languageserver/node';
+import type { DocumentFormattingParams, DocumentRangeFormattingParams, TextEdit } from 'vscode-languageserver/node';
 
 import type { TextDocuments } from 'vscode-languageserver/node';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
@@ -54,9 +50,5 @@ export async function handleRangeFormatting(
     return [];
   }
 
-  return formatterProvider.formatRange(
-    document.getText(),
-    params.range,
-    params.textDocument.uri
-  );
+  return formatterProvider.formatRange(document.getText(), params.range, params.textDocument.uri);
 }

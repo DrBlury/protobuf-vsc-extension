@@ -7,7 +7,7 @@ import type {
   DocumentSymbolParams,
   WorkspaceSymbolParams,
   DocumentSymbol,
-  SymbolInformation
+  SymbolInformation,
 } from 'vscode-languageserver/node';
 
 import type { SymbolProvider } from '../providers/symbols';
@@ -15,10 +15,7 @@ import type { SymbolProvider } from '../providers/symbols';
 /**
  * Handle document symbol request
  */
-export function handleDocumentSymbols(
-  params: DocumentSymbolParams,
-  symbolsProvider: SymbolProvider
-): DocumentSymbol[] {
+export function handleDocumentSymbols(params: DocumentSymbolParams, symbolsProvider: SymbolProvider): DocumentSymbol[] {
   return symbolsProvider.getDocumentSymbols(params.textDocument.uri);
 }
 

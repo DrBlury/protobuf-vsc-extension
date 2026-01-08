@@ -15,7 +15,10 @@ describe('Edition Features Hover', () => {
     });
 
     it('should return hover for features.field_presence (full qualified name)', () => {
-      const hover = getEditionFeaturesHover('features.field_presence', 'string name = 1 [features.field_presence = EXPLICIT];');
+      const hover = getEditionFeaturesHover(
+        'features.field_presence',
+        'string name = 1 [features.field_presence = EXPLICIT];'
+      );
       expect(hover).not.toBeNull();
       expect(hover?.contents).toHaveProperty('value');
       expect((hover?.contents as any).value).toContain('field_presence');
@@ -45,7 +48,10 @@ describe('Edition Features Hover', () => {
     });
 
     it('should return hover for repeated_field_encoding feature', () => {
-      const hover = getEditionFeaturesHover('repeated_field_encoding', 'repeated int32 ids = 1 [features.repeated_field_encoding = PACKED];');
+      const hover = getEditionFeaturesHover(
+        'repeated_field_encoding',
+        'repeated int32 ids = 1 [features.repeated_field_encoding = PACKED];'
+      );
       expect(hover).not.toBeNull();
       expect(hover?.contents).toHaveProperty('value');
       expect((hover?.contents as any).value).toContain('repeated_field_encoding');

@@ -1,14 +1,15 @@
 import { URI } from 'vscode-uri';
-import type {
-  EnumDefinition,
-  MapFieldDefinition,
-  MessageDefinition,
-  ProtoFile} from '../core/ast';
-import {
-  SymbolKind
-} from '../core/ast';
+import type { EnumDefinition, MapFieldDefinition, MessageDefinition, ProtoFile } from '../core/ast';
+import { SymbolKind } from '../core/ast';
 import type { SemanticAnalyzer } from '../core/analyzer';
-import type { SchemaGraph, SchemaGraphEdge, SchemaGraphNode, SchemaGraphRequest, SchemaGraphScope, SchemaGraphField } from '../../shared/schemaGraph';
+import type {
+  SchemaGraph,
+  SchemaGraphEdge,
+  SchemaGraphNode,
+  SchemaGraphRequest,
+  SchemaGraphScope,
+  SchemaGraphField,
+} from '../../shared/schemaGraph';
 
 export class SchemaGraphProvider {
   constructor(private readonly analyzer: SemanticAnalyzer) {}
@@ -42,7 +43,7 @@ export class SchemaGraphProvider {
       nodes: Array.from(nodes.values()),
       edges,
       scope,
-      sourceUri: params.uri
+      sourceUri: params.uri,
     };
   }
 
@@ -72,11 +73,7 @@ export class SchemaGraphProvider {
     return visited;
   }
 
-  private collectNodesFromFile(
-    uri: string,
-    file: ProtoFile,
-    nodes: Map<string, SchemaGraphNode>
-  ): void {
+  private collectNodesFromFile(uri: string, file: ProtoFile, nodes: Map<string, SchemaGraphNode>): void {
     const pkg = file.package?.name || '';
 
     for (const message of file.messages) {
@@ -118,7 +115,7 @@ export class SchemaGraphProvider {
         type: field.fieldType,
         kind: 'field',
         repeated: field.modifier === 'repeated',
-        optional: field.modifier === 'optional'
+        optional: field.modifier === 'optional',
       });
     }
 
@@ -126,7 +123,7 @@ export class SchemaGraphProvider {
       fields.push({
         name: mapField.name,
         type: `map<${mapField.keyType}, ${mapField.valueType}>`,
-        kind: 'map'
+        kind: 'map',
       });
     }
 
@@ -137,7 +134,7 @@ export class SchemaGraphProvider {
           type: field.fieldType,
           kind: 'oneof',
           repeated: field.modifier === 'repeated',
-          optional: field.modifier === 'optional'
+          optional: field.modifier === 'optional',
         });
       }
     }
@@ -149,7 +146,7 @@ export class SchemaGraphProvider {
         kind: 'message',
         file: filePath,
         package: pkg || undefined,
-        fields
+        fields,
       });
     }
 
@@ -162,19 +159,14 @@ export class SchemaGraphProvider {
     }
   }
 
-  private addEnumNode(
-    uri: string,
-    pkg: string,
-    enumDef: EnumDefinition,
-    nodes: Map<string, SchemaGraphNode>
-  ): void {
+  private addEnumNode(uri: string, pkg: string, enumDef: EnumDefinition, nodes: Map<string, SchemaGraphNode>): void {
     const id = pkg ? `${pkg}.${enumDef.name}` : enumDef.name;
     const filePath = URI.parse(uri).fsPath;
 
     const fields: SchemaGraphField[] = enumDef.values.map(v => ({
       name: v.name,
       type: String(v.number),
-      kind: 'enumValue'
+      kind: 'enumValue',
     }));
 
     if (!nodes.has(id)) {
@@ -184,7 +176,7 @@ export class SchemaGraphProvider {
         kind: 'enum',
         file: filePath,
         package: pkg || undefined,
-        fields
+        fields,
       });
     }
   }
@@ -212,7 +204,7 @@ export class SchemaGraphProvider {
           label: field.name,
           kind: 'field',
           repeated: field.modifier === 'repeated',
-          optional: field.modifier === 'optional'
+          optional: field.modifier === 'optional',
         });
       }
     }
@@ -232,7 +224,7 @@ export class SchemaGraphProvider {
             label: `${oneof.name}.${field.name}`,
             kind: 'oneof',
             repeated: field.modifier === 'repeated',
-            optional: field.modifier === 'optional'
+            optional: field.modifier === 'optional',
           });
         }
       }
@@ -265,12 +257,15 @@ export class SchemaGraphProvider {
         from: ownerId,
         to: target.fullName,
         label: mapField.name,
-        kind: 'map'
+        kind: 'map',
       });
     }
   }
 
-  private ensureNodeForSymbol(symbol: { fullName: string; name: string; kind: SymbolKind; location: { uri: string } }, nodes: Map<string, SchemaGraphNode>): void {
+  private ensureNodeForSymbol(
+    symbol: { fullName: string; name: string; kind: SymbolKind; location: { uri: string } },
+    nodes: Map<string, SchemaGraphNode>
+  ): void {
     if (nodes.has(symbol.fullName)) {
       return;
     }
@@ -281,7 +276,7 @@ export class SchemaGraphProvider {
       label: symbol.name,
       kind: symbol.kind === SymbolKind.Enum ? 'enum' : 'message',
       file: filePath,
-        package: this.extractPackageFromFullName(symbol.fullName)
+      package: this.extractPackageFromFullName(symbol.fullName),
     });
   }
 

@@ -2,7 +2,7 @@
  * Hover information for Protobuf Edition Features
  */
 
-import type { Hover} from 'vscode-languageserver/node';
+import type { Hover } from 'vscode-languageserver/node';
 import { MarkupKind } from 'vscode-languageserver/node';
 
 /**
@@ -12,46 +12,48 @@ const EDITION_FEATURES_DOCS: Record<string, { description: string; values?: Reco
   field_presence: {
     description: 'Controls the field presence semantics for scalar fields',
     values: {
-      EXPLICIT: 'Fields have explicit presence tracking (proto2 style). The field can distinguish between unset and default values.',
-      IMPLICIT: 'Fields have implicit presence (proto3 style). Default values are not serialized and cannot distinguish between unset and default.',
-      LEGACY_REQUIRED: 'Field must be set (proto2 required). Validation fails if the field is not present.'
-    }
+      EXPLICIT:
+        'Fields have explicit presence tracking (proto2 style). The field can distinguish between unset and default values.',
+      IMPLICIT:
+        'Fields have implicit presence (proto3 style). Default values are not serialized and cannot distinguish between unset and default.',
+      LEGACY_REQUIRED: 'Field must be set (proto2 required). Validation fails if the field is not present.',
+    },
   },
   enum_type: {
     description: 'Controls whether enums are open or closed',
     values: {
       OPEN: 'Enum can accept any int32 value, even if not explicitly defined (proto3 style).',
-      CLOSED: 'Enum can only accept explicitly defined values (proto2 style). Unknown values cause parsing to fail.'
-    }
+      CLOSED: 'Enum can only accept explicitly defined values (proto2 style). Unknown values cause parsing to fail.',
+    },
   },
   repeated_field_encoding: {
     description: 'Controls how repeated fields are encoded on the wire',
     values: {
       PACKED: 'Repeated fields are packed (proto3 style for primitives). More efficient encoding for numeric types.',
-      EXPANDED: 'Repeated fields are expanded (proto2 style). Each element is encoded separately with its tag.'
-    }
+      EXPANDED: 'Repeated fields are expanded (proto2 style). Each element is encoded separately with its tag.',
+    },
   },
   utf8_validation: {
     description: 'Controls UTF-8 validation for string fields',
     values: {
       VERIFY: 'String fields are validated to be valid UTF-8. Parsing fails for invalid UTF-8.',
-      NONE: 'String fields are not validated for UTF-8 encoding.'
-    }
+      NONE: 'String fields are not validated for UTF-8 encoding.',
+    },
   },
   message_encoding: {
     description: 'Controls the encoding format for nested messages',
     values: {
       LENGTH_PREFIXED: 'Messages are length-prefixed (standard protobuf encoding).',
-      DELIMITED: 'Messages are delimited (group-style encoding, rarely used).'
-    }
+      DELIMITED: 'Messages are delimited (group-style encoding, rarely used).',
+    },
   },
   json_format: {
     description: 'Controls JSON serialization behavior',
     values: {
       ALLOW: 'Standard JSON serialization is allowed.',
-      LEGACY_BEST_EFFORT: 'Use legacy best-effort JSON parsing behavior.'
-    }
-  }
+      LEGACY_BEST_EFFORT: 'Use legacy best-effort JSON parsing behavior.',
+    },
+  },
 };
 
 /**
@@ -64,7 +66,7 @@ const EDITION_VERSIONS: Record<string, string> = {
   '2_test_only': 'Test edition for development and validation purposes',
   '99997_test_only': 'Test edition for development and validation purposes',
   '99998_test_only': 'Test edition for development and validation purposes',
-  '99999_test_only': 'Test edition for development and validation purposes'
+  '99999_test_only': 'Test edition for development and validation purposes',
 };
 
 /**
@@ -99,8 +101,8 @@ export function getEditionFeaturesHover(word: string, lineText: string): Hover |
     return {
       contents: {
         kind: MarkupKind.Markdown,
-        value: content
-      }
+        value: content,
+      },
     };
   }
 
@@ -117,8 +119,8 @@ export function getEditionFeaturesHover(word: string, lineText: string): Hover |
     return {
       contents: {
         kind: MarkupKind.Markdown,
-        value: content
-      }
+        value: content,
+      },
     };
   }
 
@@ -131,8 +133,8 @@ export function getEditionFeaturesHover(word: string, lineText: string): Hover |
       return {
         contents: {
           kind: MarkupKind.Markdown,
-          value: content
-        }
+          value: content,
+        },
       };
     }
   }
@@ -164,8 +166,8 @@ ${editions}
     return {
       contents: {
         kind: MarkupKind.Markdown,
-        value: content
-      }
+        value: content,
+      },
     };
   }
 
@@ -176,8 +178,8 @@ ${editions}
     return {
       contents: {
         kind: MarkupKind.Markdown,
-        value: content
-      }
+        value: content,
+      },
     };
   }
 

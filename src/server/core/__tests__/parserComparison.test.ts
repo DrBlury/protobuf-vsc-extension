@@ -5,7 +5,14 @@
 
 import { ProtoParser } from '../parser';
 import { TreeSitterProtoParser, initTreeSitterParser, isTreeSitterInitialized } from '../treeSitterParser';
-import { ProtoFile, MessageDefinition, EnumDefinition, FieldDefinition, ServiceDefinition, RpcDefinition } from '../ast';
+import {
+  ProtoFile,
+  MessageDefinition,
+  EnumDefinition,
+  FieldDefinition,
+  ServiceDefinition,
+  RpcDefinition,
+} from '../ast';
 import * as path from 'path';
 import * as fs from 'fs';
 import { logger } from '../../utils/logger';
@@ -58,18 +65,18 @@ describe('Parser Comparison: Built-in vs Tree-sitter', () => {
       nestedEnums: msg.nestedEnums.map(normalizeEnum),
       oneofs: msg.oneofs.map(o => ({
         name: o.name,
-        fields: o.fields.map(normalizeField)
+        fields: o.fields.map(normalizeField),
       })),
       maps: msg.maps.map(m => ({
         name: m.name,
         keyType: m.keyType,
         valueType: m.valueType,
-        number: m.number
+        number: m.number,
       })),
       reserved: msg.reserved.map(r => ({
         names: r.names,
-        ranges: r.ranges
-      }))
+        ranges: r.ranges,
+      })),
     };
   }
 
@@ -79,7 +86,7 @@ describe('Parser Comparison: Built-in vs Tree-sitter', () => {
       fieldType: field.fieldType,
       number: field.number,
       modifier: field.modifier,
-      options: field.options?.map(o => ({ name: o.name, value: o.value }))
+      options: field.options?.map(o => ({ name: o.name, value: o.value })),
     };
   }
 
@@ -89,9 +96,9 @@ describe('Parser Comparison: Built-in vs Tree-sitter', () => {
       values: enumDef.values.map(v => ({
         name: v.name,
         number: v.number,
-        options: v.options?.map(o => ({ name: o.name, value: o.value }))
+        options: v.options?.map(o => ({ name: o.name, value: o.value })),
       })),
-      options: enumDef.options.map(o => ({ name: o.name, value: o.value }))
+      options: enumDef.options.map(o => ({ name: o.name, value: o.value })),
     };
   }
 
@@ -103,15 +110,18 @@ describe('Parser Comparison: Built-in vs Tree-sitter', () => {
         requestType: rpc.requestType,
         responseType: rpc.responseType,
         requestStreaming: rpc.requestStreaming,
-        responseStreaming: rpc.responseStreaming
-      }))
+        responseStreaming: rpc.responseStreaming,
+      })),
     };
   }
 
   /**
    * Compare parsers with detailed diff output
    */
-  function compareAndReport(protoText: string, testName: string): { match: boolean; builtIn: unknown; treeSitter: unknown } {
+  function compareAndReport(
+    protoText: string,
+    testName: string
+  ): { match: boolean; builtIn: unknown; treeSitter: unknown } {
     const uri = 'file:///test.proto';
 
     const builtInResult = builtInParser.parse(protoText, uri);

@@ -30,41 +30,52 @@ const mockOutputChannel = {
 
 const mockConfiguration = new Map<string, unknown>();
 
-jest.mock('vscode', () => {
-   
-  const pathModule = require('path');
-  const testWorkspace = pathModule.join(pathModule.sep, 'test', 'workspace');
-  return {
-    window: {
-      showInformationMessage: jest.fn(),
-      showQuickPick: jest.fn(),
-    },
-    workspace: {
-      getConfiguration: jest.fn((section: string) => ({
-        get: jest.fn((key: string, defaultValue?: unknown) => {
-          const fullKey = section ? `${section}.${key}` : key;
-          return mockConfiguration.get(fullKey) ?? defaultValue;
-        }),
-        update: jest.fn(),
-      })),
-      workspaceFolders: [{ uri: { fsPath: testWorkspace } }],
-    },
-    ConfigurationTarget: {
-      Global: 1,
-      Workspace: 2,
-    },
-  };
-}, { virtual: true });
+jest.mock(
+  'vscode',
+  () => {
+    const pathModule = require('path');
+    const testWorkspace = pathModule.join(pathModule.sep, 'test', 'workspace');
+    return {
+      window: {
+        showInformationMessage: jest.fn(),
+        showQuickPick: jest.fn(),
+      },
+      workspace: {
+        getConfiguration: jest.fn((section: string) => ({
+          get: jest.fn((key: string, defaultValue?: unknown) => {
+            const fullKey = section ? `${section}.${key}` : key;
+            return mockConfiguration.get(fullKey) ?? defaultValue;
+          }),
+          update: jest.fn(),
+        })),
+        workspaceFolders: [{ uri: { fsPath: testWorkspace } }],
+      },
+      ConfigurationTarget: {
+        Global: 1,
+        Workspace: 2,
+      },
+    };
+  },
+  { virtual: true }
+);
 
-// Mock fs
+// Mock fsUtils for async fileExists function
+const mockFileExists = jest.fn();
+jest.mock('../../utils/fsUtils', () => ({
+  fileExists: (...args: unknown[]) => mockFileExists(...args),
+}));
+
+// Mock fs for shebang detection (autoDetector still uses fs.existsSync, fs.openSync, etc. for shebang detection)
 const mockFsExistsSync = jest.fn();
 jest.mock('fs', () => ({
   existsSync: (...args: unknown[]) => mockFsExistsSync(...args),
+  openSync: jest.fn(),
+  readSync: jest.fn(),
+  closeSync: jest.fn(),
 }));
 
 // Mock os to return consistent platform for tests
 jest.mock('os', () => {
-   
   const pathModule = require('path');
   const testUserHome = pathModule.join(pathModule.sep, 'Users', 'testuser');
   return {
@@ -79,6 +90,17 @@ jest.mock('child_process', () => ({
   spawn: (...args: unknown[]) => mockSpawn(...args),
 }));
 
+/**
+ * Helper to flush all pending promises and timers.
+ * This ensures async operations complete deterministically.
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    jest.advanceTimersByTime(20);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
+
 describe('AutoDetector', () => {
   let mockContext: {
     globalStorageUri: { fsPath: string };
@@ -86,11 +108,16 @@ describe('AutoDetector', () => {
   };
 
   beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     jest.clearAllMocks();
+    jest.resetModules();
     mockConfiguration.clear();
+    // Mock fsUtils.fileExists (async) - for config file and tool detection
+    mockFileExists.mockResolvedValue(false);
+    // Mock fs.existsSync (sync) - for shebang detection
     mockFsExistsSync.mockReturnValue(false);
-    // Always set up a default mock spawn
-    mockSpawn.mockReturnValue(createMockProcess('', '', 1, new Error('ENOENT')));
+    // Always set up a default mock spawn (return new process each time)
+    mockSpawn.mockImplementation(() => createMockProcess('', '', 1, new Error('ENOENT')));
 
     mockContext = {
       globalStorageUri: { fsPath: getTestGlobalStorage() },
@@ -98,12 +125,16 @@ describe('AutoDetector', () => {
     };
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   describe('detectTools', () => {
     it('should detect tools when file exists at common path', async () => {
       const expectedProtocPath = path.join(getHomebrewBin(), 'protoc');
       const expectedBufPath = path.join(getHomebrewBin(), 'buf');
 
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         if (p === expectedProtocPath) {
           return true;
         }
@@ -113,13 +144,15 @@ describe('AutoDetector', () => {
         return false;
       });
 
-      const mockProcess = createMockProcess('libprotoc 33.0\n', '', 0);
-      mockSpawn.mockReturnValue(mockProcess);
+      // Use mockImplementation to return a new process for each spawn call
+      mockSpawn.mockImplementation(() => createMockProcess('libprotoc 33.0\n', '', 0));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       expect(result.protoc).toBeDefined();
       expect(result.protoc?.path).toBe(expectedProtocPath);
@@ -128,20 +161,22 @@ describe('AutoDetector', () => {
     it('should detect buf.yaml configuration file', async () => {
       const bufYamlPath = path.join(getTestWorkspace(), 'buf.yaml');
 
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         if (p === bufYamlPath) {
           return true;
         }
         return false;
       });
 
-      // Set up spawn to not throw for tool detection
-      mockSpawn.mockReturnValue(createMockProcess('', '', 1, new Error('ENOENT')));
+      // Set up spawn to fail for tool detection (return new process each time)
+      mockSpawn.mockImplementation(() => createMockProcess('', '', 1, new Error('ENOENT')));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       expect(result.bufYamlFound).toBe(true);
     });
@@ -149,19 +184,21 @@ describe('AutoDetector', () => {
     it('should detect buf.work.yaml workspace configuration', async () => {
       const bufWorkYamlPath = path.join(getTestWorkspace(), 'buf.work.yaml');
 
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         if (p === bufWorkYamlPath) {
           return true;
         }
         return false;
       });
 
-      mockSpawn.mockReturnValue(createMockProcess('', '', 1, new Error('ENOENT')));
+      mockSpawn.mockImplementation(() => createMockProcess('', '', 1, new Error('ENOENT')));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       expect(result.bufWorkYamlFound).toBe(true);
     });
@@ -169,19 +206,21 @@ describe('AutoDetector', () => {
     it('should detect .protolint.yaml configuration', async () => {
       const protolintConfigPath = path.join(getTestWorkspace(), '.protolint.yaml');
 
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         if (p === protolintConfigPath) {
           return true;
         }
         return false;
       });
 
-      mockSpawn.mockReturnValue(createMockProcess('', '', 1, new Error('ENOENT')));
+      mockSpawn.mockImplementation(() => createMockProcess('', '', 1, new Error('ENOENT')));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       expect(result.protolintConfigFound).toBe(true);
     });
@@ -189,33 +228,37 @@ describe('AutoDetector', () => {
     it('should detect .clang-format configuration', async () => {
       const clangFormatConfigPath = path.join(getTestWorkspace(), '.clang-format');
 
-      mockFsExistsSync.mockImplementation((p: string) => {
+      mockFileExists.mockImplementation(async (p: string) => {
         if (p === clangFormatConfigPath) {
           return true;
         }
         return false;
       });
 
-      mockSpawn.mockReturnValue(createMockProcess('', '', 1, new Error('ENOENT')));
+      mockSpawn.mockImplementation(() => createMockProcess('', '', 1, new Error('ENOENT')));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       expect(result.clangFormatConfigFound).toBe(true);
     });
 
     it('should handle tool detection failure gracefully', async () => {
-      mockFsExistsSync.mockReturnValue(false);
+      mockFileExists.mockResolvedValue(false);
 
-      // All spawns fail
-      mockSpawn.mockReturnValue(createMockProcess('', 'command not found', 127, new Error('ENOENT')));
+      // All spawns fail (return new process each time)
+      mockSpawn.mockImplementation(() => createMockProcess('', 'command not found', 127, new Error('ENOENT')));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       // Should return undefined for tools, not throw
       expect(result.protoc).toBeUndefined();
@@ -224,30 +267,34 @@ describe('AutoDetector', () => {
 
     it('should parse version from protoc output', async () => {
       const expectedProtocPath = path.join(getHomebrewBin(), 'protoc');
-      mockFsExistsSync.mockImplementation((p: string) => p === expectedProtocPath);
+      mockFileExists.mockImplementation(async (p: string) => p === expectedProtocPath);
 
       // Protoc outputs "libprotoc X.Y.Z"
-      mockSpawn.mockReturnValue(createMockProcess('libprotoc 33.0\n', '', 0));
+      mockSpawn.mockImplementation(() => createMockProcess('libprotoc 33.0\n', '', 0));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       expect(result.protoc?.version).toBe('libprotoc 33.0');
     });
 
     it('should parse version from buf output', async () => {
       const expectedBufPath = path.join(getHomebrewBin(), 'buf');
-      mockFsExistsSync.mockImplementation((p: string) => p === expectedBufPath);
+      mockFileExists.mockImplementation(async (p: string) => p === expectedBufPath);
 
       // Buf outputs just the version
-      mockSpawn.mockReturnValue(createMockProcess('1.28.1\n', '', 0));
+      mockSpawn.mockImplementation(() => createMockProcess('1.28.1\n', '', 0));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
-      const result = await detector.detectTools();
+      const resultPromise = detector.detectTools();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
 
       expect(result.buf?.version).toBe('1.28.1');
     });
@@ -308,17 +355,21 @@ describe('AutoDetector', () => {
     it('should only prompt once per session', async () => {
       const vscode = await import('vscode');
 
-      mockFsExistsSync.mockReturnValue(false);
-      mockSpawn.mockReturnValue(createMockProcess('', '', 1, new Error('ENOENT')));
+      mockFileExists.mockResolvedValue(false);
+      mockSpawn.mockImplementation(() => createMockProcess('', '', 1, new Error('ENOENT')));
 
       const { AutoDetector } = await import('../autoDetector');
       const detector = new AutoDetector(mockContext as any, mockOutputChannel as any);
 
       // First call
-      await detector.detectAndPrompt();
+      const firstPromise = detector.detectAndPrompt();
+      await flushPromisesAndTimers();
+      await firstPromise;
 
       // Second call should not prompt again
-      await detector.detectAndPrompt();
+      const secondPromise = detector.detectAndPrompt();
+      await flushPromisesAndTimers();
+      await secondPromise;
 
       // showInformationMessage should only be called once at most
       // (or not at all if no suggestions)
@@ -330,12 +381,7 @@ describe('AutoDetector', () => {
 /**
  * Helper to create a mock child process
  */
-function createMockProcess(
-  stdout: string,
-  stderr: string,
-  exitCode: number,
-  error?: Error
-) {
+function createMockProcess(stdout: string, stderr: string, exitCode: number, error?: Error) {
   const stdoutHandlers: Record<string, ((data: Buffer) => void)[]> = {};
   const stderrHandlers: Record<string, ((data: Buffer) => void)[]> = {};
   const procHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};

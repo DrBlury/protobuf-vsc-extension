@@ -15,11 +15,11 @@ describe('FormattingHandler', () => {
 
   beforeEach(() => {
     documents = {
-      get: jest.fn()
+      get: jest.fn(),
     } as any;
     formatterProvider = {
       formatDocument: jest.fn(),
-      formatRange: jest.fn()
+      formatRange: jest.fn(),
     } as any;
   });
 
@@ -27,12 +27,12 @@ describe('FormattingHandler', () => {
     it('should return empty array when formatter is disabled', async () => {
       const params: DocumentFormattingParams = {
         textDocument: { uri: 'file:///test.proto' },
-        options: { tabSize: 2, insertSpaces: true }
+        options: { tabSize: 2, insertSpaces: true },
       };
       const settings: Settings = {
         protobuf: {
-          formatter: { enabled: false }
-        }
+          formatter: { enabled: false },
+        },
       } as Settings;
 
       const result = await handleDocumentFormatting(params, documents, formatterProvider, settings);
@@ -43,12 +43,12 @@ describe('FormattingHandler', () => {
     it('should return empty array when document not found', async () => {
       const params: DocumentFormattingParams = {
         textDocument: { uri: 'file:///nonexistent.proto' },
-        options: { tabSize: 2, insertSpaces: true }
+        options: { tabSize: 2, insertSpaces: true },
       };
       const settings: Settings = {
         protobuf: {
-          formatter: { enabled: true }
-        }
+          formatter: { enabled: true },
+        },
       } as Settings;
 
       documents.get.mockReturnValue(undefined);
@@ -66,15 +66,17 @@ describe('FormattingHandler', () => {
 
       const params: DocumentFormattingParams = {
         textDocument: { uri },
-        options: { tabSize: 2, insertSpaces: true }
+        options: { tabSize: 2, insertSpaces: true },
       };
       const settings: Settings = {
         protobuf: {
-          formatter: { enabled: true }
-        }
+          formatter: { enabled: true },
+        },
       } as Settings;
 
-      const textEdits = [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 17 } }, newText: 'syntax = "proto3";' }];
+      const textEdits = [
+        { range: { start: { line: 0, character: 0 }, end: { line: 0, character: 17 } }, newText: 'syntax = "proto3";' },
+      ];
       formatterProvider.formatDocument.mockResolvedValue(textEdits);
 
       const result = await handleDocumentFormatting(params, documents, formatterProvider, settings);
@@ -89,12 +91,12 @@ describe('FormattingHandler', () => {
       const params: DocumentRangeFormattingParams = {
         textDocument: { uri: 'file:///test.proto' },
         range: { start: { line: 0, character: 0 }, end: { line: 0, character: 17 } },
-        options: { tabSize: 2, insertSpaces: true }
+        options: { tabSize: 2, insertSpaces: true },
       };
       const settings: Settings = {
         protobuf: {
-          formatter: { enabled: false }
-        }
+          formatter: { enabled: false },
+        },
       } as Settings;
 
       const result = await handleRangeFormatting(params, documents, formatterProvider, settings);
@@ -106,12 +108,12 @@ describe('FormattingHandler', () => {
       const params: DocumentRangeFormattingParams = {
         textDocument: { uri: 'file:///nonexistent.proto' },
         range: { start: { line: 0, character: 0 }, end: { line: 0, character: 17 } },
-        options: { tabSize: 2, insertSpaces: true }
+        options: { tabSize: 2, insertSpaces: true },
       };
       const settings: Settings = {
         protobuf: {
-          formatter: { enabled: true }
-        }
+          formatter: { enabled: true },
+        },
       } as Settings;
 
       documents.get.mockReturnValue(undefined);
@@ -130,15 +132,17 @@ describe('FormattingHandler', () => {
       const params: DocumentRangeFormattingParams = {
         textDocument: { uri },
         range: { start: { line: 0, character: 0 }, end: { line: 0, character: 17 } },
-        options: { tabSize: 2, insertSpaces: true }
+        options: { tabSize: 2, insertSpaces: true },
       };
       const settings: Settings = {
         protobuf: {
-          formatter: { enabled: true }
-        }
+          formatter: { enabled: true },
+        },
       } as Settings;
 
-      const textEdits = [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 17 } }, newText: 'syntax = "proto3";' }];
+      const textEdits = [
+        { range: { start: { line: 0, character: 0 }, end: { line: 0, character: 17 } }, newText: 'syntax = "proto3";' },
+      ];
       formatterProvider.formatRange.mockResolvedValue(textEdits);
 
       const result = await handleRangeFormatting(params, documents, formatterProvider, settings);

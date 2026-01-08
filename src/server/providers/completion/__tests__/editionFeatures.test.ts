@@ -8,7 +8,7 @@ import {
   getEditionFeatureNameCompletions,
   getEditionFeatureValueCompletions,
   getEditionVersionCompletions,
-  getFieldFeaturesOptionCompletion
+  getFieldFeaturesOptionCompletion,
 } from '../editionFeatures';
 
 describe('Completion Edition Features', () => {
@@ -26,19 +26,19 @@ describe('Completion Edition Features', () => {
       expect(EDITION_FEATURES.field_presence.values).toContain('EXPLICIT');
       expect(EDITION_FEATURES.field_presence.values).toContain('IMPLICIT');
       expect(EDITION_FEATURES.field_presence.values).toContain('LEGACY_REQUIRED');
-      
+
       expect(EDITION_FEATURES.enum_type.values).toContain('OPEN');
       expect(EDITION_FEATURES.enum_type.values).toContain('CLOSED');
-      
+
       expect(EDITION_FEATURES.repeated_field_encoding.values).toContain('PACKED');
       expect(EDITION_FEATURES.repeated_field_encoding.values).toContain('EXPANDED');
-      
+
       expect(EDITION_FEATURES.utf8_validation.values).toContain('VERIFY');
       expect(EDITION_FEATURES.utf8_validation.values).toContain('NONE');
-      
+
       expect(EDITION_FEATURES.message_encoding.values).toContain('LENGTH_PREFIXED');
       expect(EDITION_FEATURES.message_encoding.values).toContain('DELIMITED');
-      
+
       expect(EDITION_FEATURES.json_format.values).toContain('ALLOW');
       expect(EDITION_FEATURES.json_format.values).toContain('LEGACY_BEST_EFFORT');
     });

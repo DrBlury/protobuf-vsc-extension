@@ -30,7 +30,7 @@ const LOG_LEVEL_MAP: Record<string, LogLevel> = {
   warn: LogLevel.WARN,
   info: LogLevel.INFO,
   debug: LogLevel.DEBUG,
-  verbose: LogLevel.VERBOSE
+  verbose: LogLevel.VERBOSE,
 };
 
 /**
@@ -188,10 +188,12 @@ export function updateProvidersWithSettings(
     deprecatedUsage: diag.deprecatedUsage ?? true,
     unusedSymbols: diag.unusedSymbols ?? false,
     circularDependencies: diag.circularDependencies ?? true,
-    documentationComments: diag.documentationComments ?? true
+    documentationComments: diag.documentationComments ?? true,
   };
   diagnosticsProvider.updateSettings(diagSettings);
-  logger.info(`Diagnostics settings: enabled=${diag.enabled}, fieldTagChecks=${diagSettings.fieldTagChecks}, duplicateFieldChecks=${diagSettings.duplicateFieldChecks}`);
+  logger.info(
+    `Diagnostics settings: enabled=${diag.enabled}, fieldTagChecks=${diagSettings.fieldTagChecks}, duplicateFieldChecks=${diagSettings.duplicateFieldChecks}`
+  );
 
   // Update formatter settings
   const formatterSettings = {
@@ -205,12 +207,14 @@ export function updateProvidersWithSettings(
     alignFields: settings.protobuf.formatter?.alignFields,
     preserveMultiLineFields: settings.protobuf.formatter?.preserveMultiLineFields,
     insertEmptyLineBetweenDefinitions: settings.protobuf.formatter?.insertEmptyLineBetweenDefinitions,
-    maxEmptyLines: settings.protobuf.formatter?.maxEmptyLines
+    maxEmptyLines: settings.protobuf.formatter?.maxEmptyLines,
   };
   formatter.updateSettings(formatterSettings);
   // Pass clangFormat.enabled to formatter so it can use clang-format even without preset='google'
   formatter.setClangFormatEnabled(settings.protobuf.clangFormat.enabled);
-  logger.info(`Formatter settings updated: renumberOnFormat=${formatterSettings.renumberOnFormat}, preset=${formatterSettings.preset}, alignFields=${formatterSettings.alignFields}, preserveMultiLineFields=${formatterSettings.preserveMultiLineFields}, insertEmptyLineBetweenDefinitions=${formatterSettings.insertEmptyLineBetweenDefinitions}, maxEmptyLines=${formatterSettings.maxEmptyLines}, clangFormatEnabled=${settings.protobuf.clangFormat.enabled}`);
+  logger.info(
+    `Formatter settings updated: renumberOnFormat=${formatterSettings.renumberOnFormat}, preset=${formatterSettings.preset}, alignFields=${formatterSettings.alignFields}, preserveMultiLineFields=${formatterSettings.preserveMultiLineFields}, insertEmptyLineBetweenDefinitions=${formatterSettings.insertEmptyLineBetweenDefinitions}, maxEmptyLines=${formatterSettings.maxEmptyLines}, clangFormatEnabled=${settings.protobuf.clangFormat.enabled}`
+  );
 
   // Update code actions settings
   if (codeActionsProvider) {
@@ -219,11 +223,13 @@ export function updateProvidersWithSettings(
       formatterEnabled: settings.protobuf.formatter?.enabled ?? true,
       organizeImports: {
         enabled: settings.protobuf.organizeImports?.enabled ?? true,
-        groupByCategory: settings.protobuf.organizeImports?.groupByCategory ?? true
-      }
+        groupByCategory: settings.protobuf.organizeImports?.groupByCategory ?? true,
+      },
     };
     codeActionsProvider.updateSettings(codeActionsSettings);
-    logger.info(`Code actions settings updated: renumberOnFormat=${codeActionsSettings.renumberOnFormat}, formatterEnabled=${codeActionsSettings.formatterEnabled}, organizeImports.enabled=${codeActionsSettings.organizeImports.enabled}, organizeImports.groupByCategory=${codeActionsSettings.organizeImports.groupByCategory}`);
+    logger.info(
+      `Code actions settings updated: renumberOnFormat=${codeActionsSettings.renumberOnFormat}, formatterEnabled=${codeActionsSettings.formatterEnabled}, organizeImports.enabled=${codeActionsSettings.organizeImports.enabled}, organizeImports.groupByCategory=${codeActionsSettings.organizeImports.groupByCategory}`
+    );
   }
 
   // Update renumber settings
@@ -232,17 +238,15 @@ export function updateProvidersWithSettings(
     startNumber: renumberSettings.startNumber,
     increment: renumberSettings.increment,
     preserveReserved: renumberSettings.preserveReserved,
-    skipReservedRange: renumberSettings.skipInternalRange
+    skipReservedRange: renumberSettings.skipInternalRange,
   });
 
   // Update analyzer with import paths (expand variables like ${workspaceFolder})
   const workspaceBufIncludes = collectWorkspaceBufIncludes(workspaceFolders);
-  const protoPathIncludes = extractProtoPathOptions(settings.protobuf.protoc?.options).map(p => p.trim()).filter(Boolean);
-  const rawIncludePaths = [
-    ...workspaceBufIncludes,
-    ...protoPathIncludes,
-    ...(settings.protobuf.includes || [])
-  ];
+  const protoPathIncludes = extractProtoPathOptions(settings.protobuf.protoc?.options)
+    .map(p => p.trim())
+    .filter(Boolean);
+  const rawIncludePaths = [...workspaceBufIncludes, ...protoPathIncludes, ...(settings.protobuf.includes || [])];
 
   const includePaths: string[] = [];
   const seenPaths = new Set<string>();
@@ -303,7 +307,7 @@ export function updateProvidersWithSettings(
     compileAllPath: expandedCompileAllPath || protocSettings.compileAllPath,
     useAbsolutePath: protocSettings.useAbsolutePath,
     options: protocSettings.options,
-    excludePatterns: protocSettings.excludePatterns || []
+    excludePatterns: protocSettings.excludePatterns || [],
   });
 
   // Update breaking change detector settings
@@ -313,7 +317,7 @@ export function updateProvidersWithSettings(
     enabled: breakingSettings.enabled,
     againstStrategy: breakingSettings.againstStrategy as 'git' | 'file' | 'none',
     againstGitRef: breakingSettings.againstGitRef,
-    againstFilePath: expandedBreakingFilePath || breakingSettings.againstFilePath
+    againstFilePath: expandedBreakingFilePath || breakingSettings.againstFilePath,
   });
 
   // Update external linter settings
@@ -333,7 +337,7 @@ export function updateProvidersWithSettings(
     bufConfigPath: expandedBufConfigPath || linterSettings.bufConfigPath,
     protolintConfigPath: expandedProtolintConfigPath || linterSettings.protolintConfigPath,
     apiLinterConfigPath: expandedApiLinterConfigPath || linterSettings.apiLinterConfigPath,
-    runOnSave: linterSettings.runOnSave
+    runOnSave: linterSettings.runOnSave,
   });
 
   const configuredBufPath = expandPathSetting(settings.protobuf.buf?.path?.trim(), workspaceFolders);
@@ -352,7 +356,7 @@ export function updateProvidersWithSettings(
     path: resolvedClangPath,
     style: clangSettings.style,
     fallbackStyle: clangSettings.fallbackStyle,
-    configPath: expandedClangConfigPath || clangSettings.configPath
+    configPath: expandedClangConfigPath || clangSettings.configPath,
   });
 
   if (clangSettings.enabled) {
@@ -365,13 +369,9 @@ export function updateProvidersWithSettings(
       pathDetails = 'relative path';
     }
 
-    const expansionInfo = expandedClangPath && clangSettings.path
-      ? ` (expanded from "${clangSettings.path}")`
-      : '';
+    const expansionInfo = expandedClangPath && clangSettings.path ? ` (expanded from "${clangSettings.path}")` : '';
 
-    const configPathInfo = expandedClangConfigPath
-      ? `, configPath="${expandedClangConfigPath}"`
-      : '';
+    const configPathInfo = expandedClangConfigPath ? `, configPath="${expandedClangConfigPath}"` : '';
 
     logger.info(
       `clang-format enabled. configured="${configuredPath}" resolved="${usedPath}"${expansionInfo} (${pathDetails}). style=${clangSettings.style || 'file'}, fallback=${clangSettings.fallbackStyle || 'Google'}${configPathInfo}`
@@ -385,7 +385,7 @@ export function updateProvidersWithSettings(
       configPath: expandedClangConfigPath || clangSettings.configPath || '(auto-detect)',
       workspaceFolders: workspaceFolders.join(', ') || '(none)',
       style: clangSettings.style,
-      fallbackStyle: clangSettings.fallbackStyle
+      fallbackStyle: clangSettings.fallbackStyle,
     });
   } else {
     logger.info('clang-format disabled. Built-in formatter will handle proto files unless buf preset is selected.');
@@ -394,7 +394,7 @@ export function updateProvidersWithSettings(
       configuredPath: clangSettings.path,
       style: clangSettings.style,
       fallbackStyle: clangSettings.fallbackStyle,
-      configPath: clangSettings.configPath
+      configPath: clangSettings.configPath,
     });
   }
 
@@ -419,11 +419,21 @@ export function updateProvidersWithSettings(
   logger.info(`  protoc.compileOnSave: ${protocSettings.compileOnSave}`);
   logger.info(`  buf.path: ${resolvedBufPath ?? 'not configured'}`);
   logger.info(`  externalLinter.enabled: ${linterSettings.enabled} (linter=${linterSettings.linter})`);
-  logger.info(`  externalLinter.bufConfigPath: ${expandedBufConfigPath || linterSettings.bufConfigPath || 'not configured'}`);
-  logger.info(`  externalLinter.protolintPath: ${expandedProtolintPath || linterSettings.protolintPath || 'not configured'}`);
-  logger.info(`  externalLinter.protolintConfigPath: ${expandedProtolintConfigPath || linterSettings.protolintConfigPath || 'not configured'}`);
-  logger.info(`  externalLinter.apiLinterPath: ${expandedApiLinterPath || linterSettings.apiLinterPath || 'not configured'}`);
-  logger.info(`  externalLinter.apiLinterConfigPath: ${expandedApiLinterConfigPath || linterSettings.apiLinterConfigPath || 'not configured'}`);
+  logger.info(
+    `  externalLinter.bufConfigPath: ${expandedBufConfigPath || linterSettings.bufConfigPath || 'not configured'}`
+  );
+  logger.info(
+    `  externalLinter.protolintPath: ${expandedProtolintPath || linterSettings.protolintPath || 'not configured'}`
+  );
+  logger.info(
+    `  externalLinter.protolintConfigPath: ${expandedProtolintConfigPath || linterSettings.protolintConfigPath || 'not configured'}`
+  );
+  logger.info(
+    `  externalLinter.apiLinterPath: ${expandedApiLinterPath || linterSettings.apiLinterPath || 'not configured'}`
+  );
+  logger.info(
+    `  externalLinter.apiLinterConfigPath: ${expandedApiLinterConfigPath || linterSettings.apiLinterConfigPath || 'not configured'}`
+  );
   logger.info(`  clangFormat.path: ${resolvedClangPath} (enabled=${clangSettings.enabled})`);
   logger.info(`  includePaths: ${includePaths.join(', ') || '(none)'}`);
   logger.info(`  protoSrcsDir: ${protoSrcsDir || '(workspace root)'}`);
@@ -432,6 +442,6 @@ export function updateProvidersWithSettings(
   // Note: includePaths already computed above with variable expansion
   return {
     includePaths: includePaths.filter(p => p !== wellKnownIncludePath && p !== wellKnownCacheDir),
-    protoSrcsDir
+    protoSrcsDir,
   };
 }

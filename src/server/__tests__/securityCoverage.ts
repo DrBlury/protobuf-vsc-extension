@@ -32,38 +32,38 @@ export interface SecurityCoverageMetrics {
  */
 export class SecurityCoverageReporter {
   private testResults: SecurityTestResult[] = [];
-  
+
   constructor(private outputPath?: string) {}
 
   async generateCoverageReport(): Promise<SecurityCoverageMetrics> {
     const securityTester = new SecurityTester();
     this.testResults = await securityTester.runAllTests();
-    
+
     const metrics = this.calculateMetrics();
-    
+
     if (this.outputPath) {
       await this.saveReport(metrics);
     }
-    
+
     return metrics;
   }
 
   private calculateMetrics(): SecurityCoverageMetrics {
     const categories = this.categorizeTests();
-    
+
     const totalTests = this.testResults.length;
     const passedTests = this.testResults.filter(r => r.passed).length;
     const failedTests = totalTests - passedTests;
     const criticalTests = this.testResults.filter(r => r.severity === 'critical').length;
     const highSeverityTests = this.testResults.filter(r => r.severity === 'high').length;
-    
+
     const coveragePercentage = (passedTests / totalTests) * 100;
-    
+
     // Calculate weighted security score
     const securityScore = this.calculateSecurityScore();
-    
+
     const recommendations = this.generateRecommendations(categories);
-    
+
     return {
       totalTests,
       passedTests,
@@ -73,7 +73,7 @@ export class SecurityCoverageReporter {
       coveragePercentage,
       securityScore,
       testCategories: categories,
-      recommendations
+      recommendations,
     };
   }
 
@@ -82,22 +82,30 @@ export class SecurityCoverageReporter {
       commandInjection: { total: 0, passed: 0, coverage: 0 },
       pathTraversal: { total: 0, passed: 0, coverage: 0 },
       fileIntegrity: { total: 0, passed: 0, coverage: 0 },
-      temporaryFiles: { total: 0, passed: 0, coverage: 0 }
+      temporaryFiles: { total: 0, passed: 0, coverage: 0 },
     };
 
     this.testResults.forEach(result => {
       if (result.testName.includes('Command Injection')) {
         categories.commandInjection.total++;
-        if (result.passed) {categories.commandInjection.passed++;}
+        if (result.passed) {
+          categories.commandInjection.passed++;
+        }
       } else if (result.testName.includes('Path Traversal')) {
         categories.pathTraversal.total++;
-        if (result.passed) {categories.pathTraversal.passed++;}
+        if (result.passed) {
+          categories.pathTraversal.passed++;
+        }
       } else if (result.testName.includes('File Integrity')) {
         categories.fileIntegrity.total++;
-        if (result.passed) {categories.fileIntegrity.passed++;}
+        if (result.passed) {
+          categories.fileIntegrity.passed++;
+        }
       } else if (result.testName.includes('Temporary File')) {
         categories.temporaryFiles.total++;
-        if (result.passed) {categories.temporaryFiles.passed++;}
+        if (result.passed) {
+          categories.temporaryFiles.passed++;
+        }
       }
     });
 
@@ -112,7 +120,7 @@ export class SecurityCoverageReporter {
 
   private calculateSecurityScore(): number {
     let score = 100;
-    
+
     this.testResults.forEach(result => {
       if (!result.passed) {
         switch (result.severity) {
@@ -131,45 +139,47 @@ export class SecurityCoverageReporter {
         }
       }
     });
-    
+
     return Math.max(0, score);
   }
 
   private generateRecommendations(categories: SecurityCoverageMetrics['testCategories']): string[] {
     const recommendations: string[] = [];
-    
+
     if (categories.commandInjection.coverage < 100) {
       recommendations.push('Improve command injection detection and validation');
     }
-    
+
     if (categories.pathTraversal.coverage < 100) {
       recommendations.push('Strengthen path traversal prevention mechanisms');
     }
-    
+
     if (categories.fileIntegrity.coverage < 100) {
       recommendations.push('Enhance file integrity verification processes');
     }
-    
+
     if (categories.temporaryFiles.coverage < 100) {
       recommendations.push('Implement secure temporary file handling');
     }
-    
+
     const failedCriticalTests = this.testResults.filter(r => !r.passed && r.severity === 'critical');
     if (failedCriticalTests.length > 0) {
       recommendations.push('CRITICAL: Address all critical security test failures immediately');
     }
-    
+
     const failedHighTests = this.testResults.filter(r => !r.passed && r.severity === 'high');
     if (failedHighTests.length > 0) {
       recommendations.push('HIGH: Prioritize fixing high-severity security issues');
     }
-    
+
     return recommendations;
   }
 
   private async saveReport(metrics: SecurityCoverageMetrics): Promise<void> {
-    if (!this.outputPath) {return;}
-    
+    if (!this.outputPath) {
+      return;
+    }
+
     const report = {
       timestamp: new Date().toISOString(),
       summary: {
@@ -179,20 +189,20 @@ export class SecurityCoverageReporter {
         passedTests: metrics.passedTests,
         failedTests: metrics.failedTests,
         criticalFailures: metrics.criticalTests,
-        highSeverityFailures: metrics.highSeverityTests
+        highSeverityFailures: metrics.highSeverityTests,
       },
       categories: metrics.testCategories,
       recommendations: metrics.recommendations,
-      detailedResults: this.testResults
+      detailedResults: this.testResults,
     };
-    
+
     const reportPath = path.resolve(this.outputPath);
     const reportDir = path.dirname(reportPath);
-    
+
     if (!fs.existsSync(reportDir)) {
       fs.mkdirSync(reportDir, { recursive: true });
     }
-    
+
     fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
   }
 
@@ -206,22 +216,22 @@ export class SecurityCoverageReporter {
     console.log(`❌ Failed: ${metrics.failedTests}`);
     console.log(`🚨 Critical Failures: ${metrics.criticalTests}`);
     console.log(`⚠️  High Severity: ${metrics.highSeverityTests}`);
-    
+
     console.log('\n📋 Category Breakdown:');
     Object.entries(metrics.testCategories).forEach(([category, stats]) => {
       const icon = this.getCategoryIcon(category);
       console.log(`${icon} ${category}: ${stats.coverage.toFixed(1)}% (${stats.passed}/${stats.total})`);
     });
-    
+
     if (metrics.recommendations.length > 0) {
       console.log('\n💡 Recommendations:');
       metrics.recommendations.forEach((rec, index) => {
         console.log(`${index + 1}. ${rec}`);
       });
     }
-    
+
     console.log('\n' + '='.repeat(50));
-    
+
     if (metrics.securityScore >= 90) {
       console.log('🎉 EXCELLENT: Security posture is very strong');
     } else if (metrics.securityScore >= 75) {
@@ -238,7 +248,7 @@ export class SecurityCoverageReporter {
       commandInjection: '💉',
       pathTraversal: '🔍',
       fileIntegrity: '🔐',
-      temporaryFiles: '📁'
+      temporaryFiles: '📁',
     };
     return icons[category] || '📋';
   }

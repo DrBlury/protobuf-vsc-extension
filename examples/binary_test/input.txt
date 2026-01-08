@@ -1,0 +1,12 @@
+name: "John Doe"
+id: 1234
+email: "jdoe@example.com"
+phones {
+  number: "555-4321"
+  type: HOME
+}
+phones {
+  number: "555-1234"
+  type: MOBILE
+}
+primary_phone_type: MOBILE
