@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 /**
  * Section IDs for the sidebar
  */
-type SectionId = 'workspace' | 'playgrounds' | 'tools' | 'analysis' | 'registry' | 'help';
+type SectionId = 'quickstart' | 'workspace' | 'playgrounds' | 'tools' | 'analysis' | 'registry' | 'help';
 
 /**
  * Represents a section header (collapsible)
@@ -149,25 +149,25 @@ export class ProtobufSidebarProvider implements vscode.TreeDataProvider<TreeItem
 
   private getSections(): SectionItem[] {
     const sections: SectionItem[] = [
-      new SectionItem('workspace', 'WORKSPACE', 'folder-opened', `${this.protoFileCount} files`),
+      new SectionItem('quickstart', 'QUICKSTART', 'rocket'),
+      new SectionItem('tools', 'BUILD & CHECK', 'tools'),
+      new SectionItem('analysis', 'ANALYZE & COMPARE', 'graph'),
+      new SectionItem('registry', 'BUF REGISTRY', 'cloud'),
+      new SectionItem('help', 'HELP', 'question'),
+      new SectionItem('workspace', 'WORKSPACE INSIGHTS', 'folder-opened', `${this.protoFileCount} files`),
     ];
 
     if (this.betaFeaturesEnabled) {
-      sections.push(new SectionItem('playgrounds', 'PLAYGROUNDS', 'beaker'));
+      sections.splice(2, 0, new SectionItem('playgrounds', 'PLAYGROUNDS', 'beaker'));
     }
-
-    sections.push(
-      new SectionItem('tools', 'BUILD & GENERATE', 'tools'),
-      new SectionItem('analysis', 'ANALYSIS', 'graph'),
-      new SectionItem('registry', 'BUF REGISTRY', 'cloud'),
-      new SectionItem('help', 'HELP', 'question')
-    );
 
     return sections;
   }
 
   private getSectionChildren(sectionId: SectionId): TreeItemType[] {
     switch (sectionId) {
+      case 'quickstart':
+        return this.getQuickstartItems();
       case 'workspace':
         return this.getWorkspaceItems();
       case 'playgrounds':
@@ -186,6 +186,55 @@ export class ProtobufSidebarProvider implements vscode.TreeDataProvider<TreeItem
       default:
         return [];
     }
+  }
+
+  private getQuickstartItems(): TreeItemType[] {
+    const items: TreeItemType[] = [
+      new ActionItem(
+        'Set Up Toolchain',
+        'Install buf/protoc/grpcurl',
+        'rocket',
+        'protobuf.toolchain.manage',
+        'Open the toolchain manager to install or switch protoc, buf, and grpcurl'
+      ),
+      new ActionItem(
+        'Generate Code',
+        'Run codegen now',
+        'zap',
+        'protobuf.generateCode',
+        'Generate code from proto files using buf or protoc'
+      ),
+      new ActionItem(
+        'Compile Workspace',
+        'Validate builds',
+        'check-all',
+        'protobuf.compileAll',
+        'Compile all proto files to surface errors early'
+      ),
+      new ActionItem(
+        'Run Linter',
+        'Style/API checks',
+        'checklist',
+        'protobuf.runExternalLinter',
+        'Run buf lint, protolint, or api-linter across the workspace'
+      ),
+    ];
+
+    if (this.betaFeaturesEnabled) {
+      items.splice(
+        2,
+        0,
+        new ActionItem(
+          'Open gRPC Playground',
+          'Send requests fast',
+          'beaker',
+          'protobuf.openPlayground',
+          'Open the gRPC playground to test services interactively'
+        )
+      );
+    }
+
+    return items;
   }
 
   private getWorkspaceItems(): TreeItemType[] {
@@ -250,45 +299,38 @@ export class ProtobufSidebarProvider implements vscode.TreeDataProvider<TreeItem
   private getToolItems(): TreeItemType[] {
     return [
       new ActionItem(
-        'Manage Toolchain',
-        'protoc, buf, grpcurl',
-        'settings-gear',
-        'protobuf.toolchain.manage',
-        'Install and configure protoc, buf, and grpcurl'
-      ),
-      new ActionItem(
         'Generate Code',
-        'Run codegen',
+        'Buf/protoc outputs',
         'zap',
         'protobuf.generateCode',
         'Generate code from proto files using buf or protoc'
       ),
       new ActionItem(
         'Compile All',
-        'Check for errors',
+        'Validate workspace',
         'check-all',
         'protobuf.compileAll',
         'Compile all proto files to check for errors'
       ),
       new ActionItem(
         'Run Linter',
-        'Check style',
+        'Style/API rules',
         'checklist',
         'protobuf.runExternalLinter',
         'Run external linter (buf lint, protolint, or api-linter)'
+      ),
+      new ActionItem(
+        'Manage Toolchain',
+        'Switch binaries',
+        'settings-gear',
+        'protobuf.toolchain.manage',
+        'Install and configure protoc, buf, and grpcurl'
       ),
     ];
   }
 
   private getAnalysisItems(): TreeItemType[] {
     return [
-      new ActionItem(
-        'Schema Graph',
-        'Visualize deps',
-        'type-hierarchy-sub',
-        'protobuf.showSchemaGraph',
-        'Show a visual graph of proto file dependencies'
-      ),
       new ActionItem(
         'Breaking Changes',
         'Compare with git',
@@ -302,6 +344,13 @@ export class ProtobufSidebarProvider implements vscode.TreeDataProvider<TreeItem
         'diff',
         'protobuf.diffSchema',
         'Diff schema with a git reference'
+      ),
+      new ActionItem(
+        'Schema Graph',
+        'Visualize deps',
+        'type-hierarchy-sub',
+        'protobuf.showSchemaGraph',
+        'Show a visual graph of proto file dependencies'
       ),
       new ActionItem(
         'List Services',

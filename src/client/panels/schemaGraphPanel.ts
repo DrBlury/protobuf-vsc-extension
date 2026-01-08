@@ -715,10 +715,29 @@ export class SchemaGraphPanel {
           return parts[parts.length - 1];
         }).filter(Boolean))].sort();
 
+        const previousPackage = selectedPackage;
+        const previousFile = selectedFile;
+
         filterPackage.innerHTML = '<option value="">All Packages</option>' + 
           packages.map(p => '<option value="' + p + '">' + p + '</option>').join('');
         filterFile.innerHTML = '<option value="">All Files</option>' + 
           files.map(f => '<option value="' + f + '">' + f + '</option>').join('');
+
+        if (previousPackage && packages.includes(previousPackage)) {
+          filterPackage.value = previousPackage;
+          selectedPackage = previousPackage;
+        } else {
+          filterPackage.value = '';
+          selectedPackage = '';
+        }
+
+        if (previousFile && files.includes(previousFile)) {
+          filterFile.value = previousFile;
+          selectedFile = previousFile;
+        } else {
+          filterFile.value = '';
+          selectedFile = '';
+        }
       }
 
       function getOrphanIds(nodes, edges) {
@@ -1200,7 +1219,7 @@ export class SchemaGraphPanel {
           return { x, y: yBase };
         }
 
-        function edgePoints(edge) {
+        function fallbackEdgePoints(edge) {
           const sourceId = (edge.sources && edge.sources[0]) || (edge.from ? edge.from + ':in' : '');
           const targetId = (edge.targets && edge.targets[0]) || (edge.to ? edge.to + ':in' : '');
           const start = (sourceId && portPos.get(sourceId)) || fieldAnchor(edge.from || edge.source || '', edge.label || '', true);
@@ -1215,31 +1234,34 @@ export class SchemaGraphPanel {
           ];
         }
 
+        function edgeRenderPoints(edge) {
+          const elkPoints = (edge.sections && edge.sections.length)
+            ? [edge.sections[0].startPoint, ...(edge.sections[0].bendPoints || []), edge.sections[0].endPoint].filter(Boolean)
+            : [];
+          if (elkPoints.length) {
+            return elkPoints;
+          }
+          return fallbackEdgePoints(edge);
+        }
+
         linkMerged.attr('d', d => {
-          const customPoints = edgePoints(d);
-          const points = customPoints.length
-            ? customPoints
-            : (d.sections && d.sections.length
-              ? [d.sections[0].startPoint, ...(d.sections[0].bendPoints || []), d.sections[0].endPoint]
-              : []);
+          const points = edgeRenderPoints(d);
           if (!points.length) return '';
           return points.reduce((path, p, i) => path + (i === 0 ? 'M' : ' L') + p.x + ' ' + p.y, '');
         });
 
         linkLabelMerged
           .attr('x', d => {
-            const pts = edgePoints(d);
-            if (!pts.length && (!d.sections || !d.sections.length)) return 0;
-            const points = pts.length ? pts : [d.sections[0].startPoint, ...(d.sections[0].bendPoints || []), d.sections[0].endPoint];
+            const points = edgeRenderPoints(d);
+            if (!points.length) return 0;
             const mid = Math.floor(points.length / 2);
             const a = points[mid - 1] || points[0];
             const b = points[mid] || points[points.length - 1];
             return (a.x + b.x) / 2;
           })
           .attr('y', d => {
-            const pts = edgePoints(d);
-            if (!pts.length && (!d.sections || !d.sections.length)) return 0;
-            const points = pts.length ? pts : [d.sections[0].startPoint, ...(d.sections[0].bendPoints || []), d.sections[0].endPoint];
+            const points = edgeRenderPoints(d);
+            if (!points.length) return 0;
             const mid = Math.floor(points.length / 2);
             const a = points[mid - 1] || points[0];
             const b = points[mid] || points[points.length - 1];

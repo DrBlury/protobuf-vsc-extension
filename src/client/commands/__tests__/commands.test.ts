@@ -5,12 +5,24 @@ jest.mock(
       registerCommand: jest.fn(() => ({ dispose: jest.fn() })),
       executeCommand: jest.fn(),
     },
+    languages: {
+      createDiagnosticCollection: jest.fn(() => ({
+        set: jest.fn(),
+        delete: jest.fn(),
+        dispose: jest.fn(),
+      })),
+    },
     window: {
       activeTextEditor: undefined as unknown,
       showWarningMessage: jest.fn(),
       showInformationMessage: jest.fn(),
       showErrorMessage: jest.fn(),
       showQuickPick: jest.fn(),
+      showTextDocument: jest.fn(async (document: unknown) => ({
+        document,
+        revealRange: jest.fn(),
+        selection: undefined as unknown,
+      })),
       createOutputChannel: jest.fn(() => ({
         appendLine: jest.fn(),
         show: jest.fn(),
@@ -20,6 +32,7 @@ jest.mock(
     workspace: {
       workspaceFolders: undefined as unknown,
       applyEdit: jest.fn().mockResolvedValue(true),
+      openTextDocument: jest.fn(async (uri: unknown) => ({ uri })),
     },
     env: {
       openExternal: jest.fn(),
@@ -33,16 +46,29 @@ jest.mock(
     },
     Range: class {
       constructor(
-        public startLine: number,
-        public startChar: number,
-        public endLine: number,
-        public endChar: number
+        public start: unknown,
+        public end: unknown
       ) {}
     },
     Position: class {
       constructor(
         public line: number,
         public character: number
+      ) {}
+    },
+    DiagnosticSeverity: {
+      Error: 1,
+      Warning: 2,
+      Information: 3,
+      Hint: 4,
+    },
+    Diagnostic: class {
+      public source?: string;
+      public code?: unknown;
+      constructor(
+        public range: unknown,
+        public message: string,
+        public severity: unknown
       ) {}
     },
     WorkspaceEdit: class {
@@ -58,8 +84,20 @@ jest.mock(
         public newText: string
       ) {}
     },
+    Selection: class {
+      constructor(
+        public start: unknown,
+        public end: unknown
+      ) {}
+    },
     Disposable: class {},
     ExtensionContext: class {},
+    TextEditorRevealType: {
+      Default: 0,
+      InCenter: 1,
+      InCenterIfOutsideViewport: 2,
+      AtTop: 3,
+    },
     CodeActionKind: {
       QuickFix: 'quickfix',
       Refactor: 'refactor',
@@ -102,12 +140,24 @@ jest.mock(
       registerCommand: jest.fn(() => ({ dispose: jest.fn() })),
       executeCommand: jest.fn(),
     },
+    languages: {
+      createDiagnosticCollection: jest.fn(() => ({
+        set: jest.fn(),
+        delete: jest.fn(),
+        dispose: jest.fn(),
+      })),
+    },
     window: {
       activeTextEditor: undefined as unknown,
       showWarningMessage: jest.fn(),
       showInformationMessage: jest.fn(),
       showErrorMessage: jest.fn(),
       showQuickPick: jest.fn(),
+      showTextDocument: jest.fn(async (document: unknown) => ({
+        document,
+        revealRange: jest.fn(),
+        selection: undefined as unknown,
+      })),
       createOutputChannel: jest.fn(() => ({
         appendLine: jest.fn(),
         show: jest.fn(),
@@ -117,6 +167,7 @@ jest.mock(
     workspace: {
       workspaceFolders: undefined as unknown,
       applyEdit: jest.fn().mockResolvedValue(true),
+      openTextDocument: jest.fn(async (uri: unknown) => ({ uri })),
     },
     env: {
       openExternal: jest.fn(),
@@ -130,16 +181,29 @@ jest.mock(
     },
     Range: class {
       constructor(
-        public startLine: number,
-        public startChar: number,
-        public endLine: number,
-        public endChar: number
+        public start: unknown,
+        public end: unknown
       ) {}
     },
     Position: class {
       constructor(
         public line: number,
         public character: number
+      ) {}
+    },
+    DiagnosticSeverity: {
+      Error: 1,
+      Warning: 2,
+      Information: 3,
+      Hint: 4,
+    },
+    Diagnostic: class {
+      public source?: string;
+      public code?: unknown;
+      constructor(
+        public range: unknown,
+        public message: string,
+        public severity: unknown
       ) {}
     },
     WorkspaceEdit: class {
@@ -155,8 +219,26 @@ jest.mock(
         public newText: string
       ) {}
     },
+    Selection: class {
+      constructor(
+        public start: unknown,
+        public end: unknown
+      ) {}
+    },
     Disposable: class {},
     ExtensionContext: class {},
+    TextEditorRevealType: {
+      Default: 0,
+      InCenter: 1,
+      InCenterIfOutsideViewport: 2,
+      AtTop: 3,
+    },
+    CodeActionKind: {
+      QuickFix: 'quickfix',
+      Refactor: 'refactor',
+      Source: 'source',
+      SourceOrganizeImports: 'source.organizeImports',
+    },
   }),
   { virtual: true }
 );
@@ -166,17 +248,22 @@ const mockVscode = vscode as unknown as {
     registerCommand: jest.Mock;
     executeCommand: jest.Mock;
   };
+  languages: {
+    createDiagnosticCollection: jest.Mock;
+  };
   window: {
-    activeTextEditor: unknown;
+    activeTextEditor: any;
     showWarningMessage: jest.Mock;
     showInformationMessage: jest.Mock;
     showErrorMessage: jest.Mock;
     showQuickPick: jest.Mock;
+    showTextDocument: jest.Mock;
     createOutputChannel: jest.Mock;
   };
   workspace: {
     workspaceFolders: unknown;
     applyEdit: jest.Mock;
+    openTextDocument: jest.Mock;
   };
   env: {
     openExternal: jest.Mock;
@@ -190,6 +277,17 @@ describe('Client Commands', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockVscode.languages.createDiagnosticCollection.mockImplementation(() => ({
+      set: jest.fn(),
+      delete: jest.fn(),
+      dispose: jest.fn(),
+    }));
+    mockVscode.window.createOutputChannel.mockImplementation(() => ({
+      appendLine: jest.fn(),
+      show: jest.fn(),
+      clear: jest.fn(),
+    }));
+    mockVscode.window.showInformationMessage.mockResolvedValue(undefined);
 
     mockClient = {
       sendRequest: jest.fn(),
@@ -526,7 +624,8 @@ describe('Client Commands', () => {
     it('should register linter commands', () => {
       const disposables = registerLinterCommands(mockContext, mockClient);
 
-      expect(disposables).toHaveLength(2);
+      expect(disposables).toHaveLength(3);
+      expect(mockVscode.languages.createDiagnosticCollection).toHaveBeenCalledWith('protobuf-linter');
       expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith(
         'protobuf.runExternalLinter',
         expect.any(Function)
@@ -595,6 +694,50 @@ describe('Client Commands', () => {
       await runLinterHandler();
 
       expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(SUCCESS_MESSAGES.LINTER_PASSED);
+    });
+
+    it('should surface linter issues with diagnostics and navigation options', async () => {
+      mockVscode.window.activeTextEditor = {
+        document: {
+          languageId: 'proto',
+          uri: { toString: () => 'file://test.proto', fsPath: '/workspace/test.proto' },
+        },
+      };
+      mockClient.sendRequest.mockResolvedValueOnce({ available: true, linter: 'buf' }).mockResolvedValueOnce({
+        success: true,
+        issueCount: 1,
+        diagnostics: [
+          {
+            range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } },
+            message: 'Test issue',
+            severity: 1,
+            source: 'buf',
+            code: 'RULE',
+          },
+        ],
+      });
+
+      mockVscode.window.showInformationMessage.mockResolvedValue('Show Problems');
+
+      registerLinterCommands(mockContext, mockClient);
+      const runLinterHandler = mockVscode.commands.registerCommand.mock.calls.find(
+        ([command]: [string]) => command === 'protobuf.runExternalLinter'
+      )![1];
+
+      await runLinterHandler();
+
+      expect(mockClient.sendRequest).toHaveBeenCalledWith(REQUEST_METHODS.RUN_EXTERNAL_LINTER, {
+        uri: 'file://test.proto',
+      });
+      expect(mockVscode.window.showErrorMessage).not.toHaveBeenCalled();
+      expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(
+        SUCCESS_MESSAGES.LINTER_FOUND_ISSUES(1),
+        'Show Problems',
+        'Go to first issue',
+        'View Lint Output'
+      );
+      expect(mockVscode.commands.executeCommand).toHaveBeenCalledWith('workbench.action.problems.focus');
+      expect(mockVscode.window.createOutputChannel).toHaveBeenCalledWith('Protobuf Linter');
     });
 
     it('should show lint rules in output panel', async () => {

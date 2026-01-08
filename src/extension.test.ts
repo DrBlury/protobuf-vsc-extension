@@ -91,6 +91,12 @@ const mockVscode = {
   },
   languages: {
     onDidChangeDiagnostics: jest.fn(),
+    createDiagnosticCollection: jest.fn().mockReturnValue({
+      set: jest.fn(),
+      clear: jest.fn(),
+      delete: jest.fn(),
+      dispose: jest.fn(),
+    }),
   },
   ProgressLocation: {
     Notification: 1,

@@ -357,6 +357,87 @@ describe('PlaygroundManager', () => {
     });
   });
 
+  describe('configuration changes', () => {
+    it('should re-detect grpcurl path when the grpcurl setting changes', async () => {
+      let grpcurlSetting = '/test/global-storage/bin/grpcurl';
+      const configListeners: Array<(e: { affectsConfiguration: (section: string) => boolean }) => void> = [];
+
+      (mockVscode.workspace.onDidChangeConfiguration as unknown as jest.Mock).mockImplementation((listener: any) => {
+        configListeners.push(listener as (e: { affectsConfiguration: (section: string) => boolean }) => void);
+        return { dispose: jest.fn() };
+      });
+
+      (mockVscode.workspace.getConfiguration as unknown as jest.Mock).mockImplementation((section: string) => {
+        if (section === 'protobuf.grpcurl') {
+          return {
+            get: jest.fn((key: string) => (key === 'path' ? grpcurlSetting : undefined)),
+            update: jest.fn().mockResolvedValue(undefined),
+            has: jest.fn(() => false),
+            inspect: jest.fn(),
+          };
+        }
+        if (section === 'protobuf') {
+          return {
+            get: jest.fn((key: string) => {
+              if (key === 'includes') {
+                return [];
+              }
+              return undefined;
+            }),
+            update: jest.fn().mockResolvedValue(undefined),
+            has: jest.fn(() => false),
+            inspect: jest.fn(),
+          };
+        }
+        return {
+          get: jest.fn(),
+          update: jest.fn().mockResolvedValue(undefined),
+          has: jest.fn(() => false),
+          inspect: jest.fn(),
+        };
+      });
+
+      manager = new PlaygroundManager(mockContext as never, mockOutputChannel);
+      manager.openPlayground();
+      const handler = (mockWebviewPanel.webview.onDidReceiveMessage as jest.Mock).mock.calls[0]?.[0];
+
+      const firstProc = createMockChildProcess('svc.Service', '', 0);
+      mockSpawn.mockReturnValue(firstProc);
+
+      const firstRun = handler?.({ command: 'listServices', file: '/test/api.proto' });
+      await flushPromisesAndTimers();
+      await firstRun;
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        '/test/global-storage/bin/grpcurl',
+        expect.arrayContaining(['-proto', '/test/api.proto', 'list']),
+        expect.any(Object)
+      );
+
+      mockSpawn.mockClear();
+      grpcurlSetting = '/usr/local/bin/grpcurl';
+      configListeners.forEach(listener =>
+        listener({
+          affectsConfiguration: (section: string) =>
+            section === 'protobuf.grpcurl.path' || section === 'protobuf.grpcurl',
+        })
+      );
+
+      const secondProc = createMockChildProcess('svc.Service', '', 0);
+      mockSpawn.mockReturnValue(secondProc);
+
+      const secondRun = handler?.({ command: 'listServices', file: '/test/api.proto' });
+      await flushPromisesAndTimers();
+      await secondRun;
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        '/usr/local/bin/grpcurl',
+        expect.arrayContaining(['-proto', '/test/api.proto', 'list']),
+        expect.any(Object)
+      );
+    });
+  });
+
   describe('panel disposal', () => {
     it('should clear panel reference when disposed', () => {
       jest.clearAllMocks();

@@ -931,6 +931,7 @@
       ],
       "explorer": [
         {
+          "icon": "resources/protobuf-icon.svg",
           "id": "protobufOptionInspector",
           "name": "Proto Options"
         }

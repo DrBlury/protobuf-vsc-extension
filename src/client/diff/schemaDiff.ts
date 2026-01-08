@@ -52,9 +52,10 @@ export class SchemaDiffManager {
 
   private async getFileContentAtRef(filePath: string, ref: string): Promise<string> {
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
-    const cwd = workspaceFolder ? workspaceFolder.uri.fsPath : path.dirname(filePath);
-    const relPath = workspaceFolder ? path.relative(cwd, filePath) : path.basename(filePath);
-    const gitPath = relPath.replace(/\\/g, '/');
+    const searchDir = workspaceFolder ? workspaceFolder.uri.fsPath : path.dirname(filePath);
+    const repoRoot = await this.getGitRoot(searchDir);
+    const cwd = repoRoot ?? searchDir;
+    const gitPath = path.relative(cwd, filePath).replace(/\\/g, '/');
 
     return new Promise((resolve, reject) => {
       const proc = spawn('git', ['show', `${ref}:${gitPath}`], { cwd });
@@ -71,6 +72,17 @@ export class SchemaDiffManager {
           reject(new Error(`Git exited with code ${code}: ${stderr}`));
         }
       });
+    });
+  }
+
+  private async getGitRoot(cwd: string): Promise<string | null> {
+    return new Promise(resolve => {
+      const proc = spawn('git', ['rev-parse', '--show-toplevel'], { cwd });
+      let stdout = '';
+
+      proc.stdout.on('data', d => (stdout += d.toString()));
+      proc.on('close', code => resolve(code === 0 ? stdout.trim() : null));
+      proc.on('error', () => resolve(null));
     });
   }
 }

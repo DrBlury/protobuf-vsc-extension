@@ -15,6 +15,14 @@ export class PlaygroundManager {
     outputChannel: vscode.OutputChannel
   ) {
     this.outputChannel = outputChannel;
+
+    const configListener = vscode.workspace.onDidChangeConfiguration(event => {
+      if (event.affectsConfiguration('protobuf.grpcurl.path') || event.affectsConfiguration('protobuf.grpcurl')) {
+        this.grpcurlPath = undefined;
+        this.outputChannel.appendLine('grpcurl path changed; re-detecting on next use');
+      }
+    });
+    context.subscriptions.push(configListener);
   }
 
   /**
