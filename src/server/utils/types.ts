@@ -53,6 +53,8 @@ export interface Settings {
       unusedSymbols: boolean;
       circularDependencies: boolean;
       documentationComments: boolean;
+      editionFeatures: boolean;
+      breakingChanges: boolean;
       severity: {
         namingConventions: SeveritySetting;
         referenceErrors: SeveritySetting;
@@ -159,6 +161,8 @@ export const defaultSettings: Settings = {
       unusedSymbols: false,
       circularDependencies: true,
       documentationComments: true,
+      editionFeatures: true,
+      breakingChanges: false,
       severity: {
         namingConventions: 'warning',
         referenceErrors: 'error',

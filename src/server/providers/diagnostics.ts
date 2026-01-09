@@ -20,7 +20,8 @@ import type {
   FieldDefinition,
   FieldOption,
   GroupFieldDefinition,
-  OptionStatement} from '../core/ast';
+  OptionStatement
+} from '../core/ast';
 import {
   BUILTIN_TYPES,
   MAP_KEY_TYPES,
@@ -34,7 +35,8 @@ import { ERROR_CODES, DIAGNOSTIC_SOURCE, FILE_EXTENSIONS } from '../utils/consta
 import { logger } from '../utils/logger';
 import { bufConfigProvider } from '../services/bufConfig';
 import type {
-  DiagnosticsSettings} from './diagnostics/index';
+  DiagnosticsSettings
+} from './diagnostics/index';
 import {
   DEFAULT_DIAGNOSTICS_SETTINGS,
   isExternalDependencyFile,
@@ -45,6 +47,8 @@ import {
   isSnakeCase,
   isScreamingSnakeCase
 } from './diagnostics/index';
+import { URI } from 'vscode-uri';
+import { ProviderRegistry } from '../utils';
 
 const TEXT_FORMAT_EXTENSIONS = [
   FILE_EXTENSIONS.TEXTPROTO,
@@ -88,7 +92,7 @@ export class DiagnosticsProvider {
     return this.currentFile?.syntax?.version === 'proto3';
   }
 
-  validate(uri: string, file: ProtoFile, documentText?: string): Diagnostic[] {
+  async validate(uri: string, file: ProtoFile, providers: ProviderRegistry, documentText?: string): Promise<Diagnostic[]> {
     // Skip validation for external dependency files (e.g., .buf-deps, vendor directories)
     // These are generated/exported files that should be validated by their source tools
     if (isExternalDependencyFile(uri)) {
@@ -107,17 +111,17 @@ export class DiagnosticsProvider {
 
     // Consume syntax errors from parser
     if (file.syntaxErrors) {
-        for (const err of file.syntaxErrors) {
-            diagnostics.push({
-                severity: DiagnosticSeverity.Error,
-                range: this.toRange(err.range),
-                message: err.message,
-                source: DIAGNOSTIC_SOURCE,
-                code: ERROR_CODES.PARSE_ERROR
-            });
-        }
+      for (const err of file.syntaxErrors) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Error,
+          range: this.toRange(err.range),
+          message: err.message,
+          source: DIAGNOSTIC_SOURCE,
+          code: ERROR_CODES.PARSE_ERROR
+        });
+      }
     }
-    
+
     const packageName = file.package?.name || '';
 
     this.validateSyntaxOrEdition(uri, file, diagnostics);
@@ -182,6 +186,11 @@ export class DiagnosticsProvider {
     // Validate documentation comments
     if (this.settings.documentationComments) {
       this.validateDocumentationComments(uri, file, diagnostics);
+    }
+
+    // Check for breaking changes
+    if (this.settings.breakingChanges) {
+      await this.checkBreakingChanges(uri, file, providers, diagnostics);
     }
 
     return diagnostics;
@@ -296,8 +305,8 @@ export class DiagnosticsProvider {
       }
 
       if (/^(message|enum|service|oneof)\b/.test(trimmed) || trimmed.startsWith('option') ||
-          trimmed.startsWith('import') || trimmed.startsWith('syntax') || trimmed.startsWith('edition') ||
-          trimmed.startsWith('reserved') || trimmed.startsWith('rpc') || trimmed.startsWith('package')) {
+        trimmed.startsWith('import') || trimmed.startsWith('syntax') || trimmed.startsWith('edition') ||
+        trimmed.startsWith('reserved') || trimmed.startsWith('rpc') || trimmed.startsWith('package')) {
         continue;
       }
 
@@ -582,7 +591,7 @@ export class DiagnosticsProvider {
           source: DIAGNOSTIC_SOURCE
         });
       }
-          this.validateOneof(oneof, diagnostics);
+      this.validateOneof(oneof, diagnostics);
     }
   }
 
@@ -1074,23 +1083,23 @@ export class DiagnosticsProvider {
         });
       }
 
-        if (!rpc.inputType) {
-          diagnostics.push({
-            severity: DiagnosticSeverity.Error,
-            range: this.toRange(rpc.range),
-            message: `RPC '${rpc.name}' is missing request type`,
-            source: DIAGNOSTIC_SOURCE
-          });
-        }
+      if (!rpc.inputType) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Error,
+          range: this.toRange(rpc.range),
+          message: `RPC '${rpc.name}' is missing request type`,
+          source: DIAGNOSTIC_SOURCE
+        });
+      }
 
-        if (!rpc.outputType) {
-          diagnostics.push({
-            severity: DiagnosticSeverity.Error,
-            range: this.toRange(rpc.range),
-            message: `RPC '${rpc.name}' is missing response type`,
-            source: DIAGNOSTIC_SOURCE
-          });
-        }
+      if (!rpc.outputType) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Error,
+          range: this.toRange(rpc.range),
+          message: `RPC '${rpc.name}' is missing response type`,
+          source: DIAGNOSTIC_SOURCE
+        });
+      }
 
       // Check input type reference
       if (this.settings.referenceChecks) {
@@ -2115,6 +2124,25 @@ export class DiagnosticsProvider {
     }
 
     return false;
+  }
+
+  private async checkBreakingChanges(uri: string, file: ProtoFile, providers: ProviderRegistry, diagnostics: Diagnostic[]) {
+    const filePath = URI.parse(uri).fsPath;
+
+    // Get baseline content from git
+    const baselineContent = await providers.breaking.getBaselineFromGit(filePath);
+    let baselineFile: ProtoFile | null = null;
+
+    if (baselineContent) {
+      try {
+        baselineFile = providers.parser.parse(baselineContent, uri);
+      } catch {
+        // Baseline file might not be valid proto
+      }
+    }
+
+    const changes = providers.breaking.detectBreakingChanges(file, baselineFile, uri);
+    diagnostics.push(...changes);
   }
 
   /**

@@ -189,6 +189,8 @@ export function updateProvidersWithSettings(
     unusedSymbols: diag.unusedSymbols ?? false,
     circularDependencies: diag.circularDependencies ?? true,
     documentationComments: diag.documentationComments ?? true,
+    editionFeatures: diag.editionFeatures ?? true,
+    breakingChanges: diag.breakingChanges ?? false,
     severity: {
       namingConventions: diag.severity.namingConventions,
       referenceErrors: diag.severity.referenceErrors,

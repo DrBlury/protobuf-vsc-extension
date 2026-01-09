@@ -96,6 +96,8 @@ The extension automatically detects `buf.yaml` files - no additional configurati
   "protobuf.diagnostics.unusedSymbols": true,
   "protobuf.diagnostics.circularDependencies": true,
   "protobuf.diagnostics.documentationComments": true,
+  "protobuf.diagnostics.editionFeatures": true,
+  "protobuf.diagnostics.breakingChanges": true,
   "protobuf.diagnostics.severity.namingConventions": "error",
   "protobuf.diagnostics.severity.referenceErrors": "error",
   "protobuf.diagnostics.severity.fieldTagIssues": "error"
