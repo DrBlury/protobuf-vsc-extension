@@ -7,13 +7,12 @@ import type { LanguageClient } from 'vscode-languageclient/node';
 import { REQUEST_METHODS, VALIDATION_MESSAGES, SUCCESS_MESSAGES, ERROR_MESSAGES } from '../../server/utils/constants';
 
 interface BreakingChange {
-  rule: string;
+  code: string;
   message: string;
   location?: { line: number; character: number };
 }
 
 interface BreakingChangesResult {
-  hasBreakingChanges: boolean;
   changes: BreakingChange[];
 }
 
@@ -56,7 +55,7 @@ function registerCheckBreakingChangesCommand(
         }
       )) as BreakingChangesResult;
 
-      if (!result.hasBreakingChanges) {
+      if (!result.changes || !result.changes.length) {
         vscode.window.showInformationMessage(SUCCESS_MESSAGES.NO_BREAKING_CHANGES);
       } else {
         const panel = vscode.window.createOutputChannel('Protobuf Breaking Changes');
@@ -64,7 +63,7 @@ function registerCheckBreakingChangesCommand(
         panel.appendLine('Breaking Changes Detected:');
         panel.appendLine('');
         for (const change of result.changes) {
-          panel.appendLine(`[${change.rule}] ${change.message}`);
+          panel.appendLine(`[${change.code}] ${change.message}`);
           if (change.location) {
             panel.appendLine(
               `  Line ${change.location.line + 1}, Character ${change.location.character + 1}`

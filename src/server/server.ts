@@ -948,7 +948,8 @@ connection.onRequest(REQUEST_METHODS.CHECK_BREAKING_CHANGES, async (params: { ur
     }
   }
 
-  return providers.breaking.detectBreakingChanges(currentFile, baselineFile, params.uri);
+  const changes = providers.breaking.detectBreakingChanges(currentFile, baselineFile, params.uri);
+  return { changes };
 });
 
 // Helper to collect options from AST
