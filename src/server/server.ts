@@ -937,7 +937,7 @@ connection.onRequest(REQUEST_METHODS.CHECK_BREAKING_CHANGES, async (params: { ur
   const currentFile = providers.parser.parse(document.getText(), params.uri);
 
   // Get baseline content from git
-  const baselineContent = await providers.breaking.getBaselineFromGit(filePath);
+  const baselineContent = await providers.breaking.getBaseline(filePath);
   let baselineFile: ProtoFile | null = null;
 
   if (baselineContent) {
@@ -948,7 +948,7 @@ connection.onRequest(REQUEST_METHODS.CHECK_BREAKING_CHANGES, async (params: { ur
     }
   }
 
-  const changes = providers.breaking.detectBreakingChanges(currentFile, baselineFile, params.uri);
+  const changes = providers.breaking.detectBreakingChanges(currentFile, baselineFile);
   return { changes };
 });
 

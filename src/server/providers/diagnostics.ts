@@ -2130,7 +2130,7 @@ export class DiagnosticsProvider {
     const filePath = URI.parse(uri).fsPath;
 
     // Get baseline content from git
-    const baselineContent = await providers.breaking.getBaselineFromGit(filePath);
+    const baselineContent = await providers.breaking.getBaseline(filePath);
     let baselineFile: ProtoFile | null = null;
 
     if (baselineContent) {
@@ -2141,7 +2141,7 @@ export class DiagnosticsProvider {
       }
     }
 
-    const changes = providers.breaking.detectBreakingChanges(file, baselineFile, uri);
+    const changes = providers.breaking.detectBreakingChanges(file, baselineFile);
     diagnostics.push(...changes);
   }
 
