@@ -14,6 +14,7 @@ export interface DiagnosticsSeveritySettings {
   fieldTagIssues: SeveritySetting;
   discouragedConstructs: SeveritySetting;
   nonCanonicalImportPath: SeveritySetting;
+  breakingChanges: SeveritySetting;
 }
 
 /**
@@ -25,6 +26,7 @@ export const DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS: DiagnosticsSeveritySettings 
   fieldTagIssues: 'error',
   discouragedConstructs: 'warning',
   nonCanonicalImportPath: 'error',
+  breakingChanges: 'warning',
 };
 
 /**

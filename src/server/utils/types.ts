@@ -61,6 +61,7 @@ export interface Settings {
         fieldTagIssues: SeveritySetting;
         discouragedConstructs: SeveritySetting;
         nonCanonicalImportPath: SeveritySetting;
+        breakingChanges: SeveritySetting;
       };
     };
     completion: {
@@ -169,6 +170,7 @@ export const defaultSettings: Settings = {
         fieldTagIssues: 'error',
         discouragedConstructs: 'warning',
         nonCanonicalImportPath: 'error',
+        breakingChanges: 'error'
       }
     },
     completion: {

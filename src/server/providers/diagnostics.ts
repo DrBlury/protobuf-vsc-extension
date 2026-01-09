@@ -61,6 +61,7 @@ const TEXT_FORMAT_EXTENSIONS = [
 
 // Re-export for external consumers
 export type { DiagnosticsSettings } from './diagnostics/index';
+export { DEFAULT_DIAGNOSTICS_SETTINGS } from './diagnostics/index';
 
 export class DiagnosticsProvider {
   private analyzer: SemanticAnalyzer;
@@ -554,7 +555,7 @@ export class DiagnosticsProvider {
         if (fields.length > 1) {
           for (const field of fields) {
             diagnostics.push({
-              severity: DiagnosticSeverity.Error,
+              severity: Severity[this.settings.severity.fieldTagIssues],
               range: this.toRange(field.nameRange),
               message: `Duplicate field name '${name}'`,
               source: DIAGNOSTIC_SOURCE,
@@ -2141,7 +2142,7 @@ export class DiagnosticsProvider {
       }
     }
 
-    const changes = providers.breaking.detectBreakingChanges(file, baselineFile);
+    const changes = providers.breaking.detectBreakingChanges(file, baselineFile, Severity[this.settings.severity.breakingChanges]);
     diagnostics.push(...changes);
   }
 

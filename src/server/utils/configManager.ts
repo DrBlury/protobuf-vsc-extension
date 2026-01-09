@@ -197,6 +197,7 @@ export function updateProvidersWithSettings(
       fieldTagIssues: diag.severity.fieldTagIssues,
       discouragedConstructs: diag.severity.discouragedConstructs,
       nonCanonicalImportPath: diag.severity.nonCanonicalImportPath,
+      breakingChanges: diag.severity.breakingChanges,
     },
   };
   diagnosticsProvider.updateSettings(diagSettings);

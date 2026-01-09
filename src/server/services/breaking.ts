@@ -90,7 +90,8 @@ export class BreakingChangeDetector {
    */
   detectBreakingChanges(
     currentFile: ProtoFile,
-    baselineFile: ProtoFile | null
+    baselineFile: ProtoFile | null,
+    severityOverride?: DiagnosticSeverity
   ): Diagnostic[] {
     if (!this.settings.enabled || !baselineFile) {
       return [];
@@ -102,7 +103,7 @@ export class BreakingChangeDetector {
     for (const change of changes) {
       if (this.settings.rules.includes(change.rule)) {
         diagnostics.push({
-          severity: change.severity === 'error' ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
+          severity: change.severity === 'error' ? (severityOverride ?? DiagnosticSeverity.Error) : DiagnosticSeverity.Warning,
           range: change.range,
           message: `Breaking change: ${change.message}`,
           source: 'protobuf-breaking',
