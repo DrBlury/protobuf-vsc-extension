@@ -7,24 +7,17 @@ import { CodeActionsProvider } from '../../codeActions';
 import { RenumberProvider } from '../../renumber';
 import { ProtoParser } from '../../../core/parser';
 import { SemanticAnalyzer } from '../../../core/analyzer';
+import { ProviderRegistry } from '../../../utils';
 import { DiagnosticSeverity, CodeActionKind } from 'vscode-languageserver/node';
 
 describe('DiagnosticsProvider - Unqualified Type References', () => {
-  let parser: ProtoParser;
-  let analyzer: SemanticAnalyzer;
-  let diagnosticsProvider: DiagnosticsProvider;
-  let codeActionsProvider: CodeActionsProvider;
-  let renumberProvider: RenumberProvider;
+  let providers: ProviderRegistry;
 
   beforeEach(() => {
-    parser = new ProtoParser();
-    analyzer = new SemanticAnalyzer();
-    diagnosticsProvider = new DiagnosticsProvider(analyzer);
-    renumberProvider = new RenumberProvider(parser);
-    codeActionsProvider = new CodeActionsProvider(analyzer, renumberProvider);
+    providers = new ProviderRegistry();
   });
 
-  it('should detect unqualified type from different package', () => {
+  it('should detect unqualified type from different package', async () => {
     // test/testb/testb.proto
     const testbContent = `syntax = "proto3";
 
@@ -35,8 +28,8 @@ message TestB {
 }
 `;
     const testbUri = 'file:///workspace/test/testb/testb.proto';
-    const testbFile = parser.parse(testbContent, testbUri);
-    analyzer.updateFile(testbUri, testbFile);
+    const testbFile = providers.parser.parse(testbContent, testbUri);
+    providers.analyzer.updateFile(testbUri, testbFile);
 
     // test/testa/testa.proto
     const testaContent = `syntax = "proto3";
@@ -49,11 +42,11 @@ message TestA {
   TestB message = 1;
 }`;
     const testaUri = 'file:///workspace/test/testa/testa.proto';
-    const testaFile = parser.parse(testaContent, testaUri);
-    analyzer.updateFile(testaUri, testaFile);
+    const testaFile = providers.parser.parse(testaContent, testaUri);
+    providers.analyzer.updateFile(testaUri, testaFile);
 
-    diagnosticsProvider.updateSettings({ referenceChecks: true });
-    const diags = diagnosticsProvider.validate(testaUri, testaFile, testaContent);
+    providers.diagnostics.updateSettings({ referenceChecks: true });
+    const diags = await providers.diagnostics.validate(testaUri, testaFile, providers);
 
     const unqualifiedDiag = diags.find(d =>
       d.message.includes('must be fully qualified') &&
@@ -65,7 +58,7 @@ message TestA {
     expect(unqualifiedDiag?.code).toBe('PROTO206');
   });
 
-  it('should not report error for types in same package', () => {
+  it('should not report error for types in same package', async () => {
     const content = `syntax = "proto3";
 
 package test.testa;
@@ -78,17 +71,17 @@ message TestB {
   TestA message = 1;
 }`;
     const uri = 'file:///workspace/test/testa/testa.proto';
-    const file = parser.parse(content, uri);
-    analyzer.updateFile(uri, file);
+    const file = providers.parser.parse(content, uri);
+    providers.analyzer.updateFile(uri, file);
 
-    diagnosticsProvider.updateSettings({ referenceChecks: true });
-    const diags = diagnosticsProvider.validate(uri, file, content);
+    providers.diagnostics.updateSettings({ referenceChecks: true });
+    const diags = await providers.diagnostics.validate(uri, file, providers);
 
     const unqualifiedDiag = diags.find(d => d.message.includes('must be fully qualified'));
     expect(unqualifiedDiag).toBeUndefined();
   });
 
-  it('should not report error for already fully qualified types', () => {
+  it('should not report error for already fully qualified types', async () => {
     // test/testb/testb.proto
     const testbContent = `syntax = "proto3";
 
@@ -99,8 +92,8 @@ message TestB {
 }
 `;
     const testbUri = 'file:///workspace/test/testb/testb.proto';
-    const testbFile = parser.parse(testbContent, testbUri);
-    analyzer.updateFile(testbUri, testbFile);
+    const testbFile = providers.parser.parse(testbContent, testbUri);
+    providers.analyzer.updateFile(testbUri, testbFile);
 
     // test/testa/testa.proto (using fully qualified name)
     const testaContent = `syntax = "proto3";
@@ -113,17 +106,17 @@ message TestA {
   test.testb.TestB message = 1;
 }`;
     const testaUri = 'file:///workspace/test/testa/testa.proto';
-    const testaFile = parser.parse(testaContent, testaUri);
-    analyzer.updateFile(testaUri, testaFile);
+    const testaFile = providers.parser.parse(testaContent, testaUri);
+    providers.analyzer.updateFile(testaUri, testaFile);
 
-    diagnosticsProvider.updateSettings({ referenceChecks: true });
-    const diags = diagnosticsProvider.validate(testaUri, testaFile, testaContent);
+    providers.diagnostics.updateSettings({ referenceChecks: true });
+    const diags = await providers.diagnostics.validate(testaUri, testaFile, providers);
 
     const unqualifiedDiag = diags.find(d => d.message.includes('must be fully qualified'));
     expect(unqualifiedDiag).toBeUndefined();
   });
 
-  it('should detect unqualified type in map field', () => {
+  it('should detect unqualified type in map field', async () => {
     // test/testb/testb.proto
     const testbContent = `syntax = "proto3";
 
@@ -134,8 +127,8 @@ message Value {
 }
 `;
     const testbUri = 'file:///workspace/test/testb/testb.proto';
-    const testbFile = parser.parse(testbContent, testbUri);
-    analyzer.updateFile(testbUri, testbFile);
+    const testbFile = providers.parser.parse(testbContent, testbUri);
+    providers.analyzer.updateFile(testbUri, testbFile);
 
     // test/testa/testa.proto
     const testaContent = `syntax = "proto3";
@@ -148,11 +141,11 @@ message TestA {
   map<string, Value> values = 1;
 }`;
     const testaUri = 'file:///workspace/test/testa/testa.proto';
-    const testaFile = parser.parse(testaContent, testaUri);
-    analyzer.updateFile(testaUri, testaFile);
+    const testaFile = providers.parser.parse(testaContent, testaUri);
+    providers.analyzer.updateFile(testaUri, testaFile);
 
-    diagnosticsProvider.updateSettings({ referenceChecks: true });
-    const diags = diagnosticsProvider.validate(testaUri, testaFile, testaContent);
+    providers.diagnostics.updateSettings({ referenceChecks: true });
+    const diags = await providers.diagnostics.validate(testaUri, testaFile, providers);
 
     const unqualifiedDiag = diags.find(d =>
       d.message.includes('must be fully qualified') &&
@@ -162,7 +155,7 @@ message TestA {
     expect(unqualifiedDiag).toBeDefined();
   });
 
-  it('should detect unqualified type in RPC methods', () => {
+  it('should detect unqualified type in RPC methods', async () => {
     // test/testb/testb.proto
     const testbContent = `syntax = "proto3";
 
@@ -177,8 +170,8 @@ message Response {
 }
 `;
     const testbUri = 'file:///workspace/test/testb/testb.proto';
-    const testbFile = parser.parse(testbContent, testbUri);
-    analyzer.updateFile(testbUri, testbFile);
+    const testbFile = providers.parser.parse(testbContent, testbUri);
+    providers.analyzer.updateFile(testbUri, testbFile);
 
     // test/testa/testa.proto
     const testaContent = `syntax = "proto3";
@@ -191,11 +184,11 @@ service TestService {
   rpc Search(Request) returns (Response);
 }`;
     const testaUri = 'file:///workspace/test/testa/testa.proto';
-    const testaFile = parser.parse(testaContent, testaUri);
-    analyzer.updateFile(testaUri, testaFile);
+    const testaFile = providers.parser.parse(testaContent, testaUri);
+    providers.analyzer.updateFile(testaUri, testaFile);
 
-    diagnosticsProvider.updateSettings({ referenceChecks: true });
-    const diags = diagnosticsProvider.validate(testaUri, testaFile, testaContent);
+    providers.diagnostics.updateSettings({ referenceChecks: true });
+    const diags = await providers.diagnostics.validate(testaUri, testaFile, providers);
 
     const requestDiag = diags.find(d =>
       d.message.includes('must be fully qualified') &&
@@ -210,7 +203,7 @@ service TestService {
     expect(responseDiag).toBeDefined();
   });
 
-  it('should provide quick fix to use fully qualified name', () => {
+  it('should provide quick fix to use fully qualified name', async () => {
     // test/testb/testb.proto
     const testbContent = `syntax = "proto3";
 
@@ -221,8 +214,8 @@ message TestB {
 }
 `;
     const testbUri = 'file:///workspace/test/testb/testb.proto';
-    const testbFile = parser.parse(testbContent, testbUri);
-    analyzer.updateFile(testbUri, testbFile);
+    const testbFile = providers.parser.parse(testbContent, testbUri);
+    providers.analyzer.updateFile(testbUri, testbFile);
 
     // test/testa/testa.proto
     const testaContent = `syntax = "proto3";
@@ -235,17 +228,17 @@ message TestA {
   TestB message = 1;
 }`;
     const testaUri = 'file:///workspace/test/testa/testa.proto';
-    const testaFile = parser.parse(testaContent, testaUri);
-    analyzer.updateFile(testaUri, testaFile);
+    const testaFile = providers.parser.parse(testaContent, testaUri);
+    providers.analyzer.updateFile(testaUri, testaFile);
 
-    diagnosticsProvider.updateSettings({ referenceChecks: true });
-    const diags = diagnosticsProvider.validate(testaUri, testaFile, testaContent);
+    providers.diagnostics.updateSettings({ referenceChecks: true });
+    const diags = await providers.diagnostics.validate(testaUri, testaFile, providers);
 
     const unqualifiedDiag = diags.find(d => d.message.includes('must be fully qualified'));
     expect(unqualifiedDiag).toBeDefined();
 
     if (unqualifiedDiag) {
-      const actions = codeActionsProvider.getCodeActions(
+      const actions = providers.codeActions.getCodeActions(
         testaUri,
         unqualifiedDiag.range,
         { diagnostics: [unqualifiedDiag] },
@@ -265,7 +258,7 @@ message TestA {
     }
   });
 
-  it('should detect unqualified type that exists in workspace but is not imported', () => {
+  it('should detect unqualified type that exists in workspace but is not imported', async () => {
     // testA/test.proto - defines TestDuplicates
     const testAContent = `syntax = "proto3";
 
@@ -276,8 +269,8 @@ message TestDuplicates {
 }
 `;
     const testAUri = 'file:///workspace/testA/test.proto';
-    const testAFile = parser.parse(testAContent, testAUri);
-    analyzer.updateFile(testAUri, testAFile);
+    const testAFile = providers.parser.parse(testAContent, testAUri);
+    providers.analyzer.updateFile(testAUri, testAFile);
 
     // testB/test.proto - uses TestDuplicates without import
     const testBContent = `syntax = "proto3";
@@ -288,11 +281,11 @@ message SimpleMessage {
   TestDuplicates duplicates = 1;
 }`;
     const testBUri = 'file:///workspace/testB/test.proto';
-    const testBFile = parser.parse(testBContent, testBUri);
-    analyzer.updateFile(testBUri, testBFile);
+    const testBFile = providers.parser.parse(testBContent, testBUri);
+    providers.analyzer.updateFile(testBUri, testBFile);
 
-    diagnosticsProvider.updateSettings({ referenceChecks: true });
-    const diags = diagnosticsProvider.validate(testBUri, testBFile, testBContent);
+    providers.diagnostics.updateSettings({ referenceChecks: true });
+    const diags = await providers.diagnostics.validate(testBUri, testBFile, providers);
 
     // Should show PROTO206 (unqualified type) instead of "Unknown type"
     const unqualifiedDiag = diags.find(d =>
@@ -309,7 +302,7 @@ message SimpleMessage {
     expect(unknownTypeDiag).toBeUndefined();
   });
 
-  it('should provide code actions to qualify type and add import for workspace types', () => {
+  it('should provide code actions to qualify type and add import for workspace types', async () => {
     // testA/test.proto - defines TestDuplicates
     const testAContent = `syntax = "proto3";
 
@@ -320,8 +313,8 @@ message TestDuplicates {
 }
 `;
     const testAUri = 'file:///workspace/testA/test.proto';
-    const testAFile = parser.parse(testAContent, testAUri);
-    analyzer.updateFile(testAUri, testAFile);
+    const testAFile = providers.parser.parse(testAContent, testAUri);
+    providers.analyzer.updateFile(testAUri, testAFile);
 
     // testB/test.proto - uses TestDuplicates without import
     const testBContent = `syntax = "proto3";
@@ -332,11 +325,11 @@ message SimpleMessage {
   TestDuplicates duplicates = 1;
 }`;
     const testBUri = 'file:///workspace/testB/test.proto';
-    const testBFile = parser.parse(testBContent, testBUri);
-    analyzer.updateFile(testBUri, testBFile);
+    const testBFile = providers.parser.parse(testBContent, testBUri);
+    providers.analyzer.updateFile(testBUri, testBFile);
 
-    diagnosticsProvider.updateSettings({ referenceChecks: true });
-    const diags = diagnosticsProvider.validate(testBUri, testBFile, testBContent);
+    providers.diagnostics.updateSettings({ referenceChecks: true });
+    const diags = await providers.diagnostics.validate(testBUri, testBFile, providers);
 
     const unqualifiedDiag = diags.find(d =>
       d.message.includes('must be fully qualified') &&
@@ -346,7 +339,7 @@ message SimpleMessage {
     expect(unqualifiedDiag).toBeDefined();
 
     if (unqualifiedDiag) {
-      const actions = codeActionsProvider.getCodeActions(
+      const actions = providers.codeActions.getCodeActions(
         testBUri,
         unqualifiedDiag.range,
         { diagnostics: [unqualifiedDiag] },
@@ -369,7 +362,7 @@ message SimpleMessage {
     }
   });
 
-  it('should not report error when no package is defined in either file', () => {
+  it('should not report error when no package is defined in either file', async () => {
     const content1 = `syntax = "proto3";
 
 message SharedMessage {
@@ -377,8 +370,8 @@ message SharedMessage {
 }
 `;
     const uri1 = 'file:///workspace/shared.proto';
-    const file1 = parser.parse(content1, uri1);
-    analyzer.updateFile(uri1, file1);
+    const file1 = providers.parser.parse(content1, uri1);
+    providers.analyzer.updateFile(uri1, file1);
 
     const content2 = `syntax = "proto3";
 
@@ -388,17 +381,17 @@ message MyMessage {
   SharedMessage shared = 1;
 }`;
     const uri2 = 'file:///workspace/my.proto';
-    const file2 = parser.parse(content2, uri2);
-    analyzer.updateFile(uri2, file2);
+    const file2 = providers.parser.parse(content2, uri2);
+    providers.analyzer.updateFile(uri2, file2);
 
-    diagnosticsProvider.updateSettings({ referenceChecks: true });
-    const diags = diagnosticsProvider.validate(uri2, file2, content2);
+    providers.diagnostics.updateSettings({ referenceChecks: true });
+    const diags = await providers.diagnostics.validate(uri2, file2, providers);
 
     const unqualifiedDiag = diags.find(d => d.message.includes('must be fully qualified'));
     expect(unqualifiedDiag).toBeUndefined();
   });
 
-  it('should not report error when importing type from default (empty) package into packaged file', () => {
+  it('should not report error when importing type from default (empty) package into packaged file', async () => {
     // mytypes.proto - no package (default/empty package)
     const mytypesContent = `syntax = "proto3";
 
@@ -407,8 +400,8 @@ message Int32Value {
 }
 `;
     const mytypesUri = 'file:///workspace/mytypes.proto';
-    const mytypesFile = parser.parse(mytypesContent, mytypesUri);
-    analyzer.updateFile(mytypesUri, mytypesFile);
+    const mytypesFile = providers.parser.parse(mytypesContent, mytypesUri);
+    providers.analyzer.updateFile(mytypesUri, mytypesFile);
 
     // protoA.proto - has a package, imports type from empty package
     const protoAContent = `syntax = "proto3";
@@ -421,11 +414,11 @@ message MessageA {
   Int32Value option_id = 1;
 }`;
     const protoAUri = 'file:///workspace/protoA.proto';
-    const protoAFile = parser.parse(protoAContent, protoAUri);
-    analyzer.updateFile(protoAUri, protoAFile);
+    const protoAFile = providers.parser.parse(protoAContent, protoAUri);
+    providers.analyzer.updateFile(protoAUri, protoAFile);
 
-    diagnosticsProvider.updateSettings({ referenceChecks: true });
-    const diags = diagnosticsProvider.validate(protoAUri, protoAFile, protoAContent);
+    providers.diagnostics.updateSettings({ referenceChecks: true });
+    const diags = await providers.diagnostics.validate(protoAUri, protoAFile, providers);
 
     // Should NOT report "must be fully qualified" for types from empty package
     const unqualifiedDiag = diags.find(d => d.message.includes('must be fully qualified'));
@@ -436,7 +429,7 @@ message MessageA {
     expect(unknownTypeDiag).toBeUndefined();
   });
 
-  it('should not report error when referencing type from parent package (nested packages)', () => {
+  it('should not report error when referencing type from parent package (nested packages)', async () => {
     // foo/types.proto - defines type in parent package "foo"
     const fooTypesContent = `syntax = "proto3";
 
@@ -447,8 +440,8 @@ message SharedType {
 }
 `;
     const fooTypesUri = 'file:///workspace/foo/types.proto';
-    const fooTypesFile = parser.parse(fooTypesContent, fooTypesUri);
-    analyzer.updateFile(fooTypesUri, fooTypesFile);
+    const fooTypesFile = providers.parser.parse(fooTypesContent, fooTypesUri);
+    providers.analyzer.updateFile(fooTypesUri, fooTypesFile);
 
     // foo/bar/service.proto - nested package "foo.bar" imports from parent "foo"
     const fooBarServiceContent = `syntax = "proto3";
@@ -461,11 +454,11 @@ message MyMessage {
   SharedType shared = 1;
 }`;
     const fooBarServiceUri = 'file:///workspace/foo/bar/service.proto';
-    const fooBarServiceFile = parser.parse(fooBarServiceContent, fooBarServiceUri);
-    analyzer.updateFile(fooBarServiceUri, fooBarServiceFile);
+    const fooBarServiceFile = providers.parser.parse(fooBarServiceContent, fooBarServiceUri);
+    providers.analyzer.updateFile(fooBarServiceUri, fooBarServiceFile);
 
-    diagnosticsProvider.updateSettings({ referenceChecks: true });
-    const diags = diagnosticsProvider.validate(fooBarServiceUri, fooBarServiceFile, fooBarServiceContent);
+    providers.diagnostics.updateSettings({ referenceChecks: true });
+    const diags = await providers.diagnostics.validate(fooBarServiceUri, fooBarServiceFile, providers);
 
     // Should NOT report "must be fully qualified" for types from parent package
     const unqualifiedDiag = diags.find(d => d.message.includes('must be fully qualified'));
@@ -476,7 +469,7 @@ message MyMessage {
     expect(unknownTypeDiag).toBeUndefined();
   });
 
-  it('should not report error for deeply nested packages referencing ancestor packages', () => {
+  it('should not report error for deeply nested packages referencing ancestor packages', async () => {
     // company/types.proto - defines type in top-level package
     const companyTypesContent = `syntax = "proto3";
 
@@ -487,8 +480,8 @@ message BaseEntity {
 }
 `;
     const companyTypesUri = 'file:///workspace/company/types.proto';
-    const companyTypesFile = parser.parse(companyTypesContent, companyTypesUri);
-    analyzer.updateFile(companyTypesUri, companyTypesFile);
+    const companyTypesFile = providers.parser.parse(companyTypesContent, companyTypesUri);
+    providers.analyzer.updateFile(companyTypesUri, companyTypesFile);
 
     // company/product/api/v1/service.proto - deeply nested package
     const deeplyNestedContent = `syntax = "proto3";
@@ -501,18 +494,18 @@ message ProductRequest {
   BaseEntity entity = 1;
 }`;
     const deeplyNestedUri = 'file:///workspace/company/product/api/v1/service.proto';
-    const deeplyNestedFile = parser.parse(deeplyNestedContent, deeplyNestedUri);
-    analyzer.updateFile(deeplyNestedUri, deeplyNestedFile);
+    const deeplyNestedFile = providers.parser.parse(deeplyNestedContent, deeplyNestedUri);
+    providers.analyzer.updateFile(deeplyNestedUri, deeplyNestedFile);
 
-    diagnosticsProvider.updateSettings({ referenceChecks: true });
-    const diags = diagnosticsProvider.validate(deeplyNestedUri, deeplyNestedFile, deeplyNestedContent);
+    providers.diagnostics.updateSettings({ referenceChecks: true });
+    const diags = await providers.diagnostics.validate(deeplyNestedUri, deeplyNestedFile, providers);
 
     // Should NOT report "must be fully qualified" for types from ancestor package
     const unqualifiedDiag = diags.find(d => d.message.includes('must be fully qualified'));
     expect(unqualifiedDiag).toBeUndefined();
   });
 
-  it('should still report error for sibling packages (not in parent-child relationship)', () => {
+  it('should still report error for sibling packages (not in parent-child relationship)', async () => {
     // foo/bar/types.proto - sibling package "foo.bar"
     const fooBarContent = `syntax = "proto3";
 
@@ -523,8 +516,8 @@ message BarType {
 }
 `;
     const fooBarUri = 'file:///workspace/foo/bar/types.proto';
-    const fooBarFile = parser.parse(fooBarContent, fooBarUri);
-    analyzer.updateFile(fooBarUri, fooBarFile);
+    const fooBarFile = providers.parser.parse(fooBarContent, fooBarUri);
+    providers.analyzer.updateFile(fooBarUri, fooBarFile);
 
     // foo/baz/service.proto - sibling package "foo.baz"
     const fooBazContent = `syntax = "proto3";
@@ -537,11 +530,11 @@ message MyMessage {
   BarType bar = 1;
 }`;
     const fooBazUri = 'file:///workspace/foo/baz/service.proto';
-    const fooBazFile = parser.parse(fooBazContent, fooBazUri);
-    analyzer.updateFile(fooBazUri, fooBazFile);
+    const fooBazFile = providers.parser.parse(fooBazContent, fooBazUri);
+    providers.analyzer.updateFile(fooBazUri, fooBazFile);
 
-    diagnosticsProvider.updateSettings({ referenceChecks: true });
-    const diags = diagnosticsProvider.validate(fooBazUri, fooBazFile, fooBazContent);
+    providers.diagnostics.updateSettings({ referenceChecks: true });
+    const diags = await providers.diagnostics.validate(fooBazUri, fooBazFile, providers);
 
     // SHOULD report "must be fully qualified" for types from sibling package
     const unqualifiedDiag = diags.find(d =>

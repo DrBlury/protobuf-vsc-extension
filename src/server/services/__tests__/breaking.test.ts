@@ -46,7 +46,7 @@ describe('BreakingChangeDetector', () => {
       const currentFile = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
       const baselineFile = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
 
-      const result = detector.detectBreakingChanges(currentFile, baselineFile, 'file:///test.proto');
+      const result = detector.detectBreakingChanges(currentFile, baselineFile);
       expect(result).toEqual([]);
     });
 
@@ -54,7 +54,7 @@ describe('BreakingChangeDetector', () => {
       detector.updateSettings({ enabled: true });
       const currentFile = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
 
-      const result = detector.detectBreakingChanges(currentFile, null, 'file:///test.proto');
+      const result = detector.detectBreakingChanges(currentFile, null);
       expect(result).toEqual([]);
     });
 
@@ -63,7 +63,7 @@ describe('BreakingChangeDetector', () => {
       const currentFile = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
       const baselineFile = parser.parse('syntax = "proto3"; message Test { string name = 1; }', 'file:///test.proto');
 
-      const result = detector.detectBreakingChanges(currentFile, baselineFile, 'file:///test.proto');
+      const result = detector.detectBreakingChanges(currentFile, baselineFile);
       // Should detect field deletion if FIELD_NO_DELETE rule is enabled
       expect(result.length).toBeGreaterThanOrEqual(0);
     });
@@ -73,7 +73,7 @@ describe('BreakingChangeDetector', () => {
       const currentFile = parser.parse('syntax = "proto3";', 'file:///test.proto');
       const baselineFile = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
 
-      const result = detector.detectBreakingChanges(currentFile, baselineFile, 'file:///test.proto');
+      const result = detector.detectBreakingChanges(currentFile, baselineFile);
       expect(result.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -82,7 +82,7 @@ describe('BreakingChangeDetector', () => {
       const currentFile = parser.parse('syntax = "proto3"; message Test { int32 id = 1; }', 'file:///test.proto');
       const baselineFile = parser.parse('syntax = "proto3"; message Test { string id = 1; }', 'file:///test.proto');
 
-      const result = detector.detectBreakingChanges(currentFile, baselineFile, 'file:///test.proto');
+      const result = detector.detectBreakingChanges(currentFile, baselineFile);
       expect(result.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -90,7 +90,7 @@ describe('BreakingChangeDetector', () => {
   describe('getBaselineFromGit', () => {
     it('should get baseline file from git', async () => {
       detector.setWorkspaceRoot('/workspace');
-      detector.updateSettings({ againstGitRef: 'HEAD~1' });
+      detector.updateSettings({ againstStrategy: 'git', againstGitRef: 'HEAD~1' });
 
       const mockProcess = {
         stdout: {
@@ -112,7 +112,7 @@ describe('BreakingChangeDetector', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await detector.getBaselineFromGit('/workspace/test.proto');
+      const result = await detector.getBaseline('/workspace/test.proto');
       expect(result).toBe('syntax = "proto3";');
     });
 
@@ -131,7 +131,7 @@ describe('BreakingChangeDetector', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await detector.getBaselineFromGit('/workspace/test.proto');
+      const result = await detector.getBaseline('/workspace/test.proto');
       expect(result).toBeNull();
     });
 
@@ -148,7 +148,7 @@ describe('BreakingChangeDetector', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await detector.getBaselineFromGit('/workspace/test.proto');
+      const result = await detector.getBaseline('/workspace/test.proto');
       expect(result).toBeNull();
     });
   });
