@@ -1,6 +1,3 @@
-import { DiagnosticsProvider } from "../../diagnostics";
-import { ProtoParser } from "../../../core/parser";
-import { SemanticAnalyzer } from "../../../core/analyzer";
 import { GOOGLE_WELL_KNOWN_PROTOS } from "../../../utils/googleWellKnown";
 import { DiagnosticSeverity } from "vscode-languageserver/node";
 import { DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS } from "../../diagnostics/types";

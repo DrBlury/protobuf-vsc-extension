@@ -1,6 +1,3 @@
-import { DiagnosticsProvider } from '../../diagnostics';
-import { ProtoParser } from '../../../core/parser';
-import { SemanticAnalyzer } from '../../../core/analyzer';
 import { ProviderRegistry } from '../../../utils';
 
 describe('DiagnosticsProvider nested include paths end-to-end', () => {

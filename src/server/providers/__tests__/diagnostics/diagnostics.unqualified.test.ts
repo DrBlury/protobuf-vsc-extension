@@ -2,11 +2,6 @@
  * Tests for unqualified type reference diagnostics
  */
 
-import { DiagnosticsProvider } from '../../diagnostics';
-import { CodeActionsProvider } from '../../codeActions';
-import { RenumberProvider } from '../../renumber';
-import { ProtoParser } from '../../../core/parser';
-import { SemanticAnalyzer } from '../../../core/analyzer';
 import { ProviderRegistry } from '../../../utils';
 import { DiagnosticSeverity, CodeActionKind } from 'vscode-languageserver/node';
 

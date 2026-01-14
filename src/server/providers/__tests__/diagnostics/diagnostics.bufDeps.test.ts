@@ -3,9 +3,6 @@
  * Verifies that resolved BSR imports without buf.yaml deps trigger warnings
  */
 
-import { DiagnosticsProvider } from '../../diagnostics';
-import { ProtoParser } from '../../../core/parser';
-import { SemanticAnalyzer } from '../../../core/analyzer';
 import { ProviderRegistry } from '../../../utils';
 
 describe('DiagnosticsProvider BSR dependency validation', () => {

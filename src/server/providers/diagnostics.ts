@@ -48,7 +48,7 @@ import {
   isScreamingSnakeCase
 } from './diagnostics/index';
 import { URI } from 'vscode-uri';
-import { ProviderRegistry } from '../utils';
+import type { ProviderRegistry } from '../utils';
 
 const TEXT_FORMAT_EXTENSIONS = [
   FILE_EXTENSIONS.TEXTPROTO,
