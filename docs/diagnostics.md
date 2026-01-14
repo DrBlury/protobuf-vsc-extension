@@ -238,7 +238,8 @@ You can configure the severity of different diagnostic categories:
   "protobuf.diagnostics.severity.namingConventions": "warning",
   "protobuf.diagnostics.severity.referenceErrors": "error",
   "protobuf.diagnostics.severity.fieldTagIssues": "error",
-  "protobuf.diagnostics.severity.discouragedConstructs": "warning"
+  "protobuf.diagnostics.severity.discouragedConstructs": "warning",
+  "protobuf.diagnostics.severity.nonCanonicalImportPath": "error"
 }
 ```
 

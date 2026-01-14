@@ -6,6 +6,11 @@
 import { DEFAULT_CONFIG } from './constants';
 
 /**
+ * Setting value for a severity
+ */
+export type SeveritySetting = 'error' | 'warning' | 'information' | 'hint';
+
+/**
  * Configuration settings for the Protobuf extension
  */
 export interface Settings {
@@ -49,10 +54,11 @@ export interface Settings {
       circularDependencies: boolean;
       documentationComments: boolean;
       severity: {
-        namingConventions: string;
-        referenceErrors: string;
-        fieldTagIssues: string;
-        discouragedConstructs: string;
+        namingConventions: SeveritySetting;
+        referenceErrors: SeveritySetting;
+        fieldTagIssues: SeveritySetting;
+        discouragedConstructs: SeveritySetting;
+        nonCanonicalImportPath: SeveritySetting;
       };
     };
     completion: {
@@ -157,7 +163,8 @@ export const defaultSettings: Settings = {
         namingConventions: 'warning',
         referenceErrors: 'error',
         fieldTagIssues: 'error',
-        discouragedConstructs: 'warning'
+        discouragedConstructs: 'warning',
+        nonCanonicalImportPath: 'error',
       }
     },
     completion: {
