@@ -463,7 +463,6 @@ describe('Client Commands', () => {
         }
       };
       mockClient.sendRequest.mockResolvedValue({
-        hasBreakingChanges: false,
         changes: []
       });
 
@@ -485,7 +484,6 @@ describe('Client Commands', () => {
         }
       };
       mockClient.sendRequest.mockResolvedValue({
-        hasBreakingChanges: true,
         changes: [
           { rule: 'FIELD_NO_DELETE', message: 'Field deleted', location: { line: 5, character: 0 } }
         ]
