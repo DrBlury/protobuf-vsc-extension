@@ -63,7 +63,7 @@ import {
   DEFAULT_POSITIONS
 } from './utils/constants';
 import { normalizePath, getErrorMessage } from './utils/utils';
-import type { Settings} from './utils/types';
+import type { Settings } from './utils/types';
 import { defaultSettings } from './utils/types';
 import { scanWorkspaceForProtoFiles, scanImportPaths } from './utils/workspace';
 import { updateProvidersWithSettings } from './utils/configManager';
@@ -290,8 +290,8 @@ connection.onDidChangeWatchedFiles(async (params: DidChangeWatchedFilesParams) =
 
     // Check if this is a buf config file change
     if (uri.endsWith('buf.yaml') || uri.endsWith('buf.yml') ||
-        uri.endsWith('buf.work.yaml') || uri.endsWith('buf.work.yml') ||
-        uri.endsWith('buf.lock')) {
+      uri.endsWith('buf.work.yaml') || uri.endsWith('buf.work.yml') ||
+      uri.endsWith('buf.lock')) {
       hasBufConfigChange = true;
       needsRevalidation = true;
       logger.verboseWithContext('Buf config file changed', { uri, type: change.type });
@@ -478,7 +478,7 @@ async function validateDocument(document: TextDocument): Promise<void> {
     // Run built-in diagnostics only if useBuiltIn is enabled
     let diagnostics: Diagnostic[] = [];
     if (globalSettings.protobuf.diagnostics.useBuiltIn !== false) {
-      diagnostics = providers.diagnostics.validate(uri, file, text);
+      diagnostics = await providers.diagnostics.validate(uri, file, providers, text);
     } else {
       logger.verboseWithContext('Built-in diagnostics disabled, skipping AST validation', { uri });
     }
@@ -937,7 +937,7 @@ connection.onRequest(REQUEST_METHODS.CHECK_BREAKING_CHANGES, async (params: { ur
   const currentFile = providers.parser.parse(document.getText(), params.uri);
 
   // Get baseline content from git
-  const baselineContent = await providers.breaking.getBaselineFromGit(filePath);
+  const baselineContent = await providers.breaking.getBaseline(filePath);
   let baselineFile: ProtoFile | null = null;
 
   if (baselineContent) {
@@ -948,7 +948,7 @@ connection.onRequest(REQUEST_METHODS.CHECK_BREAKING_CHANGES, async (params: { ur
     }
   }
 
-  const changes = providers.breaking.detectBreakingChanges(currentFile, baselineFile, params.uri);
+  const changes = providers.breaking.detectBreakingChanges(currentFile, baselineFile);
   return { changes };
 });
 
@@ -1025,19 +1025,19 @@ function collectOptions(file: ProtoFile): CollectedOption[] {
       }
     }
     if (node.fields) {
-        for (const field of node.fields) {
-            // Field options are inside options array in FieldDefinition, but AST defines it as FieldOption[] which has name/value
-            if (field.options) {
-                for (const opt of field.options) {
-                    options.push({
-                        name: opt.name,
-                        value: opt.value,
-                        range: field.range, // Approximate range or we need range on field option
-                        parent: `Field ${prefix}${field.name}`
-                    });
-                }
-            }
+      for (const field of node.fields) {
+        // Field options are inside options array in FieldDefinition, but AST defines it as FieldOption[] which has name/value
+        if (field.options) {
+          for (const opt of field.options) {
+            options.push({
+              name: opt.name,
+              value: opt.value,
+              range: field.range, // Approximate range or we need range on field option
+              parent: `Field ${prefix}${field.name}`
+            });
+          }
         }
+      }
     }
   }
 

@@ -109,6 +109,8 @@ describe('ConfigManager', () => {
       importChecks: settings.protobuf.diagnostics.importChecks,
       fieldTagChecks: settings.protobuf.diagnostics.fieldTagChecks,
       duplicateFieldChecks: settings.protobuf.diagnostics.duplicateFieldChecks,
+      editionFeatures: settings.protobuf.diagnostics.editionFeatures,
+      breakingChanges: settings.protobuf.diagnostics.breakingChanges,
       discouragedConstructs: settings.protobuf.diagnostics.discouragedConstructs,
       deprecatedUsage: true,
       unusedSymbols: false,
@@ -120,6 +122,7 @@ describe('ConfigManager', () => {
         namingConventions: settings.protobuf.diagnostics.severity.namingConventions,
         referenceErrors: settings.protobuf.diagnostics.severity.referenceErrors,
         nonCanonicalImportPath: settings.protobuf.diagnostics.severity.nonCanonicalImportPath,
+        breakingChanges: settings.protobuf.diagnostics.severity.breakingChanges
       },
     });
   });

@@ -1,21 +1,14 @@
-
-import { DiagnosticsProvider } from '../../diagnostics';
-import { ProtoParser } from '../../../core/parser';
-import { SemanticAnalyzer } from '../../../core/analyzer';
 import { DiagnosticSeverity } from 'vscode-languageserver/node';
+import { ProviderRegistry } from '../../../utils';
 
 describe('DiagnosticsProvider extend statement validation', () => {
-  let parser: ProtoParser;
-  let analyzer: SemanticAnalyzer;
-  let diagnosticsProvider: DiagnosticsProvider;
+  let providers: ProviderRegistry;
 
   beforeEach(() => {
-    parser = new ProtoParser();
-    analyzer = new SemanticAnalyzer();
-    diagnosticsProvider = new DiagnosticsProvider(analyzer);
+    providers = new ProviderRegistry();
   });
 
-  it('should detect incorrect semicolon after extend', () => {
+  it('should detect incorrect semicolon after extend', async () => {
     const content = `syntax = "proto3";
 extend google.protobuf.FieldOptions;
 {
@@ -23,10 +16,10 @@ extend google.protobuf.FieldOptions;
 }
 `;
     const uri = 'file:///test.proto';
-    const file = parser.parse(content, uri);
-    analyzer.updateFile(uri, file);
+    const file = providers.parser.parse(content, uri);
+    providers.analyzer.updateFile(uri, file);
 
-    const diags = diagnosticsProvider.validate(uri, file, content);
+    const diags = await providers.diagnostics.validate(uri, file, providers, content);
 
     const syntaxError = diags.find(d => d.message.includes('Expected punctuation "{"'));
     expect(syntaxError).toBeDefined();

@@ -14,19 +14,21 @@ export interface DiagnosticsSeveritySettings {
   fieldTagIssues: SeveritySetting;
   discouragedConstructs: SeveritySetting;
   nonCanonicalImportPath: SeveritySetting;
+  breakingChanges: SeveritySetting;
 }
 
 /**
  * Default severity settings
  */
 export const DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS: DiagnosticsSeveritySettings = {
-    namingConventions: 'warning',
-    referenceErrors: 'error',
-    fieldTagIssues: 'error',
-    discouragedConstructs: 'warning',
-    nonCanonicalImportPath: 'error',
+  namingConventions: 'warning',
+  referenceErrors: 'error',
+  fieldTagIssues: 'error',
+  discouragedConstructs: 'warning',
+  nonCanonicalImportPath: 'error',
+  breakingChanges: 'warning',
 };
-  
+
 /**
  * Settings for controlling which diagnostics are enabled
  */
@@ -42,6 +44,7 @@ export interface DiagnosticsSettings {
   circularDependencies: boolean;
   documentationComments: boolean;
   editionFeatures: boolean;
+  breakingChanges: boolean;
   severity: DiagnosticsSeveritySettings;
 }
 
@@ -60,7 +63,8 @@ export const DEFAULT_DIAGNOSTICS_SETTINGS: DiagnosticsSettings = {
   circularDependencies: true,
   documentationComments: true,
   editionFeatures: true,
-  severity: DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS,
+  breakingChanges: false,
+  severity: DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS
 };
 
 /**

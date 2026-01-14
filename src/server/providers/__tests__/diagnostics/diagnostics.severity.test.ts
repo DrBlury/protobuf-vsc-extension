@@ -1,20 +1,16 @@
-import { DiagnosticsProvider } from "../../diagnostics";
-import { ProtoParser } from "../../../core/parser";
-import { SemanticAnalyzer } from "../../../core/analyzer";
 import { GOOGLE_WELL_KNOWN_PROTOS } from "../../../utils/googleWellKnown";
 import { DiagnosticSeverity } from "vscode-languageserver/node";
 import { DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS } from "../../diagnostics/types";
+import { ProviderRegistry } from "../../../utils";
 
 describe("DiagnosticsProvider severity", () => {
-  const parser = new ProtoParser();
-  const analyzer = new SemanticAnalyzer();
-  const diagnosticsProvider = new DiagnosticsProvider(analyzer);
+  const providers = new ProviderRegistry();
 
   beforeAll(() => {
     // Preload minimal google.type.Date stub
     const dateContent = GOOGLE_WELL_KNOWN_PROTOS["google/type/date.proto"];
     const dateUri = "builtin:///google/type/date.proto";
-    analyzer.updateFile(dateUri, parser.parse(dateContent, dateUri));
+    providers.analyzer.updateFile(dateUri, providers.parser.parse(dateContent, dateUri));
   });
 
   describe("nonCanonicalImportPath", () => {
@@ -25,11 +21,11 @@ describe("DiagnosticsProvider severity", () => {
         google.type.Date date = 1;
       }`;
     const uri = "file:///sample_wrong_import.proto";
-    const file = parser.parse(content, uri);
-    analyzer.updateFile(uri, file);
+    const file = providers.parser.parse(content, uri);
+    providers.analyzer.updateFile(uri, file);
 
-    it("reports non-canonical import path at default severity", () => {
-      const diags = diagnosticsProvider.validate(uri, file);
+    it("reports non-canonical import path at default severity", async () => {
+      const diags = await providers.diagnostics.validate(uri, file, providers);
       const wrongImport = diags.find((d) =>
         d.message.includes("should be imported via")
       );
@@ -38,14 +34,14 @@ describe("DiagnosticsProvider severity", () => {
       expect(wrongImport?.severity).toBe(DiagnosticSeverity.Error);
     });
 
-    it("reports non-canonical import path at specified severity", () => {
-      diagnosticsProvider.updateSettings({
+    it("reports non-canonical import path at specified severity", async () => {
+      providers.diagnostics.updateSettings({
         severity: {
           ...DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS,
           nonCanonicalImportPath: "hint",
         },
       });
-      const diags = diagnosticsProvider.validate(uri, file);
+      const diags = await providers.diagnostics.validate(uri, file, providers);
       const wrongImport = diags.find((d) =>
         d.message.includes("should be imported via")
       );

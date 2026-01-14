@@ -229,6 +229,71 @@ service UserService {
 }
 ```
 
+### 11. Breaking Changes
+
+Detects source-incompatible changes compared to a configured baseline so you can maintain backward compatibility.
+
+**What it checks:**
+
+- Deleted messages, enums, services, or RPCs
+- Deleted fields without reserving their numbers
+- Field type changes or field number changes
+- Proto2 presence changes (e.g., making a field required)
+- Enum value deletions or renames
+- RPC request/response type changes
+
+**Prerequisites:**
+
+- Enable breaking change detection and choose a baseline strategy. See the detailed guide in [docs/breaking-changes.md](docs/breaking-changes.md).
+
+```jsonc
+{
+  "protobuf.breaking.enabled": true,
+  // Compare against a git ref (default strategy)
+  "protobuf.breaking.againstStrategy": "git",
+  "protobuf.breaking.againstGitRef": "main" // e.g., "HEAD~1", "origin/main"
+}
+```
+
+Alternatively, compare against a file:
+
+```jsonc
+{
+  "protobuf.breaking.enabled": true,
+  "protobuf.breaking.againstStrategy": "file",
+  "protobuf.breaking.againstFilePath": "${workspaceFolder}/baseline.proto"
+}
+```
+
+**Example:**
+
+```proto
+message User {
+  string name = 1;
+  // Previously had: int32 age = 2;  // Deleted without reserving 2 -> breaking change
+}
+```
+
+**Fix:** Reserve removed field numbers or avoid incompatible changes:
+
+```proto
+message User {
+  string name = 1;
+  reserved 2; // Reserve previously used field number
+}
+```
+
+**Configuration:**
+
+```jsonc
+{
+  // Enable/disable surfacing of breaking changes as diagnostics
+  "protobuf.diagnostics.breakingChanges": true,
+  // Optional: control diagnostic severity
+  "protobuf.diagnostics.severity.breakingChanges": "error"
+}
+```
+
 ## Severity Levels
 
 You can configure the severity of different diagnostic categories:
@@ -239,7 +304,8 @@ You can configure the severity of different diagnostic categories:
   "protobuf.diagnostics.severity.referenceErrors": "error",
   "protobuf.diagnostics.severity.fieldTagIssues": "error",
   "protobuf.diagnostics.severity.discouragedConstructs": "warning",
-  "protobuf.diagnostics.severity.nonCanonicalImportPath": "error"
+  "protobuf.diagnostics.severity.nonCanonicalImportPath": "error",
+  "protobuf.diagnostics.severity.breakingChanges": "warning"
 }
 ```
 

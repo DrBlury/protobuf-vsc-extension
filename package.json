@@ -319,6 +319,11 @@
           "default": true,
           "description": "Check for edition features usage and missing edition declarations"
         },
+        "protobuf.diagnostics.breakingChanges": {
+          "type": "boolean",
+          "default": false,
+          "description": "Check for breaking changes against the configured baseline"
+        },
         "protobuf.diagnostics.severity.namingConventions": {
           "type": "string",
           "enum": [
@@ -373,6 +378,17 @@
           ],
           "default": "error",
           "description": "Severity level for reporting of a non-canonical import path"
+        },
+        "protobuf.diagnostics.severity.breakingChanges": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warning",
+            "information",
+            "hint"
+          ],
+          "default": "error",
+          "description": "Severity level for breaking changes"
         },
         "protobuf.completion.autoImport": {
           "type": "boolean",

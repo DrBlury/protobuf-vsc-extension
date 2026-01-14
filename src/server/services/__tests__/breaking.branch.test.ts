@@ -21,7 +21,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
     jest.clearAllMocks();
   });
 
-  describe('getBaselineFromGit default ref', () => {
+  describe('getBaseline default ref', () => {
     it('should use default ref when againstGitRef is empty', async () => {
       detector.setWorkspaceRoot('/workspace');
       // Explicitly set empty ref to trigger default
@@ -55,7 +55,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await detector.getBaselineFromGit('/workspace/test.proto');
+      const result = await detector.getBaseline('/workspace/test.proto');
       expect(result).toBe('syntax = "proto3";');
       // Verify spawn was called with default ref HEAD~1
       expect(mockSpawn).toHaveBeenCalledWith(
@@ -82,7 +82,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       // Should only report MESSAGE_NO_DELETE, not FIELD_NO_DELETE
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('MESSAGE_NO_DELETE');
@@ -97,7 +97,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
       const current = parser.parse('syntax = "proto3";', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(0);
     });
 
@@ -120,7 +120,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       // FIELD_SAME_NAME has warning severity
       expect(diagnostics[0].severity).toBe(2); // Warning = 2 in DiagnosticSeverity
@@ -145,7 +145,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       // FIELD_SAME_TYPE has error severity
       expect(diagnostics[0].severity).toBe(1); // Error = 1 in DiagnosticSeverity
@@ -172,7 +172,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       // Field 100 is reserved (100 to max), so should not report deletion
       const deleteErrors = diagnostics.filter(d => d.message.includes('deleted without reserving'));
       expect(deleteErrors.length).toBe(0);
@@ -197,7 +197,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       // Field 5 is not in reserved range 10-20, should report deletion
       const deleteErrors = diagnostics.filter(d => d.message.includes('deleted without reserving'));
       expect(deleteErrors.length).toBe(1);
@@ -224,7 +224,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('FIELD_SAME_LABEL');
     });
@@ -248,7 +248,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('FIELD_SAME_LABEL');
     });
@@ -276,7 +276,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('ENUM_VALUE_SAME_NAME');
       expect(diagnostics[0].message).toContain('renamed');
@@ -304,7 +304,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('RPC_NO_DELETE');
       expect(diagnostics[0].message).toContain('DeleteUser');
@@ -329,7 +329,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('RPC_SAME_CLIENT_STREAMING');
       expect(diagnostics[0].message).toContain('client streaming');
@@ -354,7 +354,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('RPC_SAME_SERVER_STREAMING');
       expect(diagnostics[0].message).toContain('server streaming');
@@ -379,7 +379,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('RPC_SAME_REQUEST_TYPE');
     });
@@ -403,7 +403,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('RPC_SAME_RESPONSE_TYPE');
     });
@@ -433,7 +433,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('FIELD_SAME_TYPE');
     });
@@ -462,7 +462,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('ENUM_VALUE_NO_DELETE');
     });
@@ -488,7 +488,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].message).toContain('Inner');
     });
@@ -511,7 +511,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         service ServiceB {}
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('SERVICE_NO_DELETE');
       expect(diagnostics[0].message).toContain('ServiceB');
@@ -535,7 +535,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         enum StatusB { UNKNOWN_B = 0; }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('ENUM_NO_DELETE');
       expect(diagnostics[0].message).toContain('StatusB');
@@ -559,7 +559,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         message Test {}
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('PACKAGE_NO_DELETE');
       expect(diagnostics[0].message).toContain('myapi.v1');
@@ -580,7 +580,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         message Test {}
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(0);
     });
   });
@@ -608,7 +608,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       // Fields 3, 10, 25 are reserved; field 100 is not
       const deleteErrors = diagnostics.filter(d => d.message.includes('deleted without reserving'));
       expect(deleteErrors.length).toBe(1);
@@ -632,7 +632,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('FIELD_NO_DELETE');
     });
@@ -648,7 +648,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
       const current = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics).toEqual([]);
     });
 
@@ -689,7 +689,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
       const current = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics).toEqual([]);
     });
   });
@@ -727,7 +727,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await detector.getBaselineFromGit('/workspace/test.proto');
+      const result = await detector.getBaseline('/workspace/test.proto');
       expect(result).toBe('syntax = "proto3";');
     });
 
@@ -758,7 +758,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await detector.getBaselineFromGit('/workspace/test.proto');
+      const result = await detector.getBaseline('/workspace/test.proto');
       expect(result).toBe('syntax = "proto3";');
     });
   });
@@ -773,7 +773,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
       const current = parser.parse('syntax = "proto3";', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3";', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBe(0);
     });
 
@@ -796,7 +796,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
         }
       `, 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       // Should detect type change, not deletion
       expect(diagnostics.length).toBe(1);
       expect(diagnostics[0].code).toBe('FIELD_SAME_TYPE');

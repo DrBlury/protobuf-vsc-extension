@@ -189,12 +189,15 @@ export function updateProvidersWithSettings(
     unusedSymbols: diag.unusedSymbols ?? false,
     circularDependencies: diag.circularDependencies ?? true,
     documentationComments: diag.documentationComments ?? true,
+    editionFeatures: diag.editionFeatures ?? true,
+    breakingChanges: diag.breakingChanges ?? false,
     severity: {
       namingConventions: diag.severity.namingConventions,
       referenceErrors: diag.severity.referenceErrors,
       fieldTagIssues: diag.severity.fieldTagIssues,
       discouragedConstructs: diag.severity.discouragedConstructs,
       nonCanonicalImportPath: diag.severity.nonCanonicalImportPath,
+      breakingChanges: diag.severity.breakingChanges,
     },
   };
   diagnosticsProvider.updateSettings(diagSettings);

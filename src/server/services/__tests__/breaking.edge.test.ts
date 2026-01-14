@@ -19,7 +19,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { int32 id = 1; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { string id = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
 
@@ -27,7 +27,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { string newName = 1; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { string oldName = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
 
@@ -35,7 +35,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { repeated string tags = 1; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { string tags = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -43,7 +43,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { reserved 1; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { string name = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       // Should not error when field number is reserved
       const deleteErrors = diagnostics.filter(d => d.message.includes('deleted without reserving'));
       expect(deleteErrors.length).toBe(0);
@@ -55,7 +55,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; enum Status { UNKNOWN = 0; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; enum Status { UNKNOWN = 0; OK = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
 
@@ -63,7 +63,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; enum Status { UNKNOWN = 0; NEW_NAME = 1; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; enum Status { UNKNOWN = 0; OLD_NAME = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       // Enum value name changes may or may not be detected as breaking depending on implementation
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
@@ -74,7 +74,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; service TestService {}', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; service TestService { rpc Method(Request) returns (Response); }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
 
@@ -82,7 +82,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; service TestService { rpc Method(NewRequest) returns (Response); }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; service TestService { rpc Method(OldRequest) returns (Response); }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
 
@@ -90,7 +90,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; service TestService { rpc Method(Request) returns (NewResponse); }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; service TestService { rpc Method(Request) returns (OldResponse); }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
   });
@@ -100,7 +100,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Outer {}', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Outer { message Inner {} }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
 
@@ -108,7 +108,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Outer {}', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Outer { enum Status { UNKNOWN = 0; } }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
   });
@@ -118,7 +118,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { string name = 1 [deprecated = true]; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { string name = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -126,7 +126,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { string name = 1 [deprecated = true]; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { string name = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -137,7 +137,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { string new_name = 1; reserved "old_name"; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { string old_name = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       const nameChangeErrors = diagnostics.filter(d => d.message.includes('name') && d.message.includes('changed'));
       expect(nameChangeErrors.length).toBe(0);
     });
@@ -147,7 +147,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { string name = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -157,7 +157,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { oneof choice { string a = 1; } }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { oneof choice { string a = 1; int32 b = 2; } }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -165,7 +165,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { string choice = 1; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { oneof choice { string a = 1; int32 b = 2; } }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -175,7 +175,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; service Test { rpc Method(stream Request) returns (Response); }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; service Test { rpc Method(Request) returns (Response); }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -183,7 +183,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; service Test { rpc Method(Request) returns (stream Response); }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; service Test { rpc Method(Request) returns (Response); }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -193,7 +193,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; enum Status { UNKNOWN = 0; ACTIVE = 100; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; enum Status { UNKNOWN = 0; ACTIVE = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -201,7 +201,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; enum Status { UNKNOWN = 0; ACTIVE = 1; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; enum Status { UNKNOWN = 0; ACTIVE = 1; OK = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -211,7 +211,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { option message_set_wire_format = false; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { option message_set_wire_format = true; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -222,7 +222,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3";', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; package myapp.v1;', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -231,7 +231,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; package myapp.v2;', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; package myapp.v1;', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -242,7 +242,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { optional .google.protobuf.DescriptorProto descriptor = 999; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -253,7 +253,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { reserved 1, 2; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { reserved 1, 2, 3; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -262,7 +262,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { reserved "name1"; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { reserved "name1", "name2"; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -273,7 +273,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { string name = 1 [json_name = "customName"]; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { string name = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -284,7 +284,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { string choice = 1; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { oneof choice { string choice = 1; int32 other = 2; } }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -293,7 +293,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { oneof choice_a { string choice = 1; } }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { oneof choice_b { string choice = 1; } }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -304,7 +304,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; enum Status { UNKNOWN = 0; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; enum Status { UNKNOWN = 0; ACTIVE = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -313,7 +313,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; enum Status { UNKNOWN = 0; reserved 1; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; enum Status { UNKNOWN = 0; ACTIVE = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
