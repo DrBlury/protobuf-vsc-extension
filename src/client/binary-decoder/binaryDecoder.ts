@@ -67,6 +67,16 @@ export class BinaryDecoderProvider implements vscode.CustomReadonlyEditorProvide
       localResourceRoots: [this.context.extensionUri],
     };
 
+    if (!this.isInspectorEnabled()) {
+      webviewPanel.webview.html = this.getDisabledHtml(webviewPanel.webview, document.uri.fsPath);
+      webviewPanel.webview.onDidReceiveMessage(async message => {
+        if (message.command === 'openSettings') {
+          await vscode.commands.executeCommand('workbench.action.openSettings', 'protobuf.binaryInspector.enabled');
+        }
+      });
+      return;
+    }
+
     let messageTypeInfos = await this.getMessageTypes();
     let messageTypes = messageTypeInfos.map(info => info.name);
     let schemaLookup = this.getSchemaLookup();
@@ -1351,6 +1361,107 @@ export class BinaryDecoderProvider implements vscode.CustomReadonlyEditorProvide
             </script>
         </body>
         </html>`;
+  }
+
+  private getDisabledHtml(webview: vscode.Webview, filePath: string): string {
+    const logoUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'logo.png'));
+    const safePath = escapeHtml(filePath);
+    return `<!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Protobuf Binary Inspector</title>
+            <style>
+                body {
+                    font-family: var(--vscode-editor-font-family);
+                    font-size: var(--vscode-editor-font-size);
+                    color: var(--vscode-editor-foreground);
+                    background-color: var(--vscode-editor-background);
+                    margin: 0;
+                    padding: 32px 24px;
+                }
+                .card {
+                    max-width: 720px;
+                    margin: 0 auto;
+                    border: 1px solid var(--vscode-panel-border);
+                    border-radius: 6px;
+                    padding: 24px;
+                    background: var(--vscode-editor-background);
+                }
+                .title {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    font-size: 1.1rem;
+                    font-weight: 600;
+                    margin-bottom: 12px;
+                }
+                .title img {
+                    width: 18px;
+                    height: 18px;
+                    opacity: 0.9;
+                }
+                .file-path {
+                    font-family: var(--vscode-editor-font-family);
+                    color: var(--vscode-descriptionForeground);
+                    margin: 8px 0 16px;
+                    word-break: break-all;
+                }
+                code {
+                    font-family: var(--vscode-editor-font-family);
+                }
+                button {
+                    background: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    border: none;
+                    cursor: pointer;
+                    padding: 6px 12px;
+                    border-radius: 2px;
+                    font-size: 0.9rem;
+                }
+                button:hover {
+                    background: var(--vscode-button-hoverBackground);
+                }
+                .hint {
+                    margin-top: 12px;
+                    color: var(--vscode-descriptionForeground);
+                    font-size: 0.9rem;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <div class="title">
+                    <img src="${logoUri}" alt="Protobuf">
+                    <span>Binary Inspector is disabled</span>
+                </div>
+                <div class="file-path">${safePath}</div>
+                <div>
+                    Enable <code>protobuf.binaryInspector.enabled</code> to use the Protobuf Binary Inspector.
+                </div>
+                <div class="hint">After enabling, reopen this file with "Reopen With" → "Protobuf Binary Inspector".</div>
+                <div style="margin-top: 16px;">
+                    <button id="openSettings">Open Settings</button>
+                </div>
+            </div>
+            <script>
+                (function () {
+                    const vscode = acquireVsCodeApi();
+                    const openSettings = document.getElementById('openSettings');
+                    if (openSettings) {
+                        openSettings.addEventListener('click', () => {
+                            vscode.postMessage({ command: 'openSettings' });
+                        });
+                    }
+                })();
+            </script>
+        </body>
+        </html>`;
+  }
+
+  private isInspectorEnabled(): boolean {
+    return vscode.workspace.getConfiguration('protobuf').get<boolean>('binaryInspector.enabled', false);
   }
 }
 

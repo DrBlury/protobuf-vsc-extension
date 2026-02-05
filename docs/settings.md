@@ -481,6 +481,14 @@ These sources now populate the analyzer automatically, so most projects no longe
 - **Default**: `"grpcurl"`
 - **Description**: Path to the grpcurl CLI used by the Protobuf Playground for making gRPC requests. Can be installed via the toolchain manager (`Protobuf: Manage Toolchain`).
 
+### Binary Inspector
+
+#### `protobuf.binaryInspector.enabled`
+
+- **Type**: `boolean`
+- **Default**: `false`
+- **Description**: Enable the Protobuf Binary Inspector custom editor for `.pb` and `.bin` files. Use "Reopen With" → "Protobuf Binary Inspector" to open a file in the inspector.
+
 ### Toolchain Auto-Detection
 
 #### `protobuf.autoDetection.enabled`

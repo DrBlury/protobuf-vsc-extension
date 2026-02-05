@@ -278,10 +278,8 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // Register Binary Decoder Provider
-  if (betaFeaturesEnabled) {
-    context.subscriptions.push(BinaryDecoderProvider.register(context, outputChannel));
-  }
+  // Register Binary Decoder Provider (gated by protobuf.binaryInspector.enabled inside the provider)
+  context.subscriptions.push(BinaryDecoderProvider.register(context, outputChannel));
 
   // Register Protobuf Sidebar
   registerProtobufSidebar(context, betaFeaturesEnabled);
