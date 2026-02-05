@@ -29,19 +29,6 @@ jest.mock('child_process', () => ({
 
 import { SchemaDiffManager } from '../schemaDiff';
 
-/**
- * Helper to flush promises and setImmediate callbacks.
- * Since mock child process uses setImmediate (not faked), we just need to flush the queue.
- * Uses 20 iterations to handle triple-nested setImmediate in mock child process.
- */
-async function flushPromisesAndTimers(): Promise<void> {
-  // Flush multiple times to handle nested setImmediate calls
-  // The mock child process uses triple-nested setImmediate for close event
-  for (let i = 0; i < 20; i++) {
-    await new Promise(resolve => setImmediate(resolve));
-  }
-}
-
 type GitMockOptions = {
   root?: string;
   rootExitCode?: number;
@@ -72,8 +59,6 @@ describe('SchemaDiffManager', () => {
   let mockOutputChannel: ReturnType<typeof mockVscode.window.createOutputChannel>;
 
   beforeEach(() => {
-    // Use fake timers but don't fake setImmediate so we can use it to flush promises
-    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     jest.clearAllMocks();
     // Note: Don't use jest.resetModules() here as it can cause issues with mock references
     mockWriteFile.mockClear();
@@ -86,10 +71,6 @@ describe('SchemaDiffManager', () => {
     mockVscode.window.showErrorMessage.mockClear();
     mockVscode.window.showInputBox.mockClear();
     manager = new SchemaDiffManager(mockOutputChannel);
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -157,9 +138,7 @@ describe('SchemaDiffManager', () => {
 
       setupGitMock({ showStdout: 'syntax = "proto3";' });
 
-      const diffPromise = manager.diffSchema(uri);
-      await flushPromisesAndTimers();
-      await diffPromise;
+      await manager.diffSchema(uri);
 
       expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], { cwd: '/test/project' });
       expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD~1:schema.proto'], { cwd: '/test/project' });
@@ -180,9 +159,7 @@ describe('SchemaDiffManager', () => {
       );
       getFileContentAtRefSpy.mockResolvedValue(oldContent);
 
-      const diffPromise = manager.diffSchema(uri);
-      await flushPromisesAndTimers();
-      await diffPromise;
+      await manager.diffSchema(uri);
 
       const expectedTmpPath = path.join('/tmp', 'schema.proto.main.proto');
       expect(mockWriteFile).toHaveBeenCalledWith(expectedTmpPath, oldContent);
@@ -209,9 +186,7 @@ describe('SchemaDiffManager', () => {
       );
       getFileContentAtRefSpy.mockResolvedValue('content');
 
-      const diffPromise = manager.diffSchema(uri);
-      await flushPromisesAndTimers();
-      await diffPromise;
+      await manager.diffSchema(uri);
 
       const expectedTmpPath = path.join('/tmp', 'schema.proto.origin_main.proto');
       expect(mockWriteFile).toHaveBeenCalledWith(expectedTmpPath, 'content');
@@ -226,9 +201,7 @@ describe('SchemaDiffManager', () => {
 
       setupGitMock({ showStdout: '' });
 
-      const diffPromise = manager.diffSchema(uri);
-      await flushPromisesAndTimers();
-      await diffPromise;
+      await manager.diffSchema(uri);
 
       expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith('Could not find file at HEAD~1');
     });
@@ -242,9 +215,7 @@ describe('SchemaDiffManager', () => {
 
       setupGitMock({ showStdout: '', showStderr: 'fatal: bad revision', showExitCode: 128 });
 
-      const diffPromise = manager.diffSchema(uri);
-      await flushPromisesAndTimers();
-      await diffPromise;
+      await manager.diffSchema(uri);
 
       expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
         expect.stringContaining('Failed to diff schema:')
@@ -264,9 +235,7 @@ describe('SchemaDiffManager', () => {
 
       setupGitMock({ showStdout: 'content' });
 
-      const diffPromise = manager.diffSchema();
-      await flushPromisesAndTimers();
-      await diffPromise;
+      await manager.diffSchema();
 
       expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], { cwd: '/test/project' });
       expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD:active.proto'], { cwd: '/test/project' });
@@ -279,9 +248,7 @@ describe('SchemaDiffManager', () => {
 
       setupGitMock({ rootExitCode: 128, showStdout: 'content' });
 
-      const diffPromise = manager.diffSchema(uri);
-      await flushPromisesAndTimers();
-      await diffPromise;
+      await manager.diffSchema(uri);
 
       expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], { cwd: '/standalone/dir' });
       expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD~1:schema.proto'], { cwd: '/standalone/dir' });
@@ -296,9 +263,7 @@ describe('SchemaDiffManager', () => {
 
       setupGitMock({ showStdout: 'content' });
 
-      const diffPromise = manager.diffSchema(uri);
-      await flushPromisesAndTimers();
-      await diffPromise;
+      await manager.diffSchema(uri);
 
       expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], { cwd: '/test/project' });
       expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD~1:protos/api/v1/schema.proto'], {
@@ -315,9 +280,7 @@ describe('SchemaDiffManager', () => {
 
       setupGitMock({ root: '/test/monorepo', showStdout: 'content' });
 
-      const diffPromise = manager.diffSchema(uri);
-      await flushPromisesAndTimers();
-      await diffPromise;
+      await manager.diffSchema(uri);
 
       expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], {
         cwd: '/test/monorepo/packages/service',
@@ -336,9 +299,7 @@ describe('SchemaDiffManager', () => {
 
       setupGitMock({ showStdout: '', showStderr: 'fatal: not a git repository', showExitCode: 128 });
 
-      const diffPromise = manager.diffSchema(uri);
-      await flushPromisesAndTimers();
-      await diffPromise;
+      await manager.diffSchema(uri);
 
       expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
         expect.stringContaining('Git exited with code 128')
