@@ -381,7 +381,7 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
       const type = trimmedLine.startsWith('message') ? 'message' : 'enum';
       // For enums, start at 0; for messages, start at configured value
       const startNum = type === 'enum' ? 0 : settings.renumberStartNumber || 1;
-      const reservedRanges = type === 'message' ? reservedByMessage.get(i) ?? [] : [];
+      const reservedRanges = type === 'message' ? (reservedByMessage.get(i) ?? []) : [];
       contextStack.push({ type, fieldCounter: startNum, reservedRanges });
       result.push(line);
       continue;
@@ -407,7 +407,7 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
     if (contextStack.length > 0 && /^(message|enum)\s+\w+\s*\{/.test(trimmedLine)) {
       const type = trimmedLine.startsWith('message') ? 'message' : 'enum';
       const startNum = type === 'enum' ? 0 : settings.renumberStartNumber || 1;
-      const reservedRanges = type === 'message' ? reservedByMessage.get(i) ?? [] : [];
+      const reservedRanges = type === 'message' ? (reservedByMessage.get(i) ?? []) : [];
       contextStack.push({ type, fieldCounter: startNum, reservedRanges });
       result.push(line);
       continue;
