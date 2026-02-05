@@ -19,6 +19,16 @@ try {
   // Ignore if the runtime does not permit overriding localStorage.
 }
 
+// Use shared VS Code mock for all tests unless explicitly overridden.
+jest.mock(
+  "vscode",
+  () => {
+    const { createMockVscode } = require("./src/client/__tests__/testUtils");
+    return createMockVscode();
+  },
+  { virtual: true }
+);
+
 // Mock web-tree-sitter module for tests that don't need actual tree-sitter functionality
 jest.mock(
   "web-tree-sitter",

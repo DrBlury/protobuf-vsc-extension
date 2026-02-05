@@ -1,4 +1,5 @@
 import type * as vscode from 'vscode';
+import { createMockVscode } from '../../__tests__/testUtils';
 
 const mockOutputChannel = {
   appendLine: jest.fn(),
@@ -11,28 +12,26 @@ const mockOutputChannel = {
   replace: jest.fn(),
 };
 
-const mockVscode = {
-  window: {
-    showInputBox: jest.fn(),
-    showInformationMessage: jest.fn(),
-    showErrorMessage: jest.fn(),
-    createOutputChannel: jest.fn(() => mockOutputChannel),
-  },
-  workspace: {
-    workspaceFolders: undefined as { uri: { fsPath: string } }[] | undefined,
-    getConfiguration: jest.fn(() => ({
-      get: jest.fn((key: string) => {
-        if (key === 'buf.path') {
-          return 'buf';
-        }
-        if (key === 'externalLinter.bufPath') {
-          return undefined;
-        }
-        return undefined;
-      }),
-    })),
-  },
-};
+const mockVscode = createMockVscode();
+mockVscode.window.showInputBox = jest.fn();
+mockVscode.window.showInformationMessage = jest.fn();
+mockVscode.window.showErrorMessage = jest.fn();
+mockVscode.window.createOutputChannel = jest.fn(() => mockOutputChannel);
+mockVscode.workspace.workspaceFolders = undefined as { uri: { fsPath: string } }[] | undefined;
+mockVscode.workspace.getConfiguration = jest.fn(() => ({
+  get: jest.fn((key: string) => {
+    if (key === 'buf.path') {
+      return 'buf';
+    }
+    if (key === 'externalLinter.bufPath') {
+      return undefined;
+    }
+    return undefined;
+  }),
+  update: jest.fn().mockResolvedValue(undefined),
+  has: jest.fn().mockReturnValue(false),
+  inspect: jest.fn().mockReturnValue(undefined),
+}));
 
 jest.mock('vscode', () => mockVscode, { virtual: true });
 
@@ -113,6 +112,9 @@ describe('RegistryManager', () => {
         }
         return undefined;
       }),
+      update: jest.fn().mockResolvedValue(undefined),
+      has: jest.fn().mockReturnValue(false),
+      inspect: jest.fn().mockReturnValue(undefined),
     });
 
     mockProc.on.mockImplementation((event: string, callback: (code?: number | Error) => void) => {
@@ -359,6 +361,9 @@ describe('RegistryManager', () => {
           }
           return undefined;
         }),
+        update: jest.fn().mockResolvedValue(undefined),
+        has: jest.fn().mockReturnValue(false),
+        inspect: jest.fn().mockReturnValue(undefined),
       });
 
       const addPromise = registryManager.addDependency();
@@ -382,6 +387,9 @@ describe('RegistryManager', () => {
           }
           return undefined;
         }),
+        update: jest.fn().mockResolvedValue(undefined),
+        has: jest.fn().mockReturnValue(false),
+        inspect: jest.fn().mockReturnValue(undefined),
       });
 
       const addPromise = registryManager.addDependency();

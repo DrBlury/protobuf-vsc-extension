@@ -1,20 +1,17 @@
+import { createMockVscode } from '../../__tests__/testUtils';
+
 const mockRange = jest.fn();
 const mockPosition = jest.fn();
 const mockWorkspaceEdit = jest.fn(() => ({
   replace: jest.fn(),
 }));
 
-const mockVscode = {
-  Range: mockRange,
-  Position: mockPosition,
-  WorkspaceEdit: mockWorkspaceEdit,
-  workspace: {
-    applyEdit: jest.fn(),
-  },
-  window: {
-    showInformationMessage: jest.fn(),
-  },
-};
+const mockVscode = createMockVscode();
+mockVscode.Range = mockRange as unknown as typeof mockVscode.Range;
+mockVscode.Position = mockPosition as unknown as typeof mockVscode.Position;
+mockVscode.WorkspaceEdit = mockWorkspaceEdit as unknown as typeof mockVscode.WorkspaceEdit;
+mockVscode.workspace.applyEdit = jest.fn();
+mockVscode.window.showInformationMessage = jest.fn();
 
 jest.mock('vscode', () => mockVscode, { virtual: true });
 

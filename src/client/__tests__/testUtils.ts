@@ -46,6 +46,16 @@ export function createMockVscode() {
       registerCommand: jest.fn(() => ({ dispose: jest.fn() })),
       executeCommand: jest.fn(),
     },
+    languages: {
+      createDiagnosticCollection: jest.fn(() => ({
+        set: jest.fn(),
+        delete: jest.fn(),
+        clear: jest.fn(),
+        dispose: jest.fn(),
+      })),
+      onDidChangeDiagnostics: jest.fn(() => ({ dispose: jest.fn() })),
+      getDiagnostics: jest.fn().mockReturnValue([]),
+    },
     window: {
       activeTextEditor: undefined as unknown,
       showWarningMessage: jest.fn(),
@@ -53,9 +63,20 @@ export function createMockVscode() {
       showErrorMessage: jest.fn(),
       showQuickPick: jest.fn(),
       showInputBox: jest.fn(),
+      withProgress: jest.fn(),
       createOutputChannel: jest.fn(() => mockOutputChannel),
       createWebviewPanel: jest.fn(() => mockWebviewPanel),
       createTreeView: jest.fn(() => mockTreeView),
+      createStatusBarItem: jest.fn(() => ({
+        text: '',
+        tooltip: '',
+        command: '',
+        show: jest.fn(),
+        hide: jest.fn(),
+        dispose: jest.fn(),
+      })),
+      registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
+      registerCustomEditorProvider: jest.fn(() => ({ dispose: jest.fn() })),
       showTextDocument: jest.fn(),
       onDidChangeActiveTextEditor: jest.fn(() => ({ dispose: jest.fn() })),
     },
@@ -69,9 +90,11 @@ export function createMockVscode() {
       })),
       applyEdit: jest.fn().mockResolvedValue(true),
       openTextDocument: jest.fn(),
+      onWillSaveTextDocument: jest.fn(() => ({ dispose: jest.fn() })),
       onDidSaveTextDocument: jest.fn(() => ({ dispose: jest.fn() })),
       onDidChangeTextDocument: jest.fn(() => ({ dispose: jest.fn() })),
       onDidChangeConfiguration: jest.fn(() => ({ dispose: jest.fn() })),
+      onDidCloseTextDocument: jest.fn(() => ({ dispose: jest.fn() })),
       getWorkspaceFolder: jest.fn(),
       findFiles: jest.fn().mockResolvedValue([]),
       createFileSystemWatcher: jest.fn(() => ({
@@ -84,6 +107,9 @@ export function createMockVscode() {
         readFile: jest.fn(),
         writeFile: jest.fn(),
         stat: jest.fn(),
+        createDirectory: jest.fn(),
+        delete: jest.fn(),
+        readDirectory: jest.fn().mockResolvedValue([]),
       },
     },
     env: {
@@ -189,6 +215,7 @@ export function createMockVscode() {
     Disposable: class MockDisposable {
       dispose() {}
     },
+    ExtensionContext: class MockExtensionContext {},
     TreeItem: class MockTreeItem {
       label: string;
       collapsibleState: number;
@@ -236,11 +263,32 @@ export function createMockVscode() {
       Information: 2,
       Hint: 3,
     },
+    Diagnostic: class MockDiagnostic {
+      source?: string;
+      code?: unknown;
+      constructor(
+        public range: unknown,
+        public message: string,
+        public severity: unknown
+      ) {}
+    },
+    TextEditorRevealType: {
+      Default: 0,
+      InCenter: 1,
+      InCenterIfOutsideViewport: 2,
+      AtTop: 3,
+    },
     StatusBarAlignment: {
       Left: 1,
       Right: 2,
     },
     ThemeColor: class MockThemeColor {
+      id: string;
+      constructor(id: string) {
+        this.id = id;
+      }
+    },
+    ThemeIcon: class MockThemeIcon {
       id: string;
       constructor(id: string) {
         this.id = id;
@@ -254,6 +302,18 @@ export function createMockVscode() {
     QuickPickItemKind: {
       Separator: -1,
       Default: 0,
+    },
+    CodeActionKind: {
+      QuickFix: 'quickfix',
+      Refactor: 'refactor',
+      Source: 'source',
+      SourceOrganizeImports: 'source.organizeImports',
+    },
+    FileType: {
+      Unknown: 0,
+      File: 1,
+      Directory: 2,
+      SymbolicLink: 64,
     },
     _mockOutputChannel: mockOutputChannel,
     _mockWebviewPanel: mockWebviewPanel,
