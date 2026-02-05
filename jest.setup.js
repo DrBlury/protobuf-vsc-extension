@@ -29,6 +29,17 @@ jest.mock(
   { virtual: true }
 );
 
+// Mock fsUtils globally to avoid relying on VS Code filesystem in tests.
+jest.mock("./src/client/utils/fsUtils", () => ({
+  fileExists: jest.fn().mockResolvedValue(false),
+  readFile: jest.fn().mockResolvedValue(""),
+  writeFile: jest.fn().mockResolvedValue(undefined),
+  createDirectory: jest.fn().mockResolvedValue(undefined),
+  readDirectory: jest.fn().mockResolvedValue([]),
+  deleteFile: jest.fn().mockResolvedValue(undefined),
+  isDirectory: jest.fn().mockResolvedValue(false),
+}));
+
 // Mock web-tree-sitter module for tests that don't need actual tree-sitter functionality
 jest.mock(
   "web-tree-sitter",

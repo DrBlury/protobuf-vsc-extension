@@ -4,6 +4,7 @@ import {
   createMockExtensionContext,
   createMockChildProcess,
 } from '../../__tests__/testUtils';
+import type * as fsUtils from '../../utils/fsUtils';
 
 const mockVscode = createMockVscode();
 
@@ -50,6 +51,7 @@ describe('PlaygroundManager', () => {
   let mockContext: ReturnType<typeof createMockExtensionContext>;
   let mockOutputChannel: ReturnType<typeof mockVscode.window.createOutputChannel>;
   let mockWebviewPanel: ReturnType<typeof mockVscode.window.createWebviewPanel>;
+  let mockFileExists: jest.Mock;
 
   function setupConfig(includes: string[] = []) {
     mockVscode.workspace.getConfiguration = jest.fn(() => ({
@@ -68,6 +70,9 @@ describe('PlaygroundManager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+    const fsUtilsMock = jest.requireMock('../../utils/fsUtils') as jest.Mocked<typeof fsUtils>;
+    mockFileExists = fsUtilsMock.fileExists as jest.Mock;
+    mockFileExists.mockResolvedValue(true);
     mockContext = createMockExtensionContext();
     mockOutputChannel = mockVscode.window.createOutputChannel();
     mockWebviewPanel = mockVscode.window.createWebviewPanel();

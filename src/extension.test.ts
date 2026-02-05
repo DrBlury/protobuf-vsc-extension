@@ -3,6 +3,7 @@
  */
 
 import { createMockVscode } from './client/__tests__/testUtils';
+import type * as fsUtils from './client/utils/fsUtils';
 
 // Mock VS Code API
 class MockTreeItem {
@@ -215,27 +216,28 @@ jest.doMock(
 jest.doMock('child_process', () => mockChildProcess, { virtual: true });
 jest.doMock('fs', () => mockFs, { virtual: true });
 
-// Mock fsUtils for async filesystem operations
-const mockFsUtils = {
-  fileExists: jest.fn().mockResolvedValue(false),
-  readFile: jest.fn().mockResolvedValue(''),
-  writeFile: jest.fn().mockResolvedValue(undefined),
-  createDirectory: jest.fn().mockResolvedValue(undefined),
-  readDirectory: jest.fn().mockResolvedValue([]),
-  deleteFile: jest.fn().mockResolvedValue(undefined),
-  isDirectory: jest.fn().mockResolvedValue(false),
-};
-jest.doMock('./client/utils/fsUtils', () => mockFsUtils, { virtual: true });
+let mockFsUtils: jest.Mocked<typeof fsUtils>;
 
 // Now import the extension after mocking dependencies
 const { activate, deactivate } = require('./extension');
 
 describe('Extension Activation', () => {
   beforeEach(() => {
+    jest.useFakeTimers();
     jest.clearAllMocks();
+    mockFsUtils = jest.requireMock('./client/utils/fsUtils') as jest.Mocked<typeof fsUtils>;
+    mockFsUtils.fileExists.mockResolvedValue(false);
+    mockFsUtils.readFile.mockResolvedValue('');
+    mockFsUtils.writeFile.mockResolvedValue(undefined);
+    mockFsUtils.createDirectory.mockResolvedValue(undefined);
+    mockFsUtils.readDirectory.mockResolvedValue([]);
+    mockFsUtils.deleteFile.mockResolvedValue(undefined);
+    mockFsUtils.isDirectory.mockResolvedValue(false);
   });
 
   afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
     jest.resetModules();
   });
 

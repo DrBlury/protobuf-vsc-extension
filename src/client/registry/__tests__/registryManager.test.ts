@@ -1,4 +1,5 @@
 import type * as vscode from 'vscode';
+import type * as fsUtils from '../../utils/fsUtils';
 import { createMockVscode } from '../../__tests__/testUtils';
 
 const mockOutputChannel = {
@@ -35,16 +36,10 @@ mockVscode.workspace.getConfiguration = jest.fn(() => ({
 
 jest.mock('vscode', () => mockVscode, { virtual: true });
 
-// Mock fsUtils - use jest.fn() inside the factory to avoid hoisting issues
-const mockFileExists = jest.fn();
-const mockReadFile = jest.fn();
-const mockWriteFile = jest.fn();
-
-jest.mock('../../utils/fsUtils', () => ({
-  fileExists: mockFileExists,
-  readFile: mockReadFile,
-  writeFile: mockWriteFile,
-}));
+// Mock fsUtils (shared global mock)
+let mockFileExists: jest.Mock;
+let mockReadFile: jest.Mock;
+let mockWriteFile: jest.Mock;
 
 jest.mock('path', () => ({
   join: (...args: string[]) => args.join('/'),
@@ -90,11 +85,16 @@ describe('RegistryManager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+    mockSpawn.mockClear();
+    jest.resetModules();
+
+    const fsUtilsMock = jest.requireMock('../../utils/fsUtils') as jest.Mocked<typeof fsUtils>;
+    mockFileExists = fsUtilsMock.fileExists as jest.Mock;
+    mockReadFile = fsUtilsMock.readFile as jest.Mock;
+    mockWriteFile = fsUtilsMock.writeFile as jest.Mock;
     mockFileExists.mockReset();
     mockReadFile.mockReset();
     mockWriteFile.mockReset();
-    mockSpawn.mockClear();
-    jest.resetModules();
 
     mockVscode.workspace.workspaceFolders = [{ uri: { fsPath: '/test/workspace' } }];
     mockFileExists.mockResolvedValue(true);

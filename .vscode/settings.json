@@ -55,15 +55,7 @@
   "protobuf.buf.path": "/opt/homebrew/bin/buf",
   "protobuf.externalLinter.bufPath": "/opt/homebrew/bin/buf",
   "protobuf.grpcurl.path": "grpcurl",
-  "cSpell.words": [
-    "codegen",
-    "gofmt",
-    "grpcurl",
-    "nanopb",
-    "protoc",
-    "Srcs",
-    "textproto"
-  ]
+  "cSpell.enabled": false
   // "protobuf.semanticHighlighting.enabled": "textmate"
   // "editor.semanticTokenColorCustomizations": {
   //   "[*]": {

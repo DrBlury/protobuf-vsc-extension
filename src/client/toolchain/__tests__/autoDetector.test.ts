@@ -8,6 +8,8 @@
  * - Configuration file detection
  */
 
+import { createMockVscode } from '../../__tests__/testUtils';
+import type * as fsUtils from '../../utils/fsUtils';
 import * as path from 'path';
 
 // Test paths - use path.join for cross-platform compatibility
@@ -18,7 +20,9 @@ const getTestGlobalStorage = () => path.join(path.sep, 'test', 'global-storage')
 const getHomebrewBin = () => path.join(path.sep, 'opt', 'homebrew', 'bin');
 const _getTestUserHome = () => path.join(path.sep, 'Users', 'testuser');
 
-// Mock vscode
+// Mock vscode (shared helper + per-test overrides)
+const mockVscode = createMockVscode();
+
 const mockOutputChannel = {
   appendLine: jest.fn(),
   append: jest.fn(),
@@ -30,40 +34,25 @@ const mockOutputChannel = {
 
 const mockConfiguration = new Map<string, unknown>();
 
-jest.mock(
-  'vscode',
-  () => {
-    const pathModule = require('path');
-    const testWorkspace = pathModule.join(pathModule.sep, 'test', 'workspace');
-    return {
-      window: {
-        showInformationMessage: jest.fn(),
-        showQuickPick: jest.fn(),
-      },
-      workspace: {
-        getConfiguration: jest.fn((section: string) => ({
-          get: jest.fn((key: string, defaultValue?: unknown) => {
-            const fullKey = section ? `${section}.${key}` : key;
-            return mockConfiguration.get(fullKey) ?? defaultValue;
-          }),
-          update: jest.fn(),
-        })),
-        workspaceFolders: [{ uri: { fsPath: testWorkspace } }],
-      },
-      ConfigurationTarget: {
-        Global: 1,
-        Workspace: 2,
-      },
-    };
-  },
-  { virtual: true }
-);
+const testWorkspace = getTestWorkspace();
 
-// Mock fsUtils for async fileExists function
-const mockFileExists = jest.fn();
-jest.mock('../../utils/fsUtils', () => ({
-  fileExists: (...args: unknown[]) => mockFileExists(...args),
+mockVscode.window.showInformationMessage = jest.fn();
+mockVscode.window.showQuickPick = jest.fn();
+(mockVscode.workspace.getConfiguration as jest.Mock).mockImplementation((section: string) => ({
+  get: jest.fn((key: string, defaultValue?: unknown) => {
+    const fullKey = section ? `${section}.${key}` : key;
+    return mockConfiguration.get(fullKey) ?? defaultValue;
+  }),
+  update: jest.fn(),
+  has: jest.fn(() => false),
+  inspect: jest.fn(),
 }));
+mockVscode.workspace.workspaceFolders = [{ uri: { fsPath: testWorkspace } }];
+
+jest.mock('vscode', () => mockVscode, { virtual: true });
+
+// Mock fsUtils for async fileExists function (shared global mock)
+let mockFileExists: jest.Mock;
 
 // Mock fs for shebang detection (autoDetector still uses fs.existsSync, fs.openSync, etc. for shebang detection)
 const mockFsExistsSync = jest.fn();
@@ -100,6 +89,8 @@ describe('AutoDetector', () => {
     jest.clearAllMocks();
     jest.resetModules();
     mockConfiguration.clear();
+    const fsUtilsMock = jest.requireMock('../../utils/fsUtils') as jest.Mocked<typeof fsUtils>;
+    mockFileExists = fsUtilsMock.fileExists as jest.Mock;
     // Mock fsUtils.fileExists (async) - for config file and tool detection
     mockFileExists.mockResolvedValue(false);
     // Mock fs.existsSync (sync) - for shebang detection

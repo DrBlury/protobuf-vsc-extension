@@ -1,20 +1,16 @@
 import * as path from 'path';
+import * as fsUtils from '../../utils/fsUtils';
 import { createMockVscode, createMockTextEditor, createMockChildProcess } from '../../__tests__/testUtils';
 
 const mockVscode = createMockVscode();
 
 jest.mock('vscode', () => mockVscode, { virtual: true });
 
-// Define mocks before jest.mock to ensure they're properly captured
-const mockWriteFile = jest.fn().mockResolvedValue(undefined);
-const mockFileExists = jest.fn().mockResolvedValue(true);
-const mockReadFile = jest.fn().mockResolvedValue('');
-
-jest.mock('../../utils/fsUtils', () => ({
-  writeFile: mockWriteFile,
-  fileExists: mockFileExists,
-  readFile: mockReadFile,
-}));
+// Define mocks using shared fsUtils mock
+const mockFsUtils = fsUtils as jest.Mocked<typeof fsUtils>;
+const mockWriteFile = mockFsUtils.writeFile;
+const mockFileExists = mockFsUtils.fileExists;
+const mockReadFile = mockFsUtils.readFile;
 
 // Mock os.tmpdir to return a consistent path
 const mockTmpdir = jest.fn(() => '/tmp');
@@ -63,6 +59,8 @@ describe('SchemaDiffManager', () => {
     // Note: Don't use jest.resetModules() here as it can cause issues with mock references
     mockWriteFile.mockClear();
     mockWriteFile.mockResolvedValue(undefined);
+    mockFileExists.mockResolvedValue(true);
+    mockReadFile.mockResolvedValue('');
     mockSpawn.mockClear();
     mockOutputChannel = mockVscode.window.createOutputChannel();
     mockVscode.window.activeTextEditor = undefined;

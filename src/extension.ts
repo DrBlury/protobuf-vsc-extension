@@ -148,7 +148,8 @@ export async function activate(context: vscode.ExtensionContext) {
   const betaFeaturesEnabled = isBetaFeaturesEnabled();
 
   // Initialize toolchain manager
-  toolchainManager = new ToolchainManager(context, outputChannel);
+  const isTestEnv = Boolean(process.env.JEST_WORKER_ID);
+  toolchainManager = new ToolchainManager(context, outputChannel, { autoInitialize: !isTestEnv });
   context.subscriptions.push(
     vscode.commands.registerCommand('protobuf.toolchain.manage', () => {
       toolchainManager.manageToolchain();

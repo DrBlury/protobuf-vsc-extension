@@ -71,7 +71,11 @@ export class ToolchainManager {
   private globalStoragePath: string;
   private binPath: string;
 
-  constructor(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
+  constructor(
+    context: vscode.ExtensionContext,
+    outputChannel: vscode.OutputChannel,
+    options: { autoInitialize?: boolean } = {}
+  ) {
     this.outputChannel = outputChannel;
     this.globalStoragePath = context.globalStorageUri.fsPath;
     this.binPath = path.join(this.globalStoragePath, 'bin');
@@ -94,7 +98,9 @@ export class ToolchainManager {
     this.tools.set('grpcurl', { name: 'grpcurl', status: ToolStatus.Unknown });
 
     // Initialize asynchronously (ensure bin directory exists and check tools)
-    this.initialize();
+    if (options.autoInitialize !== false) {
+      this.initialize();
+    }
   }
 
   private async initialize(): Promise<void> {

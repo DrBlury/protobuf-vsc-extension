@@ -8,18 +8,21 @@
  * - Tool installation workflow
  */
 
-import { ToolStatus as _ToolStatus, ToolInfo as _ToolInfo } from '../toolchainManager';
+import { createMockVscode } from '../../__tests__/testUtils';
+import type * as fsUtils from '../../utils/fsUtils';
 import * as path from 'path';
 import * as os from 'os';
 
 // Cross-platform path helpers
-const _getTestWorkspace = () => path.join(path.sep, 'test', 'workspace');
+const getTestWorkspace = () => path.join(path.sep, 'test', 'workspace');
 const getTestGlobalStorage = () => path.join(path.sep, 'test', 'global-storage');
 const getHomebrewBin = () => path.join(path.sep, 'opt', 'homebrew', 'bin');
 // Get platform-specific executable name (adds .exe on Windows)
 const getExeName = (name: string) => name + (os.platform() === 'win32' ? '.exe' : '');
 
-// Mock vscode
+// Mock vscode (shared helper + per-test overrides)
+const mockVscode = createMockVscode();
+
 const mockStatusBarItem = {
   text: '',
   tooltip: '',
@@ -41,67 +44,36 @@ const mockOutputChannel = {
 
 const mockConfiguration = new Map<string, unknown>();
 
-jest.mock(
-  'vscode',
-  () => {
-    const pathModule = require('path');
-    const testWorkspace = pathModule.join(pathModule.sep, 'test', 'workspace');
-    return {
-      window: {
-        createStatusBarItem: jest.fn(() => mockStatusBarItem),
-        showQuickPick: jest.fn(),
-        showInformationMessage: jest.fn(),
-        showWarningMessage: jest.fn(),
-        showErrorMessage: jest.fn(),
-        withProgress: jest.fn(
-          (
-            options: unknown,
-            task: (progress: { report: jest.Mock }, token: { isCancellationRequested: boolean }) => Promise<unknown>
-          ) => task({ report: jest.fn() }, { isCancellationRequested: false })
-        ),
-      },
-      workspace: {
-        getConfiguration: jest.fn((section: string) => ({
-          get: jest.fn((key: string, defaultValue?: unknown) => {
-            const fullKey = `${section}.${key}`;
-            return mockConfiguration.get(fullKey) ?? defaultValue;
-          }),
-          update: jest.fn(),
-        })),
-        workspaceFolders: [{ uri: { fsPath: testWorkspace } }],
-      },
-      StatusBarAlignment: {
-        Right: 2,
-        Left: 1,
-      },
-      ThemeColor: class {
-        constructor(public id: string) {}
-      },
-      ConfigurationTarget: {
-        Global: 1,
-        Workspace: 2,
-        WorkspaceFolder: 3,
-      },
-      ProgressLocation: {
-        Notification: 15,
-      },
-      QuickPickItemKind: {
-        Separator: -1,
-      },
-    };
-  },
-  { virtual: true }
-);
+const testWorkspace = getTestWorkspace();
 
-// Mock fsUtils for async operations
-const mockFileExists = jest.fn();
-const mockCreateDirectory = jest.fn();
-const mockReadDirectory = jest.fn();
-jest.mock('../../utils/fsUtils', () => ({
-  fileExists: (...args: unknown[]) => mockFileExists(...args),
-  createDirectory: (...args: unknown[]) => mockCreateDirectory(...args),
-  readDirectory: (...args: unknown[]) => mockReadDirectory(...args),
+mockVscode.window.createStatusBarItem = jest.fn(() => mockStatusBarItem);
+mockVscode.window.showQuickPick = jest.fn();
+mockVscode.window.showInformationMessage = jest.fn();
+mockVscode.window.showWarningMessage = jest.fn();
+mockVscode.window.showErrorMessage = jest.fn();
+mockVscode.window.withProgress = jest.fn(
+  (
+    options: unknown,
+    task: (progress: { report: jest.Mock }, token: { isCancellationRequested: boolean }) => Promise<unknown>
+  ) => task({ report: jest.fn() }, { isCancellationRequested: false })
+);
+(mockVscode.workspace.getConfiguration as jest.Mock).mockImplementation((section: string) => ({
+  get: jest.fn((key: string, defaultValue?: unknown) => {
+    const fullKey = `${section}.${key}`;
+    return mockConfiguration.get(fullKey) ?? defaultValue;
+  }),
+  update: jest.fn(),
+  has: jest.fn(() => false),
+  inspect: jest.fn(),
 }));
+mockVscode.workspace.workspaceFolders = [{ uri: { fsPath: testWorkspace } }];
+
+jest.mock('vscode', () => mockVscode, { virtual: true });
+
+// Mock fsUtils for async operations (shared global mock)
+let mockFileExists: jest.Mock;
+let mockCreateDirectory: jest.Mock;
+let mockReadDirectory: jest.Mock;
 
 // Mock fs for streaming downloads and chmod (still needed for Node.js operations)
 const mockFsExistsSync = jest.fn();
@@ -154,6 +126,11 @@ describe('ToolchainManager', () => {
     mockStatusBarItem.text = '';
     mockStatusBarItem.tooltip = '';
     mockStatusBarItem.backgroundColor = undefined;
+
+    const fsUtilsMock = jest.requireMock('../../utils/fsUtils') as jest.Mocked<typeof fsUtils>;
+    mockFileExists = fsUtilsMock.fileExists as jest.Mock;
+    mockCreateDirectory = fsUtilsMock.createDirectory as jest.Mock;
+    mockReadDirectory = fsUtilsMock.readDirectory as jest.Mock;
 
     mockContext = {
       globalStorageUri: { fsPath: getTestGlobalStorage() },
