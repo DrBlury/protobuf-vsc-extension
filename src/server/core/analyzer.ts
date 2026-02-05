@@ -227,9 +227,7 @@ export class SemanticAnalyzer {
       const virtual = mapping.virtual;
       if (normalizedImport === virtual || normalizedImport.startsWith(`${virtual}/`)) {
         const suffix = normalizedImport.slice(virtual.length).replace(/^\//, '');
-        const mappedPath = path.posix
-          .join(mapping.actual.replace(/\\/g, '/'), suffix)
-          .replace(/\\/g, '/');
+        const mappedPath = path.posix.join(mapping.actual.replace(/\\/g, '/'), suffix).replace(/\\/g, '/');
         return mappedPath;
       }
     }
@@ -1184,7 +1182,14 @@ export class SemanticAnalyzer {
     // Secondary sort by path length (shorter is better)
     const sorted = unique.sort((a, b) => {
       // Define priority order
-      const priorityOrder = ['path-mapping', 'import-path', 'forward-relative', 'basename', 'workspace-root', 'parent-relative'];
+      const priorityOrder = [
+        'path-mapping',
+        'import-path',
+        'forward-relative',
+        'basename',
+        'workspace-root',
+        'parent-relative',
+      ];
       const aPriority = priorityOrder.indexOf(a.source);
       const bPriority = priorityOrder.indexOf(b.source);
 

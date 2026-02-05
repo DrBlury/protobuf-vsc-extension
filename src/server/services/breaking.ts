@@ -110,7 +110,8 @@ export class BreakingChangeDetector {
     for (const change of changes) {
       if (this.settings.rules.includes(change.rule)) {
         diagnostics.push({
-          severity: change.severity === 'error' ? (severityOverride ?? DiagnosticSeverity.Error) : DiagnosticSeverity.Warning,
+          severity:
+            change.severity === 'error' ? (severityOverride ?? DiagnosticSeverity.Error) : DiagnosticSeverity.Warning,
           range: change.range,
           message: `Breaking change: ${change.message}`,
           source: 'protobuf-breaking',
@@ -136,7 +137,7 @@ export class BreakingChangeDetector {
    * Get baseline file content from git
    */
   private async getBaselineFromGit(filePath: string): Promise<string | null> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const relativePath = path.relative(this.workspaceRoot, filePath);
       const ref = this.settings.againstGitRef || 'HEAD~1';
 
@@ -177,9 +178,7 @@ export class BreakingChangeDetector {
       return null;
     }
 
-    const fullPath = path.isAbsolute(baselinePath)
-      ? baselinePath
-      : path.join(this.workspaceRoot, baselinePath);
+    const fullPath = path.isAbsolute(baselinePath) ? baselinePath : path.join(this.workspaceRoot, baselinePath);
 
     try {
       const content = await fs.readFile(fullPath, 'utf-8');

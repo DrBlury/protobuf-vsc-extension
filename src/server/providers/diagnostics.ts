@@ -78,7 +78,12 @@ export class DiagnosticsProvider {
     return this.currentFile?.syntax?.version === 'proto3';
   }
 
-  async validate(uri: string, file: ProtoFile, providers: ProviderRegistry, documentText?: string): Promise<Diagnostic[]> {
+  async validate(
+    uri: string,
+    file: ProtoFile,
+    providers: ProviderRegistry,
+    documentText?: string
+  ): Promise<Diagnostic[]> {
     // Skip validation for external dependency files (e.g., .buf-deps, vendor directories)
     // These are generated/exported files that should be validated by their source tools
     if (isExternalDependencyFile(uri)) {
@@ -2337,7 +2342,12 @@ export class DiagnosticsProvider {
     return false;
   }
 
-  private async checkBreakingChanges(uri: string, file: ProtoFile, providers: ProviderRegistry, diagnostics: Diagnostic[]) {
+  private async checkBreakingChanges(
+    uri: string,
+    file: ProtoFile,
+    providers: ProviderRegistry,
+    diagnostics: Diagnostic[]
+  ) {
     const filePath = URI.parse(uri).fsPath;
 
     // Get baseline content from git
@@ -2352,7 +2362,11 @@ export class DiagnosticsProvider {
       }
     }
 
-    const changes = providers.breaking.detectBreakingChanges(file, baselineFile, Severity[this.settings.severity.breakingChanges]);
+    const changes = providers.breaking.detectBreakingChanges(
+      file,
+      baselineFile,
+      Severity[this.settings.severity.breakingChanges]
+    );
     diagnostics.push(...changes);
   }
 

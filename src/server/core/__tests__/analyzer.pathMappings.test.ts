@@ -9,9 +9,7 @@ describe('SemanticAnalyzer path mappings', () => {
     parser = new ProtoParser();
     analyzer = new SemanticAnalyzer();
     analyzer.setWorkspaceRoots(['/workspace']);
-    analyzer.setImportPathMappings([
-      { virtual: 'example.com/org/my-project', actual: '/workspace' },
-    ]);
+    analyzer.setImportPathMappings([{ virtual: 'example.com/org/my-project', actual: '/workspace' }]);
   });
 
   it('should resolve imports using virtual path mappings', () => {
@@ -27,10 +25,7 @@ import "example.com/org/my-project/proto/common/types.proto";`;
     const mainFile = parser.parse(mainContent, mainUri);
     analyzer.updateFile(mainUri, mainFile);
 
-    const resolved = analyzer.resolveImportToUri(
-      mainUri,
-      'example.com/org/my-project/proto/common/types.proto'
-    );
+    const resolved = analyzer.resolveImportToUri(mainUri, 'example.com/org/my-project/proto/common/types.proto');
     expect(resolved).toBe(depUri);
   });
 

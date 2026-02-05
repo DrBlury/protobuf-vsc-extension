@@ -99,7 +99,7 @@ describe('BreakingChangeDetector', () => {
               setTimeout(() => callback(Buffer.from('syntax = "proto3";')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         stderr: { on: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -107,7 +107,7 @@ describe('BreakingChangeDetector', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -126,7 +126,7 @@ describe('BreakingChangeDetector', () => {
             setTimeout(() => callback(1), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -143,7 +143,7 @@ describe('BreakingChangeDetector', () => {
             setTimeout(() => callback(), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);

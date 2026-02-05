@@ -280,9 +280,13 @@ connection.onDidChangeWatchedFiles(async (params: DidChangeWatchedFilesParams) =
     const uri = change.uri;
 
     // Check if this is a buf config file change
-    if (uri.endsWith('buf.yaml') || uri.endsWith('buf.yml') ||
-      uri.endsWith('buf.work.yaml') || uri.endsWith('buf.work.yml') ||
-      uri.endsWith('buf.lock')) {
+    if (
+      uri.endsWith('buf.yaml') ||
+      uri.endsWith('buf.yml') ||
+      uri.endsWith('buf.work.yaml') ||
+      uri.endsWith('buf.work.yml') ||
+      uri.endsWith('buf.lock')
+    ) {
       hasBufConfigChange = true;
       needsRevalidation = true;
       logger.verboseWithContext('Buf config file changed', { uri, type: change.type });
@@ -1026,7 +1030,7 @@ function collectOptions(file: ProtoFile): CollectedOption[] {
               name: opt.name,
               value: opt.value,
               range: field.range, // Approximate range or we need range on field option
-              parent: `Field ${prefix}${field.name}`
+              parent: `Field ${prefix}${field.name}`,
             });
           }
         }
