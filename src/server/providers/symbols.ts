@@ -263,12 +263,16 @@ export class SymbolProvider {
 
     // Nested messages
     for (const nested of message.nestedMessages) {
-      children.push(this.messageToSymbol(nested));
+      if (nested.name) {
+        children.push(this.messageToSymbol(nested));
+      }
     }
 
     // Nested enums
     for (const nested of message.nestedEnums) {
-      children.push(this.enumToSymbol(nested));
+      if (nested.name) {
+        children.push(this.enumToSymbol(nested));
+      }
     }
 
     const messageRange = this.toRange(message.range);

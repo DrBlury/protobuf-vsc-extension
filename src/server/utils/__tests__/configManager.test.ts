@@ -66,6 +66,7 @@ describe('ConfigManager', () => {
 
     analyzer = {
       setImportPaths: jest.fn(),
+      setImportPathMappings: jest.fn(),
     } as any;
 
     protocCompiler = {

@@ -38,6 +38,8 @@ export class SemanticAnalyzer {
 
   // Configured import paths to search for proto files (e.g., from protobuf.includes setting)
   private importPaths: string[] = [];
+  // Virtual path mappings (e.g., example.com/org=./) for Go-style imports
+  private importPathMappings: Array<{ virtual: string; actual: string }> = [];
 
   // Workspace roots (from VS Code workspace folders)
   private workspaceRoots: string[] = [];
@@ -55,6 +57,19 @@ export class SemanticAnalyzer {
     }
     // Clear import resolution cache when paths change to force re-resolution
     // This ensures diagnostics are updated when protobuf.includes or --proto_path changes
+    this.clearImportResolutionCache();
+  }
+
+  setImportPathMappings(mappings: Array<{ virtual: string; actual: string }>): void {
+    // Normalize and sort by virtual prefix length (longest first) for best match
+    this.importPathMappings = mappings
+      .map(mapping => ({
+        virtual: mapping.virtual.replace(/\\/g, '/').replace(/\/+$/, ''),
+        actual: mapping.actual.replace(/\\/g, '/').replace(/\/+$/, ''),
+      }))
+      .filter(mapping => mapping.virtual.length > 0 && mapping.actual.length > 0)
+      .sort((a, b) => b.virtual.length - a.virtual.length);
+
     this.clearImportResolutionCache();
   }
 
@@ -199,6 +214,30 @@ export class SemanticAnalyzer {
   }
 
   /**
+   * Apply virtual path mappings to an import path (e.g., module path -> local directory)
+   */
+  private applyPathMappings(importPath: string): string | undefined {
+    if (this.importPathMappings.length === 0) {
+      return undefined;
+    }
+
+    const normalizedImport = importPath.replace(/\\/g, '/');
+
+    for (const mapping of this.importPathMappings) {
+      const virtual = mapping.virtual;
+      if (normalizedImport === virtual || normalizedImport.startsWith(`${virtual}/`)) {
+        const suffix = normalizedImport.slice(virtual.length).replace(/^\//, '');
+        const mappedPath = path.posix
+          .join(mapping.actual.replace(/\\/g, '/'), suffix)
+          .replace(/\\/g, '/');
+        return mappedPath;
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
    * Check if a file URI matches an import path
    * Supports multiple import styles:
    * - Relative: "date.proto", "../common/date.proto"
@@ -248,6 +287,19 @@ export class SemanticAnalyzer {
       if (this.doesFileMatchImport(normalizedUri, importPath)) {
         this.workspace.importResolutions.set(cacheKey, fileUri);
         return fileUri;
+      }
+    }
+
+    // Strategy 1.5: Virtual path mappings (e.g., module path -> local directory)
+    const mappedPath = this.applyPathMappings(normalizedImport);
+    if (mappedPath) {
+      const mappedUri = 'file://' + mappedPath;
+      for (const [fileUri] of this.workspace.files) {
+        const normalizedFileUri = this.normalizeUri(fileUri);
+        if (normalizedFileUri === mappedUri || normalizedFileUri.endsWith('/' + mappedPath.replace(/^\//, ''))) {
+          this.workspace.importResolutions.set(cacheKey, fileUri);
+          return fileUri;
+        }
       }
     }
 
@@ -1074,6 +1126,17 @@ export class SemanticAnalyzer {
       candidates.push({ path: relativeToCurrent, source: 'forward-relative' });
     }
 
+    // Path mappings (virtual import prefix -> local directory)
+    for (const mapping of this.importPathMappings) {
+      const actual = mapping.actual.replace(/\\/g, '/');
+      if (targetPath.startsWith(`${actual}/`)) {
+        const relPath = path.posix.relative(actual, targetPath);
+        const virtual = mapping.virtual.replace(/\\/g, '/').replace(/\/+$/, '');
+        const mappedPath = relPath ? `${virtual}/${relPath}` : virtual;
+        candidates.push({ path: mappedPath, source: 'path-mapping' });
+      }
+    }
+
     // Check explicitly configured import paths
     for (const importPath of this.importPaths) {
       const normalizedImportPath = importPath.replace(/\\/g, '/');
@@ -1117,11 +1180,11 @@ export class SemanticAnalyzer {
       return true;
     });
 
-    // Sort by priority: import-path > forward-relative > workspace-root > others
+    // Sort by priority: path-mapping > import-path > forward-relative > workspace-root > others
     // Secondary sort by path length (shorter is better)
     const sorted = unique.sort((a, b) => {
       // Define priority order
-      const priorityOrder = ['import-path', 'forward-relative', 'basename', 'workspace-root', 'parent-relative'];
+      const priorityOrder = ['path-mapping', 'import-path', 'forward-relative', 'basename', 'workspace-root', 'parent-relative'];
       const aPriority = priorityOrder.indexOf(a.source);
       const bPriority = priorityOrder.indexOf(b.source);
 

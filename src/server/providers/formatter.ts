@@ -218,6 +218,16 @@ export class ProtoFormatter {
         continue;
       }
 
+      // Preserve line comments without affecting indentation state
+      if (trimmedLine.startsWith('//')) {
+        const formattedLine =
+          this.settings.alignFields && alignmentInfo
+            ? formatLineWithAlignment(trimmedLine, indentLevel, alignmentInfo.get(i), this.settings, line)
+            : formatLine(trimmedLine, indentLevel, this.settings, line);
+        formattedLines.push(formattedLine);
+        continue;
+      }
+
       // Track multi-line option blocks
       if (optionBraceDepth > 0) {
         const openBraces = (trimmedLine.match(/\{/g) || []).length;
@@ -402,6 +412,11 @@ export class ProtoFormatter {
 
       if (trimmedLine === '') {
         formattedLines.push('');
+        continue;
+      }
+
+      if (trimmedLine.startsWith('//')) {
+        formattedLines.push(formatLine(trimmedLine, indentLevel, this.settings, line));
         continue;
       }
 

@@ -341,6 +341,74 @@ message Container {
     });
   });
 
+  describe('Unused Imports with Options and Extends', () => {
+    it('should treat custom option references as import usage', () => {
+      const gorumsContent = `syntax = "proto3";
+package gorums;
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.MethodOptions {
+  bool quorumcall = 50004;
+}`;
+      const gorumsUri = 'file:///workspace/gorums.proto';
+      const gorumsFile = parser.parse(gorumsContent, gorumsUri);
+      analyzer.updateFile(gorumsUri, gorumsFile);
+
+      const descriptorContent = `syntax = "proto3";
+package google.protobuf;
+
+message MethodOptions {}`;
+      const descriptorUri = 'file:///workspace/google/protobuf/descriptor.proto';
+      const descriptorFile = parser.parse(descriptorContent, descriptorUri);
+      analyzer.updateFile(descriptorUri, descriptorFile);
+
+      const content = `syntax = "proto3";
+package proto;
+
+import "gorums.proto";
+
+service Quiz {
+  rpc Ping(google.protobuf.MethodOptions) returns (google.protobuf.MethodOptions) {
+    option (gorums.quorumcall) = true;
+  }
+}`;
+      const uri = 'file:///workspace/main.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const diags = diagnosticsProvider.validate(uri, file, content);
+      const unusedImport = diags.find(d => d.message.includes("Unused import 'gorums.proto'"));
+      expect(unusedImport).toBeUndefined();
+    });
+
+    it('should treat extend extendee types as import usage', () => {
+      const descriptorContent = `syntax = "proto3";
+package google.protobuf;
+
+message MethodOptions {}`;
+      const descriptorUri = 'file:///workspace/google/protobuf/descriptor.proto';
+      const descriptorFile = parser.parse(descriptorContent, descriptorUri);
+      analyzer.updateFile(descriptorUri, descriptorFile);
+
+      const content = `syntax = "proto3";
+package test.v1;
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.MethodOptions {
+  bool custom = 50001;
+}`;
+      const uri = 'file:///workspace/extend.proto';
+      const file = parser.parse(content, uri);
+      analyzer.updateFile(uri, file);
+
+      const diags = diagnosticsProvider.validate(uri, file, content);
+      const unusedImport = diags.find(d => d.message.includes("Unused import 'google/protobuf/descriptor.proto'"));
+      expect(unusedImport).toBeUndefined();
+    });
+  });
+
   describe('Documentation Comment Validation', () => {
     it('should suggest documentation for services', () => {
       const content = `syntax = "proto3";

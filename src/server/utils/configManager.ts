@@ -157,6 +157,22 @@ function extractProtoPathOptions(options: string[] | undefined): string[] {
   return protoPaths;
 }
 
+function parsePathMapping(rawPath: string): { virtual: string; actual: string } | null {
+  const separatorIndex = rawPath.indexOf('=');
+  if (separatorIndex <= 0) {
+    return null;
+  }
+
+  const virtual = rawPath.slice(0, separatorIndex).trim();
+  const actual = rawPath.slice(separatorIndex + 1).trim();
+
+  if (!virtual || !actual) {
+    return null;
+  }
+
+  return { virtual, actual };
+}
+
 /**
  * Updates all providers with new settings
  * @returns An object containing the expanded include paths and protoSrcsDir
@@ -249,6 +265,7 @@ export function updateProvidersWithSettings(
   const rawIncludePaths = [...workspaceBufIncludes, ...protoPathIncludes, ...(settings.protobuf.includes || [])];
 
   const includePaths: string[] = [];
+  const pathMappings: Array<{ virtual: string; actual: string }> = [];
   const seenPaths = new Set<string>();
   let userHasGoogleProtos = false;
 
@@ -260,6 +277,23 @@ export function updateProvidersWithSettings(
     if (!expanded) {
       continue;
     }
+    const mapping = parsePathMapping(expanded);
+    if (mapping) {
+      pathMappings.push(mapping);
+      const normalizedActual = path.normalize(mapping.actual);
+      if (!seenPaths.has(normalizedActual)) {
+        seenPaths.add(normalizedActual);
+        includePaths.push(mapping.actual);
+
+        // Check if user provides their own google protos (e.g., from nanopb)
+        if (containsGoogleProtos(mapping.actual)) {
+          userHasGoogleProtos = true;
+          logger.info(`User-supplied google protos detected in: ${mapping.actual}`);
+        }
+      }
+      continue;
+    }
+
     const normalized = path.normalize(expanded);
     if (!seenPaths.has(normalized)) {
       seenPaths.add(normalized);
@@ -295,6 +329,7 @@ export function updateProvidersWithSettings(
     }
   }
 
+  analyzer.setImportPathMappings(pathMappings);
   analyzer.setImportPaths(includePaths);
 
   // Update protoc compiler settings

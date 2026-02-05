@@ -286,6 +286,7 @@ export class DiagnosticsProvider {
 
       if (
         /^(message|enum|service|oneof)\b/.test(trimmed) ||
+        trimmed.startsWith('extend') ||
         trimmed.startsWith('option') ||
         trimmed.startsWith('import') ||
         trimmed.startsWith('syntax') ||
@@ -1442,6 +1443,7 @@ export class DiagnosticsProvider {
 
   private collectUsedTypeUris(file: ProtoFile, uri: string): Set<string> {
     const used = new Set<string>();
+    const packageName = file.package?.name || '';
 
     const visitMessage = (message: MessageDefinition, container: string) => {
       const containerName = container ? `${container}.${message.name}` : message.name;
@@ -1468,6 +1470,40 @@ export class DiagnosticsProvider {
         // enums themselves do not introduce type usages here
         void nestedEnum;
       }
+
+      for (const group of message.groups) {
+        visitGroup(group, containerName);
+      }
+    };
+
+    const visitGroup = (group: GroupFieldDefinition, container: string) => {
+      const groupName = container ? `${container}.${group.name}` : group.name;
+
+      for (const field of group.fields) {
+        this.addResolvedTypeUri(field.fieldType, uri, groupName, used);
+      }
+
+      for (const mapField of group.maps) {
+        this.addResolvedTypeUri(mapField.valueType, uri, groupName, used);
+      }
+
+      for (const oneof of group.oneofs) {
+        for (const field of oneof.fields) {
+          this.addResolvedTypeUri(field.fieldType, uri, groupName, used);
+        }
+      }
+
+      for (const nested of group.nestedMessages) {
+        visitMessage(nested, groupName);
+      }
+
+      for (const nestedEnum of group.nestedEnums) {
+        void nestedEnum;
+      }
+
+      for (const nestedGroup of group.groups) {
+        visitGroup(nestedGroup, groupName);
+      }
     };
 
     for (const message of file.messages) {
@@ -1492,7 +1528,174 @@ export class DiagnosticsProvider {
       void enumDef;
     }
 
+    // Extend statements should count as type usage (extendee and field types)
+    for (const extend of file.extends) {
+      const extendType = extend.extendType ?? extend.messageName;
+      if (extendType) {
+        this.addResolvedTypeUri(extendType, uri, packageName, used);
+      }
+      for (const field of extend.fields) {
+        this.addResolvedTypeUri(field.fieldType, uri, packageName, used);
+      }
+      for (const group of extend.groups) {
+        visitGroup(group, packageName);
+      }
+    }
+
+    // Option references to extensions should count as usage
+    this.collectOptionExtensionUris(file, uri, used);
+
     return used;
+  }
+
+  private collectOptionExtensionUris(file: ProtoFile, uri: string, bucket: Set<string>): void {
+    const packageName = file.package?.name || '';
+    const importedUris = this.analyzer.getImportedFileUris(uri);
+    const extensionIndex = this.buildExtensionIndex([uri, ...importedUris]);
+
+    const markOption = (name: string): void => {
+      const extensionName = this.getExtensionNameFromOption(name, packageName);
+      if (!extensionName) {
+        return;
+      }
+      const resolvedUri = extensionIndex.get(extensionName);
+      if (resolvedUri) {
+        bucket.add(resolvedUri);
+      }
+    };
+
+    const visitFieldOptions = (options?: FieldOption[]): void => {
+      if (!options) {
+        return;
+      }
+      for (const opt of options) {
+        markOption(opt.name);
+      }
+    };
+
+    const visitOptions = (options: OptionStatement[]): void => {
+      for (const opt of options) {
+        markOption(opt.name);
+      }
+    };
+
+    const visitMessageOptions = (message: MessageDefinition): void => {
+      visitOptions(message.options);
+      for (const field of message.fields) {
+        visitFieldOptions(field.options);
+      }
+      for (const oneof of message.oneofs) {
+        for (const field of oneof.fields) {
+          visitFieldOptions(field.options);
+        }
+      }
+      for (const nested of message.nestedMessages) {
+        visitMessageOptions(nested);
+      }
+      for (const nestedEnum of message.nestedEnums) {
+        visitEnumOptions(nestedEnum);
+      }
+      for (const group of message.groups) {
+        visitGroupOptions(group);
+      }
+    };
+
+    const visitGroupOptions = (group: GroupFieldDefinition): void => {
+      visitOptions(group.options);
+      for (const field of group.fields) {
+        visitFieldOptions(field.options);
+      }
+      for (const oneof of group.oneofs) {
+        for (const field of oneof.fields) {
+          visitFieldOptions(field.options);
+        }
+      }
+      for (const nested of group.nestedMessages) {
+        visitMessageOptions(nested);
+      }
+      for (const nestedEnum of group.nestedEnums) {
+        visitEnumOptions(nestedEnum);
+      }
+      for (const nestedGroup of group.groups) {
+        visitGroupOptions(nestedGroup);
+      }
+    };
+
+    const visitEnumOptions = (enumDef: EnumDefinition): void => {
+      visitOptions(enumDef.options);
+      for (const value of enumDef.values) {
+        visitFieldOptions(value.options);
+      }
+    };
+
+    visitOptions(file.options);
+
+    for (const message of file.messages) {
+      visitMessageOptions(message);
+    }
+
+    for (const enumDef of file.enums) {
+      visitEnumOptions(enumDef);
+    }
+
+    for (const service of file.services) {
+      visitOptions(service.options);
+      for (const rpc of service.rpcs) {
+        visitOptions(rpc.options);
+      }
+    }
+
+    for (const extend of file.extends) {
+      for (const field of extend.fields) {
+        visitFieldOptions(field.options);
+      }
+      for (const group of extend.groups) {
+        visitGroupOptions(group);
+      }
+    }
+  }
+
+  private buildExtensionIndex(uris: string[]): Map<string, string> {
+    const index = new Map<string, string>();
+
+    for (const uri of uris) {
+      const file = this.analyzer.getFile(uri);
+      if (!file) {
+        continue;
+      }
+      const pkg = file.package?.name || '';
+      for (const extend of file.extends) {
+        for (const field of extend.fields) {
+          if (!field.name) {
+            continue;
+          }
+          const fullName = pkg ? `${pkg}.${field.name}` : field.name;
+          if (fullName && !index.has(fullName)) {
+            index.set(fullName, uri);
+          }
+        }
+      }
+    }
+
+    return index;
+  }
+
+  private getExtensionNameFromOption(optionName: string, packageName: string): string | null {
+    const match = optionName.match(/^\(([^)]+)\)/);
+    if (!match) {
+      return null;
+    }
+
+    let name = match[1]!;
+    if (name.startsWith('.')) {
+      name = name.slice(1);
+    }
+
+    if (!name.includes('.') && packageName) {
+      return `${packageName}.${name}`;
+    }
+
+    return name;
   }
 
   private addResolvedTypeUri(typeName: string, uri: string, containerName: string, bucket: Set<string>): void {

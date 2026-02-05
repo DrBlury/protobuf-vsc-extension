@@ -273,6 +273,19 @@ message User {
 }
 ```
 
+**Path mappings (Go-style module imports):**
+
+You can map a virtual import prefix to a local directory by using `virtual=path` entries. This is helpful for imports like `example.com/org/my-project/...` when your repository lives at `${workspaceFolder}`.
+
+```jsonc
+{
+  "protobuf.includes": [
+    "example.com/org/my-project=${workspaceFolder}",
+    "example.com/org=${workspaceFolder}/.."
+  ]
+}
+```
+
 #### Automatic import roots
 
 Even without `protobuf.includes`, the language server discovers import roots from:

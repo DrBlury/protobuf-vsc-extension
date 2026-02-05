@@ -330,6 +330,40 @@ message B {
       // Formatter may or may not apply indent size depending on preset
       expect(formatted).toBeDefined();
     });
+
+    it('should not indent top-level declarations when comments contain brackets', async () => {
+      const text = `syntax = "proto3";
+
+package api.demo.v1;
+
+// this is demo message 1
+// some json example:
+// \`\`\`json
+// [
+//     "element1",
+//     "element2"
+// ]
+message DemoMessage1 {
+  string field1 = 1;
+}
+
+// this is demo message 2
+// some json example:
+// \`\`\`json
+// {
+//     "key1": "value1",
+//     "key2": "value2"
+// }
+message DemoMessage2 {
+  string field1 = 1;
+}`;
+
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      expect(formatted).toContain('\nmessage DemoMessage2 {');
+      expect(formatted).not.toContain('\n  message DemoMessage2 {');
+    });
   });
 
   describe('renumbering', () => {
