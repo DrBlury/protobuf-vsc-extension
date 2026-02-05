@@ -5,12 +5,14 @@
 
 import { ProtoParser } from '../../core/parser';
 import { SemanticAnalyzer } from '../../core/analyzer';
+import { ParserFactory } from '../../core/parserFactory';
 import { DefinitionProvider } from '../definition';
 import { RenameProvider } from '../rename';
 import { DocumentLinksProvider } from '../documentLinks';
 import { DiagnosticsProvider } from '../diagnostics';
 import { HoverProvider } from '../hover';
 import { InlayHintsProvider } from '../inlayHints';
+import { ProviderRegistry } from '../../utils';
 
 describe('DefinitionProvider Extended Coverage', () => {
   let parser: ProtoParser;
@@ -688,28 +690,30 @@ message Test {
 });
 
 describe('DiagnosticsProvider Extended Coverage', () => {
-  let parser: ProtoParser;
+  let providers: ProviderRegistry;
+  let parser: ParserFactory;
   let analyzer: SemanticAnalyzer;
   let provider: DiagnosticsProvider;
 
   beforeEach(() => {
-    parser = new ProtoParser();
-    analyzer = new SemanticAnalyzer();
-    provider = new DiagnosticsProvider(analyzer);
+    providers = new ProviderRegistry();
+    parser = providers.parser;
+    analyzer = providers.analyzer;
+    provider = providers.diagnostics;
   });
 
-  it('should handle proto with no package', () => {
+  it('should handle proto with no package', async () => {
     const content = `
 syntax = "proto3";
 message Test {}`;
     const ast = parser.parse(content, 'test.proto');
     analyzer.updateFile('test.proto', ast);
 
-    const diagnostics = provider.validate('test.proto', ast);
+    const diagnostics = await provider.validate('test.proto', ast, providers);
     expect(Array.isArray(diagnostics)).toBe(true);
   });
 
-  it('should validate extensions in proto2', () => {
+  it('should validate extensions in proto2', async () => {
     const content = `
 syntax = "proto2";
 package test;
@@ -724,11 +728,11 @@ extend Extendable {
     const ast = parser.parse(content, 'test.proto');
     analyzer.updateFile('test.proto', ast);
 
-    const diagnostics = provider.validate('test.proto', ast);
+    const diagnostics = await provider.validate('test.proto', ast, providers);
     expect(Array.isArray(diagnostics)).toBe(true);
   });
 
-  it('should validate reserved ranges', () => {
+  it('should validate reserved ranges', async () => {
     const content = `
 syntax = "proto3";
 
@@ -740,7 +744,7 @@ message Test {
     const ast = parser.parse(content, 'test.proto');
     analyzer.updateFile('test.proto', ast);
 
-    const diagnostics = provider.validate('test.proto', ast);
+    const diagnostics = await provider.validate('test.proto', ast, providers);
     // Should have diagnostic for using reserved number 5
     const hasReservedWarning = diagnostics.some((d: { message: string }) =>
       d.message.toLowerCase().includes('reserved')
@@ -748,7 +752,7 @@ message Test {
     expect(hasReservedWarning).toBe(true);
   });
 
-  it('should handle services with streaming RPCs', () => {
+  it('should handle services with streaming RPCs', async () => {
     const content = `
 syntax = "proto3";
 
@@ -763,11 +767,11 @@ service StreamService {
     const ast = parser.parse(content, 'test.proto');
     analyzer.updateFile('test.proto', ast);
 
-    const diagnostics = provider.validate('test.proto', ast);
+    const diagnostics = await provider.validate('test.proto', ast, providers);
     expect(Array.isArray(diagnostics)).toBe(true);
   });
 
-  it('should validate oneof field numbers', () => {
+  it('should validate oneof field numbers', async () => {
     const content = `
 syntax = "proto3";
 
@@ -780,7 +784,7 @@ message Test {
     const ast = parser.parse(content, 'test.proto');
     analyzer.updateFile('test.proto', ast);
 
-    const diagnostics = provider.validate('test.proto', ast);
+    const diagnostics = await provider.validate('test.proto', ast, providers);
     // Should have diagnostic for duplicate field number in oneof
     const hasDuplicateWarning = diagnostics.some(
       (d: { message: string }) =>
@@ -789,7 +793,7 @@ message Test {
     expect(hasDuplicateWarning).toBe(true);
   });
 
-  it('should handle imports that resolve', () => {
+  it('should handle imports that resolve', async () => {
     const content1 = `syntax = "proto3"; message Imported {}`;
     const content2 = `
 syntax = "proto3";
@@ -802,11 +806,11 @@ message Test { Imported imp = 1; }`;
     analyzer.updateFile('imported.proto', ast1);
     analyzer.updateFile('main.proto', ast2);
 
-    const diagnostics = provider.validate('main.proto', ast2);
+    const diagnostics = await provider.validate('main.proto', ast2, providers);
     expect(Array.isArray(diagnostics)).toBe(true);
   });
 
-  it('should validate empty enum', () => {
+  it('should validate empty enum', async () => {
     const content = `
 syntax = "proto3";
 
@@ -815,7 +819,7 @@ enum Empty {
     const ast = parser.parse(content, 'test.proto');
     analyzer.updateFile('test.proto', ast);
 
-    const diagnostics = provider.validate('test.proto', ast);
+    const diagnostics = await provider.validate('test.proto', ast, providers);
     expect(Array.isArray(diagnostics)).toBe(true);
   });
 });

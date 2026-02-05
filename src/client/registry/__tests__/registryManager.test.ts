@@ -69,7 +69,8 @@ jest.mock('child_process', () => ({
   spawn: mockSpawn,
 }));
 
-import { RegistryManager } from '../registryManager';
+type RegistryManagerInstance = import('../registryManager').RegistryManager;
+let RegistryManager: typeof import('../registryManager').RegistryManager;
 
 /**
  * Helper to flush promises and setImmediate callbacks.
@@ -85,7 +86,7 @@ async function flushPromisesAndTimers(): Promise<void> {
 }
 
 describe('RegistryManager', () => {
-  let registryManager: RegistryManager;
+  let registryManager: RegistryManagerInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -94,6 +95,7 @@ describe('RegistryManager', () => {
     mockReadFile.mockReset();
     mockWriteFile.mockReset();
     mockSpawn.mockClear();
+    jest.resetModules();
 
     mockVscode.workspace.workspaceFolders = [{ uri: { fsPath: '/test/workspace' } }];
     mockFileExists.mockResolvedValue(true);
@@ -125,6 +127,7 @@ describe('RegistryManager', () => {
 
     mockSpawn.mockReturnValue(mockProc);
 
+    ({ RegistryManager } = require('../registryManager'));
     registryManager = new RegistryManager(mockOutputChannel as unknown as vscode.OutputChannel);
   });
 

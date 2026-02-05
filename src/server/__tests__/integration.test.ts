@@ -3,8 +3,10 @@
  * Tests end-to-end flows through parser -> analyzer -> providers
  */
 
+import { ParserFactory } from '../core/parserFactory';
 import { ProtoParser } from '../core/parser';
 import { SemanticAnalyzer } from '../core/analyzer';
+import { ProviderRegistry } from '../utils';
 import { DiagnosticsProvider } from '../providers/diagnostics';
 import { HoverProvider } from '../providers/hover';
 import { DefinitionProvider } from '../providers/definition';
@@ -19,7 +21,8 @@ import { ProtoFormatter } from '../providers/formatter';
 import { Position } from 'vscode-languageserver/node';
 
 describe('Integration Tests', () => {
-  let parser: ProtoParser;
+  let providers: ProviderRegistry;
+  let parser: ParserFactory;
   let analyzer: SemanticAnalyzer;
   let diagnosticsProvider: DiagnosticsProvider;
   let hoverProvider: HoverProvider;
@@ -34,23 +37,24 @@ describe('Integration Tests', () => {
   let formatterProvider: ProtoFormatter;
 
   beforeEach(() => {
-    parser = new ProtoParser();
-    analyzer = new SemanticAnalyzer();
-    diagnosticsProvider = new DiagnosticsProvider(analyzer);
-    hoverProvider = new HoverProvider(analyzer);
-    definitionProvider = new DefinitionProvider(analyzer);
-    completionProvider = new CompletionProvider(analyzer);
-    referencesProvider = new ReferencesProvider(analyzer);
-    renameProvider = new RenameProvider(analyzer);
-    symbolsProvider = new SymbolProvider(analyzer);
-    documentLinksProvider = new DocumentLinksProvider(analyzer);
-    codeLensProvider = new CodeLensProvider(analyzer);
+    providers = new ProviderRegistry();
+    parser = providers.parser;
+    analyzer = providers.analyzer;
+    diagnosticsProvider = providers.diagnostics;
+    hoverProvider = providers.hover;
+    definitionProvider = providers.definition;
+    completionProvider = providers.completion;
+    referencesProvider = providers.references;
+    renameProvider = providers.rename;
+    symbolsProvider = providers.symbols;
+    documentLinksProvider = providers.documentLinks;
+    codeLensProvider = providers.codeLens;
     inlayHintsProvider = new InlayHintsProvider();
-    formatterProvider = new ProtoFormatter();
+    formatterProvider = providers.formatter;
   });
 
   describe('Parser -> Analyzer -> Diagnostics flow', () => {
-    it('should detect missing semicolons through the full pipeline', () => {
+    it('should detect missing semicolons through the full pipeline', async () => {
       const content = `syntax = "proto3";
 
 message Test {
@@ -61,14 +65,14 @@ message Test {
       const ast = parser.parse(content, uri);
       analyzer.updateFile(uri, ast);
 
-      const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+      const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
 
       expect(diagnostics.length).toBeGreaterThan(0);
       const semicolonDiag = diagnostics.find(d => d.message === 'Missing semicolon');
       expect(semicolonDiag).toBeDefined();
     });
 
-    it('should detect duplicate field numbers', () => {
+    it('should detect duplicate field numbers', async () => {
       const content = `syntax = "proto3";
 
 message Test {
@@ -79,13 +83,13 @@ message Test {
       const ast = parser.parse(content, uri);
       analyzer.updateFile(uri, ast);
 
-      const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+      const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
 
       const dupeDiag = diagnostics.find(d => d.message.includes('Duplicate field number'));
       expect(dupeDiag).toBeDefined();
     });
 
-    it('should detect reserved field number usage', () => {
+    it('should detect reserved field number usage', async () => {
       const content = `syntax = "proto3";
 
 message Test {
@@ -95,13 +99,13 @@ message Test {
       const ast = parser.parse(content, uri);
       analyzer.updateFile(uri, ast);
 
-      const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+      const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
 
       const reservedDiag = diagnostics.find(d => d.message.includes('reserved range'));
       expect(reservedDiag).toBeDefined();
     });
 
-    it('should validate naming conventions', () => {
+    it('should validate naming conventions', async () => {
       const content = `syntax = "proto3";
 
 message test_message {
@@ -112,7 +116,7 @@ message test_message {
       analyzer.updateFile(uri, ast);
       diagnosticsProvider.updateSettings({ namingConventions: true });
 
-      const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+      const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
 
       const namingDiag = diagnostics.find(d => d.message.includes('PascalCase') || d.message.includes('snake_case'));
       expect(namingDiag).toBeDefined();
@@ -120,7 +124,7 @@ message test_message {
   });
 
   describe('Parser -> Analyzer -> Hover flow', () => {
-    it('should provide hover for message types', () => {
+    it('should provide hover for message types', async () => {
       const content = `syntax = "proto3";
 
 message Person {
@@ -146,7 +150,7 @@ message Team {
       }
     });
 
-    it('should provide hover for builtin types', () => {
+    it('should provide hover for builtin types', async () => {
       const content = `syntax = "proto3";
 
 message Test {
@@ -168,7 +172,7 @@ message Test {
   });
 
   describe('Parser -> Analyzer -> Definition flow', () => {
-    it('should find definition of message type reference', () => {
+    it('should find definition of message type reference', async () => {
       const content = `syntax = "proto3";
 
 message Address {
@@ -189,7 +193,7 @@ message Person {
       expect(definitions).toBeDefined();
     });
 
-    it('should find definition of enum type reference', () => {
+    it('should find definition of enum type reference', async () => {
       const content = `syntax = "proto3";
 
 enum Status {
@@ -213,7 +217,7 @@ message Item {
   });
 
   describe('Parser -> Analyzer -> References flow', () => {
-    it('should find all references to a message type', () => {
+    it('should find all references to a message type', async () => {
       const content = `syntax = "proto3";
 
 message Address {
@@ -241,7 +245,7 @@ message Person {
   });
 
   describe('Parser -> Analyzer -> Completion flow', () => {
-    it('should provide field type completions', () => {
+    it('should provide field type completions', async () => {
       const content = `syntax = "proto3";
 
 message Person {
@@ -260,7 +264,7 @@ message Person {
       expect(stringCompletion).toBeDefined();
     });
 
-    it('should provide message type completions', () => {
+    it('should provide message type completions', async () => {
       const content = `syntax = "proto3";
 
 message Address {
@@ -284,7 +288,7 @@ message Person {
   });
 
   describe('Parser -> Analyzer -> Rename flow', () => {
-    it('should prepare rename for message type', () => {
+    it('should prepare rename for message type', async () => {
       const content = `syntax = "proto3";
 
 message OldName {
@@ -304,7 +308,7 @@ message OldName {
       }
     });
 
-    it('should rename message type across usages', () => {
+    it('should rename message type across usages', async () => {
       const content = `syntax = "proto3";
 
 message OldName {
@@ -328,7 +332,7 @@ message Container {
   });
 
   describe('Parser -> Symbols flow', () => {
-    it('should provide document symbols', () => {
+    it('should provide document symbols', async () => {
       const content = `syntax = "proto3";
 
 package mypackage;
@@ -361,7 +365,7 @@ service PersonService {
   });
 
   describe('Parser -> Document Links flow', () => {
-    it('should provide links for imports', () => {
+    it('should provide links for imports', async () => {
       const content = `syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
@@ -380,7 +384,7 @@ message Test {
   });
 
   describe('Parser -> Code Lens flow', () => {
-    it('should provide code lenses for messages and services', () => {
+    it('should provide code lenses for messages and services', async () => {
       const content = `syntax = "proto3";
 
 message Person {
@@ -401,7 +405,7 @@ service PersonService {
   });
 
   describe('Parser -> Inlay Hints flow', () => {
-    it('should provide inlay hints for fields', () => {
+    it('should provide inlay hints for fields', async () => {
       const content = `syntax = "proto3";
 
 message Person {
@@ -439,7 +443,7 @@ int32 age = 2;
   });
 
   describe('Complex proto structures', () => {
-    it('should handle nested messages correctly', () => {
+    it('should handle nested messages correctly', async () => {
       const content = `syntax = "proto3";
 
 package api.v1;
@@ -462,13 +466,13 @@ message User {
       analyzer.updateFile(uri, ast);
 
       // Validate no false positives
-      const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+      const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
       const typeDiag = diagnostics.find(d => d.message.includes('Unknown type') && d.message.includes('DeepNested'));
       // Should resolve nested types correctly
       expect(typeDiag).toBeUndefined();
     });
 
-    it('should handle oneof fields correctly', () => {
+    it('should handle oneof fields correctly', async () => {
       const content = `syntax = "proto3";
 
 message Contact {
@@ -483,13 +487,13 @@ message Contact {
       const ast = parser.parse(content, uri);
       analyzer.updateFile(uri, ast);
 
-      const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+      const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
       // Should not flag oneof fields as duplicate
       const dupeDiag = diagnostics.find(d => d.message.includes('Duplicate'));
       expect(dupeDiag).toBeUndefined();
     });
 
-    it('should handle map fields correctly', () => {
+    it('should handle map fields correctly', async () => {
       const content = `syntax = "proto3";
 
 message Config {
@@ -500,13 +504,13 @@ message Config {
       const ast = parser.parse(content, uri);
       analyzer.updateFile(uri, ast);
 
-      const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+      const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
       // Should not have syntax errors for valid map fields
       const syntaxError = diagnostics.find(d => d.severity === 1 && d.message.includes('map'));
       expect(syntaxError).toBeUndefined();
     });
 
-    it('should handle services with streaming', () => {
+    it('should handle services with streaming', async () => {
       const content = `syntax = "proto3";
 
 message Request {
@@ -532,7 +536,7 @@ service StreamService {
       expect(service).toBeDefined();
     });
 
-    it('should handle extensions', () => {
+    it('should handle extensions', async () => {
       const content = `syntax = "proto2";
 
 message Base {
@@ -550,7 +554,7 @@ extend Base {
       expect(ast).toBeDefined();
     });
 
-    it('should handle reserved fields', () => {
+    it('should handle reserved fields', async () => {
       const content = `syntax = "proto3";
 
 message Reserved {
@@ -563,7 +567,7 @@ message Reserved {
       const ast = parser.parse(content, uri);
       analyzer.updateFile(uri, ast);
 
-      const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+      const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
       // Should not flag non-reserved fields
       const reservedDiag = diagnostics.find(
         d => d.message.includes('reserved') && (d.message.includes('1') || d.message.includes('3'))
@@ -573,7 +577,7 @@ message Reserved {
   });
 
   describe('Edition syntax support', () => {
-    it('should handle edition syntax', () => {
+    it('should handle edition syntax', async () => {
       const content = `edition = "2023";
 
 message Person {
@@ -592,7 +596,7 @@ message Person {
   });
 
   describe('Error recovery', () => {
-    it('should handle malformed proto gracefully', () => {
+    it('should handle malformed proto gracefully', async () => {
       const content = `syntax = "proto3";
 
 message Incomplete {
@@ -605,11 +609,11 @@ message Incomplete {
       expect(ast).toBeDefined();
 
       // Should still provide some diagnostics
-      const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+      const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
 
-    it('should handle empty file', () => {
+    it('should handle empty file', async () => {
       const content = '';
       const uri = 'file:///test.proto';
       const ast = parser.parse(content, uri);
@@ -623,7 +627,7 @@ message Incomplete {
   });
 
   describe('Multi-file context simulation', () => {
-    it('should handle imported types', () => {
+    it('should handle imported types', async () => {
       const commonContent = `syntax = "proto3";
 
 package common;
@@ -659,17 +663,19 @@ message Event {
 });
 
 describe('Diagnostics edge cases', () => {
-  let parser: ProtoParser;
+  let providers: ProviderRegistry;
+  let parser: ParserFactory;
   let analyzer: SemanticAnalyzer;
   let diagnosticsProvider: DiagnosticsProvider;
 
   beforeEach(() => {
-    parser = new ProtoParser();
-    analyzer = new SemanticAnalyzer();
-    diagnosticsProvider = new DiagnosticsProvider(analyzer);
+    providers = new ProviderRegistry();
+    parser = providers.parser;
+    analyzer = providers.analyzer;
+    diagnosticsProvider = providers.diagnostics;
   });
 
-  it('should handle multi-line inline options', () => {
+  it('should handle multi-line inline options', async () => {
     const content = `syntax = "proto3";
 
 message Test {
@@ -679,14 +685,14 @@ message Test {
 }`;
     const uri = 'file:///test.proto';
     const ast = parser.parse(content, uri);
-    const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+    const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
 
     // Should not report missing semicolon for multi-line options
     const semicolonDiag = diagnostics.find(d => d.message === 'Missing semicolon');
     expect(semicolonDiag).toBeUndefined();
   });
 
-  it('should handle field continuation lines', () => {
+  it('should handle field continuation lines', async () => {
     const content = `syntax = "proto3";
 
 message Test {
@@ -695,14 +701,14 @@ message Test {
 }`;
     const uri = 'file:///test.proto';
     const ast = parser.parse(content, uri);
-    const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+    const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
 
     // Should not report missing semicolon for continuation lines
     const semicolonOnLine4 = diagnostics.find(d => d.message === 'Missing semicolon' && d.range.start.line === 3);
     expect(semicolonOnLine4).toBeUndefined();
   });
 
-  it('should detect invalid map key types', () => {
+  it('should detect invalid map key types', async () => {
     const content = `syntax = "proto3";
 
 message Test {
@@ -710,13 +716,13 @@ message Test {
 }`;
     const uri = 'file:///test.proto';
     const ast = parser.parse(content, uri);
-    const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+    const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
 
     const mapKeyDiag = diagnostics.find(d => d.message.includes('Invalid map key type'));
     expect(mapKeyDiag).toBeDefined();
   });
 
-  it('should detect field number out of range', () => {
+  it('should detect field number out of range', async () => {
     const content = `syntax = "proto3";
 
 message Test {
@@ -724,7 +730,7 @@ message Test {
 }`;
     const uri = 'file:///test.proto';
     const ast = parser.parse(content, uri);
-    const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+    const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
 
     // Field number 536870912 is out of the valid range (1-536870911)
     const _rangeDiag = diagnostics.find(
@@ -734,29 +740,29 @@ message Test {
     expect(diagnostics).toBeDefined();
   });
 
-  it('should handle textproto files', () => {
+  it('should handle textproto files', async () => {
     const content = `name: "test"
 value: 123`;
     const uri = 'file:///test.textproto';
     const ast = parser.parse(content, uri);
-    const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+    const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
 
     // Should skip diagnostics for textproto files
     expect(diagnostics.length).toBe(0);
   });
 
-  it('should skip external dependency files', () => {
+  it('should skip external dependency files', async () => {
     const content = `syntax = "proto3";
 message Test {}`;
     const uri = 'file:///project/.buf-deps/some.proto';
     const ast = parser.parse(content, uri);
 
     // buf deps directory
-    const bufDepsDiag = diagnosticsProvider.validate(uri, ast, content);
+    const bufDepsDiag = await diagnosticsProvider.validate(uri, ast, providers, content);
     expect(bufDepsDiag.length).toBe(0);
   });
 
-  it('should handle enum naming conventions', () => {
+  it('should handle enum naming conventions', async () => {
     const content = `syntax = "proto3";
 
 enum lowercase_enum {
@@ -765,14 +771,14 @@ enum lowercase_enum {
     const uri = 'file:///test.proto';
     const ast = parser.parse(content, uri);
     diagnosticsProvider.updateSettings({ namingConventions: true });
-    const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+    const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
 
     // Should detect both enum name and value naming issues
     expect(diagnostics.some(d => d.message.includes('PascalCase'))).toBe(true);
     expect(diagnostics.some(d => d.message.includes('SCREAMING_SNAKE_CASE'))).toBe(true);
   });
 
-  it('should validate service and RPC definitions', () => {
+  it('should validate service and RPC definitions', async () => {
     const content = `syntax = "proto3";
 
 message Request {}
@@ -784,13 +790,13 @@ service MyService {
     const uri = 'file:///test.proto';
     const ast = parser.parse(content, uri);
     analyzer.updateFile(uri, ast);
-    const diagnostics = diagnosticsProvider.validate(uri, ast, content);
+    const diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
 
     const unknownTypeDiag = diagnostics.find(d => d.message.includes('Unknown type'));
     expect(unknownTypeDiag).toBeDefined();
   });
 
-  it('should handle option statements', () => {
+  it('should handle option statements', async () => {
     const content = `syntax = "proto3";
 
 option java_package = "com.example";
@@ -802,7 +808,7 @@ message Test {
 }`;
     const uri = 'file:///test.proto';
     const ast = parser.parse(content, uri);
-    const _diagnostics = diagnosticsProvider.validate(uri, ast, content);
+    const _diagnostics = await diagnosticsProvider.validate(uri, ast, providers, content);
 
     // Should parse options without errors
     expect(ast.options?.length).toBeGreaterThan(0);
@@ -820,7 +826,7 @@ describe('Completion edge cases', () => {
     completionProvider = new CompletionProvider(analyzer);
   });
 
-  it('should provide completions inside empty message', () => {
+  it('should provide completions inside empty message', async () => {
     const content = `syntax = "proto3";
 
 message Empty {
@@ -839,7 +845,7 @@ message Empty {
     expect(completions.some(c => c.label === 'int32')).toBe(true);
   });
 
-  it('should provide package name completions', () => {
+  it('should provide package name completions', async () => {
     const content = `syntax = "proto3";
 
 package `;
@@ -854,7 +860,7 @@ package `;
     expect(completions).toBeDefined();
   });
 
-  it('should provide option completions', () => {
+  it('should provide option completions', async () => {
     const content = `syntax = "proto3";
 
 option `;
@@ -870,7 +876,7 @@ option `;
     expect(completions.some(c => c.label.includes('java_package') || c.label.includes('deprecated'))).toBe(true);
   });
 
-  it('should provide field option completions', () => {
+  it('should provide field option completions', async () => {
     const content = `syntax = "proto3";
 
 message Test {
@@ -886,7 +892,7 @@ message Test {
     expect(completions).toBeDefined();
   });
 
-  it('should provide enum value completions', () => {
+  it('should provide enum value completions', async () => {
     const content = `syntax = "proto3";
 
 enum Status {
@@ -914,7 +920,7 @@ describe('Rename edge cases', () => {
     renameProvider = new RenameProvider(analyzer);
   });
 
-  it('should not allow renaming reserved words', () => {
+  it('should not allow renaming reserved words', async () => {
     const content = `syntax = "proto3";
 
 message Test {
@@ -936,7 +942,7 @@ message Test {
     }
   });
 
-  it('should handle renaming enum values', () => {
+  it('should handle renaming enum values', async () => {
     const content = `syntax = "proto3";
 
 enum Status {
@@ -962,7 +968,7 @@ message Item {
     }
   });
 
-  it('should handle renaming service names', () => {
+  it('should handle renaming service names', async () => {
     const content = `syntax = "proto3";
 
 message Request {}
@@ -997,7 +1003,7 @@ describe('Definition edge cases', () => {
     definitionProvider = new DefinitionProvider(analyzer);
   });
 
-  it('should handle fully qualified type references', () => {
+  it('should handle fully qualified type references', async () => {
     const content = `syntax = "proto3";
 
 package mypackage;
@@ -1020,7 +1026,7 @@ message Outer {
     expect(definitions).toBeDefined();
   });
 
-  it('should handle nested type references', () => {
+  it('should handle nested type references', async () => {
     const content = `syntax = "proto3";
 
 message Outer {
