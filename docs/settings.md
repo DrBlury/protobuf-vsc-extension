@@ -279,6 +279,19 @@ message User {
 }
 ```
 
+**Path mappings (Go-style module imports):**
+
+You can map a virtual import prefix to a local directory by using `virtual=path` entries. This is helpful for imports like `example.com/org/my-project/...` when your repository lives at `${workspaceFolder}`.
+
+```jsonc
+{
+  "protobuf.includes": [
+    "example.com/org/my-project=${workspaceFolder}",
+    "example.com/org=${workspaceFolder}/.."
+  ]
+}
+```
+
 #### Automatic import roots
 
 Even without `protobuf.includes`, the language server discovers import roots from:
@@ -459,6 +472,14 @@ These sources now populate the analyzer automatically, so most projects no longe
 - **Type**: `boolean`
 - **Default**: `false`
 - **Description**: When `true`, ignore `protobuf.buf.path` and use the managed buf binary bundled with the extension. This is useful for teams that want reproducible toolchains without altering PATH.
+
+### grpcurl Configuration
+
+#### `protobuf.grpcurl.path`
+
+- **Type**: `string`
+- **Default**: `"grpcurl"`
+- **Description**: Path to the grpcurl CLI used by the Protobuf Playground for making gRPC requests. Can be installed via the toolchain manager (`Protobuf: Manage Toolchain`).
 
 ### Toolchain Auto-Detection
 

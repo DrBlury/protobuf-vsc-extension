@@ -466,7 +466,11 @@ message ExampleMeta {
       const lineText = '  Date desired_start_date = 2;';
       const position = { line: 5, character: 3 };
 
-      const def = provider.getDefinition('file:///workspace/buf/domain/v1/example.proto', position, lineText) as Location;
+      const def = provider.getDefinition(
+        'file:///workspace/buf/domain/v1/example.proto',
+        position,
+        lineText
+      ) as Location;
 
       expect(def).not.toBeNull();
       expect(def.uri).toBe('file:///workspace/buf/domain/v1/date.proto');

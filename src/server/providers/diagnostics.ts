@@ -3,13 +3,9 @@
  * Provides real-time validation and error checking
  */
 
-import type {
-  Diagnostic,
-  Range
-} from 'vscode-languageserver/node';
-import {
-  DiagnosticSeverity
-} from 'vscode-languageserver/node';
+import type { Diagnostic, Range } from 'vscode-languageserver/node';
+import { DiagnosticSeverity } from 'vscode-languageserver/node';
+import { URI } from 'vscode-uri';
 
 import type {
   ProtoFile,
@@ -20,7 +16,7 @@ import type {
   FieldDefinition,
   FieldOption,
   GroupFieldDefinition,
-  OptionStatement
+  OptionStatement,
 } from '../core/ast';
 import {
   BUILTIN_TYPES,
@@ -28,27 +24,16 @@ import {
   MIN_FIELD_NUMBER,
   MAX_FIELD_NUMBER,
   RESERVED_RANGE_START,
-  RESERVED_RANGE_END
+  RESERVED_RANGE_END,
 } from '../core/ast';
 import type { SemanticAnalyzer } from '../core/analyzer';
 import { ERROR_CODES, DIAGNOSTIC_SOURCE, FILE_EXTENSIONS } from '../utils/constants';
 import { logger } from '../utils/logger';
 import { bufConfigProvider } from '../services/bufConfig';
-import type {
-  DiagnosticsSettings
-} from './diagnostics/index';
-import {
-  DEFAULT_DIAGNOSTICS_SETTINGS,
-  isExternalDependencyFile,
-  Severity
-} from './diagnostics/index';
-import {
-  isPascalCase,
-  isSnakeCase,
-  isScreamingSnakeCase
-} from './diagnostics/index';
-import { URI } from 'vscode-uri';
 import type { ProviderRegistry } from '../utils';
+import type { DiagnosticsSettings } from './diagnostics/index';
+import { DEFAULT_DIAGNOSTICS_SETTINGS, isExternalDependencyFile, Severity } from './diagnostics/index';
+import { isPascalCase, isSnakeCase, isScreamingSnakeCase } from './diagnostics/index';
 
 const TEXT_FORMAT_EXTENSIONS = [
   FILE_EXTENSIONS.TEXTPROTO,
@@ -56,7 +41,7 @@ const TEXT_FORMAT_EXTENSIONS = [
   FILE_EXTENSIONS.PROTOTXT,
   FILE_EXTENSIONS.TXTPB,
   FILE_EXTENSIONS.TEXTPB,
-  FILE_EXTENSIONS.PB_TXT
+  FILE_EXTENSIONS.PB_TXT,
 ];
 
 // Re-export for external consumers
@@ -93,7 +78,12 @@ export class DiagnosticsProvider {
     return this.currentFile?.syntax?.version === 'proto3';
   }
 
-  async validate(uri: string, file: ProtoFile, providers: ProviderRegistry, documentText?: string): Promise<Diagnostic[]> {
+  async validate(
+    uri: string,
+    file: ProtoFile,
+    providers: ProviderRegistry,
+    documentText?: string
+  ): Promise<Diagnostic[]> {
     // Skip validation for external dependency files (e.g., .buf-deps, vendor directories)
     // These are generated/exported files that should be validated by their source tools
     if (isExternalDependencyFile(uri)) {
@@ -118,7 +108,7 @@ export class DiagnosticsProvider {
           range: this.toRange(err.range),
           message: err.message,
           source: DIAGNOSTIC_SOURCE,
-          code: ERROR_CODES.PARSE_ERROR
+          code: ERROR_CODES.PARSE_ERROR,
         });
       }
     }
@@ -132,7 +122,9 @@ export class DiagnosticsProvider {
     // Collect type usages for downstream checks (imports, unused imports, numbering continuity helpers)
     const usedTypeUris = this.collectUsedTypeUris(file, uri);
 
-    logger.verbose(`Validating file ${uri}: ${file.messages.length} messages, ${file.enums.length} enums, ${file.services.length} services`);
+    logger.verbose(
+      `Validating file ${uri}: ${file.messages.length} messages, ${file.enums.length} enums, ${file.services.length} services`
+    );
 
     // Validate messages
     for (const message of file.messages) {
@@ -207,7 +199,7 @@ export class DiagnosticsProvider {
         range: this.toRange(file.range),
         message: 'Missing syntax or edition declaration (e.g., syntax = "proto3";)',
         source: DIAGNOSTIC_SOURCE,
-        code: ERROR_CODES.MISSING_SYNTAX
+        code: ERROR_CODES.MISSING_SYNTAX,
       });
     }
 
@@ -220,7 +212,7 @@ export class DiagnosticsProvider {
           range: this.toRange(opt.range),
           message: `Edition feature '${opt.name}' requires an edition declaration. Add "edition = "2023";" at the top of the file.`,
           code: ERROR_CODES.FEATURES_WITHOUT_EDITION,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
     }
@@ -247,7 +239,7 @@ export class DiagnosticsProvider {
           severity: DiagnosticSeverity.Hint,
           range: this.toRange(file.package.range),
           message: `Package '${file.package.name}' does not appear to match directory '${dir}'`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
     } catch {
@@ -301,13 +293,20 @@ export class DiagnosticsProvider {
         const openBrackets = (lineWithoutComments.match(/\[/g) || []).length;
         const closeBrackets = (lineWithoutComments.match(/\]/g) || []).length;
 
-        inlineOptionDepth += (openBraces - closeBraces) + (openBrackets - closeBrackets);
+        inlineOptionDepth += openBraces - closeBraces + (openBrackets - closeBrackets);
         continue;
       }
 
-      if (/^(message|enum|service|oneof)\b/.test(trimmed) || trimmed.startsWith('option') ||
-        trimmed.startsWith('import') || trimmed.startsWith('syntax') || trimmed.startsWith('edition') ||
-        trimmed.startsWith('reserved') || trimmed.startsWith('rpc') || trimmed.startsWith('package')) {
+      if (
+        /^(message|enum|service|oneof)\b/.test(trimmed) ||
+        trimmed.startsWith('option') ||
+        trimmed.startsWith('import') ||
+        trimmed.startsWith('syntax') ||
+        trimmed.startsWith('edition') ||
+        trimmed.startsWith('reserved') ||
+        trimmed.startsWith('rpc') ||
+        trimmed.startsWith('package')
+      ) {
         continue;
       }
 
@@ -335,7 +334,7 @@ export class DiagnosticsProvider {
         const openBrackets = (lineWithoutComments.match(/\[/g) || []).length;
         const closeBrackets = (lineWithoutComments.match(/\]/g) || []).length;
 
-        const netOpen = (openBraces - closeBraces) + (openBrackets - closeBrackets);
+        const netOpen = openBraces - closeBraces + (openBrackets - closeBrackets);
         if (netOpen > 0) {
           // This line starts a multi-line inline option - skip it
           inlineOptionDepth = netOpen;
@@ -357,10 +356,11 @@ export class DiagnosticsProvider {
         }
       }
 
-      const looksLikeField = fieldLike.test(trimmed) || mapLike.test(trimmed) || (
+      const looksLikeField =
+        fieldLike.test(trimmed) ||
+        mapLike.test(trimmed) ||
         // Enum values inside enum blocks: NAME = NUMBER [options]
-        enumValueLike.test(trimmed)
-      );
+        enumValueLike.test(trimmed);
       if (!looksLikeField) {
         continue;
       }
@@ -402,10 +402,10 @@ export class DiagnosticsProvider {
         severity: DiagnosticSeverity.Warning,
         range: {
           start: { line: i, character: 0 },
-          end: { line: i, character: line!.length }
+          end: { line: i, character: line!.length },
         },
         message: 'Missing semicolon',
-        source: DIAGNOSTIC_SOURCE
+        source: DIAGNOSTIC_SOURCE,
       });
     }
   }
@@ -416,12 +416,15 @@ export class DiagnosticsProvider {
    * Note: fieldTypeRange uses item.range since these items don't have
    * a separate type location. This is acceptable for error reporting.
    */
-  private asFieldForDuplicateCheck(item: {
-    name: string;
-    nameRange: Range;
-    number: number;
-    range: Range;
-  }, typeName: string): FieldDefinition {
+  private asFieldForDuplicateCheck(
+    item: {
+      name: string;
+      nameRange: Range;
+      number: number;
+      range: Range;
+    },
+    typeName: string
+  ): FieldDefinition {
     return {
       type: 'field',
       name: item.name,
@@ -429,18 +432,15 @@ export class DiagnosticsProvider {
       number: item.number,
       range: item.range,
       fieldType: typeName,
-      fieldTypeRange: item.range  // Use item.range as proxy for type range
+      fieldTypeRange: item.range, // Use item.range as proxy for type range
     } as FieldDefinition;
   }
 
-  private validateMessage(
-    uri: string,
-    message: MessageDefinition,
-    prefix: string,
-    diagnostics: Diagnostic[]
-  ): void {
+  private validateMessage(uri: string, message: MessageDefinition, prefix: string, diagnostics: Diagnostic[]): void {
     const fullName = prefix ? `${prefix}.${message.name}` : message.name;
-    logger.verbose(`Validating message '${fullName}' with ${message.fields.length} fields, ${message.oneofs.length} oneofs`);
+    logger.verbose(
+      `Validating message '${fullName}' with ${message.fields.length} fields, ${message.oneofs.length} oneofs`
+    );
 
     // Check naming convention (PascalCase)
     if (this.settings.namingConventions && !isPascalCase(message.name)) {
@@ -449,7 +449,7 @@ export class DiagnosticsProvider {
         range: this.toRange(message.nameRange),
         message: `Message name '${message.name}' should be PascalCase`,
         source: DIAGNOSTIC_SOURCE,
-        code: ERROR_CODES.INVALID_MESSAGE_NAME
+        code: ERROR_CODES.INVALID_MESSAGE_NAME,
       });
     }
 
@@ -478,10 +478,7 @@ export class DiagnosticsProvider {
     };
 
     // Validate fields
-    const allFields = [
-      ...message.fields,
-      ...message.oneofs.flatMap(o => o.fields)
-    ];
+    const allFields = [...message.fields, ...message.oneofs.flatMap(o => o.fields)];
 
     for (const field of allFields) {
       this.validateField(uri, field, fullName, diagnostics, isNumberReserved, reservedNames);
@@ -532,7 +529,9 @@ export class DiagnosticsProvider {
 
     // Check for duplicate field numbers
     if (this.settings.fieldTagChecks) {
-      logger.verbose(`Checking for duplicate field numbers in message '${fullName}': ${fieldNumbers.size} unique numbers, fieldTagChecks=${this.settings.fieldTagChecks}`);
+      logger.verbose(
+        `Checking for duplicate field numbers in message '${fullName}': ${fieldNumbers.size} unique numbers, fieldTagChecks=${this.settings.fieldTagChecks}`
+      );
       for (const [number, fields] of fieldNumbers) {
         if (fields.length > 1) {
           logger.verbose(`Found duplicate field number ${number} used by ${fields.length} fields in '${fullName}'`);
@@ -542,7 +541,7 @@ export class DiagnosticsProvider {
               range: this.toRange(field.range),
               message: `Duplicate field number ${number}`,
               source: DIAGNOSTIC_SOURCE,
-              code: ERROR_CODES.DUPLICATE_FIELD_NUMBER
+              code: ERROR_CODES.DUPLICATE_FIELD_NUMBER,
             });
           }
         }
@@ -559,7 +558,7 @@ export class DiagnosticsProvider {
               range: this.toRange(field.nameRange),
               message: `Duplicate field name '${name}'`,
               source: DIAGNOSTIC_SOURCE,
-              code: ERROR_CODES.DUPLICATE_FIELD_NAME
+              code: ERROR_CODES.DUPLICATE_FIELD_NAME,
             });
           }
         }
@@ -589,7 +588,7 @@ export class DiagnosticsProvider {
           severity: Severity[this.settings.severity.namingConventions],
           range: this.toRange(oneof.nameRange),
           message: `Oneof name '${oneof.name}' should be snake_case`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
       this.validateOneof(oneof, diagnostics);
@@ -611,7 +610,7 @@ export class DiagnosticsProvider {
         range: this.toRange(field.nameRange),
         message: `Field name '${field.name}' should be snake_case`,
         source: DIAGNOSTIC_SOURCE,
-        code: ERROR_CODES.INVALID_FIELD_NAME
+        code: ERROR_CODES.INVALID_FIELD_NAME,
       });
     }
 
@@ -623,7 +622,7 @@ export class DiagnosticsProvider {
           range: this.toRange(field.range),
           message: `Field number ${field.number} is out of valid range (${MIN_FIELD_NUMBER}-${MAX_FIELD_NUMBER})`,
           source: DIAGNOSTIC_SOURCE,
-          code: ERROR_CODES.FIELD_NUMBER_OUT_OF_RANGE
+          code: ERROR_CODES.FIELD_NUMBER_OUT_OF_RANGE,
         });
       } else if (field.number >= RESERVED_RANGE_START && field.number <= RESERVED_RANGE_END) {
         diagnostics.push({
@@ -631,7 +630,7 @@ export class DiagnosticsProvider {
           range: this.toRange(field.range),
           message: `Field number ${field.number} is in reserved range (${RESERVED_RANGE_START}-${RESERVED_RANGE_END})`,
           source: DIAGNOSTIC_SOURCE,
-          code: ERROR_CODES.FIELD_NUMBER_IN_RESERVED_RANGE
+          code: ERROR_CODES.FIELD_NUMBER_IN_RESERVED_RANGE,
         });
       }
 
@@ -642,7 +641,7 @@ export class DiagnosticsProvider {
           range: this.toRange(field.range),
           message: `Field number ${field.number} is reserved`,
           source: DIAGNOSTIC_SOURCE,
-          code: ERROR_CODES.FIELD_NUMBER_RESERVED
+          code: ERROR_CODES.FIELD_NUMBER_RESERVED,
         });
       }
 
@@ -652,7 +651,7 @@ export class DiagnosticsProvider {
           severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(field.nameRange),
           message: `Field name '${field.name}' is reserved`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
     }
@@ -674,8 +673,8 @@ export class DiagnosticsProvider {
             data: {
               typeName: field.fieldType,
               fullName: workspaceMatch.fullName,
-              symbolUri: workspaceMatch.location.uri
-            }
+              symbolUri: workspaceMatch.location.uri,
+            },
           });
         } else {
           diagnostics.push({
@@ -683,7 +682,7 @@ export class DiagnosticsProvider {
             range: this.toRange(field.fieldTypeRange),
             message: `Unknown type '${field.fieldType}'`,
             source: DIAGNOSTIC_SOURCE,
-            code: ERROR_CODES.UNDEFINED_TYPE
+            code: ERROR_CODES.UNDEFINED_TYPE,
           });
         }
       } else {
@@ -702,7 +701,7 @@ export class DiagnosticsProvider {
           range: this.toRange(field.range),
           message: `'required' is not supported in proto3. Consider using 'optional' or no modifier`,
           source: DIAGNOSTIC_SOURCE,
-          code: ERROR_CODES.DISCOURAGED_CONSTRUCT
+          code: ERROR_CODES.DISCOURAGED_CONSTRUCT,
         });
       }
     }
@@ -720,7 +719,7 @@ export class DiagnosticsProvider {
               range: this.toRange(field.range),
               message: `Invalid syntax in option '${option.name}': unexpected semicolon after opening brace`,
               source: DIAGNOSTIC_SOURCE,
-              code: ERROR_CODES.PARSE_ERROR
+              code: ERROR_CODES.PARSE_ERROR,
             });
           }
         }
@@ -750,7 +749,7 @@ export class DiagnosticsProvider {
         severity: DiagnosticSeverity.Error,
         range: this.toRange(mapField.range),
         message: `Invalid map key type '${mapField.keyType}'. Map keys must be integral or string types`,
-        source: DIAGNOSTIC_SOURCE
+        source: DIAGNOSTIC_SOURCE,
       });
     }
 
@@ -771,19 +770,25 @@ export class DiagnosticsProvider {
             data: {
               typeName: mapField.valueType,
               fullName: workspaceMatch.fullName,
-              symbolUri: workspaceMatch.location.uri
-            }
+              symbolUri: workspaceMatch.location.uri,
+            },
           });
         } else {
           diagnostics.push({
             severity: Severity[this.settings.severity.referenceErrors],
             range: this.toRange(mapField.valueTypeRange),
             message: `Unknown type '${mapField.valueType}'`,
-            source: DIAGNOSTIC_SOURCE
+            source: DIAGNOSTIC_SOURCE,
           });
         }
       } else {
-        this.ensureImported(uri, mapField.valueType, symbol.location.uri, this.toRange(mapField.valueTypeRange), diagnostics);
+        this.ensureImported(
+          uri,
+          mapField.valueType,
+          symbol.location.uri,
+          this.toRange(mapField.valueTypeRange),
+          diagnostics
+        );
         // Check if an unqualified type name is used when it should be fully qualified
         this.checkTypeQualification(uri, mapField.valueType, symbol, mapField.valueTypeRange, diagnostics);
       }
@@ -795,7 +800,7 @@ export class DiagnosticsProvider {
         severity: Severity[this.settings.severity.namingConventions],
         range: this.toRange(mapField.nameRange),
         message: `Field name '${mapField.name}' should be snake_case`,
-        source: DIAGNOSTIC_SOURCE
+        source: DIAGNOSTIC_SOURCE,
       });
     }
 
@@ -806,7 +811,7 @@ export class DiagnosticsProvider {
           severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(mapField.range),
           message: `Field number ${mapField.number} is out of valid range`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
 
@@ -815,7 +820,7 @@ export class DiagnosticsProvider {
           severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(mapField.range),
           message: `Field number ${mapField.number} is reserved`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
 
@@ -824,7 +829,7 @@ export class DiagnosticsProvider {
           severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(mapField.nameRange),
           message: `Field name '${mapField.name}' is reserved`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
     }
@@ -844,7 +849,7 @@ export class DiagnosticsProvider {
         severity: Severity[this.settings.severity.namingConventions],
         range: this.toRange(group.nameRange),
         message: `Group name '${group.name}' should be PascalCase`,
-        source: DIAGNOSTIC_SOURCE
+        source: DIAGNOSTIC_SOURCE,
       });
     }
 
@@ -855,7 +860,7 @@ export class DiagnosticsProvider {
           severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(group.range),
           message: `Group number ${group.number} is out of valid range`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
 
@@ -864,7 +869,7 @@ export class DiagnosticsProvider {
           severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(group.range),
           message: `Group number ${group.number} is reserved`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
 
@@ -873,7 +878,7 @@ export class DiagnosticsProvider {
           severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(group.nameRange),
           message: `Group name '${group.name}' is reserved`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
     }
@@ -889,7 +894,7 @@ export class DiagnosticsProvider {
           range: this.toRange(group.range),
           message: 'Groups are not supported in proto3. Use nested messages instead.',
           source: DIAGNOSTIC_SOURCE,
-          code: ERROR_CODES.DISCOURAGED_CONSTRUCT
+          code: ERROR_CODES.DISCOURAGED_CONSTRUCT,
         });
       } else if (isEdition) {
         diagnostics.push({
@@ -897,7 +902,7 @@ export class DiagnosticsProvider {
           range: this.toRange(group.range),
           message: 'Groups are not supported in editions. Use nested messages with DELIMITED encoding instead.',
           source: DIAGNOSTIC_SOURCE,
-          code: ERROR_CODES.DISCOURAGED_CONSTRUCT
+          code: ERROR_CODES.DISCOURAGED_CONSTRUCT,
         });
       } else {
         // Proto2: valid but deprecated
@@ -906,7 +911,7 @@ export class DiagnosticsProvider {
           range: this.toRange(group.range),
           message: 'Groups are deprecated. Consider using nested messages instead.',
           source: DIAGNOSTIC_SOURCE,
-          code: ERROR_CODES.DISCOURAGED_CONSTRUCT
+          code: ERROR_CODES.DISCOURAGED_CONSTRUCT,
         });
       }
     }
@@ -949,19 +954,14 @@ export class DiagnosticsProvider {
     }
   }
 
-  private validateEnum(
-    _uri: string,
-    enumDef: EnumDefinition,
-    _prefix: string,
-    diagnostics: Diagnostic[]
-  ): void {
+  private validateEnum(_uri: string, enumDef: EnumDefinition, _prefix: string, diagnostics: Diagnostic[]): void {
     // Check naming convention (PascalCase)
     if (this.settings.namingConventions && !isPascalCase(enumDef.name)) {
       diagnostics.push({
         severity: Severity[this.settings.severity.namingConventions],
         range: this.toRange(enumDef.nameRange),
         message: `Enum name '${enumDef.name}' should be PascalCase`,
-        source: DIAGNOSTIC_SOURCE
+        source: DIAGNOSTIC_SOURCE,
       });
     }
 
@@ -976,7 +976,7 @@ export class DiagnosticsProvider {
           severity: Severity[this.settings.severity.namingConventions],
           range: this.toRange(value.nameRange),
           message: `Enum value '${value.name}' should be SCREAMING_SNAKE_CASE`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
 
@@ -998,7 +998,7 @@ export class DiagnosticsProvider {
         range: this.toRange(enumDef.values[0]!.range),
         message: `First enum value should be 0 in proto3`,
         source: DIAGNOSTIC_SOURCE,
-        code: ERROR_CODES.DISCOURAGED_CONSTRUCT
+        code: ERROR_CODES.DISCOURAGED_CONSTRUCT,
       });
     }
 
@@ -1011,7 +1011,7 @@ export class DiagnosticsProvider {
             severity: DiagnosticSeverity.Error,
             range: this.toRange(enumDef.range),
             message: `Duplicate enum value ${number} for ${names.join(', ')}. Use option allow_alias = true; to allow aliases`,
-            source: DIAGNOSTIC_SOURCE
+            source: DIAGNOSTIC_SOURCE,
           });
         }
       }
@@ -1019,10 +1019,25 @@ export class DiagnosticsProvider {
   }
 
   private validateOptionTypes(options: OptionStatement[], diagnostics: Diagnostic[]): void {
-    const boolOptions = new Set(['deprecated', 'java_multiple_files', 'cc_enable_arenas', 'java_string_check_utf8', 'allow_alias']);
-    const stringOptions = new Set(['java_package', 'java_outer_classname', 'go_package', 'objc_class_prefix', 'csharp_namespace', 'swift_prefix', 'php_namespace', 'ruby_package']);
+    const boolOptions = new Set([
+      'deprecated',
+      'java_multiple_files',
+      'cc_enable_arenas',
+      'java_string_check_utf8',
+      'allow_alias',
+    ]);
+    const stringOptions = new Set([
+      'java_package',
+      'java_outer_classname',
+      'go_package',
+      'objc_class_prefix',
+      'csharp_namespace',
+      'swift_prefix',
+      'php_namespace',
+      'ruby_package',
+    ]);
     const enumOptions = new Map<string, Set<string>>([
-      ['optimize_for', new Set(['SPEED', 'CODE_SIZE', 'LITE_RUNTIME'])]
+      ['optimize_for', new Set(['SPEED', 'CODE_SIZE', 'LITE_RUNTIME'])],
     ]);
 
     for (const opt of options) {
@@ -1031,7 +1046,7 @@ export class DiagnosticsProvider {
           severity: DiagnosticSeverity.Warning,
           range: this.toRange(opt.range),
           message: `Option '${opt.name}' expects a boolean value`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
 
@@ -1040,7 +1055,7 @@ export class DiagnosticsProvider {
           severity: DiagnosticSeverity.Warning,
           range: this.toRange(opt.range),
           message: `Option '${opt.name}' expects a string value`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
 
@@ -1050,25 +1065,20 @@ export class DiagnosticsProvider {
           severity: DiagnosticSeverity.Warning,
           range: this.toRange(opt.range),
           message: `Option '${opt.name}' expects one of: ${Array.from(enumSet).join(', ')}`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
     }
   }
 
-  private validateService(
-    uri: string,
-    service: ServiceDefinition,
-    prefix: string,
-    diagnostics: Diagnostic[]
-  ): void {
+  private validateService(uri: string, service: ServiceDefinition, prefix: string, diagnostics: Diagnostic[]): void {
     // Check naming convention (PascalCase)
     if (this.settings.namingConventions && !isPascalCase(service.name)) {
       diagnostics.push({
         severity: Severity[this.settings.severity.namingConventions],
         range: this.toRange(service.nameRange),
         message: `Service name '${service.name}' should be PascalCase`,
-        source: DIAGNOSTIC_SOURCE
+        source: DIAGNOSTIC_SOURCE,
       });
     }
 
@@ -1080,7 +1090,7 @@ export class DiagnosticsProvider {
           severity: Severity[this.settings.severity.namingConventions],
           range: this.toRange(rpc.nameRange),
           message: `RPC name '${rpc.name}' should be PascalCase`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
 
@@ -1089,7 +1099,7 @@ export class DiagnosticsProvider {
           severity: DiagnosticSeverity.Error,
           range: this.toRange(rpc.range),
           message: `RPC '${rpc.name}' is missing request type`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
 
@@ -1098,7 +1108,7 @@ export class DiagnosticsProvider {
           severity: DiagnosticSeverity.Error,
           range: this.toRange(rpc.range),
           message: `RPC '${rpc.name}' is missing response type`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
 
@@ -1122,15 +1132,15 @@ export class DiagnosticsProvider {
                 data: {
                   typeName: inputType,
                   fullName: workspaceMatch.fullName,
-                  symbolUri: workspaceMatch.location.uri
-                }
+                  symbolUri: workspaceMatch.location.uri,
+                },
               });
             } else {
               diagnostics.push({
                 severity: Severity[this.settings.severity.referenceErrors],
                 range: this.toRange(inputTypeRange),
                 message: `Unknown type '${inputType}'`,
-                source: DIAGNOSTIC_SOURCE
+                source: DIAGNOSTIC_SOURCE,
               });
             }
           } else {
@@ -1159,15 +1169,15 @@ export class DiagnosticsProvider {
                 data: {
                   typeName: outputType,
                   fullName: workspaceMatch.fullName,
-                  symbolUri: workspaceMatch.location.uri
-                }
+                  symbolUri: workspaceMatch.location.uri,
+                },
               });
             } else {
               diagnostics.push({
                 severity: Severity[this.settings.severity.referenceErrors],
                 range: this.toRange(outputTypeRange),
                 message: `Unknown type '${outputType}'`,
-                source: DIAGNOSTIC_SOURCE
+                source: DIAGNOSTIC_SOURCE,
               });
             }
           } else {
@@ -1188,12 +1198,12 @@ export class DiagnosticsProvider {
           severity: DiagnosticSeverity.Error,
           range: this.toRange(imp.range),
           message: `Empty import path`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
     }
 
-    const importByPath = new Map<string, typeof file.imports[number]>();
+    const importByPath = new Map<string, (typeof file.imports)[number]>();
     for (const imp of file.imports) {
       importByPath.set(imp.path, imp);
     }
@@ -1211,9 +1221,11 @@ export class DiagnosticsProvider {
           : '';
         diagnostics.push({
           severity: DiagnosticSeverity.Error,
-          range: rangeInfo ? this.toRange(rangeInfo.range) : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+          range: rangeInfo
+            ? this.toRange(rangeInfo.range)
+            : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
           message: `Import '${imp.importPath}' cannot be resolved${hint}`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
     }
@@ -1232,10 +1244,12 @@ export class DiagnosticsProvider {
             const rangeInfo = importByPath.get(imp.importPath);
             diagnostics.push({
               severity: DiagnosticSeverity.Warning,
-              range: rangeInfo ? this.toRange(rangeInfo.range) : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+              range: rangeInfo
+                ? this.toRange(rangeInfo.range)
+                : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
               message: `Import '${imp.importPath}' resolves but '${suggestedModule}' is not in buf.yaml dependencies. Add it to ensure consistent builds.`,
               source: DIAGNOSTIC_SOURCE,
-              code: ERROR_CODES.MISSING_BUF_DEPENDENCY
+              code: ERROR_CODES.MISSING_BUF_DEPENDENCY,
             });
           }
         }
@@ -1255,9 +1269,11 @@ export class DiagnosticsProvider {
       if (!usedTypeUris.has(imp.resolvedUri)) {
         diagnostics.push({
           severity: DiagnosticSeverity.Hint,
-          range: rangeInfo ? this.toRange(rangeInfo.range) : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+          range: rangeInfo
+            ? this.toRange(rangeInfo.range)
+            : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
           message: `Unused import '${imp.importPath}'`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
     }
@@ -1272,7 +1288,7 @@ export class DiagnosticsProvider {
           severity: DiagnosticSeverity.Warning,
           range: this.toRange(field.range),
           message: `Field '${field.name}' in oneof '${oneof.name}' should not use modifier '${field.modifier}'`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
 
@@ -1289,7 +1305,7 @@ export class DiagnosticsProvider {
             severity: DiagnosticSeverity.Error,
             range: this.toRange(f.range),
             message: `Oneof '${oneof.name}' has duplicate field number ${num}`,
-            source: DIAGNOSTIC_SOURCE
+            source: DIAGNOSTIC_SOURCE,
           });
         }
       }
@@ -1323,7 +1339,7 @@ export class DiagnosticsProvider {
           severity: Severity[this.settings.severity.nonCanonicalImportPath],
           range,
           message: `Type '${typeName}' should be imported via "${suggestedImport}" (found "${importedVia.importPath}")`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
         return;
       }
@@ -1343,7 +1359,7 @@ export class DiagnosticsProvider {
       severity: DiagnosticSeverity.Error,
       range,
       message: `Type '${typeName}' is not imported.${suggestionText}`.trim(),
-      source: 'protobuf'
+      source: 'protobuf',
     });
   }
 
@@ -1355,7 +1371,10 @@ export class DiagnosticsProvider {
    * @param currentUri The URI of the current file (to exclude from results)
    * @returns The first matching symbol, or undefined if not found
    */
-  private findTypeInWorkspace(typeName: string, currentUri: string): { fullName: string; location: { uri: string } } | undefined {
+  private findTypeInWorkspace(
+    typeName: string,
+    currentUri: string
+  ): { fullName: string; location: { uri: string } } | undefined {
     // Only search for simple (unqualified) type names
     if (typeName.includes('.')) {
       return undefined;
@@ -1431,12 +1450,13 @@ export class DiagnosticsProvider {
       range: this.toRange(range),
       message: `Type '${typeName}' must be fully qualified as '${symbol.fullName}' because it is from package '${symbolPackage}'`,
       source: DIAGNOSTIC_SOURCE,
-      code: ERROR_CODES.UNQUALIFIED_TYPE
+      code: ERROR_CODES.UNQUALIFIED_TYPE,
     });
   }
 
   private collectUsedTypeUris(file: ProtoFile, uri: string): Set<string> {
     const used = new Set<string>();
+    const packageName = file.package?.name || '';
 
     const visitMessage = (message: MessageDefinition, container: string) => {
       const containerName = container ? `${container}.${message.name}` : message.name;
@@ -1463,6 +1483,40 @@ export class DiagnosticsProvider {
         // enums themselves do not introduce type usages here
         void nestedEnum;
       }
+
+      for (const group of message.groups) {
+        visitGroup(group, containerName);
+      }
+    };
+
+    const visitGroup = (group: GroupFieldDefinition, container: string) => {
+      const groupName = container ? `${container}.${group.name}` : group.name;
+
+      for (const field of group.fields) {
+        this.addResolvedTypeUri(field.fieldType, uri, groupName, used);
+      }
+
+      for (const mapField of group.maps) {
+        this.addResolvedTypeUri(mapField.valueType, uri, groupName, used);
+      }
+
+      for (const oneof of group.oneofs) {
+        for (const field of oneof.fields) {
+          this.addResolvedTypeUri(field.fieldType, uri, groupName, used);
+        }
+      }
+
+      for (const nested of group.nestedMessages) {
+        visitMessage(nested, groupName);
+      }
+
+      for (const nestedEnum of group.nestedEnums) {
+        void nestedEnum;
+      }
+
+      for (const nestedGroup of group.groups) {
+        visitGroup(nestedGroup, groupName);
+      }
     };
 
     for (const message of file.messages) {
@@ -1487,7 +1541,174 @@ export class DiagnosticsProvider {
       void enumDef;
     }
 
+    // Extend statements should count as type usage (extendee and field types)
+    for (const extend of file.extends) {
+      const extendType = extend.extendType ?? extend.messageName;
+      if (extendType) {
+        this.addResolvedTypeUri(extendType, uri, packageName, used);
+      }
+      for (const field of extend.fields) {
+        this.addResolvedTypeUri(field.fieldType, uri, packageName, used);
+      }
+      for (const group of extend.groups) {
+        visitGroup(group, packageName);
+      }
+    }
+
+    // Option references to extensions should count as usage
+    this.collectOptionExtensionUris(file, uri, used);
+
     return used;
+  }
+
+  private collectOptionExtensionUris(file: ProtoFile, uri: string, bucket: Set<string>): void {
+    const packageName = file.package?.name || '';
+    const importedUris = this.analyzer.getImportedFileUris(uri);
+    const extensionIndex = this.buildExtensionIndex([uri, ...importedUris]);
+
+    const markOption = (name: string): void => {
+      const extensionName = this.getExtensionNameFromOption(name, packageName);
+      if (!extensionName) {
+        return;
+      }
+      const resolvedUri = extensionIndex.get(extensionName);
+      if (resolvedUri) {
+        bucket.add(resolvedUri);
+      }
+    };
+
+    const visitFieldOptions = (options?: FieldOption[]): void => {
+      if (!options) {
+        return;
+      }
+      for (const opt of options) {
+        markOption(opt.name);
+      }
+    };
+
+    const visitOptions = (options: OptionStatement[]): void => {
+      for (const opt of options) {
+        markOption(opt.name);
+      }
+    };
+
+    const visitMessageOptions = (message: MessageDefinition): void => {
+      visitOptions(message.options);
+      for (const field of message.fields) {
+        visitFieldOptions(field.options);
+      }
+      for (const oneof of message.oneofs) {
+        for (const field of oneof.fields) {
+          visitFieldOptions(field.options);
+        }
+      }
+      for (const nested of message.nestedMessages) {
+        visitMessageOptions(nested);
+      }
+      for (const nestedEnum of message.nestedEnums) {
+        visitEnumOptions(nestedEnum);
+      }
+      for (const group of message.groups) {
+        visitGroupOptions(group);
+      }
+    };
+
+    const visitGroupOptions = (group: GroupFieldDefinition): void => {
+      visitOptions(group.options);
+      for (const field of group.fields) {
+        visitFieldOptions(field.options);
+      }
+      for (const oneof of group.oneofs) {
+        for (const field of oneof.fields) {
+          visitFieldOptions(field.options);
+        }
+      }
+      for (const nested of group.nestedMessages) {
+        visitMessageOptions(nested);
+      }
+      for (const nestedEnum of group.nestedEnums) {
+        visitEnumOptions(nestedEnum);
+      }
+      for (const nestedGroup of group.groups) {
+        visitGroupOptions(nestedGroup);
+      }
+    };
+
+    const visitEnumOptions = (enumDef: EnumDefinition): void => {
+      visitOptions(enumDef.options);
+      for (const value of enumDef.values) {
+        visitFieldOptions(value.options);
+      }
+    };
+
+    visitOptions(file.options);
+
+    for (const message of file.messages) {
+      visitMessageOptions(message);
+    }
+
+    for (const enumDef of file.enums) {
+      visitEnumOptions(enumDef);
+    }
+
+    for (const service of file.services) {
+      visitOptions(service.options);
+      for (const rpc of service.rpcs) {
+        visitOptions(rpc.options);
+      }
+    }
+
+    for (const extend of file.extends) {
+      for (const field of extend.fields) {
+        visitFieldOptions(field.options);
+      }
+      for (const group of extend.groups) {
+        visitGroupOptions(group);
+      }
+    }
+  }
+
+  private buildExtensionIndex(uris: string[]): Map<string, string> {
+    const index = new Map<string, string>();
+
+    for (const uri of uris) {
+      const file = this.analyzer.getFile(uri);
+      if (!file) {
+        continue;
+      }
+      const pkg = file.package?.name || '';
+      for (const extend of file.extends) {
+        for (const field of extend.fields) {
+          if (!field.name) {
+            continue;
+          }
+          const fullName = pkg ? `${pkg}.${field.name}` : field.name;
+          if (fullName && !index.has(fullName)) {
+            index.set(fullName, uri);
+          }
+        }
+      }
+    }
+
+    return index;
+  }
+
+  private getExtensionNameFromOption(optionName: string, packageName: string): string | null {
+    const match = optionName.match(/^\(([^)]+)\)/);
+    if (!match) {
+      return null;
+    }
+
+    let name = match[1]!;
+    if (name.startsWith('.')) {
+      name = name.slice(1);
+    }
+
+    if (!name.includes('.') && packageName) {
+      return `${packageName}.${name}`;
+    }
+
+    return name;
   }
 
   private addResolvedTypeUri(typeName: string, uri: string, containerName: string, bucket: Set<string>): void {
@@ -1500,12 +1721,12 @@ export class DiagnosticsProvider {
     }
   }
 
-  private checkFieldNumberContinuity(message: MessageDefinition, diagnostics: Diagnostic[], isNumberReserved: (num: number) => boolean): void {
-    const fields = [
-      ...message.fields,
-      ...message.maps,
-      ...message.oneofs.flatMap(o => o.fields)
-    ];
+  private checkFieldNumberContinuity(
+    message: MessageDefinition,
+    diagnostics: Diagnostic[],
+    isNumberReserved: (num: number) => boolean
+  ): void {
+    const fields = [...message.fields, ...message.maps, ...message.oneofs.flatMap(o => o.fields)];
 
     if (fields.length === 0) {
       return;
@@ -1522,7 +1743,7 @@ export class DiagnosticsProvider {
           severity: DiagnosticSeverity.Warning,
           range: this.toRange(sorted[i]!.range),
           message: `Field number ${current} is not strictly increasing (previous ${prev}). Consider renumbering`,
-          source: DIAGNOSTIC_SOURCE
+          source: DIAGNOSTIC_SOURCE,
         });
       }
 
@@ -1543,7 +1764,7 @@ export class DiagnosticsProvider {
             severity: DiagnosticSeverity.Hint,
             range: this.toRange(sorted[i]!.range),
             message: `Gap in field numbers between ${prev} and ${current}. Run renumber to close gaps`,
-            source: DIAGNOSTIC_SOURCE
+            source: DIAGNOSTIC_SOURCE,
           });
         }
       }
@@ -1566,7 +1787,7 @@ export class DiagnosticsProvider {
             severity: DiagnosticSeverity.Warning,
             range: this.toRange(message.range),
             message: `Reserved ranges overlap (${a.start}-${aEnd} overlaps ${b.start}-${bEnd})`,
-            source: DIAGNOSTIC_SOURCE
+            source: DIAGNOSTIC_SOURCE,
           });
         }
       }
@@ -1607,7 +1828,10 @@ export class DiagnosticsProvider {
     }
   }
 
-  private toRange(range: { start: { line: number; character: number }; end: { line: number; character: number } }): Range {
+  private toRange(range: {
+    start: { line: number; character: number };
+    end: { line: number; character: number };
+  }): Range {
     // Ensure all values are valid numbers (not NaN or undefined)
     const startLine = Number.isFinite(range.start.line) ? range.start.line : 0;
     const startChar = Number.isFinite(range.start.character) ? range.start.character : 0;
@@ -1616,7 +1840,7 @@ export class DiagnosticsProvider {
 
     return {
       start: { line: startLine, character: startChar },
-      end: { line: endLine, character: endChar }
+      end: { line: endLine, character: endChar },
     };
   }
 
@@ -1690,7 +1914,7 @@ export class DiagnosticsProvider {
             range: this.toRange(ref.range),
             message: `Field '${field.name}' is deprecated`,
             source: DIAGNOSTIC_SOURCE,
-            code: 'deprecated-field'
+            code: 'deprecated-field',
           });
         }
       }
@@ -1722,7 +1946,7 @@ export class DiagnosticsProvider {
             range: this.toRange(ref.range),
             message: `Enum value '${value.name}' is deprecated`,
             source: DIAGNOSTIC_SOURCE,
-            code: 'deprecated-enum-value'
+            code: 'deprecated-enum-value',
           });
         }
       }
@@ -1770,7 +1994,7 @@ export class DiagnosticsProvider {
             range: this.toRange(message.nameRange),
             message: `Message '${message.name}' is defined but never used`,
             source: DIAGNOSTIC_SOURCE,
-            code: 'unused-symbol'
+            code: 'unused-symbol',
           });
         }
       }
@@ -1788,18 +2012,14 @@ export class DiagnosticsProvider {
             range: this.toRange(enumDef.nameRange),
             message: `Enum '${enumDef.name}' is defined but never used`,
             source: DIAGNOSTIC_SOURCE,
-            code: 'unused-symbol'
+            code: 'unused-symbol',
           });
         }
       }
     }
   }
 
-  private collectReferencedSymbols(
-    message: MessageDefinition,
-    prefix: string,
-    referenced: Set<string>
-  ): void {
+  private collectReferencedSymbols(message: MessageDefinition, prefix: string, referenced: Set<string>): void {
     const fullName = prefix ? `${prefix}.${message.name}` : message.name;
     referenced.add(fullName);
 
@@ -1831,11 +2051,7 @@ export class DiagnosticsProvider {
   /**
    * Validate extension ranges
    */
-  private validateExtensions(
-    _uri: string,
-    message: MessageDefinition,
-    diagnostics: Diagnostic[]
-  ): void {
+  private validateExtensions(_uri: string, message: MessageDefinition, diagnostics: Diagnostic[]): void {
     for (const ext of message.extensions) {
       for (const range of ext.ranges) {
         const end = range.end === 'max' ? MAX_FIELD_NUMBER : range.end;
@@ -1846,7 +2062,7 @@ export class DiagnosticsProvider {
             severity: DiagnosticSeverity.Error,
             range: this.toRange(ext.range),
             message: `Extension range start ${range.start} is out of valid range (${MIN_FIELD_NUMBER}-${MAX_FIELD_NUMBER})`,
-            source: DIAGNOSTIC_SOURCE
+            source: DIAGNOSTIC_SOURCE,
           });
         }
 
@@ -1855,7 +2071,7 @@ export class DiagnosticsProvider {
             severity: DiagnosticSeverity.Error,
             range: this.toRange(ext.range),
             message: `Extension range end ${end} is out of valid range (${MIN_FIELD_NUMBER}-${MAX_FIELD_NUMBER})`,
-            source: DIAGNOSTIC_SOURCE
+            source: DIAGNOSTIC_SOURCE,
           });
         }
 
@@ -1864,7 +2080,7 @@ export class DiagnosticsProvider {
             severity: DiagnosticSeverity.Error,
             range: this.toRange(ext.range),
             message: `Extension range start ${range.start} is greater than end ${end}`,
-            source: DIAGNOSTIC_SOURCE
+            source: DIAGNOSTIC_SOURCE,
           });
         }
 
@@ -1878,18 +2094,14 @@ export class DiagnosticsProvider {
                 severity: DiagnosticSeverity.Warning,
                 range: this.toRange(ext.range),
                 message: `Extension range ${range.start}-${end} overlaps with reserved range ${reservedRange.start}-${reservedEnd}`,
-                source: DIAGNOSTIC_SOURCE
+                source: DIAGNOSTIC_SOURCE,
               });
             }
           }
         }
 
         // Check for overlap with field numbers
-        const allFields = [
-          ...message.fields,
-          ...message.maps,
-          ...message.oneofs.flatMap(o => o.fields)
-        ];
+        const allFields = [...message.fields, ...message.maps, ...message.oneofs.flatMap(o => o.fields)];
 
         for (const field of allFields) {
           if (field.number >= range.start && field.number <= end) {
@@ -1897,7 +2109,7 @@ export class DiagnosticsProvider {
               severity: DiagnosticSeverity.Warning,
               range: this.toRange(ext.range),
               message: `Extension range ${range.start}-${end} overlaps with field number ${field.number}`,
-              source: DIAGNOSTIC_SOURCE
+              source: DIAGNOSTIC_SOURCE,
             });
           }
         }
@@ -1953,7 +2165,7 @@ export class DiagnosticsProvider {
         range: this.toRange(file.range),
         message: `Circular import dependency detected: ${cycleStr}`,
         source: DIAGNOSTIC_SOURCE,
-        code: 'circular-dependency'
+        code: 'circular-dependency',
       });
     }
   }
@@ -1992,7 +2204,7 @@ export class DiagnosticsProvider {
             range: this.toRange(field.range),
             message: `'optional' label is not allowed in editions. Use 'features.field_presence = EXPLICIT' option instead.`,
             source: DIAGNOSTIC_SOURCE,
-            code: ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED
+            code: ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED,
           });
         } else if (field.modifier === 'required') {
           diagnostics.push({
@@ -2000,7 +2212,7 @@ export class DiagnosticsProvider {
             range: this.toRange(field.range),
             message: `'required' label is not allowed in editions. Use 'features.field_presence = LEGACY_REQUIRED' option instead.`,
             source: DIAGNOSTIC_SOURCE,
-            code: ERROR_CODES.INVALID_FIELD_MODIFIER
+            code: ERROR_CODES.INVALID_FIELD_MODIFIER,
           });
         }
       } else {
@@ -2011,7 +2223,7 @@ export class DiagnosticsProvider {
             range: this.toRange(field.range),
             message: `'required' fields are not allowed in proto3. Use 'optional' for explicit presence tracking.`,
             source: DIAGNOSTIC_SOURCE,
-            code: 'proto3-required'
+            code: 'proto3-required',
           });
         }
       }
@@ -2041,7 +2253,7 @@ export class DiagnosticsProvider {
           range: this.toRange(message.nameRange),
           message: `Consider adding documentation comment for message '${message.name}'`,
           source: DIAGNOSTIC_SOURCE,
-          code: 'missing-documentation'
+          code: 'missing-documentation',
         });
       }
     }
@@ -2054,7 +2266,7 @@ export class DiagnosticsProvider {
           range: this.toRange(enumDef.nameRange),
           message: `Consider adding documentation comment for enum '${enumDef.name}'`,
           source: DIAGNOSTIC_SOURCE,
-          code: 'missing-documentation'
+          code: 'missing-documentation',
         });
       }
     }
@@ -2067,7 +2279,7 @@ export class DiagnosticsProvider {
           range: this.toRange(service.nameRange),
           message: `Service '${service.name}' should have documentation`,
           source: DIAGNOSTIC_SOURCE,
-          code: 'missing-documentation'
+          code: 'missing-documentation',
         });
       }
 
@@ -2079,14 +2291,17 @@ export class DiagnosticsProvider {
             range: this.toRange(rpc.nameRange),
             message: `RPC '${rpc.name}' should have documentation`,
             source: DIAGNOSTIC_SOURCE,
-            code: 'missing-documentation'
+            code: 'missing-documentation',
           });
         }
       }
     }
   }
 
-  private hasDocumentationComment(range: { start: { line: number; character: number }; end: { line: number; character: number } }, _file: ProtoFile): boolean {
+  private hasDocumentationComment(
+    range: { start: { line: number; character: number }; end: { line: number; character: number } },
+    _file: ProtoFile
+  ): boolean {
     if (!this.currentDocumentText) {
       return false;
     }
@@ -2127,7 +2342,12 @@ export class DiagnosticsProvider {
     return false;
   }
 
-  private async checkBreakingChanges(uri: string, file: ProtoFile, providers: ProviderRegistry, diagnostics: Diagnostic[]) {
+  private async checkBreakingChanges(
+    uri: string,
+    file: ProtoFile,
+    providers: ProviderRegistry,
+    diagnostics: Diagnostic[]
+  ) {
     const filePath = URI.parse(uri).fsPath;
 
     // Get baseline content from git
@@ -2142,7 +2362,11 @@ export class DiagnosticsProvider {
       }
     }
 
-    const changes = providers.breaking.detectBreakingChanges(file, baselineFile, Severity[this.settings.severity.breakingChanges]);
+    const changes = providers.breaking.detectBreakingChanges(
+      file,
+      baselineFile,
+      Severity[this.settings.severity.breakingChanges]
+    );
     diagnostics.push(...changes);
   }
 
@@ -2160,20 +2384,20 @@ export class DiagnosticsProvider {
    */
   private isBufRegistryImport(importPath: string): boolean {
     const bufRegistryPatterns = [
-      /^buf\//,                    // buf.build/bufbuild/* modules
-      /^google\/api\//,            // googleapis - google/api
-      /^google\/type\//,           // googleapis - google/type
-      /^google\/rpc\//,            // googleapis - google/rpc
-      /^google\/cloud\//,          // googleapis - google/cloud
-      /^google\/logging\//,        // googleapis - google/logging
-      /^grpc\//,                   // grpc modules
-      /^envoy\//,                  // envoy proxy
-      /^validate\/validate\.proto$/,  // protoc-gen-validate (PGV)
-      /^xds\//,                    // xDS API
-      /^opencensus\//,             // OpenCensus
-      /^opentelemetry\//,          // OpenTelemetry
-      /^cosmos\//,                 // Cosmos SDK
-      /^tendermint\//,             // Tendermint
+      /^buf\//, // buf.build/bufbuild/* modules
+      /^google\/api\//, // googleapis - google/api
+      /^google\/type\//, // googleapis - google/type
+      /^google\/rpc\//, // googleapis - google/rpc
+      /^google\/cloud\//, // googleapis - google/cloud
+      /^google\/logging\//, // googleapis - google/logging
+      /^grpc\//, // grpc modules
+      /^envoy\//, // envoy proxy
+      /^validate\/validate\.proto$/, // protoc-gen-validate (PGV)
+      /^xds\//, // xDS API
+      /^opencensus\//, // OpenCensus
+      /^opentelemetry\//, // OpenTelemetry
+      /^cosmos\//, // Cosmos SDK
+      /^tendermint\//, // Tendermint
     ];
 
     return bufRegistryPatterns.some(pattern => pattern.test(importPath));

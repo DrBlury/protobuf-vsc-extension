@@ -11,7 +11,8 @@ describe('SchemaGraphProvider', () => {
   const userUri = 'file:///user.proto';
 
   beforeAll(() => {
-    const common = parser.parse(`
+    const common = parser.parse(
+      `
       syntax = "proto3";
       package demo;
       message Address {
@@ -21,9 +22,12 @@ describe('SchemaGraphProvider', () => {
         UNKNOWN = 0;
         ACTIVE = 1;
       }
-    `, commonUri);
+    `,
+      commonUri
+    );
 
-    const user = parser.parse(`
+    const user = parser.parse(
+      `
       syntax = "proto3";
       package demo;
       import "common.proto";
@@ -36,7 +40,9 @@ describe('SchemaGraphProvider', () => {
       message Phone {
         string number = 1;
       }
-    `, userUri);
+    `,
+      userUri
+    );
 
     analyzer.updateFile(commonUri, common);
     analyzer.updateFile(userUri, user);
@@ -53,7 +59,9 @@ describe('SchemaGraphProvider', () => {
   it('creates edges for field type references', () => {
     const graph = provider.buildGraph({ scope: 'workspace' });
 
-    const addressEdge = graph.edges.find(e => e.from === 'demo.User' && e.to === 'demo.Address' && e.label === 'address');
+    const addressEdge = graph.edges.find(
+      e => e.from === 'demo.User' && e.to === 'demo.Address' && e.label === 'address'
+    );
     const statusEdge = graph.edges.find(e => e.from === 'demo.User' && e.to === 'demo.Status' && e.label === 'status');
     const phoneEdge = graph.edges.find(e => e.from === 'demo.User' && e.to === 'demo.Phone' && e.label === 'phones');
 
@@ -104,11 +112,7 @@ describe('SchemaGraphProvider', () => {
       expect(graph.nodes.find(n => n.id === 'test.Config')).toBeTruthy();
 
       // Should have edge from Settings to Config via map field
-      const mapEdge = graph.edges.find(e => 
-        e.from === 'test.Settings' && 
-        e.to === 'test.Config' && 
-        e.kind === 'map'
-      );
+      const mapEdge = graph.edges.find(e => e.from === 'test.Settings' && e.to === 'test.Config' && e.kind === 'map');
       expect(mapEdge).toBeDefined();
       expect(mapEdge?.label).toBe('configs');
     });
@@ -144,15 +148,11 @@ describe('SchemaGraphProvider', () => {
       expect(graph.nodes.find(n => n.id === 'test.ImageContent')).toBeTruthy();
 
       // Should have oneof edges
-      const textEdge = graph.edges.find(e => 
-        e.from === 'test.Content' && 
-        e.to === 'test.TextContent' && 
-        e.kind === 'oneof'
+      const textEdge = graph.edges.find(
+        e => e.from === 'test.Content' && e.to === 'test.TextContent' && e.kind === 'oneof'
       );
-      const imageEdge = graph.edges.find(e => 
-        e.from === 'test.Content' && 
-        e.to === 'test.ImageContent' && 
-        e.kind === 'oneof'
+      const imageEdge = graph.edges.find(
+        e => e.from === 'test.Content' && e.to === 'test.ImageContent' && e.kind === 'oneof'
       );
       expect(textEdge).toBeDefined();
       expect(imageEdge).toBeDefined();
@@ -187,15 +187,11 @@ describe('SchemaGraphProvider', () => {
       expect(graph.nodes.find(n => n.id === 'test.Outer.InnerStatus')).toBeTruthy();
 
       // Should have nested edges
-      const innerEdge = graph.edges.find(e => 
-        e.from === 'test.Outer' && 
-        e.to === 'test.Outer.Inner' && 
-        e.kind === 'nested'
+      const innerEdge = graph.edges.find(
+        e => e.from === 'test.Outer' && e.to === 'test.Outer.Inner' && e.kind === 'nested'
       );
-      const enumEdge = graph.edges.find(e => 
-        e.from === 'test.Outer' && 
-        e.to === 'test.Outer.InnerStatus' && 
-        e.kind === 'nested'
+      const enumEdge = graph.edges.find(
+        e => e.from === 'test.Outer' && e.to === 'test.Outer.InnerStatus' && e.kind === 'nested'
       );
       expect(innerEdge).toBeDefined();
       expect(enumEdge).toBeDefined();
@@ -220,10 +216,7 @@ describe('SchemaGraphProvider', () => {
 
       const graph = optionalProvider.buildGraph({ scope: 'workspace' });
 
-      const edge = graph.edges.find(e => 
-        e.from === 'test.Person' && 
-        e.to === 'test.Address'
-      );
+      const edge = graph.edges.find(e => e.from === 'test.Person' && e.to === 'test.Address');
       expect(edge).toBeDefined();
       expect(edge?.optional).toBe(true);
     });

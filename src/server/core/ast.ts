@@ -225,7 +225,7 @@ export enum SymbolKind {
   Field = 'field',
   EnumValue = 'enumValue',
   Oneof = 'oneof',
-  Package = 'package'
+  Package = 'package',
 }
 
 // Built-in protobuf types
@@ -244,7 +244,7 @@ export const BUILTIN_TYPES = [
   'sfixed64',
   'bool',
   'string',
-  'bytes'
+  'bytes',
 ];
 
 export const MAP_KEY_TYPES = [
@@ -259,7 +259,7 @@ export const MAP_KEY_TYPES = [
   'sfixed32',
   'sfixed64',
   'bool',
-  'string'
+  'string',
 ];
 
 export const PROTOBUF_KEYWORDS = [
@@ -288,7 +288,7 @@ export const PROTOBUF_KEYWORDS = [
   'map',
   'group',
   'true',
-  'false'
+  'false',
 ];
 
 // Reserved field number ranges

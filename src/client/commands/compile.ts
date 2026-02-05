@@ -44,15 +44,11 @@ function getOutputChannel(): vscode.OutputChannel {
 /**
  * Log compilation details to output channel
  */
-function logCompilationDetails(
-  action: string,
-  result: CompileFileResult | CompileAllResult,
-  filePath?: string
-): void {
+function logCompilationDetails(action: string, result: CompileFileResult | CompileAllResult, filePath?: string): void {
   const channel = getOutputChannel();
   const timestamp = new Date().toISOString();
 
-  channel.appendLine(`\n[${ timestamp }] ${action}`);
+  channel.appendLine(`\n[${timestamp}] ${action}`);
   if (filePath) {
     channel.appendLine(`File: ${filePath}`);
   }
@@ -83,9 +79,7 @@ function logCompilationDetails(
  */
 function formatErrorsForDisplay(result: CompileFileResult | CompileAllResult): string {
   if (result.errors && result.errors.length > 0) {
-    return result.errors.map(e =>
-      e.file ? `${e.file}:${e.line}:${e.column}: ${e.message}` : e.message
-    ).join('\n');
+    return result.errors.map(e => (e.file ? `${e.file}:${e.line}:${e.column}: ${e.message}` : e.message)).join('\n');
   }
   if (result.stderr) {
     return result.stderr.trim();
@@ -130,9 +124,8 @@ async function showCompilationError(
   }
 
   // Truncate very long error messages for the notification
-  const displayError = errorDetail.length > 500
-    ? errorDetail.substring(0, 500) + '...\n\n(See Output for full details)'
-    : errorDetail;
+  const displayError =
+    errorDetail.length > 500 ? errorDetail.substring(0, 500) + '...\n\n(See Output for full details)' : errorDetail;
 
   const selection = await vscode.window.showErrorMessage(
     `${title}:\n${displayError || ERROR_MESSAGES.UNKNOWN_ERROR}`,
@@ -156,14 +149,8 @@ async function showCompilationError(
  * @param client - The language client instance
  * @returns Array of disposables for registered commands
  */
-export function registerCompileCommands(
-  context: vscode.ExtensionContext,
-  client: LanguageClient
-): vscode.Disposable[] {
-  return [
-    registerCompileFileCommand(context, client),
-    registerCompileAllCommand(context, client)
-  ];
+export function registerCompileCommands(context: vscode.ExtensionContext, client: LanguageClient): vscode.Disposable[] {
+  return [registerCompileFileCommand(context, client), registerCompileAllCommand(context, client)];
 }
 
 /**
@@ -173,10 +160,7 @@ export function registerCompileCommands(
  * @param client - The language client instance
  * @returns A disposable for the registered command
  */
-function registerCompileFileCommand(
-  _context: vscode.ExtensionContext,
-  client: LanguageClient
-): vscode.Disposable {
+function registerCompileFileCommand(_context: vscode.ExtensionContext, client: LanguageClient): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.compileFile', async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor || editor.document.languageId !== 'proto') {
@@ -206,7 +190,7 @@ function registerCompileFileCommand(
       }
 
       const result = (await client.sendRequest(REQUEST_METHODS.COMPILE_FILE, {
-        uri: editor.document.uri.toString()
+        uri: editor.document.uri.toString(),
       })) as CompileFileResult;
 
       // Always log details for debugging
@@ -242,10 +226,7 @@ function registerCompileFileCommand(
  * @param client - The language client instance
  * @returns A disposable for the registered command
  */
-function registerCompileAllCommand(
-  _context: vscode.ExtensionContext,
-  client: LanguageClient
-): vscode.Disposable {
+function registerCompileAllCommand(_context: vscode.ExtensionContext, client: LanguageClient): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.compileAll', async () => {
     try {
       const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -273,16 +254,14 @@ function registerCompileAllCommand(
       }
 
       const result = (await client.sendRequest(REQUEST_METHODS.COMPILE_ALL, {
-        workspaceRoot: workspaceFolders[0]!.uri.fsPath
+        workspaceRoot: workspaceFolders[0]!.uri.fsPath,
       })) as CompileAllResult;
 
       // Always log details for debugging
       logCompilationDetails('Compile All', result, workspaceFolders[0]!.uri.fsPath);
 
       if (result.success) {
-        vscode.window.showInformationMessage(
-          SUCCESS_MESSAGES.COMPILED_ALL(result.fileCount ?? 0)
-        );
+        vscode.window.showInformationMessage(SUCCESS_MESSAGES.COMPILED_ALL(result.fileCount ?? 0));
       } else {
         const errorDetail = formatErrorsForDisplay(result);
         await showCompilationError(ERROR_MESSAGES.COMPILATION_FAILED, errorDetail);

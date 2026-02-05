@@ -17,19 +17,19 @@ describe('DocumentLinksHandler', () => {
 
   beforeEach(() => {
     documents = {
-      get: jest.fn()
+      get: jest.fn(),
     } as any;
     documentLinksProvider = {
-      getDocumentLinks: jest.fn()
+      getDocumentLinks: jest.fn(),
     } as any;
     parser = {
-      parse: jest.fn()
+      parse: jest.fn(),
     } as any;
   });
 
   it('should return empty array when document not found', () => {
     const params: DocumentLinkParams = {
-      textDocument: { uri: 'file:///nonexistent.proto' }
+      textDocument: { uri: 'file:///nonexistent.proto' },
     };
 
     documents.get.mockReturnValue(undefined);
@@ -46,7 +46,7 @@ describe('DocumentLinksHandler', () => {
     documents.get.mockReturnValue(doc);
 
     const params: DocumentLinkParams = {
-      textDocument: { uri }
+      textDocument: { uri },
     };
 
     parser.parse.mockImplementation(() => {
@@ -64,14 +64,27 @@ describe('DocumentLinksHandler', () => {
     documents.get.mockReturnValue(doc);
 
     const params: DocumentLinkParams = {
-      textDocument: { uri }
+      textDocument: { uri },
     };
 
-    const parsedFile = { messages: [], enums: [], extends: [], imports: [{ path: 'google/protobuf/timestamp.proto' }], syntax: 'proto3', type: 'file', options: undefined, services: [], range: undefined } as unknown as ProtoFile;
+    const parsedFile = {
+      messages: [],
+      enums: [],
+      extends: [],
+      imports: [{ path: 'google/protobuf/timestamp.proto' }],
+      syntax: 'proto3',
+      type: 'file',
+      options: undefined,
+      services: [],
+      range: undefined,
+    } as unknown as ProtoFile;
     parser.parse.mockReturnValue(parsedFile);
 
     const documentLinks: DocumentLink[] = [
-      { range: { start: { line: 1, character: 7 }, end: { line: 1, character: 40 } }, target: 'file:///path/to/timestamp.proto' }
+      {
+        range: { start: { line: 1, character: 7 }, end: { line: 1, character: 40 } },
+        target: 'file:///path/to/timestamp.proto',
+      },
     ];
     documentLinksProvider.getDocumentLinks.mockReturnValue(documentLinks);
 
@@ -89,10 +102,20 @@ describe('DocumentLinksHandler', () => {
     documents.get.mockReturnValue(doc);
 
     const params: DocumentLinkParams = {
-      textDocument: { uri }
+      textDocument: { uri },
     };
 
-    const parsedFile = { messages: [], enums: [], extends: [], imports: [], syntax: 'proto3', type: 'file', options: undefined, services: [], range: undefined } as unknown as ProtoFile;
+    const parsedFile = {
+      messages: [],
+      enums: [],
+      extends: [],
+      imports: [],
+      syntax: 'proto3',
+      type: 'file',
+      options: undefined,
+      services: [],
+      range: undefined,
+    } as unknown as ProtoFile;
     parser.parse.mockReturnValue(parsedFile);
     documentLinksProvider.getDocumentLinks.mockReturnValue([]);
 

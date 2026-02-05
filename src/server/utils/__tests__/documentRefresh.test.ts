@@ -13,8 +13,8 @@ import { logger } from '../logger';
 
 jest.mock('../logger', () => ({
   logger: {
-    debug: jest.fn()
-  }
+    debug: jest.fn(),
+  },
 }));
 
 describe('Document Refresh utilities', () => {
@@ -28,7 +28,7 @@ describe('Document Refresh utilities', () => {
     analyzer = new SemanticAnalyzer();
     cache = new ContentHashCache<ProtoFile>();
     documents = {
-      get: jest.fn()
+      get: jest.fn(),
     } as any;
     jest.clearAllMocks();
   });

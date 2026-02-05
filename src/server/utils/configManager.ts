@@ -30,7 +30,7 @@ const LOG_LEVEL_MAP: Record<string, LogLevel> = {
   warn: LogLevel.WARN,
   info: LogLevel.INFO,
   debug: LogLevel.DEBUG,
-  verbose: LogLevel.VERBOSE
+  verbose: LogLevel.VERBOSE,
 };
 
 /**
@@ -157,6 +157,22 @@ function extractProtoPathOptions(options: string[] | undefined): string[] {
   return protoPaths;
 }
 
+function parsePathMapping(rawPath: string): { virtual: string; actual: string } | null {
+  const separatorIndex = rawPath.indexOf('=');
+  if (separatorIndex <= 0) {
+    return null;
+  }
+
+  const virtual = rawPath.slice(0, separatorIndex).trim();
+  const actual = rawPath.slice(separatorIndex + 1).trim();
+
+  if (!virtual || !actual) {
+    return null;
+  }
+
+  return { virtual, actual };
+}
+
 /**
  * Updates all providers with new settings
  * @returns An object containing the expanded include paths and protoSrcsDir
@@ -215,12 +231,14 @@ export function updateProvidersWithSettings(
     alignFields: settings.protobuf.formatter?.alignFields,
     preserveMultiLineFields: settings.protobuf.formatter?.preserveMultiLineFields,
     insertEmptyLineBetweenDefinitions: settings.protobuf.formatter?.insertEmptyLineBetweenDefinitions,
-    maxEmptyLines: settings.protobuf.formatter?.maxEmptyLines
+    maxEmptyLines: settings.protobuf.formatter?.maxEmptyLines,
   };
   formatter.updateSettings(formatterSettings);
   // Pass clangFormat.enabled to formatter so it can use clang-format even without preset='google'
   formatter.setClangFormatEnabled(settings.protobuf.clangFormat.enabled);
-  logger.info(`Formatter settings updated: renumberOnFormat=${formatterSettings.renumberOnFormat}, preset=${formatterSettings.preset}, alignFields=${formatterSettings.alignFields}, preserveMultiLineFields=${formatterSettings.preserveMultiLineFields}, insertEmptyLineBetweenDefinitions=${formatterSettings.insertEmptyLineBetweenDefinitions}, maxEmptyLines=${formatterSettings.maxEmptyLines}, clangFormatEnabled=${settings.protobuf.clangFormat.enabled}`);
+  logger.info(
+    `Formatter settings updated: renumberOnFormat=${formatterSettings.renumberOnFormat}, preset=${formatterSettings.preset}, alignFields=${formatterSettings.alignFields}, preserveMultiLineFields=${formatterSettings.preserveMultiLineFields}, insertEmptyLineBetweenDefinitions=${formatterSettings.insertEmptyLineBetweenDefinitions}, maxEmptyLines=${formatterSettings.maxEmptyLines}, clangFormatEnabled=${settings.protobuf.clangFormat.enabled}`
+  );
 
   // Update code actions settings
   if (codeActionsProvider) {
@@ -229,11 +247,13 @@ export function updateProvidersWithSettings(
       formatterEnabled: settings.protobuf.formatter?.enabled ?? true,
       organizeImports: {
         enabled: settings.protobuf.organizeImports?.enabled ?? true,
-        groupByCategory: settings.protobuf.organizeImports?.groupByCategory ?? true
-      }
+        groupByCategory: settings.protobuf.organizeImports?.groupByCategory ?? true,
+      },
     };
     codeActionsProvider.updateSettings(codeActionsSettings);
-    logger.info(`Code actions settings updated: renumberOnFormat=${codeActionsSettings.renumberOnFormat}, formatterEnabled=${codeActionsSettings.formatterEnabled}, organizeImports.enabled=${codeActionsSettings.organizeImports.enabled}, organizeImports.groupByCategory=${codeActionsSettings.organizeImports.groupByCategory}`);
+    logger.info(
+      `Code actions settings updated: renumberOnFormat=${codeActionsSettings.renumberOnFormat}, formatterEnabled=${codeActionsSettings.formatterEnabled}, organizeImports.enabled=${codeActionsSettings.organizeImports.enabled}, organizeImports.groupByCategory=${codeActionsSettings.organizeImports.groupByCategory}`
+    );
   }
 
   // Update renumber settings
@@ -242,19 +262,18 @@ export function updateProvidersWithSettings(
     startNumber: renumberSettings.startNumber,
     increment: renumberSettings.increment,
     preserveReserved: renumberSettings.preserveReserved,
-    skipReservedRange: renumberSettings.skipInternalRange
+    skipReservedRange: renumberSettings.skipInternalRange,
   });
 
   // Update analyzer with import paths (expand variables like ${workspaceFolder})
   const workspaceBufIncludes = collectWorkspaceBufIncludes(workspaceFolders);
-  const protoPathIncludes = extractProtoPathOptions(settings.protobuf.protoc?.options).map(p => p.trim()).filter(Boolean);
-  const rawIncludePaths = [
-    ...workspaceBufIncludes,
-    ...protoPathIncludes,
-    ...(settings.protobuf.includes || [])
-  ];
+  const protoPathIncludes = extractProtoPathOptions(settings.protobuf.protoc?.options)
+    .map(p => p.trim())
+    .filter(Boolean);
+  const rawIncludePaths = [...workspaceBufIncludes, ...protoPathIncludes, ...(settings.protobuf.includes || [])];
 
   const includePaths: string[] = [];
+  const pathMappings: Array<{ virtual: string; actual: string }> = [];
   const seenPaths = new Set<string>();
   let userHasGoogleProtos = false;
 
@@ -266,6 +285,23 @@ export function updateProvidersWithSettings(
     if (!expanded) {
       continue;
     }
+    const mapping = parsePathMapping(expanded);
+    if (mapping) {
+      pathMappings.push(mapping);
+      const normalizedActual = path.normalize(mapping.actual);
+      if (!seenPaths.has(normalizedActual)) {
+        seenPaths.add(normalizedActual);
+        includePaths.push(mapping.actual);
+
+        // Check if user provides their own google protos (e.g., from nanopb)
+        if (containsGoogleProtos(mapping.actual)) {
+          userHasGoogleProtos = true;
+          logger.info(`User-supplied google protos detected in: ${mapping.actual}`);
+        }
+      }
+      continue;
+    }
+
     const normalized = path.normalize(expanded);
     if (!seenPaths.has(normalized)) {
       seenPaths.add(normalized);
@@ -301,6 +337,7 @@ export function updateProvidersWithSettings(
     }
   }
 
+  analyzer.setImportPathMappings(pathMappings);
   analyzer.setImportPaths(includePaths);
 
   // Update protoc compiler settings
@@ -313,7 +350,7 @@ export function updateProvidersWithSettings(
     compileAllPath: expandedCompileAllPath || protocSettings.compileAllPath,
     useAbsolutePath: protocSettings.useAbsolutePath,
     options: protocSettings.options,
-    excludePatterns: protocSettings.excludePatterns || []
+    excludePatterns: protocSettings.excludePatterns || [],
   });
 
   // Update breaking change detector settings
@@ -323,7 +360,7 @@ export function updateProvidersWithSettings(
     enabled: breakingSettings.enabled,
     againstStrategy: breakingSettings.againstStrategy as 'git' | 'file' | 'none',
     againstGitRef: breakingSettings.againstGitRef,
-    againstFilePath: expandedBreakingFilePath || breakingSettings.againstFilePath
+    againstFilePath: expandedBreakingFilePath || breakingSettings.againstFilePath,
   });
 
   // Update external linter settings
@@ -343,7 +380,7 @@ export function updateProvidersWithSettings(
     bufConfigPath: expandedBufConfigPath || linterSettings.bufConfigPath,
     protolintConfigPath: expandedProtolintConfigPath || linterSettings.protolintConfigPath,
     apiLinterConfigPath: expandedApiLinterConfigPath || linterSettings.apiLinterConfigPath,
-    runOnSave: linterSettings.runOnSave
+    runOnSave: linterSettings.runOnSave,
   });
 
   const configuredBufPath = expandPathSetting(settings.protobuf.buf?.path?.trim(), workspaceFolders);
@@ -362,7 +399,7 @@ export function updateProvidersWithSettings(
     path: resolvedClangPath,
     style: clangSettings.style,
     fallbackStyle: clangSettings.fallbackStyle,
-    configPath: expandedClangConfigPath || clangSettings.configPath
+    configPath: expandedClangConfigPath || clangSettings.configPath,
   });
 
   if (clangSettings.enabled) {
@@ -375,13 +412,9 @@ export function updateProvidersWithSettings(
       pathDetails = 'relative path';
     }
 
-    const expansionInfo = expandedClangPath && clangSettings.path
-      ? ` (expanded from "${clangSettings.path}")`
-      : '';
+    const expansionInfo = expandedClangPath && clangSettings.path ? ` (expanded from "${clangSettings.path}")` : '';
 
-    const configPathInfo = expandedClangConfigPath
-      ? `, configPath="${expandedClangConfigPath}"`
-      : '';
+    const configPathInfo = expandedClangConfigPath ? `, configPath="${expandedClangConfigPath}"` : '';
 
     logger.info(
       `clang-format enabled. configured="${configuredPath}" resolved="${usedPath}"${expansionInfo} (${pathDetails}). style=${clangSettings.style || 'file'}, fallback=${clangSettings.fallbackStyle || 'Google'}${configPathInfo}`
@@ -395,7 +428,7 @@ export function updateProvidersWithSettings(
       configPath: expandedClangConfigPath || clangSettings.configPath || '(auto-detect)',
       workspaceFolders: workspaceFolders.join(', ') || '(none)',
       style: clangSettings.style,
-      fallbackStyle: clangSettings.fallbackStyle
+      fallbackStyle: clangSettings.fallbackStyle,
     });
   } else {
     logger.info('clang-format disabled. Built-in formatter will handle proto files unless buf preset is selected.');
@@ -404,7 +437,7 @@ export function updateProvidersWithSettings(
       configuredPath: clangSettings.path,
       style: clangSettings.style,
       fallbackStyle: clangSettings.fallbackStyle,
-      configPath: clangSettings.configPath
+      configPath: clangSettings.configPath,
     });
   }
 
@@ -429,11 +462,21 @@ export function updateProvidersWithSettings(
   logger.info(`  protoc.compileOnSave: ${protocSettings.compileOnSave}`);
   logger.info(`  buf.path: ${resolvedBufPath ?? 'not configured'}`);
   logger.info(`  externalLinter.enabled: ${linterSettings.enabled} (linter=${linterSettings.linter})`);
-  logger.info(`  externalLinter.bufConfigPath: ${expandedBufConfigPath || linterSettings.bufConfigPath || 'not configured'}`);
-  logger.info(`  externalLinter.protolintPath: ${expandedProtolintPath || linterSettings.protolintPath || 'not configured'}`);
-  logger.info(`  externalLinter.protolintConfigPath: ${expandedProtolintConfigPath || linterSettings.protolintConfigPath || 'not configured'}`);
-  logger.info(`  externalLinter.apiLinterPath: ${expandedApiLinterPath || linterSettings.apiLinterPath || 'not configured'}`);
-  logger.info(`  externalLinter.apiLinterConfigPath: ${expandedApiLinterConfigPath || linterSettings.apiLinterConfigPath || 'not configured'}`);
+  logger.info(
+    `  externalLinter.bufConfigPath: ${expandedBufConfigPath || linterSettings.bufConfigPath || 'not configured'}`
+  );
+  logger.info(
+    `  externalLinter.protolintPath: ${expandedProtolintPath || linterSettings.protolintPath || 'not configured'}`
+  );
+  logger.info(
+    `  externalLinter.protolintConfigPath: ${expandedProtolintConfigPath || linterSettings.protolintConfigPath || 'not configured'}`
+  );
+  logger.info(
+    `  externalLinter.apiLinterPath: ${expandedApiLinterPath || linterSettings.apiLinterPath || 'not configured'}`
+  );
+  logger.info(
+    `  externalLinter.apiLinterConfigPath: ${expandedApiLinterConfigPath || linterSettings.apiLinterConfigPath || 'not configured'}`
+  );
   logger.info(`  clangFormat.path: ${resolvedClangPath} (enabled=${clangSettings.enabled})`);
   logger.info(`  includePaths: ${includePaths.join(', ') || '(none)'}`);
   logger.info(`  protoSrcsDir: ${protoSrcsDir || '(workspace root)'}`);
@@ -442,6 +485,6 @@ export function updateProvidersWithSettings(
   // Note: includePaths already computed above with variable expansion
   return {
     includePaths: includePaths.filter(p => p !== wellKnownIncludePath && p !== wellKnownCacheDir),
-    protoSrcsDir
+    protoSrcsDir,
   };
 }

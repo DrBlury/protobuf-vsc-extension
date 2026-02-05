@@ -19,14 +19,8 @@ interface ImportInfo {
  * @param client - The language client instance
  * @returns Array of disposables for registered commands
  */
-export function registerImportCommands(
-  context: vscode.ExtensionContext,
-  client: LanguageClient
-): vscode.Disposable[] {
-  return [
-    registerOpenImportedFileCommand(context, client),
-    registerOrganizeImportsCommand(context, client)
-  ];
+export function registerImportCommands(context: vscode.ExtensionContext, client: LanguageClient): vscode.Disposable[] {
+  return [registerOpenImportedFileCommand(context, client), registerOrganizeImportsCommand(context, client)];
 }
 
 /**
@@ -36,10 +30,7 @@ export function registerImportCommands(
  * @param client - The language client instance
  * @returns A disposable for the registered command
  */
-function registerOrganizeImportsCommand(
-  _context: vscode.ExtensionContext,
-  _client: LanguageClient
-): vscode.Disposable {
+function registerOrganizeImportsCommand(_context: vscode.ExtensionContext, _client: LanguageClient): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.organizeImports', async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor || editor.document.languageId !== 'proto') {
@@ -63,8 +54,7 @@ function registerOrganizeImportsCommand(
 
       // Find the organize imports action
       const organizeAction = codeActions.find(
-        action => action.kind?.value === 'source.organizeImports' ||
-                  action.title?.toLowerCase().includes('organize')
+        action => action.kind?.value === 'source.organizeImports' || action.title?.toLowerCase().includes('organize')
       );
 
       if (organizeAction?.edit) {
@@ -87,10 +77,7 @@ function registerOrganizeImportsCommand(
  * @param client - The language client instance
  * @returns A disposable for the registered command
  */
-function registerOpenImportedFileCommand(
-  _context: vscode.ExtensionContext,
-  client: LanguageClient
-): vscode.Disposable {
+function registerOpenImportedFileCommand(_context: vscode.ExtensionContext, client: LanguageClient): vscode.Disposable {
   return vscode.commands.registerCommand('protobuf.openImportedFile', async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor || editor.document.languageId !== 'proto') {
@@ -100,7 +87,7 @@ function registerOpenImportedFileCommand(
 
     try {
       const imports = (await client.sendRequest<ImportInfo[]>(REQUEST_METHODS.LIST_IMPORTS, {
-        uri: editor.document.uri.toString()
+        uri: editor.document.uri.toString(),
       })) as ImportInfo[];
 
       if (!imports || imports.length === 0) {
@@ -113,7 +100,7 @@ function registerOpenImportedFileCommand(
           label: imp.importPath,
           description: imp.isResolved ? 'resolved' : 'unresolved',
           detail: imp.resolvedUri ? vscode.Uri.parse(imp.resolvedUri).fsPath : undefined,
-          resolvedUri: imp.resolvedUri
+          resolvedUri: imp.resolvedUri,
         })),
         { placeHolder: 'Select an import to open' }
       );

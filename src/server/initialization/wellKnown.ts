@@ -56,15 +56,11 @@ export function preloadGoogleWellKnownProtos(
     const relativePath = GOOGLE_WELL_KNOWN_FILES[importPath];
 
     // Order: discovered include path (user/system protoc), bundled resource, inline fallback
-    const fromDiscovered = discoveredIncludePath
-      ? path.join(discoveredIncludePath, importPath)
-      : undefined;
+    const fromDiscovered = discoveredIncludePath ? path.join(discoveredIncludePath, importPath) : undefined;
     const fromResource = relativePath ? path.join(resourcesRoot, relativePath) : undefined;
     const fromCache = wellKnownCacheDir ? path.join(wellKnownCacheDir, importPath) : undefined;
 
-    const firstExisting = [fromDiscovered, fromResource, fromCache].find(
-      p => p && fs.existsSync(p)
-    );
+    const firstExisting = [fromDiscovered, fromResource, fromCache].find(p => p && fs.existsSync(p));
 
     let filePath = firstExisting;
     let content = filePath ? fs.readFileSync(filePath, 'utf-8') : fallbackContent;
@@ -79,14 +75,12 @@ export function preloadGoogleWellKnownProtos(
       } catch (e) {
         logger.errorWithContext('Failed to write well-known cache', {
           uri: fromCache,
-          error: e
+          error: e,
         });
       }
     }
 
-    const uri = filePath
-      ? pathToFileURL(filePath).toString()
-      : `builtin:///${importPath}`;
+    const uri = filePath ? pathToFileURL(filePath).toString() : `builtin:///${importPath}`;
 
     try {
       const file = parser.parse(content, uri);
@@ -94,7 +88,7 @@ export function preloadGoogleWellKnownProtos(
     } catch (e) {
       logger.errorWithContext('Failed to preload well-known proto', {
         uri: importPath,
-        error: e
+        error: e,
       });
     }
   }

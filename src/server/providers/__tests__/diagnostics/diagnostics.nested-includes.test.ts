@@ -38,7 +38,10 @@ describe('DiagnosticsProvider nested include paths end-to-end', () => {
       }
     `;
 
-    const vendorNestedImportFile = providers.parser.parse(vendorNestedImportContent, 'file:///workspace/vendor/nested/import.proto');
+    const vendorNestedImportFile = providers.parser.parse(
+      vendorNestedImportContent,
+      'file:///workspace/vendor/nested/import.proto'
+    );
     providers.analyzer.updateFile('file:///workspace/vendor/nested/import.proto', vendorNestedImportFile);
 
     // Parse test.proto that imports both files

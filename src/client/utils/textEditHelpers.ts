@@ -22,10 +22,7 @@ export function textEditToVSCodeRange(textEdit: TextEdit): vscode.Range {
  * @param textEdits - Array of LSP TextEdit objects
  * @returns A VS Code WorkspaceEdit ready to apply
  */
-export function createWorkspaceEditFromTextEdits(
-  uri: vscode.Uri,
-  textEdits: TextEdit[]
-): vscode.WorkspaceEdit {
+export function createWorkspaceEditFromTextEdits(uri: vscode.Uri, textEdits: TextEdit[]): vscode.WorkspaceEdit {
   const edit = new vscode.WorkspaceEdit();
   for (const textEdit of textEdits) {
     edit.replace(uri, textEditToVSCodeRange(textEdit), textEdit.newText);

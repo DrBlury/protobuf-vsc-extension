@@ -16,6 +16,7 @@ export type SeveritySetting = 'error' | 'warning' | 'information' | 'hint';
 export interface Settings {
   protobuf: {
     formatOnSave: boolean;
+    enableBetaFeatures: boolean;
     indentSize: number;
     useTabIndent: boolean;
     maxLineLength: number;
@@ -125,6 +126,7 @@ export interface Settings {
 export const defaultSettings: Settings = {
   protobuf: {
     formatOnSave: false,
+    enableBetaFeatures: false,
     indentSize: DEFAULT_CONFIG.INDENT_SIZE,
     useTabIndent: false,
     maxLineLength: DEFAULT_CONFIG.MAX_LINE_LENGTH,
@@ -134,10 +136,10 @@ export const defaultSettings: Settings = {
       alignFields: true,
       preserveMultiLineFields: false,
       insertEmptyLineBetweenDefinitions: true,
-      maxEmptyLines: 1
+      maxEmptyLines: 1,
     },
     semanticHighlighting: {
-      enabled: 'textmate'
+      enabled: 'textmate',
     },
     includes: [],
     protoSrcsDir: '',
@@ -147,7 +149,7 @@ export const defaultSettings: Settings = {
       preserveReserved: true,
       skipInternalRange: true,
       autoSuggestNext: true,
-      onFormat: false
+      onFormat: false,
     },
     diagnostics: {
       enabled: true,
@@ -170,24 +172,24 @@ export const defaultSettings: Settings = {
         fieldTagIssues: 'error',
         discouragedConstructs: 'warning',
         nonCanonicalImportPath: 'error',
-        breakingChanges: 'error'
-      }
+        breakingChanges: 'error',
+      },
     },
     completion: {
       autoImport: true,
-      includeGoogleTypes: true
+      includeGoogleTypes: true,
     },
     hover: {
       showFieldNumbers: true,
-      showDocumentation: true
+      showDocumentation: true,
     },
     organizeImports: {
       enabled: true,
-      groupByCategory: true
+      groupByCategory: true,
     },
     parser: 'tree-sitter',
     buf: {
-      path: DEFAULT_CONFIG.BUF_PATH
+      path: DEFAULT_CONFIG.BUF_PATH,
     },
     protoc: {
       path: DEFAULT_CONFIG.PROTOC_PATH,
@@ -195,13 +197,13 @@ export const defaultSettings: Settings = {
       compileAllPath: '',
       useAbsolutePath: false,
       options: [],
-      excludePatterns: []
+      excludePatterns: [],
     },
     breaking: {
       enabled: false,
       againstStrategy: 'git',
       againstGitRef: DEFAULT_CONFIG.BREAKING_GIT_REF,
-      againstFilePath: ''
+      againstFilePath: '',
     },
     externalLinter: {
       enabled: false,
@@ -212,18 +214,18 @@ export const defaultSettings: Settings = {
       bufConfigPath: '',
       protolintConfigPath: '',
       apiLinterConfigPath: '',
-      runOnSave: true
+      runOnSave: true,
     },
     clangFormat: {
       enabled: false,
       path: DEFAULT_CONFIG.CLANG_FORMAT_PATH,
       style: DEFAULT_CONFIG.CLANG_FORMAT_STYLE,
       fallbackStyle: DEFAULT_CONFIG.CLANG_FORMAT_FALLBACK_STYLE,
-      configPath: ''
+      configPath: '',
     },
     debug: {
       verboseLogging: false,
-      logLevel: 'info'
-    }
-  }
+      logLevel: 'info',
+    },
+  },
 };

@@ -10,11 +10,9 @@ import type {
   EnumDefinition,
   ServiceDefinition,
   SymbolInfo,
-  Location} from '../core/ast';
-import {
-  SymbolKind,
-  BUILTIN_TYPES
+  Location,
 } from '../core/ast';
+import { SymbolKind, BUILTIN_TYPES } from '../core/ast';
 import * as path from 'path';
 import { bufConfigProvider } from '../services/bufConfig';
 import { logger } from '../utils/logger';
@@ -35,11 +33,13 @@ export class SemanticAnalyzer {
     files: new Map(),
     symbols: new Map(),
     imports: new Map(),
-    importResolutions: new Map()
+    importResolutions: new Map(),
   };
 
   // Configured import paths to search for proto files (e.g., from protobuf.includes setting)
   private importPaths: string[] = [];
+  // Virtual path mappings (e.g., example.com/org=./) for Go-style imports
+  private importPathMappings: Array<{ virtual: string; actual: string }> = [];
 
   // Workspace roots (from VS Code workspace folders)
   private workspaceRoots: string[] = [];
@@ -57,6 +57,19 @@ export class SemanticAnalyzer {
     }
     // Clear import resolution cache when paths change to force re-resolution
     // This ensures diagnostics are updated when protobuf.includes or --proto_path changes
+    this.clearImportResolutionCache();
+  }
+
+  setImportPathMappings(mappings: Array<{ virtual: string; actual: string }>): void {
+    // Normalize and sort by virtual prefix length (longest first) for best match
+    this.importPathMappings = mappings
+      .map(mapping => ({
+        virtual: mapping.virtual.replace(/\\/g, '/').replace(/\/+$/, ''),
+        actual: mapping.actual.replace(/\\/g, '/').replace(/\/+$/, ''),
+      }))
+      .filter(mapping => mapping.virtual.length > 0 && mapping.actual.length > 0)
+      .sort((a, b) => b.virtual.length - a.virtual.length);
+
     this.clearImportResolutionCache();
   }
 
@@ -201,6 +214,28 @@ export class SemanticAnalyzer {
   }
 
   /**
+   * Apply virtual path mappings to an import path (e.g., module path -> local directory)
+   */
+  private applyPathMappings(importPath: string): string | undefined {
+    if (this.importPathMappings.length === 0) {
+      return undefined;
+    }
+
+    const normalizedImport = importPath.replace(/\\/g, '/');
+
+    for (const mapping of this.importPathMappings) {
+      const virtual = mapping.virtual;
+      if (normalizedImport === virtual || normalizedImport.startsWith(`${virtual}/`)) {
+        const suffix = normalizedImport.slice(virtual.length).replace(/^\//, '');
+        const mappedPath = path.posix.join(mapping.actual.replace(/\\/g, '/'), suffix).replace(/\\/g, '/');
+        return mappedPath;
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
    * Check if a file URI matches an import path
    * Supports multiple import styles:
    * - Relative: "date.proto", "../common/date.proto"
@@ -211,8 +246,7 @@ export class SemanticAnalyzer {
     const normalizedImport = importPath.replace(/\\/g, '/');
 
     // Direct suffix match (most common case)
-    if (normalizedUri.endsWith('/' + normalizedImport) ||
-        normalizedUri.endsWith(normalizedImport)) {
+    if (normalizedUri.endsWith('/' + normalizedImport) || normalizedUri.endsWith(normalizedImport)) {
       return true;
     }
 
@@ -251,6 +285,19 @@ export class SemanticAnalyzer {
       if (this.doesFileMatchImport(normalizedUri, importPath)) {
         this.workspace.importResolutions.set(cacheKey, fileUri);
         return fileUri;
+      }
+    }
+
+    // Strategy 1.5: Virtual path mappings (e.g., module path -> local directory)
+    const mappedPath = this.applyPathMappings(normalizedImport);
+    if (mappedPath) {
+      const mappedUri = 'file://' + mappedPath;
+      for (const [fileUri] of this.workspace.files) {
+        const normalizedFileUri = this.normalizeUri(fileUri);
+        if (normalizedFileUri === mappedUri || normalizedFileUri.endsWith('/' + mappedPath.replace(/^\//, ''))) {
+          this.workspace.importResolutions.set(cacheKey, fileUri);
+          return fileUri;
+        }
       }
     }
 
@@ -390,7 +437,7 @@ export class SemanticAnalyzer {
       fullName,
       kind: SymbolKind.Message,
       location: { uri, range: message.nameRange },
-      containerName: prefix || undefined
+      containerName: prefix || undefined,
     });
 
     // Also register by simple name for easier lookup
@@ -400,7 +447,7 @@ export class SemanticAnalyzer {
         fullName,
         kind: SymbolKind.Message,
         location: { uri, range: message.nameRange },
-        containerName: prefix || undefined
+        containerName: prefix || undefined,
       });
     }
 
@@ -411,7 +458,7 @@ export class SemanticAnalyzer {
         fullName: `${fullName}.${field.name}`,
         kind: SymbolKind.Field,
         location: { uri, range: field.nameRange },
-        containerName: fullName
+        containerName: fullName,
       });
     }
 
@@ -422,7 +469,7 @@ export class SemanticAnalyzer {
         fullName: `${fullName}.${oneof.name}`,
         kind: SymbolKind.Oneof,
         location: { uri, range: oneof.nameRange },
-        containerName: fullName
+        containerName: fullName,
       });
 
       for (const field of oneof.fields) {
@@ -431,7 +478,7 @@ export class SemanticAnalyzer {
           fullName: `${fullName}.${field.name}`,
           kind: SymbolKind.Field,
           location: { uri, range: field.nameRange },
-          containerName: fullName
+          containerName: fullName,
         });
       }
     }
@@ -457,7 +504,7 @@ export class SemanticAnalyzer {
         fullName: groupFullName,
         kind: SymbolKind.Message,
         location: { uri, range: group.range },
-        containerName: fullName
+        containerName: fullName,
       });
 
       // Extract nested messages and enums from the group
@@ -479,7 +526,7 @@ export class SemanticAnalyzer {
       fullName,
       kind: SymbolKind.Enum,
       location: { uri, range: enumDef.nameRange },
-      containerName: prefix || undefined
+      containerName: prefix || undefined,
     });
 
     // Also register by simple name for easier lookup
@@ -489,7 +536,7 @@ export class SemanticAnalyzer {
         fullName,
         kind: SymbolKind.Enum,
         location: { uri, range: enumDef.nameRange },
-        containerName: prefix || undefined
+        containerName: prefix || undefined,
       });
     }
 
@@ -500,7 +547,7 @@ export class SemanticAnalyzer {
         fullName: `${fullName}.${value.name}`,
         kind: SymbolKind.EnumValue,
         location: { uri, range: value.nameRange },
-        containerName: fullName
+        containerName: fullName,
       });
     }
   }
@@ -513,7 +560,7 @@ export class SemanticAnalyzer {
       fullName,
       kind: SymbolKind.Service,
       location: { uri, range: service.nameRange },
-      containerName: prefix || undefined
+      containerName: prefix || undefined,
     });
 
     // Extract RPCs
@@ -523,7 +570,7 @@ export class SemanticAnalyzer {
         fullName: `${fullName}.${rpc.name}`,
         kind: SymbolKind.Rpc,
         location: { uri, range: rpc.nameRange },
-        containerName: fullName
+        containerName: fullName,
       });
     }
   }
@@ -591,8 +638,7 @@ export class SemanticAnalyzer {
   }
 
   getSymbolsInFile(uri: string): SymbolInfo[] {
-    return Array.from(this.workspace.symbols.values())
-      .filter(s => s.location.uri === uri);
+    return Array.from(this.workspace.symbols.values()).filter(s => s.location.uri === uri);
   }
 
   /**
@@ -612,7 +658,9 @@ export class SemanticAnalyzer {
       }
     }
 
-    logger.verbose(`getImportedFileUris for ${uri}: imports=${JSON.stringify(imports)}, resolved=${resolvedUris.length}`);
+    logger.verbose(
+      `getImportedFileUris for ${uri}: imports=${JSON.stringify(imports)}, resolved=${resolvedUris.length}`
+    );
     return resolvedUris;
   }
 
@@ -724,7 +772,7 @@ export class SemanticAnalyzer {
             name: message.name,
             fullName,
             kind: SymbolKind.Message,
-            location: { uri: currentUri, range: message.range }
+            location: { uri: currentUri, range: message.range },
           };
         }
         // Check nested messages
@@ -742,7 +790,7 @@ export class SemanticAnalyzer {
             name: enumDef.name,
             fullName,
             kind: SymbolKind.Enum,
-            location: { uri: currentUri, range: enumDef.range }
+            location: { uri: currentUri, range: enumDef.range },
           };
         }
       }
@@ -764,8 +812,7 @@ export class SemanticAnalyzer {
 
         // Try finding symbol in imported file by simple name
         for (const [fullName, sym] of this.workspace.symbols) {
-          if (sym.location.uri === importedUri &&
-              (sym.name === typeName || fullName.endsWith(`.${typeName}`))) {
+          if (sym.location.uri === importedUri && (sym.name === typeName || fullName.endsWith(`.${typeName}`))) {
             logger.verbose(`resolveType: Found "${typeName}" as "${fullName}" in imported file`);
             return sym;
           }
@@ -776,7 +823,9 @@ export class SemanticAnalyzer {
     // Note: We do NOT fall back to searching all workspace files by simple name.
     // Types from non-imported files should not be resolved - they need an import.
     // The diagnostics will flag unresolved types, and the user can add the import.
-    logger.verbose(`resolveType: Could not resolve "${typeName}" from ${currentUri} (importedUris: ${importedUris.length})`);
+    logger.verbose(
+      `resolveType: Could not resolve "${typeName}" from ${currentUri} (importedUris: ${importedUris.length})`
+    );
 
     return undefined;
   }
@@ -800,7 +849,7 @@ export class SemanticAnalyzer {
           name: nested.name,
           fullName,
           kind: SymbolKind.Message,
-          location: { uri, range: nested.range }
+          location: { uri, range: nested.range },
         };
       }
       // Recursively check deeper nesting
@@ -818,7 +867,7 @@ export class SemanticAnalyzer {
           name: nested.name,
           fullName,
           kind: SymbolKind.Enum,
-          location: { uri, range: nested.range }
+          location: { uri, range: nested.range },
         };
       }
     }
@@ -850,7 +899,10 @@ export class SemanticAnalyzer {
         const extendTypeName = extend.extendType ?? extend.messageName;
         const extendTypeRange = extend.extendTypeRange ?? extend.messageNameRange;
 
-        if (extendTypeName && this.matchesSymbolInContext(extendTypeName, symbolName, fullyQualifiedName, uri, packageName)) {
+        if (
+          extendTypeName &&
+          this.matchesSymbolInContext(extendTypeName, symbolName, fullyQualifiedName, uri, packageName)
+        ) {
           if (extendTypeRange) {
             references.push({ uri, range: extendTypeRange });
           }
@@ -970,14 +1022,16 @@ export class SemanticAnalyzer {
 
   private matchesSymbol(typeName: string, symbolName: string, fullyQualifiedName?: string): boolean {
     if (fullyQualifiedName) {
-      if (typeName === fullyQualifiedName || fullyQualifiedName.endsWith(`.${typeName}`) || typeName.endsWith(`.${fullyQualifiedName}`)) {
+      if (
+        typeName === fullyQualifiedName ||
+        fullyQualifiedName.endsWith(`.${typeName}`) ||
+        typeName.endsWith(`.${fullyQualifiedName}`)
+      ) {
         return true;
       }
     }
 
-    return typeName === symbolName ||
-           typeName.endsWith(`.${symbolName}`) ||
-           symbolName.endsWith(`.${typeName}`);
+    return typeName === symbolName || typeName.endsWith(`.${symbolName}`) || symbolName.endsWith(`.${typeName}`);
   }
 
   /**
@@ -990,8 +1044,7 @@ export class SemanticAnalyzer {
     // First add symbols from current file and imports
     const accessibleSymbols = this.getAccessibleSymbols(currentUri);
     for (const symbol of accessibleSymbols) {
-      if ((symbol.kind === SymbolKind.Message || symbol.kind === SymbolKind.Enum) &&
-          !seenNames.has(symbol.fullName)) {
+      if ((symbol.kind === SymbolKind.Message || symbol.kind === SymbolKind.Enum) && !seenNames.has(symbol.fullName)) {
         completions.push(symbol);
         seenNames.add(symbol.fullName);
       }
@@ -999,8 +1052,7 @@ export class SemanticAnalyzer {
 
     // Also add all workspace symbols for discoverability
     for (const symbol of this.workspace.symbols.values()) {
-      if ((symbol.kind === SymbolKind.Message || symbol.kind === SymbolKind.Enum) &&
-          !seenNames.has(symbol.fullName)) {
+      if ((symbol.kind === SymbolKind.Message || symbol.kind === SymbolKind.Enum) && !seenNames.has(symbol.fullName)) {
         completions.push(symbol);
         seenNames.add(symbol.fullName);
       }
@@ -1013,8 +1065,7 @@ export class SemanticAnalyzer {
    * Get message symbols for RPC type completions
    */
   getMessageCompletions(): SymbolInfo[] {
-    return Array.from(this.workspace.symbols.values())
-      .filter(s => s.kind === SymbolKind.Message);
+    return Array.from(this.workspace.symbols.values()).filter(s => s.kind === SymbolKind.Message);
   }
 
   /**
@@ -1073,6 +1124,17 @@ export class SemanticAnalyzer {
       candidates.push({ path: relativeToCurrent, source: 'forward-relative' });
     }
 
+    // Path mappings (virtual import prefix -> local directory)
+    for (const mapping of this.importPathMappings) {
+      const actual = mapping.actual.replace(/\\/g, '/');
+      if (targetPath.startsWith(`${actual}/`)) {
+        const relPath = path.posix.relative(actual, targetPath);
+        const virtual = mapping.virtual.replace(/\\/g, '/').replace(/\/+$/, '');
+        const mappedPath = relPath ? `${virtual}/${relPath}` : virtual;
+        candidates.push({ path: mappedPath, source: 'path-mapping' });
+      }
+    }
+
     // Check explicitly configured import paths
     for (const importPath of this.importPaths) {
       const normalizedImportPath = importPath.replace(/\\/g, '/');
@@ -1104,9 +1166,7 @@ export class SemanticAnalyzer {
     }
 
     // Clean and deduplicate candidates
-    const cleaned = candidates
-      .map(c => ({ ...c, path: c.path.replace(/\\/g, '/') }))
-      .filter(c => c.path);
+    const cleaned = candidates.map(c => ({ ...c, path: c.path.replace(/\\/g, '/') })).filter(c => c.path);
 
     // Remove duplicates, keeping the first occurrence
     const seen = new Set<string>();
@@ -1118,11 +1178,18 @@ export class SemanticAnalyzer {
       return true;
     });
 
-    // Sort by priority: import-path > forward-relative > workspace-root > others
+    // Sort by priority: path-mapping > import-path > forward-relative > workspace-root > others
     // Secondary sort by path length (shorter is better)
     const sorted = unique.sort((a, b) => {
       // Define priority order
-      const priorityOrder = ['import-path', 'forward-relative', 'basename', 'workspace-root', 'parent-relative'];
+      const priorityOrder = [
+        'path-mapping',
+        'import-path',
+        'forward-relative',
+        'basename',
+        'workspace-root',
+        'parent-relative',
+      ];
       const aPriority = priorityOrder.indexOf(a.source);
       const bPriority = priorityOrder.indexOf(b.source);
 
@@ -1159,11 +1226,7 @@ export class SemanticAnalyzer {
     return undefined;
   }
 
-  private findEnumDefinition(
-    enums: EnumDefinition[],
-    prefix: string,
-    target: string
-  ): EnumDefinition | undefined {
+  private findEnumDefinition(enums: EnumDefinition[], prefix: string, target: string): EnumDefinition | undefined {
     for (const e of enums) {
       const current = prefix ? `${prefix}.${e.name}` : e.name;
       if (current === target) {

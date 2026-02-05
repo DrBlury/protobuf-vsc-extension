@@ -1,5 +1,8 @@
 {
-  "protobuf.includes": ["${workspaceFolder}/examples/buf/.buf-deps"],
+  "protobuf.includes": [
+    "${workspaceFolder}/examples/buf/.buf-deps",
+    "${workspaceFolder}/examples/regressions/buf-workspace-imports/proto/.buf-deps"
+  ],
   "protobuf.formatter.alignFields": true,
   // Use buf linter instead of protoc
   "protobuf.externalLinter.enabled": true,
@@ -50,7 +53,8 @@
   "typescript.tsc.autoDetect": "off",
   "protobuf.protoc.path": "/opt/homebrew/bin/protoc",
   "protobuf.buf.path": "/opt/homebrew/bin/buf",
-  "protobuf.externalLinter.bufPath": "/opt/homebrew/bin/buf"
+  "protobuf.externalLinter.bufPath": "/opt/homebrew/bin/buf",
+  "protobuf.grpcurl.path": "grpcurl"
   // "protobuf.semanticHighlighting.enabled": "textmate"
   // "editor.semanticTokenColorCustomizations": {
   //   "[*]": {

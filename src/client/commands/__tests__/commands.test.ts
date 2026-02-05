@@ -1,69 +1,126 @@
-jest.mock('vscode', () => ({
-  commands: {
-    registerCommand: jest.fn(() => ({ dispose: jest.fn() })),
-    executeCommand: jest.fn()
-  },
-  window: {
-    activeTextEditor: undefined as unknown,
-    showWarningMessage: jest.fn(),
-    showInformationMessage: jest.fn(),
-    showErrorMessage: jest.fn(),
-    showQuickPick: jest.fn(),
-    createOutputChannel: jest.fn(() => ({
-      appendLine: jest.fn(),
-      show: jest.fn(),
-      clear: jest.fn()
-    }))
-  },
-  workspace: {
-    workspaceFolders: undefined as unknown,
-    applyEdit: jest.fn().mockResolvedValue(true)
-  },
-  env: {
-    openExternal: jest.fn(),
-    clipboard: {
-      writeText: jest.fn()
-    }
-  },
-  Uri: {
-    file: (path: string) => ({ fsPath: path }),
-    parse: (uri: string) => ({ toString: () => uri })
-  },
-  Range: class {
-    constructor(public startLine: number, public startChar: number, public endLine: number, public endChar: number) {}
-  },
-  Position: class {
-    constructor(public line: number, public character: number) {}
-  },
-  WorkspaceEdit: class {
-    _edits: Map<string, unknown[]> = new Map();
-    set(uri: unknown, edits: unknown[]) {
-      this._edits.set(String(uri), edits);
-    }
-    replace() {}
-  },
-  TextEdit: class {
-    constructor(public range: unknown, public newText: string) {}
-  },
-  Disposable: class {},
-  ExtensionContext: class {},
-  CodeActionKind: {
-    QuickFix: 'quickfix',
-    Refactor: 'refactor',
-    Source: 'source',
-    SourceOrganizeImports: 'source.organizeImports',
-  },
-}), { virtual: true });
+jest.mock(
+  'vscode',
+  () => ({
+    commands: {
+      registerCommand: jest.fn(() => ({ dispose: jest.fn() })),
+      executeCommand: jest.fn(),
+    },
+    languages: {
+      createDiagnosticCollection: jest.fn(() => ({
+        set: jest.fn(),
+        delete: jest.fn(),
+        dispose: jest.fn(),
+      })),
+    },
+    window: {
+      activeTextEditor: undefined as unknown,
+      showWarningMessage: jest.fn(),
+      showInformationMessage: jest.fn(),
+      showErrorMessage: jest.fn(),
+      showQuickPick: jest.fn(),
+      showTextDocument: jest.fn(async (document: unknown) => ({
+        document,
+        revealRange: jest.fn(),
+        selection: undefined as unknown,
+      })),
+      createOutputChannel: jest.fn(() => ({
+        appendLine: jest.fn(),
+        show: jest.fn(),
+        clear: jest.fn(),
+      })),
+    },
+    workspace: {
+      workspaceFolders: undefined as unknown,
+      applyEdit: jest.fn().mockResolvedValue(true),
+      openTextDocument: jest.fn(async (uri: unknown) => ({ uri })),
+    },
+    env: {
+      openExternal: jest.fn(),
+      clipboard: {
+        writeText: jest.fn(),
+      },
+    },
+    Uri: {
+      file: (path: string) => ({ fsPath: path }),
+      parse: (uri: string) => ({ toString: () => uri }),
+    },
+    Range: class {
+      constructor(
+        public start: unknown,
+        public end: unknown
+      ) {}
+    },
+    Position: class {
+      constructor(
+        public line: number,
+        public character: number
+      ) {}
+    },
+    DiagnosticSeverity: {
+      Error: 1,
+      Warning: 2,
+      Information: 3,
+      Hint: 4,
+    },
+    Diagnostic: class {
+      public source?: string;
+      public code?: unknown;
+      constructor(
+        public range: unknown,
+        public message: string,
+        public severity: unknown
+      ) {}
+    },
+    WorkspaceEdit: class {
+      _edits: Map<string, unknown[]> = new Map();
+      set(uri: unknown, edits: unknown[]) {
+        this._edits.set(String(uri), edits);
+      }
+      replace() {}
+    },
+    TextEdit: class {
+      constructor(
+        public range: unknown,
+        public newText: string
+      ) {}
+    },
+    Selection: class {
+      constructor(
+        public start: unknown,
+        public end: unknown
+      ) {}
+    },
+    Disposable: class {},
+    ExtensionContext: class {},
+    TextEditorRevealType: {
+      Default: 0,
+      InCenter: 1,
+      InCenterIfOutsideViewport: 2,
+      AtTop: 3,
+    },
+    CodeActionKind: {
+      QuickFix: 'quickfix',
+      Refactor: 'refactor',
+      Source: 'source',
+      SourceOrganizeImports: 'source.organizeImports',
+    },
+  }),
+  { virtual: true }
+);
 
-jest.mock('vscode-languageclient/node', () => ({
-  LanguageClient: jest.fn(),
-  CodeActionKind: {
-    QuickFix: 'quickfix',
-    Refactor: 'refactor',
-    Source: 'source',
-    SourceOrganizeImports: 'source.organizeImports',
-  },
-}), { virtual: true });
+jest.mock(
+  'vscode-languageclient/node',
+  () => ({
+    LanguageClient: jest.fn(),
+    CodeActionKind: {
+      QuickFix: 'quickfix',
+      Refactor: 'refactor',
+      Source: 'source',
+      SourceOrganizeImports: 'source.organizeImports',
+    },
+  }),
+  { virtual: true }
+);
 
 import * as vscode from 'vscode';
 import type { LanguageClient } from 'vscode-languageclient/node';
@@ -76,73 +133,137 @@ import { registerRenumberCommands } from '../renumber';
 import { registerAllCommands } from '../index';
 import { REQUEST_METHODS, VALIDATION_MESSAGES, SUCCESS_MESSAGES } from '../../../server/utils/constants';
 
-jest.mock('vscode', () => ({
-  commands: {
-    registerCommand: jest.fn(() => ({ dispose: jest.fn() })),
-    executeCommand: jest.fn()
-  },
-  window: {
-    activeTextEditor: undefined as unknown,
-    showWarningMessage: jest.fn(),
-    showInformationMessage: jest.fn(),
-    showErrorMessage: jest.fn(),
-    showQuickPick: jest.fn(),
-    createOutputChannel: jest.fn(() => ({
-      appendLine: jest.fn(),
-      show: jest.fn(),
-      clear: jest.fn()
-    }))
-  },
-  workspace: {
-    workspaceFolders: undefined as unknown,
-    applyEdit: jest.fn().mockResolvedValue(true)
-  },
-  env: {
-    openExternal: jest.fn(),
-    clipboard: {
-      writeText: jest.fn()
-    }
-  },
-  Uri: {
-    file: (path: string) => ({ fsPath: path }),
-    parse: (uri: string) => ({ toString: () => uri })
-  },
-  Range: class {
-    constructor(public startLine: number, public startChar: number, public endLine: number, public endChar: number) {}
-  },
-  Position: class {
-    constructor(public line: number, public character: number) {}
-  },
-  WorkspaceEdit: class {
-    _edits: Map<string, unknown[]> = new Map();
-    set(uri: unknown, edits: unknown[]) {
-      this._edits.set(String(uri), edits);
-    }
-    replace() {}
-  },
-  TextEdit: class {
-    constructor(public range: unknown, public newText: string) {}
-  },
-  Disposable: class {},
-  ExtensionContext: class {},
-}), { virtual: true });
+jest.mock(
+  'vscode',
+  () => ({
+    commands: {
+      registerCommand: jest.fn(() => ({ dispose: jest.fn() })),
+      executeCommand: jest.fn(),
+    },
+    languages: {
+      createDiagnosticCollection: jest.fn(() => ({
+        set: jest.fn(),
+        delete: jest.fn(),
+        dispose: jest.fn(),
+      })),
+    },
+    window: {
+      activeTextEditor: undefined as unknown,
+      showWarningMessage: jest.fn(),
+      showInformationMessage: jest.fn(),
+      showErrorMessage: jest.fn(),
+      showQuickPick: jest.fn(),
+      showTextDocument: jest.fn(async (document: unknown) => ({
+        document,
+        revealRange: jest.fn(),
+        selection: undefined as unknown,
+      })),
+      createOutputChannel: jest.fn(() => ({
+        appendLine: jest.fn(),
+        show: jest.fn(),
+        clear: jest.fn(),
+      })),
+    },
+    workspace: {
+      workspaceFolders: undefined as unknown,
+      applyEdit: jest.fn().mockResolvedValue(true),
+      openTextDocument: jest.fn(async (uri: unknown) => ({ uri })),
+    },
+    env: {
+      openExternal: jest.fn(),
+      clipboard: {
+        writeText: jest.fn(),
+      },
+    },
+    Uri: {
+      file: (path: string) => ({ fsPath: path }),
+      parse: (uri: string) => ({ toString: () => uri }),
+    },
+    Range: class {
+      constructor(
+        public start: unknown,
+        public end: unknown
+      ) {}
+    },
+    Position: class {
+      constructor(
+        public line: number,
+        public character: number
+      ) {}
+    },
+    DiagnosticSeverity: {
+      Error: 1,
+      Warning: 2,
+      Information: 3,
+      Hint: 4,
+    },
+    Diagnostic: class {
+      public source?: string;
+      public code?: unknown;
+      constructor(
+        public range: unknown,
+        public message: string,
+        public severity: unknown
+      ) {}
+    },
+    WorkspaceEdit: class {
+      _edits: Map<string, unknown[]> = new Map();
+      set(uri: unknown, edits: unknown[]) {
+        this._edits.set(String(uri), edits);
+      }
+      replace() {}
+    },
+    TextEdit: class {
+      constructor(
+        public range: unknown,
+        public newText: string
+      ) {}
+    },
+    Selection: class {
+      constructor(
+        public start: unknown,
+        public end: unknown
+      ) {}
+    },
+    Disposable: class {},
+    ExtensionContext: class {},
+    TextEditorRevealType: {
+      Default: 0,
+      InCenter: 1,
+      InCenterIfOutsideViewport: 2,
+      AtTop: 3,
+    },
+    CodeActionKind: {
+      QuickFix: 'quickfix',
+      Refactor: 'refactor',
+      Source: 'source',
+      SourceOrganizeImports: 'source.organizeImports',
+    },
+  }),
+  { virtual: true }
+);
 
 const mockVscode = vscode as unknown as {
   commands: {
     registerCommand: jest.Mock;
     executeCommand: jest.Mock;
   };
+  languages: {
+    createDiagnosticCollection: jest.Mock;
+  };
   window: {
-    activeTextEditor: unknown;
+    activeTextEditor: any;
     showWarningMessage: jest.Mock;
     showInformationMessage: jest.Mock;
     showErrorMessage: jest.Mock;
     showQuickPick: jest.Mock;
+    showTextDocument: jest.Mock;
     createOutputChannel: jest.Mock;
   };
   workspace: {
     workspaceFolders: unknown;
     applyEdit: jest.Mock;
+    openTextDocument: jest.Mock;
   };
   env: {
     openExternal: jest.Mock;
@@ -156,7 +277,18 @@ describe('Client Commands', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+    mockVscode.languages.createDiagnosticCollection.mockImplementation(() => ({
+      set: jest.fn(),
+      delete: jest.fn(),
+      dispose: jest.fn(),
+    }));
+    mockVscode.window.createOutputChannel.mockImplementation(() => ({
+      appendLine: jest.fn(),
+      show: jest.fn(),
+      clear: jest.fn(),
+    }));
+    mockVscode.window.showInformationMessage.mockResolvedValue(undefined);
+
     mockClient = {
       sendRequest: jest.fn(),
       onRequest: jest.fn(),
@@ -196,11 +328,8 @@ describe('Client Commands', () => {
   describe('Format Command', () => {
     it('should register format document command', () => {
       const disposable = registerFormatCommand(mockContext, mockClient);
-      
-      expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith(
-        'protobuf.formatDocument',
-        expect.any(Function)
-      );
+
+      expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith('protobuf.formatDocument', expect.any(Function));
       expect(disposable).toBeDefined();
     });
 
@@ -208,16 +337,16 @@ describe('Client Commands', () => {
       const mockEditor = {
         document: {
           languageId: 'proto',
-          uri: { toString: () => 'file://test.proto' }
-        }
+          uri: { toString: () => 'file://test.proto' },
+        },
       };
       mockVscode.window.activeTextEditor = mockEditor;
 
       registerFormatCommand(mockContext, mockClient);
       const commandHandler = mockVscode.commands.registerCommand.mock.calls[0][1];
-      
+
       await commandHandler();
-      
+
       expect(mockVscode.commands.executeCommand).toHaveBeenCalledWith('editor.action.formatDocument');
     });
 
@@ -225,16 +354,16 @@ describe('Client Commands', () => {
       const mockEditor = {
         document: {
           languageId: 'javascript',
-          uri: { toString: () => 'file://test.js' }
-        }
+          uri: { toString: () => 'file://test.js' },
+        },
       };
       mockVscode.window.activeTextEditor = mockEditor;
 
       registerFormatCommand(mockContext, mockClient);
       const commandHandler = mockVscode.commands.registerCommand.mock.calls[0][1];
-      
+
       await commandHandler();
-      
+
       expect(mockVscode.commands.executeCommand).not.toHaveBeenCalled();
     });
 
@@ -243,9 +372,9 @@ describe('Client Commands', () => {
 
       registerFormatCommand(mockContext, mockClient);
       const commandHandler = mockVscode.commands.registerCommand.mock.calls[0][1];
-      
+
       await commandHandler();
-      
+
       expect(mockVscode.commands.executeCommand).not.toHaveBeenCalled();
     });
   });
@@ -253,16 +382,10 @@ describe('Client Commands', () => {
   describe('Compile Commands', () => {
     it('should register compile file and all commands', () => {
       const disposables = registerCompileCommands(mockContext, mockClient);
-      
+
       expect(disposables).toHaveLength(2);
-      expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith(
-        'protobuf.compileFile',
-        expect.any(Function)
-      );
-      expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith(
-        'protobuf.compileAll',
-        expect.any(Function)
-      );
+      expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith('protobuf.compileFile', expect.any(Function));
+      expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith('protobuf.compileAll', expect.any(Function));
     });
 
     it('should compile active proto file successfully', async () => {
@@ -270,14 +393,12 @@ describe('Client Commands', () => {
         document: {
           languageId: 'proto',
           uri: { toString: () => 'file://test.proto' },
-          fsPath: '/test/test.proto'
-        }
+          fsPath: '/test/test.proto',
+        },
       };
       mockVscode.window.activeTextEditor = mockEditor;
-      
-      mockClient.sendRequest
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce({ success: true });
+
+      mockClient.sendRequest.mockResolvedValueOnce(true).mockResolvedValueOnce({ success: true });
 
       registerCompileCommands(mockContext, mockClient);
       const compileFileHandler = mockVscode.commands.registerCommand.mock.calls.find(
@@ -288,11 +409,9 @@ describe('Client Commands', () => {
 
       expect(mockClient.sendRequest).toHaveBeenCalledWith(REQUEST_METHODS.IS_PROTOC_AVAILABLE, {});
       expect(mockClient.sendRequest).toHaveBeenCalledWith(REQUEST_METHODS.COMPILE_FILE, {
-        uri: 'file://test.proto'
+        uri: 'file://test.proto',
       });
-      expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(
-        SUCCESS_MESSAGES.COMPILED_SUCCESSFULLY
-      );
+      expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(SUCCESS_MESSAGES.COMPILED_SUCCESSFULLY);
     });
 
     it('should show warning for non-proto file', async () => {
@@ -300,8 +419,8 @@ describe('Client Commands', () => {
         document: {
           languageId: 'javascript',
           uri: { toString: () => 'file://test.js' },
-          fsPath: '/test/test.js'
-        }
+          fsPath: '/test/test.js',
+        },
       };
       mockVscode.window.activeTextEditor = mockEditor;
 
@@ -312,9 +431,7 @@ describe('Client Commands', () => {
 
       await compileFileHandler();
 
-      expect(mockVscode.window.showWarningMessage).toHaveBeenCalledWith(
-        VALIDATION_MESSAGES.NO_PROTO_FILE
-      );
+      expect(mockVscode.window.showWarningMessage).toHaveBeenCalledWith(VALIDATION_MESSAGES.NO_PROTO_FILE);
     });
 
     it('should handle protoc not available', async () => {
@@ -322,11 +439,11 @@ describe('Client Commands', () => {
         document: {
           languageId: 'proto',
           uri: { toString: () => 'file://test.proto' },
-          fsPath: '/test/test.proto'
-        }
+          fsPath: '/test/test.proto',
+        },
       };
       mockVscode.window.activeTextEditor = mockEditor;
-      
+
       mockClient.sendRequest.mockResolvedValueOnce(false);
       mockVscode.window.showErrorMessage.mockResolvedValueOnce('Configure Path');
 
@@ -349,13 +466,9 @@ describe('Client Commands', () => {
     });
 
     it('should compile all files successfully', async () => {
-      mockVscode.workspace.workspaceFolders = [
-        { uri: { fsPath: '/test/workspace' } }
-      ];
-      
-      mockClient.sendRequest
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce({ success: true, fileCount: 5 });
+      mockVscode.workspace.workspaceFolders = [{ uri: { fsPath: '/test/workspace' } }];
+
+      mockClient.sendRequest.mockResolvedValueOnce(true).mockResolvedValueOnce({ success: true, fileCount: 5 });
 
       registerCompileCommands(mockContext, mockClient);
       const compileAllHandler = mockVscode.commands.registerCommand.mock.calls.find(
@@ -366,11 +479,9 @@ describe('Client Commands', () => {
 
       expect(mockClient.sendRequest).toHaveBeenCalledWith(REQUEST_METHODS.IS_PROTOC_AVAILABLE, {});
       expect(mockClient.sendRequest).toHaveBeenCalledWith(REQUEST_METHODS.COMPILE_ALL, {
-        workspaceRoot: '/test/workspace'
+        workspaceRoot: '/test/workspace',
       });
-      expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(
-        SUCCESS_MESSAGES.COMPILED_ALL(5)
-      );
+      expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(SUCCESS_MESSAGES.COMPILED_ALL(5));
     });
 
     it('should handle no workspace folders for compile all', async () => {
@@ -383,48 +494,43 @@ describe('Client Commands', () => {
 
       await compileAllHandler();
 
-      expect(mockVscode.window.showWarningMessage).toHaveBeenCalledWith(
-        expect.stringContaining('No workspace folder')
-      );
+      expect(mockVscode.window.showWarningMessage).toHaveBeenCalledWith(expect.stringContaining('No workspace folder'));
     });
   });
 
   describe('Go To Definition Command', () => {
     it('should register go to definition command', () => {
       const disposable = registerGoToDefinitionCommand(mockContext, mockClient);
-      
-      expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith(
-        'protobuf.goToDefinition',
-        expect.any(Function)
-      );
+
+      expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith('protobuf.goToDefinition', expect.any(Function));
       expect(disposable).toBeDefined();
     });
 
     it('should execute reveal definition for proto files', () => {
       const mockEditor = {
-        document: { languageId: 'proto' }
+        document: { languageId: 'proto' },
       };
       mockVscode.window.activeTextEditor = mockEditor;
 
       registerGoToDefinitionCommand(mockContext, mockClient);
       const commandHandler = mockVscode.commands.registerCommand.mock.calls[0][1];
-      
+
       commandHandler();
-      
+
       expect(mockVscode.commands.executeCommand).toHaveBeenCalledWith('editor.action.revealDefinition');
     });
 
     it('should not execute for non-proto files', () => {
       const mockEditor = {
-        document: { languageId: 'javascript' }
+        document: { languageId: 'javascript' },
       };
       mockVscode.window.activeTextEditor = mockEditor;
 
       registerGoToDefinitionCommand(mockContext, mockClient);
       const commandHandler = mockVscode.commands.registerCommand.mock.calls[0][1];
-      
+
       commandHandler();
-      
+
       expect(mockVscode.commands.executeCommand).not.toHaveBeenCalled();
     });
   });
@@ -432,7 +538,7 @@ describe('Client Commands', () => {
   describe('Breaking Changes Commands', () => {
     it('should register breaking changes command', () => {
       const disposables = registerBreakingCommands(mockContext, mockClient);
-      
+
       expect(disposables).toHaveLength(1);
       expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith(
         'protobuf.checkBreakingChanges',
@@ -442,58 +548,52 @@ describe('Client Commands', () => {
 
     it('should show warning for non-proto file', async () => {
       mockVscode.window.activeTextEditor = {
-        document: { languageId: 'javascript' }
+        document: { languageId: 'javascript' },
       };
 
       registerBreakingCommands(mockContext, mockClient);
       const commandHandler = mockVscode.commands.registerCommand.mock.calls[0][1];
-      
+
       await commandHandler();
-      
-      expect(mockVscode.window.showWarningMessage).toHaveBeenCalledWith(
-        VALIDATION_MESSAGES.NO_PROTO_FILE
-      );
+
+      expect(mockVscode.window.showWarningMessage).toHaveBeenCalledWith(VALIDATION_MESSAGES.NO_PROTO_FILE);
     });
 
     it('should show success when no breaking changes', async () => {
       mockVscode.window.activeTextEditor = {
         document: {
           languageId: 'proto',
-          uri: { toString: () => 'file://test.proto' }
-        }
+          uri: { toString: () => 'file://test.proto' },
+        },
       };
       mockClient.sendRequest.mockResolvedValue({
-        changes: []
+        changes: [],
       });
 
       registerBreakingCommands(mockContext, mockClient);
       const commandHandler = mockVscode.commands.registerCommand.mock.calls[0][1];
-      
+
       await commandHandler();
-      
-      expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(
-        SUCCESS_MESSAGES.NO_BREAKING_CHANGES
-      );
+
+      expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(SUCCESS_MESSAGES.NO_BREAKING_CHANGES);
     });
 
     it('should show output panel when breaking changes detected', async () => {
       mockVscode.window.activeTextEditor = {
         document: {
           languageId: 'proto',
-          uri: { toString: () => 'file://test.proto' }
-        }
+          uri: { toString: () => 'file://test.proto' },
+        },
       };
       mockClient.sendRequest.mockResolvedValue({
-        changes: [
-          { rule: 'FIELD_NO_DELETE', message: 'Field deleted', location: { line: 5, character: 0 } }
-        ]
+        changes: [{ rule: 'FIELD_NO_DELETE', message: 'Field deleted', location: { line: 5, character: 0 } }],
       });
 
       registerBreakingCommands(mockContext, mockClient);
       const commandHandler = mockVscode.commands.registerCommand.mock.calls[0][1];
-      
+
       await commandHandler();
-      
+
       expect(mockVscode.window.createOutputChannel).toHaveBeenCalledWith('Protobuf Breaking Changes');
       expect(mockVscode.window.showWarningMessage).toHaveBeenCalledWith(
         expect.stringContaining('1 breaking change(s) detected')
@@ -504,27 +604,26 @@ describe('Client Commands', () => {
       mockVscode.window.activeTextEditor = {
         document: {
           languageId: 'proto',
-          uri: { toString: () => 'file://test.proto' }
-        }
+          uri: { toString: () => 'file://test.proto' },
+        },
       };
       mockClient.sendRequest.mockRejectedValue(new Error('Connection failed'));
 
       registerBreakingCommands(mockContext, mockClient);
       const commandHandler = mockVscode.commands.registerCommand.mock.calls[0][1];
-      
+
       await commandHandler();
-      
-      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
-        expect.stringContaining('Connection failed')
-      );
+
+      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(expect.stringContaining('Connection failed'));
     });
   });
 
   describe('Linter Commands', () => {
     it('should register linter commands', () => {
       const disposables = registerLinterCommands(mockContext, mockClient);
-      
-      expect(disposables).toHaveLength(2);
+
+      expect(disposables).toHaveLength(3);
+      expect(mockVscode.languages.createDiagnosticCollection).toHaveBeenCalledWith('protobuf-linter');
       expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith(
         'protobuf.runExternalLinter',
         expect.any(Function)
@@ -537,27 +636,25 @@ describe('Client Commands', () => {
 
     it('should show warning for non-proto file when running linter', async () => {
       mockVscode.window.activeTextEditor = {
-        document: { languageId: 'javascript' }
+        document: { languageId: 'javascript' },
       };
 
       registerLinterCommands(mockContext, mockClient);
       const runLinterHandler = mockVscode.commands.registerCommand.mock.calls.find(
         ([command]: [string]) => command === 'protobuf.runExternalLinter'
       )![1];
-      
+
       await runLinterHandler();
-      
-      expect(mockVscode.window.showWarningMessage).toHaveBeenCalledWith(
-        VALIDATION_MESSAGES.NO_PROTO_FILE
-      );
+
+      expect(mockVscode.window.showWarningMessage).toHaveBeenCalledWith(VALIDATION_MESSAGES.NO_PROTO_FILE);
     });
 
     it('should show warning when linter not available', async () => {
       mockVscode.window.activeTextEditor = {
         document: {
           languageId: 'proto',
-          uri: { toString: () => 'file://test.proto' }
-        }
+          uri: { toString: () => 'file://test.proto' },
+        },
       };
       mockClient.sendRequest.mockResolvedValue({ available: false, linter: 'none' });
       mockVscode.window.showWarningMessage.mockResolvedValue(undefined);
@@ -566,9 +663,9 @@ describe('Client Commands', () => {
       const runLinterHandler = mockVscode.commands.registerCommand.mock.calls.find(
         ([command]: [string]) => command === 'protobuf.runExternalLinter'
       )![1];
-      
+
       await runLinterHandler();
-      
+
       expect(mockVscode.window.showWarningMessage).toHaveBeenCalledWith(
         expect.stringContaining('No external linter is configured'),
         'Configure Linter',
@@ -580,8 +677,8 @@ describe('Client Commands', () => {
       mockVscode.window.activeTextEditor = {
         document: {
           languageId: 'proto',
-          uri: { toString: () => 'file://test.proto' }
-        }
+          uri: { toString: () => 'file://test.proto' },
+        },
       };
       mockClient.sendRequest
         .mockResolvedValueOnce({ available: true, linter: 'buf' })
@@ -591,26 +688,68 @@ describe('Client Commands', () => {
       const runLinterHandler = mockVscode.commands.registerCommand.mock.calls.find(
         ([command]: [string]) => command === 'protobuf.runExternalLinter'
       )![1];
-      
+
       await runLinterHandler();
-      
+
+      expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(SUCCESS_MESSAGES.LINTER_PASSED);
+    });
+
+    it('should surface linter issues with diagnostics and navigation options', async () => {
+      mockVscode.window.activeTextEditor = {
+        document: {
+          languageId: 'proto',
+          uri: { toString: () => 'file://test.proto', fsPath: '/workspace/test.proto' },
+        },
+      };
+      mockClient.sendRequest.mockResolvedValueOnce({ available: true, linter: 'buf' }).mockResolvedValueOnce({
+        success: true,
+        issueCount: 1,
+        diagnostics: [
+          {
+            range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } },
+            message: 'Test issue',
+            severity: 1,
+            source: 'buf',
+            code: 'RULE',
+          },
+        ],
+      });
+
+      mockVscode.window.showInformationMessage.mockResolvedValue('Show Problems');
+
+      registerLinterCommands(mockContext, mockClient);
+      const runLinterHandler = mockVscode.commands.registerCommand.mock.calls.find(
+        ([command]: [string]) => command === 'protobuf.runExternalLinter'
+      )![1];
+
+      await runLinterHandler();
+
+      expect(mockClient.sendRequest).toHaveBeenCalledWith(REQUEST_METHODS.RUN_EXTERNAL_LINTER, {
+        uri: 'file://test.proto',
+      });
+      expect(mockVscode.window.showErrorMessage).not.toHaveBeenCalled();
       expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(
-        SUCCESS_MESSAGES.LINTER_PASSED
+        SUCCESS_MESSAGES.LINTER_FOUND_ISSUES(1),
+        'Show Problems',
+        'Go to first issue',
+        'View Lint Output'
       );
+      expect(mockVscode.commands.executeCommand).toHaveBeenCalledWith('workbench.action.problems.focus');
+      expect(mockVscode.window.createOutputChannel).toHaveBeenCalledWith('Protobuf Linter');
     });
 
     it('should show lint rules in output panel', async () => {
       mockClient.sendRequest.mockResolvedValue({
-        rules: ['FIELD_NAMES_LOWER_SNAKE_CASE', 'MESSAGE_NAMES_CAMEL_CASE']
+        rules: ['FIELD_NAMES_LOWER_SNAKE_CASE', 'MESSAGE_NAMES_CAMEL_CASE'],
       });
 
       registerLinterCommands(mockContext, mockClient);
       const showRulesHandler = mockVscode.commands.registerCommand.mock.calls.find(
         ([command]: [string]) => command === 'protobuf.showAvailableLintRules'
       )![1];
-      
+
       await showRulesHandler();
-      
+
       expect(mockVscode.window.createOutputChannel).toHaveBeenCalledWith('Protobuf Lint Rules');
     });
   });
@@ -618,7 +757,7 @@ describe('Client Commands', () => {
   describe('Renumber Commands', () => {
     it('should register all renumber commands', () => {
       const disposables = registerRenumberCommands(mockContext, mockClient);
-      
+
       expect(disposables).toHaveLength(4);
       expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith(
         'protobuf.renumberDocument',
@@ -632,38 +771,33 @@ describe('Client Commands', () => {
         'protobuf.renumberFromCursor',
         expect.any(Function)
       );
-      expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith(
-        'protobuf.renumberEnum',
-        expect.any(Function)
-      );
+      expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith('protobuf.renumberEnum', expect.any(Function));
     });
 
     it('should show warning for non-proto file when renumbering document', async () => {
       mockVscode.window.activeTextEditor = {
-        document: { languageId: 'javascript' }
+        document: { languageId: 'javascript' },
       };
 
       registerRenumberCommands(mockContext, mockClient);
       const renumberDocHandler = mockVscode.commands.registerCommand.mock.calls.find(
         ([command]: [string]) => command === 'protobuf.renumberDocument'
       )![1];
-      
+
       await renumberDocHandler();
-      
-      expect(mockVscode.window.showWarningMessage).toHaveBeenCalledWith(
-        VALIDATION_MESSAGES.NO_PROTO_FILE
-      );
+
+      expect(mockVscode.window.showWarningMessage).toHaveBeenCalledWith(VALIDATION_MESSAGES.NO_PROTO_FILE);
     });
 
     it('should renumber document fields successfully', async () => {
       mockVscode.window.activeTextEditor = {
         document: {
           languageId: 'proto',
-          uri: { toString: () => 'file://test.proto' }
-        }
+          uri: { toString: () => 'file://test.proto' },
+        },
       };
       mockClient.sendRequest.mockResolvedValue([
-        { range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }, newText: '1' }
+        { range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }, newText: '1' },
       ]);
       mockVscode.workspace.applyEdit.mockResolvedValue(true);
 
@@ -671,13 +805,12 @@ describe('Client Commands', () => {
       const renumberDocHandler = mockVscode.commands.registerCommand.mock.calls.find(
         ([command]: [string]) => command === 'protobuf.renumberDocument'
       )![1];
-      
+
       await renumberDocHandler();
-      
-      expect(mockClient.sendRequest).toHaveBeenCalledWith(
-        REQUEST_METHODS.RENUMBER_DOCUMENT,
-        { uri: 'file://test.proto' }
-      );
+
+      expect(mockClient.sendRequest).toHaveBeenCalledWith(REQUEST_METHODS.RENUMBER_DOCUMENT, {
+        uri: 'file://test.proto',
+      });
       expect(mockVscode.workspace.applyEdit).toHaveBeenCalled();
     });
 
@@ -685,8 +818,8 @@ describe('Client Commands', () => {
       mockVscode.window.activeTextEditor = {
         document: {
           languageId: 'proto',
-          uri: { toString: () => 'file://test.proto' }
-        }
+          uri: { toString: () => 'file://test.proto' },
+        },
       };
       mockClient.sendRequest.mockResolvedValue([]);
 
@@ -694,26 +827,24 @@ describe('Client Commands', () => {
       const renumberDocHandler = mockVscode.commands.registerCommand.mock.calls.find(
         ([command]: [string]) => command === 'protobuf.renumberDocument'
       )![1];
-      
+
       await renumberDocHandler();
-      
-      expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(
-        VALIDATION_MESSAGES.NO_FIELDS_TO_RENUMBER
-      );
+
+      expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(VALIDATION_MESSAGES.NO_FIELDS_TO_RENUMBER);
     });
   });
 
   describe('registerAllCommands', () => {
     it('should register all command groups', () => {
       const disposables = registerAllCommands(mockContext, mockClient);
-      
+
       expect(Array.isArray(disposables)).toBe(true);
       expect(disposables.length).toBeGreaterThan(10);
     });
 
     it('should register migrateToProto3 command', () => {
       registerAllCommands(mockContext, mockClient);
-      
+
       expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith(
         'protobuf.migrateToProto3',
         expect.any(Function)
@@ -722,7 +853,7 @@ describe('Client Commands', () => {
 
     it('should register copyToClipboard command', () => {
       registerAllCommands(mockContext, mockClient);
-      
+
       expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith(
         'protobuf.copyToClipboard',
         expect.any(Function)

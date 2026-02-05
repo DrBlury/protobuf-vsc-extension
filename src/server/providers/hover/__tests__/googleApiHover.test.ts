@@ -2,13 +2,7 @@
  * Tests for Google API hover support
  */
 
-import {
-  getGoogleApiHover,
-  FIELD_BEHAVIORS,
-  HTTP_METHODS,
-  HTTP_FIELDS,
-  RESOURCE_FIELDS
-} from '../googleApiHover';
+import { getGoogleApiHover, FIELD_BEHAVIORS, HTTP_METHODS, HTTP_FIELDS, RESOURCE_FIELDS } from '../googleApiHover';
 import type { MarkupContent } from 'vscode-languageserver';
 
 describe('Google API Hover', () => {
@@ -222,7 +216,10 @@ describe('Google API Hover', () => {
       });
 
       it('should return hover for history', () => {
-        const result = getGoogleApiHover('history', 'option (google.api.resource) = { history: ORIGINALLY_SINGLE_PATTERN }');
+        const result = getGoogleApiHover(
+          'history',
+          'option (google.api.resource) = { history: ORIGINALLY_SINGLE_PATTERN }'
+        );
         expect(result).not.toBeNull();
       });
     });

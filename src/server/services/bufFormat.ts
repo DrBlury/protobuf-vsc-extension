@@ -11,7 +11,7 @@ export class BufFormatProvider {
   }
 
   public async format(text: string, filePath?: string): Promise<string | null> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       // buf format reads from stdin if no file is specified, or we can use --path to simulate file context
       const args = ['format'];
       const spawnOptions: { shell?: boolean; cwd?: string } = {};
@@ -20,9 +20,7 @@ export class BufFormatProvider {
         const normalizedFile = path.normalize(filePath);
         const configDir = bufConfigProvider.getBufConfigDir(normalizedFile);
         let cwd = configDir || path.dirname(normalizedFile);
-        let relativePath = configDir
-          ? path.relative(configDir, normalizedFile)
-          : path.basename(normalizedFile);
+        let relativePath = configDir ? path.relative(configDir, normalizedFile) : path.basename(normalizedFile);
 
         if (!relativePath) {
           relativePath = path.basename(normalizedFile);
@@ -43,15 +41,15 @@ export class BufFormatProvider {
         const proc = spawn(this.bufPath, args, opts) as ChildProcess;
         let stdout = '';
 
-        proc.stdout?.on('data', (data) => {
-          stdout += data.toString();
+        proc.stdout?.on('data', (data: Buffer) => {
+          stdout += data.toString('utf8');
         });
 
-        proc.stderr?.on('data', (_data) => {
+        proc.stderr?.on('data', (_data: Buffer) => {
           // stderr is captured but not used
         });
 
-        proc.on('close', (code) => {
+        proc.on('close', code => {
           if (code === 0) {
             resolve(stdout);
           } else {
@@ -68,7 +66,7 @@ export class BufFormatProvider {
           }
         });
 
-        proc.stdin?.write(text);
+        proc.stdin?.write(text, 'utf8');
         proc.stdin?.end();
       };
 

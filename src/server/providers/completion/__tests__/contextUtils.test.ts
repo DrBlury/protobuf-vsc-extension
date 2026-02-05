@@ -10,7 +10,7 @@ import {
   isEnumValueContext,
   isFieldNameContext,
   getContainerBounds,
-  getContainerInfo
+  getContainerInfo,
 } from '../contextUtils';
 import { Position } from 'vscode-languageserver/node';
 
@@ -65,7 +65,7 @@ describe('contextUtils Branch Coverage', () => {
       const result = getTypePrefix('google.protobuf.Time');
       expect(result).toEqual({
         qualifier: 'google.protobuf',
-        partial: 'Time'
+        partial: 'Time',
       });
     });
 
@@ -73,7 +73,7 @@ describe('contextUtils Branch Coverage', () => {
       const result = getTypePrefix('google.');
       expect(result).toEqual({
         qualifier: 'google',
-        partial: ''
+        partial: '',
       });
     });
 
@@ -81,7 +81,7 @@ describe('contextUtils Branch Coverage', () => {
       const result = getTypePrefix('optional google.protobuf.Time');
       expect(result).toEqual({
         qualifier: 'google.protobuf',
-        partial: 'Time'
+        partial: 'Time',
       });
     });
   });
@@ -202,57 +202,35 @@ message Test {
     });
 
     it('should find message container bounds', () => {
-      const lines = [
-        'syntax = "proto3";',
-        'message Test {',
-        '  string name = 1;',
-        '}'
-      ];
+      const lines = ['syntax = "proto3";', 'message Test {', '  string name = 1;', '}'];
       const position: Position = { line: 2, character: 5 };
       const bounds = getContainerBounds(position, lines);
       expect(bounds).toEqual({ start: 1, end: 3 });
     });
 
     it('should handle nested braces', () => {
-      const lines = [
-        'message Outer {',
-        '  message Inner {',
-        '    string name = 1;',
-        '  }',
-        '}'
-      ];
+      const lines = ['message Outer {', '  message Inner {', '    string name = 1;', '  }', '}'];
       const position: Position = { line: 2, character: 5 };
       const bounds = getContainerBounds(position, lines);
       expect(bounds).toEqual({ start: 1, end: 3 });
     });
 
     it('should handle position at start of line', () => {
-      const lines = [
-        'message Test {',
-        '  string name = 1;',
-        '}'
-      ];
+      const lines = ['message Test {', '  string name = 1;', '}'];
       const position: Position = { line: 1, character: 0 };
       const bounds = getContainerBounds(position, lines);
       expect(bounds).toEqual({ start: 0, end: 2 });
     });
 
     it('should handle braces on same line', () => {
-      const lines = [
-        'message Test { string name = 1; }'
-      ];
+      const lines = ['message Test { string name = 1; }'];
       const position: Position = { line: 0, character: 20 };
       const bounds = getContainerBounds(position, lines);
       expect(bounds).toEqual({ start: 0, end: 0 });
     });
 
     it('should handle closing brace at start of scan', () => {
-      const lines = [
-        'message Outer {',
-        '  message Inner { }',
-        '  string name = 1;',
-        '}'
-      ];
+      const lines = ['message Outer {', '  message Inner { }', '  string name = 1;', '}'];
       const position: Position = { line: 2, character: 5 };
       const bounds = getContainerBounds(position, lines);
       expect(bounds).toEqual({ start: 0, end: 3 });

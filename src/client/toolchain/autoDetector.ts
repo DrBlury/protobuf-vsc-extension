@@ -5,9 +5,12 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
 import * as os from 'os';
 import { spawn } from 'child_process';
+import { fileExists } from '../utils/fsUtils';
+// Note: We still need Node.js fs for low-level shebang reading (only reads first 256 bytes)
+// which VS Code's abstract filesystem doesn't support efficiently
+import * as fs from 'fs';
 
 export interface DetectedTool {
   name: string;
@@ -185,40 +188,44 @@ export class AutoDetector {
       for (const folder of workspaceFolders) {
         const rootPath = folder.uri.fsPath;
 
-        if (!bufYamlFound && (
-          fs.existsSync(path.join(rootPath, 'buf.yaml')) ||
-          fs.existsSync(path.join(rootPath, 'buf.yml'))
-        )) {
+        if (
+          !bufYamlFound &&
+          ((await fileExists(path.join(rootPath, 'buf.yaml'))) || (await fileExists(path.join(rootPath, 'buf.yml'))))
+        ) {
           bufYamlFound = true;
         }
 
-        if (!bufWorkYamlFound && (
-          fs.existsSync(path.join(rootPath, 'buf.work.yaml')) ||
-          fs.existsSync(path.join(rootPath, 'buf.work.yml'))
-        )) {
+        if (
+          !bufWorkYamlFound &&
+          ((await fileExists(path.join(rootPath, 'buf.work.yaml'))) ||
+            (await fileExists(path.join(rootPath, 'buf.work.yml'))))
+        ) {
           bufWorkYamlFound = true;
         }
 
-        if (!protolintConfigFound && (
-          fs.existsSync(path.join(rootPath, '.protolint.yaml')) ||
-          fs.existsSync(path.join(rootPath, '.protolint.yml'))
-        )) {
+        if (
+          !protolintConfigFound &&
+          ((await fileExists(path.join(rootPath, '.protolint.yaml'))) ||
+            (await fileExists(path.join(rootPath, '.protolint.yml'))))
+        ) {
           protolintConfigFound = true;
         }
 
-        if (!apiLinterConfigFound && (
-          fs.existsSync(path.join(rootPath, 'api-linter.yaml')) ||
-          fs.existsSync(path.join(rootPath, 'api-linter.yml')) ||
-          fs.existsSync(path.join(rootPath, '.api-linter.yaml')) ||
-          fs.existsSync(path.join(rootPath, '.api-linter.yml'))
-        )) {
+        if (
+          !apiLinterConfigFound &&
+          ((await fileExists(path.join(rootPath, 'api-linter.yaml'))) ||
+            (await fileExists(path.join(rootPath, 'api-linter.yml'))) ||
+            (await fileExists(path.join(rootPath, '.api-linter.yaml'))) ||
+            (await fileExists(path.join(rootPath, '.api-linter.yml'))))
+        ) {
           apiLinterConfigFound = true;
         }
 
-        if (!clangFormatConfigFound && (
-          fs.existsSync(path.join(rootPath, '.clang-format')) ||
-          fs.existsSync(path.join(rootPath, '_clang-format'))
-        )) {
+        if (
+          !clangFormatConfigFound &&
+          ((await fileExists(path.join(rootPath, '.clang-format'))) ||
+            (await fileExists(path.join(rootPath, '_clang-format'))))
+        ) {
           clangFormatConfigFound = true;
         }
       }
@@ -239,10 +246,16 @@ export class AutoDetector {
 
     this.outputChannel.appendLine(`Detection results:`);
     this.outputChannel.appendLine(`  buf: ${buf ? `${buf.version} at ${buf.path}` : 'not found'}`);
-    this.outputChannel.appendLine(`  protolint: ${protolint ? `${protolint.version} at ${protolint.path}` : 'not found'}`);
-    this.outputChannel.appendLine(`  api-linter: ${apiLinter ? `${apiLinter.version} at ${apiLinter.path}` : 'not found'}`);
+    this.outputChannel.appendLine(
+      `  protolint: ${protolint ? `${protolint.version} at ${protolint.path}` : 'not found'}`
+    );
+    this.outputChannel.appendLine(
+      `  api-linter: ${apiLinter ? `${apiLinter.version} at ${apiLinter.path}` : 'not found'}`
+    );
     this.outputChannel.appendLine(`  protoc: ${protoc ? `${protoc.version} at ${protoc.path}` : 'not found'}`);
-    this.outputChannel.appendLine(`  clang-format: ${clangFormat ? `${clangFormat.version} at ${clangFormat.path}` : 'not found'}`);
+    this.outputChannel.appendLine(
+      `  clang-format: ${clangFormat ? `${clangFormat.version} at ${clangFormat.path}` : 'not found'}`
+    );
     this.outputChannel.appendLine(`  buf.yaml: ${bufYamlFound}`);
     this.outputChannel.appendLine(`  buf.work.yaml: ${bufWorkYamlFound}`);
     this.outputChannel.appendLine(`  .protolint.yaml: ${protolintConfigFound}`);
@@ -261,7 +274,7 @@ export class AutoDetector {
 
     // 1. Check managed version (installed by extension)
     const managedPath = path.join(this.globalStoragePath, 'bin', binaryName);
-    if (fs.existsSync(managedPath)) {
+    if (await fileExists(managedPath)) {
       const version = await this.getVersion(managedPath, versionFlag);
       if (version) {
         return { name, path: managedPath, version };
@@ -271,7 +284,7 @@ export class AutoDetector {
     // 2. Check common installation paths
     for (const dir of getCommonPaths()) {
       const fullPath = path.join(dir, binaryName);
-      if (fs.existsSync(fullPath)) {
+      if (await fileExists(fullPath)) {
         const version = await this.getVersion(fullPath, versionFlag);
         if (version) {
           return { name, path: fullPath, version };
@@ -293,7 +306,7 @@ export class AutoDetector {
    * Auto-detects script files (by extension or shebang) and uses shell execution for them.
    */
   private async getVersion(cmd: string, flag: string): Promise<string | undefined> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       // Check if this command is a script that needs shell execution
       const useShell = needsShellExecution(cmd);
 
@@ -301,10 +314,10 @@ export class AutoDetector {
       let output = '';
       let errorOutput = '';
 
-      proc.stdout?.on('data', (data) => output += data.toString());
-      proc.stderr?.on('data', (data) => errorOutput += data.toString());
+      proc.stdout?.on('data', (data: Buffer) => (output += data.toString('utf8')));
+      proc.stderr?.on('data', (data: Buffer) => (errorOutput += data.toString('utf8')));
 
-      proc.on('close', (code) => {
+      proc.on('close', code => {
         if (code === 0) {
           resolve((output || errorOutput).trim().split('\n')[0]);
         } else {
@@ -313,17 +326,20 @@ export class AutoDetector {
       });
 
       proc.on('error', () => {
-        // If we didn't use shell, fallback to shell to pick up PATH from shell configuration
+        // If we didn't use shell and cmd is a simple command name (no path separators),
+        // fallback to shell to pick up PATH from shell configuration
         // GUI apps on macOS/Linux don't inherit shell PATH
-        if (!useShell) {
+        // Don't use shell fallback for full paths as they may contain spaces
+        const isSimpleCommand = !cmd.includes(path.sep) && !cmd.includes('/');
+        if (!useShell && isSimpleCommand) {
           const procWithShell = spawn(cmd, [flag], { timeout: 5000, shell: true });
           let shellOutput = '';
           let shellErrorOutput = '';
 
-          procWithShell.stdout?.on('data', (data) => shellOutput += data.toString());
-          procWithShell.stderr?.on('data', (data) => shellErrorOutput += data.toString());
+          procWithShell.stdout?.on('data', (data: Buffer) => (shellOutput += data.toString('utf8')));
+          procWithShell.stderr?.on('data', (data: Buffer) => (shellErrorOutput += data.toString('utf8')));
 
-          procWithShell.on('close', (code) => {
+          procWithShell.on('close', code => {
             if (code === 0) {
               resolve((shellOutput || shellErrorOutput).trim().split('\n')[0]);
             } else {
@@ -396,10 +412,18 @@ export class AutoDetector {
 
     // Create user-friendly message
     const toolsDetected: string[] = [];
-    if (result.buf) {toolsDetected.push(`buf (${result.buf.version})`);}
-    if (result.protolint) {toolsDetected.push(`protolint (${result.protolint.version})`);}
-    if (result.apiLinter) {toolsDetected.push(`api-linter (${result.apiLinter.version})`);}
-    if (result.clangFormat) {toolsDetected.push(`clang-format`);}
+    if (result.buf) {
+      toolsDetected.push(`buf (${result.buf.version})`);
+    }
+    if (result.protolint) {
+      toolsDetected.push(`protolint (${result.protolint.version})`);
+    }
+    if (result.apiLinter) {
+      toolsDetected.push(`api-linter (${result.apiLinter.version})`);
+    }
+    if (result.clangFormat) {
+      toolsDetected.push(`clang-format`);
+    }
 
     const message = `Protobuf tools detected: ${toolsDetected.join(', ')}. Configure settings?`;
 
@@ -487,8 +511,12 @@ export class AutoDetector {
     // Ask for scope
     const scope = await vscode.window.showQuickPick(
       [
-        { label: 'Workspace', description: 'Apply to current workspace only', target: vscode.ConfigurationTarget.Workspace },
-        { label: 'Global', description: 'Apply to all workspaces', target: vscode.ConfigurationTarget.Global }
+        {
+          label: 'Workspace',
+          description: 'Apply to current workspace only',
+          target: vscode.ConfigurationTarget.Workspace,
+        },
+        { label: 'Global', description: 'Apply to all workspaces', target: vscode.ConfigurationTarget.Global },
       ],
       { placeHolder: 'Where should these settings be applied?' }
     );

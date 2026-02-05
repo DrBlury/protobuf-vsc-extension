@@ -43,9 +43,9 @@ export class HashManager {
       cacheDir: path.join(process.cwd(), '.hash-cache'),
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
       fetchTimeout: 30000, // 30 seconds
-      ...config
+      ...config,
     };
-    
+
     this.cacheFilePath = path.join(this.config.cacheDir, 'hash-cache.json');
     this.loadCache();
   }
@@ -53,13 +53,9 @@ export class HashManager {
   /**
    * Get hash for a specific binary asset
    */
-  async getHash(
-    tool: 'protoc' | 'buf',
-    version: string,
-    assetName: string
-  ): Promise<BinaryHash | null> {
+  async getHash(tool: 'protoc' | 'buf', version: string, assetName: string): Promise<BinaryHash | null> {
     const cacheKey = `${tool}-${version}-${assetName}`;
-    
+
     // Check cache first
     const cached = this.cache.get(cacheKey);
     if (cached && this.isCacheValid(cached)) {
@@ -101,17 +97,18 @@ export class HashManager {
     version: string,
     assetName: string
   ): Promise<BinaryHash | null> {
-    const baseUrl = tool === 'protoc' 
-      ? 'https://github.com/protocolbuffers/protobuf/releases'
-      : 'https://github.com/bufbuild/buf/releases';
+    const baseUrl =
+      tool === 'protoc'
+        ? 'https://github.com/protocolbuffers/protobuf/releases'
+        : 'https://github.com/bufbuild/buf/releases';
 
     // GitHub provides SHA256SUMS files for releases
     const sha256Url = `${baseUrl}/download/v${version}/sha256sums.txt`;
-    
+
     try {
       const sha256Content = await this.fetchTextContent(sha256Url);
       const lines = sha256Content.split('\n');
-      
+
       for (const line of lines) {
         const match = line.match(/^([a-f0-9]{64})\s+(.+)$/);
         if (match && match[1] && match[2] && match[2].includes(assetName)) {
@@ -121,7 +118,7 @@ export class HashManager {
             sha256: match[1],
             url: `${baseUrl}/download/v${version}/${assetName}`,
             lastUpdated: new Date(),
-            source: 'official'
+            source: 'official',
           };
         }
       }
@@ -134,7 +131,7 @@ export class HashManager {
       const shaFileUrl = `${baseUrl}/download/v${version}/${assetName}.sha256`;
       const shaContent = await this.fetchTextContent(shaFileUrl);
       const shaMatch = shaContent.match(/^([a-f0-9]{64})/);
-      
+
       if (shaMatch && shaMatch[1]) {
         return {
           version,
@@ -142,7 +139,7 @@ export class HashManager {
           sha256: shaMatch[1],
           url: `${baseUrl}/download/v${version}/${assetName}`,
           lastUpdated: new Date(),
-          source: 'official'
+          source: 'official',
         };
       }
     } catch {
@@ -160,22 +157,23 @@ export class HashManager {
     version: string,
     assetName: string
   ): Promise<BinaryHash | null> {
-    const baseUrl = tool === 'protoc'
-      ? 'https://github.com/protocolbuffers/protobuf/releases'
-      : 'https://github.com/bufbuild/buf/releases';
+    const baseUrl =
+      tool === 'protoc'
+        ? 'https://github.com/protocolbuffers/protobuf/releases'
+        : 'https://github.com/bufbuild/buf/releases';
 
     const downloadUrl = `${baseUrl}/download/v${version}/${assetName}`;
-    
+
     try {
       const hash = await this.downloadAndCalculateHash(downloadUrl);
-      
+
       return {
         version,
         assetName,
         sha256: hash,
         url: downloadUrl,
         lastUpdated: new Date(),
-        source: 'calculated'
+        source: 'calculated',
       };
     } catch {
       return null;
@@ -189,33 +187,35 @@ export class HashManager {
     return new Promise((resolve, reject) => {
       const hash = crypto.createHash('sha256');
       const client = url.startsWith('https:') ? https : http;
-      
-      const request = client.get(url, { 
-        headers: { 'User-Agent': 'VSCode-Protobuf-Extension-HashManager' },
-        timeout: this.config.fetchTimeout
-      }, (response) => {
-        if (response.statusCode !== 200 && response.statusCode !== 302) {
-          reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
-          return;
+
+      const request = client.get(
+        url,
+        {
+          headers: { 'User-Agent': 'VSCode-Protobuf-Extension-HashManager' },
+          timeout: this.config.fetchTimeout,
+        },
+        response => {
+          if (response.statusCode !== 200 && response.statusCode !== 302) {
+            reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
+            return;
+          }
+
+          if (response.statusCode === 302 && response.headers.location) {
+            this.downloadAndCalculateHash(response.headers.location).then(resolve).catch(reject);
+            return;
+          }
+
+          response.on('data', chunk => {
+            hash.update(chunk);
+          });
+
+          response.on('end', () => {
+            resolve(hash.digest('hex'));
+          });
+
+          response.on('error', reject);
         }
-
-        if (response.statusCode === 302 && response.headers.location) {
-          this.downloadAndCalculateHash(response.headers.location)
-            .then(resolve)
-            .catch(reject);
-          return;
-        }
-
-        response.on('data', (chunk) => {
-          hash.update(chunk);
-        });
-
-        response.on('end', () => {
-          resolve(hash.digest('hex'));
-        });
-
-        response.on('error', reject);
-      });
+      );
 
       request.on('error', reject);
       request.on('timeout', () => {
@@ -231,34 +231,36 @@ export class HashManager {
   private async fetchTextContent(url: string): Promise<string> {
     return new Promise((resolve, reject) => {
       const client = url.startsWith('https:') ? https : http;
-      
-      const request = client.get(url, {
-        headers: { 'User-Agent': 'VSCode-Protobuf-Extension-HashManager' },
-        timeout: this.config.fetchTimeout
-      }, (response) => {
-        if (response.statusCode !== 200 && response.statusCode !== 302) {
-          reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
-          return;
+
+      const request = client.get(
+        url,
+        {
+          headers: { 'User-Agent': 'VSCode-Protobuf-Extension-HashManager' },
+          timeout: this.config.fetchTimeout,
+        },
+        response => {
+          if (response.statusCode !== 200 && response.statusCode !== 302) {
+            reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
+            return;
+          }
+
+          if (response.statusCode === 302 && response.headers.location) {
+            this.fetchTextContent(response.headers.location).then(resolve).catch(reject);
+            return;
+          }
+
+          let data = '';
+          response.on('data', chunk => {
+            data += chunk;
+          });
+
+          response.on('end', () => {
+            resolve(data);
+          });
+
+          response.on('error', reject);
         }
-
-        if (response.statusCode === 302 && response.headers.location) {
-          this.fetchTextContent(response.headers.location)
-            .then(resolve)
-            .catch(reject);
-          return;
-        }
-
-        let data = '';
-        response.on('data', (chunk) => {
-          data += chunk;
-        });
-
-        response.on('end', () => {
-          resolve(data);
-        });
-
-        response.on('error', reject);
-      });
+      );
 
       request.on('error', reject);
       request.on('timeout', () => {
@@ -350,13 +352,17 @@ export class HashManager {
       totalEntries: this.cache.size,
       officialHashes: 0,
       calculatedHashes: 0,
-      expiredEntries: 0
+      expiredEntries: 0,
     };
 
     const now = Date.now();
     this.cache.forEach(entry => {
-      if (entry.source === 'official') { stats.officialHashes++; }
-      if (entry.source === 'calculated') { stats.calculatedHashes++; }
+      if (entry.source === 'official') {
+        stats.officialHashes++;
+      }
+      if (entry.source === 'calculated') {
+        stats.calculatedHashes++;
+      }
       if (now - entry.lastUpdated.getTime() > this.config.maxAge) {
         stats.expiredEntries++;
       }
@@ -370,7 +376,7 @@ export class HashManager {
    */
   async updateToolHashes(tool: 'protoc' | 'buf', version: string): Promise<void> {
     const assetNames = this.getExpectedAssetNames(tool, version);
-    
+
     for (const assetName of assetNames) {
       try {
         const hash = await this.getHash(tool, version, assetName);
@@ -393,7 +399,7 @@ export class HashManager {
         `protoc-${version}-osx-x86_64.zip`,
         `protoc-${version}-osx-aarch_64.zip`,
         `protoc-${version}-linux-x86_64.zip`,
-        `protoc-${version}-linux-aarch_64.zip`
+        `protoc-${version}-linux-aarch_64.zip`,
       ];
     } else {
       return [
@@ -401,7 +407,7 @@ export class HashManager {
         'buf-Darwin-x86_64',
         'buf-Darwin-arm64',
         'buf-Linux-x86_64',
-        'buf-Linux-aarch64'
+        'buf-Linux-aarch64',
       ];
     }
   }

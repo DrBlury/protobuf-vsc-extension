@@ -10,10 +10,14 @@ const mockLanguageClient = jest.fn().mockImplementation(() => ({
   stop: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('vscode-languageclient/node', () => ({
-  LanguageClient: mockLanguageClient,
-  TransportKind: { ipc: 1, stdio: 2 },
-}), { virtual: true });
+jest.mock(
+  'vscode-languageclient/node',
+  () => ({
+    LanguageClient: mockLanguageClient,
+    TransportKind: { ipc: 1, stdio: 2 },
+  }),
+  { virtual: true }
+);
 
 import { createLanguageClient, getClient } from './client';
 
@@ -81,10 +85,14 @@ describe('client', () => {
   describe('getClient', () => {
     it('should return undefined before client is created', () => {
       jest.resetModules();
-      jest.doMock('vscode-languageclient/node', () => ({
-        LanguageClient: mockLanguageClient,
-        TransportKind: { ipc: 1 },
-      }), { virtual: true });
+      jest.doMock(
+        'vscode-languageclient/node',
+        () => ({
+          LanguageClient: mockLanguageClient,
+          TransportKind: { ipc: 1 },
+        }),
+        { virtual: true }
+      );
 
       const { getClient: freshGetClient } = require('./client');
       expect(freshGetClient()).toBeUndefined();

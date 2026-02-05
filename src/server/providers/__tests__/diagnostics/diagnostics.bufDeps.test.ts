@@ -43,9 +43,8 @@ message Sample {
       const diags = await providers.diagnostics.validate(uri, file, providers);
 
       // Should have a warning about googleapis not being in buf.yaml
-      const _bufDepWarning = diags.find(d =>
-        d.message.includes('buf.build/googleapis/googleapis') &&
-        d.message.includes('not in buf.yaml dependencies')
+      const _bufDepWarning = diags.find(
+        d => d.message.includes('buf.build/googleapis/googleapis') && d.message.includes('not in buf.yaml dependencies')
       );
 
       // Note: This test may not trigger the warning if bufConfigProvider
@@ -54,9 +53,7 @@ message Sample {
       // We're testing the pattern matching logic indirectly here.
 
       // For this test, we verify the import resolves and no error is thrown
-      const unresolvedError = diags.find(d =>
-        d.message.includes("cannot be resolved")
-      );
+      const unresolvedError = diags.find(d => d.message.includes('cannot be resolved'));
       expect(unresolvedError).toBeUndefined();
     });
 
@@ -82,9 +79,7 @@ message Sample {
       const diags = await providers.diagnostics.validate(uri, file, providers);
 
       // The import should resolve
-      const unresolvedError = diags.find(d =>
-        d.message.includes("cannot be resolved")
-      );
+      const unresolvedError = diags.find(d => d.message.includes('cannot be resolved'));
       expect(unresolvedError).toBeUndefined();
     });
   });
@@ -103,9 +98,8 @@ message Sample {}`;
       const diags = await providers.diagnostics.validate(uri, file, providers);
 
       // Should show BSR-specific hint for unresolved google/api import
-      const unresolvedError = diags.find(d =>
-        d.message.includes("cannot be resolved") &&
-        d.message.includes("Buf registry dependency")
+      const unresolvedError = diags.find(
+        d => d.message.includes('cannot be resolved') && d.message.includes('Buf registry dependency')
       );
       expect(unresolvedError).toBeDefined();
     });
@@ -120,9 +114,8 @@ message Sample {}`;
 
       const diags = await providers.diagnostics.validate(uri, file, providers);
 
-      const unresolvedError = diags.find(d =>
-        d.message.includes("cannot be resolved") &&
-        d.message.includes("Buf registry dependency")
+      const unresolvedError = diags.find(
+        d => d.message.includes('cannot be resolved') && d.message.includes('Buf registry dependency')
       );
       expect(unresolvedError).toBeDefined();
     });
@@ -138,9 +131,7 @@ message Sample {}`;
       const diags = await providers.diagnostics.validate(uri, file, providers);
 
       // google/protobuf is well-known types, not BSR - should not have BSR hint
-      const bsrHint = diags.find(d =>
-        d.message.includes("Buf registry dependency")
-      );
+      const bsrHint = diags.find(d => d.message.includes('Buf registry dependency'));
       expect(bsrHint).toBeUndefined();
     });
 
@@ -154,9 +145,7 @@ message Sample {}`;
 
       const diags = await providers.diagnostics.validate(uri, file, providers);
 
-      const bsrHint = diags.find(d =>
-        d.message.includes("Buf registry dependency")
-      );
+      const bsrHint = diags.find(d => d.message.includes('Buf registry dependency'));
       expect(bsrHint).toBeUndefined();
     });
   });

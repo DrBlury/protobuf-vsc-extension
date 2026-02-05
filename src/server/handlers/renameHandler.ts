@@ -3,13 +3,7 @@
  * Handles prepare rename and rename requests
  */
 
-import type {
-  PrepareRenameParams,
-  RenameParams,
-  Range,
-  WorkspaceEdit,
-  TextEdit
-} from 'vscode-languageserver/node';
+import type { PrepareRenameParams, RenameParams, Range, WorkspaceEdit, TextEdit } from 'vscode-languageserver/node';
 
 import type { TextDocuments } from 'vscode-languageserver/node';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
@@ -37,11 +31,7 @@ export function handlePrepareRename(
   const lines = document.getText().split('\n');
   const lineText = lines[params.position.line] || '';
 
-  const result = renameProvider.prepareRename(
-    params.textDocument.uri,
-    params.position,
-    lineText
-  );
+  const result = renameProvider.prepareRename(params.textDocument.uri, params.position, lineText);
 
   if (!result) {
     return null;
@@ -51,9 +41,9 @@ export function handlePrepareRename(
   return {
     range: {
       start: { line: params.position.line, character: result.range.start.character },
-      end: { line: params.position.line, character: result.range.end.character }
+      end: { line: params.position.line, character: result.range.end.character },
     },
-    placeholder: result.placeholder
+    placeholder: result.placeholder,
   };
 }
 
@@ -73,12 +63,7 @@ export function handleRename(
   const lines = document.getText().split('\n');
   const lineText = lines[params.position.line] || '';
 
-  const result = renameProvider.rename(
-    params.textDocument.uri,
-    params.position,
-    lineText,
-    params.newName
-  );
+  const result = renameProvider.rename(params.textDocument.uri, params.position, lineText, params.newName);
 
   if (result.changes.size === 0) {
     return null;

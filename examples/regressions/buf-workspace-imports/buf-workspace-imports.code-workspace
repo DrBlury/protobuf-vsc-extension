@@ -5,6 +5,7 @@
     }
   ],
   "settings": {
-    "protobuf.diagnostics.enabled": true
+    "protobuf.diagnostics.enabled": true,
+    "protobuf.includes": ["${workspaceFolder}/proto/.buf-deps"]
   }
 }

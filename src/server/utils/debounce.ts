@@ -12,10 +12,7 @@ type Timer = ReturnType<typeof setTimeout>;
  * @param waitMs - The number of milliseconds to wait
  * @returns A debounced version of the function
  */
-export function debounce<T extends unknown[]>(
-  func: (...args: T) => void,
-  waitMs: number
-): (...args: T) => void {
+export function debounce<T extends unknown[]>(func: (...args: T) => void, waitMs: number): (...args: T) => void {
   let timeoutId: Timer | undefined;
 
   return function debounced(...args: T) {

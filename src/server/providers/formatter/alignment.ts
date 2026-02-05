@@ -16,8 +16,12 @@ export function parseMapTypes(mapContent: string): { keyType: string; valueType:
   let commaPos = -1;
 
   for (let i = 0; i < mapContent.length; i++) {
-    if (mapContent[i] === '<') {depth++;}
-    if (mapContent[i] === '>') {depth--;}
+    if (mapContent[i] === '<') {
+      depth++;
+    }
+    if (mapContent[i] === '>') {
+      depth--;
+    }
     if (mapContent[i] === ',' && depth === 0) {
       commaPos = i;
       break;
@@ -30,7 +34,7 @@ export function parseMapTypes(mapContent: string): { keyType: string; valueType:
     if (firstCommaPos !== -1) {
       return {
         keyType: mapContent.slice(0, firstCommaPos).trim(),
-        valueType: mapContent.slice(firstCommaPos + 1).trim()
+        valueType: mapContent.slice(firstCommaPos + 1).trim(),
       };
     }
     // If still no comma, return the whole content as keyType (malformed map)
@@ -55,8 +59,12 @@ function isFieldLine(trimmedLine: string): boolean {
     return true;
   }
   // Enum value pattern: NAME = number (but not option, syntax, edition)
-  if (/^\w+\s*=/.test(trimmedLine) && !trimmedLine.startsWith('option') &&
-      !trimmedLine.startsWith('syntax') && !trimmedLine.startsWith('edition')) {
+  if (
+    /^\w+\s*=/.test(trimmedLine) &&
+    !trimmedLine.startsWith('option') &&
+    !trimmedLine.startsWith('syntax') &&
+    !trimmedLine.startsWith('edition')
+  ) {
     return true;
   }
   return false;
@@ -286,7 +294,7 @@ export function calculateAlignmentInfo(lines: string[]): Map<number, AlignmentDa
       maxFieldNameLength,
       maxTypeLength,
       isOptionBlock: group.isOptionBlock,
-      maxKeyLength
+      maxKeyLength,
     };
 
     // Store alignment data for each line in the group

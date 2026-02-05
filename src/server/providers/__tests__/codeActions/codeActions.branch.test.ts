@@ -53,13 +53,15 @@ message Test {
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
 
-      const diagnostics: Diagnostic[] = [{
-        severity: DiagnosticSeverity.Error,
-        range: Range.create(2, 3, 2, 13),
-        message: 'Type "UnknownType" is not imported',
-        source: 'protobuf',
-        code: 'missing-import'
-      }];
+      const diagnostics: Diagnostic[] = [
+        {
+          severity: DiagnosticSeverity.Error,
+          range: Range.create(2, 3, 2, 13),
+          message: 'Type "UnknownType" is not imported',
+          source: 'protobuf',
+          code: 'missing-import',
+        },
+      ];
 
       const range = Range.create(2, 3, 2, 13);
       const actions = provider.getCodeActions(uri, range, { diagnostics }, text);
@@ -76,13 +78,15 @@ message Test {
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
 
-      const diagnostics: Diagnostic[] = [{
-        severity: DiagnosticSeverity.Warning,
-        range: Range.create(2, 3, 2, 12),
-        message: 'Field "old_field" is deprecated',
-        source: 'protobuf',
-        code: 'deprecated-field'
-      }];
+      const diagnostics: Diagnostic[] = [
+        {
+          severity: DiagnosticSeverity.Warning,
+          range: Range.create(2, 3, 2, 12),
+          message: 'Field "old_field" is deprecated',
+          source: 'protobuf',
+          code: 'deprecated-field',
+        },
+      ];
 
       const range = Range.create(2, 3, 2, 12);
       const actions = provider.getCodeActions(uri, range, { diagnostics }, text);
@@ -127,9 +131,7 @@ message Test {
       const range = Range.create(2, 0, 2, 20);
       const actions = provider.getCodeActions(uri, range, { diagnostics: [] }, text);
 
-      const snippetActions = actions.filter(a =>
-        a.title && (a.title.includes('TypeScript') || a.title.includes('Go'))
-      );
+      const snippetActions = actions.filter(a => a.title && (a.title.includes('TypeScript') || a.title.includes('Go')));
       expect(snippetActions.length).toBeGreaterThan(0);
     });
   });

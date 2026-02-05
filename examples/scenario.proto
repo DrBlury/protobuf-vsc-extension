@@ -1,0 +1,224 @@
+syntax = "proto3";
+
+package api.scenario.v1;
+
+import "google/api/field_behavior.proto";
+import "google/protobuf/field_mask.proto";
+
+option go_package = "api.demo.com/genpb/scenario/v1;scenariopb";
+option java_multiple_files = true;
+option java_package = "api.scenario.v1";
+
+message Scenario {
+  // 场景ID
+  string id = 1 [
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // 项目ID
+  string project_id = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // 场景名称
+  //
+  // **创建时必须提供**
+  string name = 3;
+
+  // 场景备注
+  string remark = 4;
+
+  // 场景启用状态
+  //
+  // **创建时无效**
+  bool enabled = 5;
+}
+
+message ScenarioList {
+  // 分页
+  int32 page = 1;
+
+  // 分页大小
+  int32 page_size = 2;
+
+  // 总数
+  int32 total = 3;
+
+  // 场景分页清单
+  repeated Scenario list = 4;
+}
+
+message CreateScenarioReq {
+  // 项目ID
+  string project_id = 1 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+
+  // 场景
+  //
+  // 场景初始状态为禁用
+  Scenario scenario = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+message UpdateScenarioReq {
+  // 场景ID
+  string id = 1 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+
+  // 项目ID
+  string project_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+
+  // 场景
+  Scenario scenario = 3 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+
+  // 更新字段掩码
+  //
+  // 请求的数据可以包含所有字段，但是具体需要更新哪个字段，则使用该掩码指定。
+  // 如果不指定该掩码或者掩码为空，则表示更新全部数据。
+  // 如果掩码指定的字段为空或者未出现在请求的数据中，则指定的字段将被清空。
+  //
+  // JSON示例:
+  //
+  //   数据模型:
+  //
+  //     ```json
+  //     {
+  //       "name": "Alice",
+  //       "gender": "female",
+  //       "age": 20,
+  //       "contact": {
+  //         "phone": "1234567",
+  //         "email": "alice@example.com"
+  //       }
+  //     }
+  //     ```
+  //
+  //   如果仅需要更新 `age` 和 `contact.phone`，则 `updateMask` 为 `"age,contact.phone"` 。
+  google.protobuf.FieldMask update_mask = 4;
+}
+
+message DeleteScenarioReq {
+  // 场景ID
+  string id = 1 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+
+  // 项目ID
+  string project_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+message GetScenarioReq {
+  // 场景ID
+  string id = 1 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+
+  // 项目ID
+  string project_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+message ListScenariosReq {
+  // 项目ID
+  string project_id = 1 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+
+  // 分页
+  int32 page = 2;
+
+  // 分页大小
+  int32 page_size = 3;
+
+  // [保留] 排序  用法 sort=create_time, sort=-create_time
+  reserved 4;
+  reserved "sort";
+
+  // 搜索内容
+  //
+  // 可搜索字段:
+  //   - name
+  string search = 5;
+
+  // [保留] 搜索字段
+  reserved 6;
+  reserved "search_in";
+}
+
+message CallScenarioReq {
+  message Call {
+    // 动作
+    //
+    // 枚举值:
+    //   - `ENABLE`: 启用
+    //   - `DISABLE`: 禁用
+    //   - `EXEC`: 执行
+    //   - `EXEC2`: 无条件执行
+    string action = 1;
+  }
+
+  // 场景ID
+  string id = 1 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+
+  // 项目ID
+  string project_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+
+  // 调用
+  Call call = 3 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+message DuplicateScenarioReq {
+  message Duplicate {
+    // 新场景名称
+    string name = 1 [
+      (google.api.field_behavior) = REQUIRED
+    ];
+  }
+
+  // 场景ID
+  string id = 1 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+
+  // 项目ID
+  string project_id = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+
+  // 待赋值场景参数
+  //
+  // 新场景默认状态为禁用
+  Duplicate duplicate = 3 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+message BatchGetScenariosReq {
+  // 项目ID
+  string project_id = 1 [
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // 场景ID集合，最多1000个
+  repeated string ids = 2 [
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+

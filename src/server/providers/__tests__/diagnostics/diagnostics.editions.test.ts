@@ -28,9 +28,7 @@ message Person {
 
       const diagnostics = await providers.diagnostics.validate('test://editions.proto', file, providers, content);
 
-      const optionalDiag = diagnostics.find(d =>
-        d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED
-      );
+      const optionalDiag = diagnostics.find(d => d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED);
 
       expect(optionalDiag).toBeDefined();
       expect(optionalDiag?.message).toContain("'optional' label is not allowed in editions");
@@ -50,9 +48,7 @@ message Person {
 
       const diagnostics = await providers.diagnostics.validate('test://editions2024.proto', file, providers, content);
 
-      const optionalDiag = diagnostics.find(d =>
-        d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED
-      );
+      const optionalDiag = diagnostics.find(d => d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED);
 
       expect(optionalDiag).toBeDefined();
     });
@@ -71,9 +67,7 @@ message Person {
 
       const diagnostics = await providers.diagnostics.validate('test://proto3.proto', file, providers, content);
 
-      const optionalDiag = diagnostics.find(d =>
-        d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED
-      );
+      const optionalDiag = diagnostics.find(d => d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED);
 
       expect(optionalDiag).toBeUndefined();
     });
@@ -89,11 +83,14 @@ message Person {
       const file = providers.parser.parse(content, 'test://editions-repeated.proto');
       providers.analyzer.updateFile('test://editions-repeated.proto', file);
 
-      const diagnostics = await providers.diagnostics.validate('test://editions-repeated.proto', file, providers, content);
-
-      const optionalDiag = diagnostics.find(d =>
-        d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED
+      const diagnostics = await providers.diagnostics.validate(
+        'test://editions-repeated.proto',
+        file,
+        providers,
+        content
       );
+
+      const optionalDiag = diagnostics.find(d => d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED);
 
       expect(optionalDiag).toBeUndefined();
     });
@@ -111,11 +108,14 @@ message Person {
       const file = providers.parser.parse(content, 'test://editions-required.proto');
       providers.analyzer.updateFile('test://editions-required.proto', file);
 
-      const diagnostics = await providers.diagnostics.validate('test://editions-required.proto', file, providers, content);
-
-      const requiredDiag = diagnostics.find(d =>
-        d.message.includes("'required' label is not allowed in editions")
+      const diagnostics = await providers.diagnostics.validate(
+        'test://editions-required.proto',
+        file,
+        providers,
+        content
       );
+
+      const requiredDiag = diagnostics.find(d => d.message.includes("'required' label is not allowed in editions"));
 
       expect(requiredDiag).toBeDefined();
       expect(requiredDiag?.message).toContain('features.field_presence = LEGACY_REQUIRED');
@@ -137,11 +137,14 @@ message Outer {
       const file = providers.parser.parse(content, 'test://editions-nested.proto');
       providers.analyzer.updateFile('test://editions-nested.proto', file);
 
-      const diagnostics = await providers.diagnostics.validate('test://editions-nested.proto', file, providers, content);
-
-      const optionalDiag = diagnostics.find(d =>
-        d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED
+      const diagnostics = await providers.diagnostics.validate(
+        'test://editions-nested.proto',
+        file,
+        providers,
+        content
       );
+
+      const optionalDiag = diagnostics.find(d => d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED);
 
       expect(optionalDiag).toBeDefined();
     });
@@ -160,11 +163,16 @@ message Person {
       const file = providers.parser.parse(content, 'test://editions-no-modifier.proto');
       providers.analyzer.updateFile('test://editions-no-modifier.proto', file);
 
-      const diagnostics = await providers.diagnostics.validate('test://editions-no-modifier.proto', file, providers, content);
+      const diagnostics = await providers.diagnostics.validate(
+        'test://editions-no-modifier.proto',
+        file,
+        providers,
+        content
+      );
 
-      const modifierDiag = diagnostics.find(d =>
-        d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED ||
-        d.message.includes("'required' label is not allowed")
+      const modifierDiag = diagnostics.find(
+        d =>
+          d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED || d.message.includes("'required' label is not allowed")
       );
 
       expect(modifierDiag).toBeUndefined();

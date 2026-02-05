@@ -19,7 +19,7 @@ import { defaultSettings } from '../types';
 
 jest.mock('fs', () => ({
   existsSync: jest.fn(),
-  readFileSync: jest.fn()
+  readFileSync: jest.fn(),
 }));
 
 jest.mock('../logger', () => {
@@ -34,8 +34,8 @@ jest.mock('../logger', () => {
       verboseWithContext: jest.fn(),
       debug: jest.fn(),
       warn: jest.fn(),
-      error: jest.fn()
-    }
+      error: jest.fn(),
+    },
   };
 });
 
@@ -51,37 +51,38 @@ describe('ConfigManager', () => {
 
   beforeEach(() => {
     diagnosticsProvider = {
-      updateSettings: jest.fn()
+      updateSettings: jest.fn(),
     } as any;
 
     formatter = {
       updateSettings: jest.fn(),
       setBufPath: jest.fn(),
-      setClangFormatEnabled: jest.fn()
+      setClangFormatEnabled: jest.fn(),
     } as any;
 
     renumberProvider = {
-      updateSettings: jest.fn()
+      updateSettings: jest.fn(),
     } as any;
 
     analyzer = {
-      setImportPaths: jest.fn()
+      setImportPaths: jest.fn(),
+      setImportPathMappings: jest.fn(),
     } as any;
 
     protocCompiler = {
-      updateSettings: jest.fn()
+      updateSettings: jest.fn(),
     } as any;
 
     breakingChangeDetector = {
-      updateSettings: jest.fn()
+      updateSettings: jest.fn(),
     } as any;
 
     externalLinter = {
-      updateSettings: jest.fn()
+      updateSettings: jest.fn(),
     } as any;
 
     clangFormat = {
-      updateSettings: jest.fn()
+      updateSettings: jest.fn(),
     } as any;
 
     jest.clearAllMocks();
@@ -122,7 +123,7 @@ describe('ConfigManager', () => {
         namingConventions: settings.protobuf.diagnostics.severity.namingConventions,
         referenceErrors: settings.protobuf.diagnostics.severity.referenceErrors,
         nonCanonicalImportPath: settings.protobuf.diagnostics.severity.nonCanonicalImportPath,
-        breakingChanges: settings.protobuf.diagnostics.severity.breakingChanges
+        breakingChanges: settings.protobuf.diagnostics.severity.breakingChanges,
       },
     });
   });
@@ -154,7 +155,7 @@ describe('ConfigManager', () => {
       alignFields: settings.protobuf.formatter.alignFields,
       preserveMultiLineFields: settings.protobuf.formatter.preserveMultiLineFields,
       insertEmptyLineBetweenDefinitions: settings.protobuf.formatter.insertEmptyLineBetweenDefinitions,
-      maxEmptyLines: settings.protobuf.formatter.maxEmptyLines
+      maxEmptyLines: settings.protobuf.formatter.maxEmptyLines,
     });
   });
 
@@ -178,7 +179,7 @@ describe('ConfigManager', () => {
       startNumber: settings.protobuf.renumber.startNumber,
       increment: settings.protobuf.renumber.increment,
       preserveReserved: settings.protobuf.renumber.preserveReserved,
-      skipReservedRange: settings.protobuf.renumber.skipInternalRange
+      skipReservedRange: settings.protobuf.renumber.skipInternalRange,
     });
   });
 
@@ -187,8 +188,8 @@ describe('ConfigManager', () => {
       ...defaultSettings,
       protobuf: {
         ...defaultSettings.protobuf,
-        includes: ['/path1', '/path2']
-      }
+        includes: ['/path1', '/path2'],
+      },
     };
 
     updateProvidersWithSettings(
@@ -215,9 +216,9 @@ describe('ConfigManager', () => {
         ...defaultSettings.protobuf,
         protoc: {
           ...defaultSettings.protobuf.protoc,
-          options: ['--proto_path=/proto/path1', '-I/proto/path2', '--go_out=/out']
-        }
-      }
+          options: ['--proto_path=/proto/path1', '-I/proto/path2', '--go_out=/out'],
+        },
+      },
     };
 
     updateProvidersWithSettings(
@@ -246,9 +247,9 @@ describe('ConfigManager', () => {
         ...defaultSettings.protobuf,
         protoc: {
           ...defaultSettings.protobuf.protoc,
-          options: ['--proto-path=/proto/hyphen', '--proto_path=/proto/underscore']
-        }
-      }
+          options: ['--proto-path=/proto/hyphen', '--proto_path=/proto/underscore'],
+        },
+      },
     };
 
     updateProvidersWithSettings(
@@ -277,9 +278,9 @@ describe('ConfigManager', () => {
         ...defaultSettings.protobuf,
         protoc: {
           ...defaultSettings.protobuf.protoc,
-          options: ['--proto-path=${workspaceFolder}/path/to/proto']
-        }
-      }
+          options: ['--proto-path=${workspaceFolder}/path/to/proto'],
+        },
+      },
     };
 
     updateProvidersWithSettings(
@@ -344,8 +345,8 @@ describe('ConfigManager', () => {
       ...defaultSettings,
       protobuf: {
         ...defaultSettings.protobuf,
-        includes: ['/path1']
-      }
+        includes: ['/path1'],
+      },
     };
 
     updateProvidersWithSettings(
@@ -370,8 +371,8 @@ describe('ConfigManager', () => {
       ...defaultSettings,
       protobuf: {
         ...defaultSettings.protobuf,
-        includes: ['/well-known']
-      }
+        includes: ['/well-known'],
+      },
     };
 
     updateProvidersWithSettings(
@@ -413,7 +414,7 @@ describe('ConfigManager', () => {
       compileAllPath: settings.protobuf.protoc.compileAllPath,
       useAbsolutePath: settings.protobuf.protoc.useAbsolutePath,
       options: settings.protobuf.protoc.options,
-      excludePatterns: settings.protobuf.protoc.excludePatterns || []
+      excludePatterns: settings.protobuf.protoc.excludePatterns || [],
     });
   });
 
@@ -437,7 +438,7 @@ describe('ConfigManager', () => {
       enabled: settings.protobuf.breaking.enabled,
       againstStrategy: settings.protobuf.breaking.againstStrategy,
       againstGitRef: settings.protobuf.breaking.againstGitRef,
-      againstFilePath: settings.protobuf.breaking.againstFilePath
+      againstFilePath: settings.protobuf.breaking.againstFilePath,
     });
   });
 
@@ -466,7 +467,7 @@ describe('ConfigManager', () => {
       bufConfigPath: settings.protobuf.externalLinter.bufConfigPath,
       protolintConfigPath: settings.protobuf.externalLinter.protolintConfigPath,
       apiLinterConfigPath: settings.protobuf.externalLinter.apiLinterConfigPath,
-      runOnSave: settings.protobuf.externalLinter.runOnSave
+      runOnSave: settings.protobuf.externalLinter.runOnSave,
     });
   });
 
@@ -491,7 +492,7 @@ describe('ConfigManager', () => {
       path: settings.protobuf.clangFormat.path,
       style: settings.protobuf.clangFormat.style,
       fallbackStyle: settings.protobuf.clangFormat.fallbackStyle,
-      configPath: settings.protobuf.clangFormat.configPath
+      configPath: settings.protobuf.clangFormat.configPath,
     });
   });
 
@@ -506,7 +507,7 @@ describe('ConfigManager', () => {
       enabled: true,
       againstStrategy: 'file',
       againstGitRef: 'HEAD',
-      againstFilePath: '${workspaceFolder}/baselines/current.proto'
+      againstFilePath: '${workspaceFolder}/baselines/current.proto',
     };
     settings.protobuf.externalLinter = {
       ...settings.protobuf.externalLinter,
@@ -516,10 +517,10 @@ describe('ConfigManager', () => {
       protolintPath: '${workspaceFolder}/tools/protolint',
       bufConfigPath: '${workspaceFolder}/configs/buf.yaml',
       protolintConfigPath: '${workspaceFolder}/configs/protolint.yaml',
-      runOnSave: true
+      runOnSave: true,
     };
     settings.protobuf.buf = {
-      path: '${workspaceFolder}/custom/buf'
+      path: '${workspaceFolder}/custom/buf',
     };
     settings.protobuf.clangFormat = {
       ...settings.protobuf.clangFormat,
@@ -527,7 +528,7 @@ describe('ConfigManager', () => {
       path: '${workspaceFolder}/bin/clang-format',
       style: 'file',
       fallbackStyle: 'Google',
-      configPath: '${workspaceFolder}/configs/.clang-format'
+      configPath: '${workspaceFolder}/configs/.clang-format',
     };
 
     updateProvidersWithSettings(
@@ -545,28 +546,36 @@ describe('ConfigManager', () => {
       workspaceFolders
     );
 
-    expect(protocCompiler.updateSettings).toHaveBeenCalledWith(expect.objectContaining({
-      path: '/workspaces/project/bin/protoc',
-      compileAllPath: '/workspaces/project/all-protos'
-    }));
+    expect(protocCompiler.updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: '/workspaces/project/bin/protoc',
+        compileAllPath: '/workspaces/project/all-protos',
+      })
+    );
 
-    expect(breakingChangeDetector.updateSettings).toHaveBeenCalledWith(expect.objectContaining({
-      againstFilePath: '/workspaces/project/baselines/current.proto'
-    }));
+    expect(breakingChangeDetector.updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        againstFilePath: '/workspaces/project/baselines/current.proto',
+      })
+    );
 
-    expect(externalLinter.updateSettings).toHaveBeenCalledWith(expect.objectContaining({
-      bufPath: '/workspaces/project/tools/buf',
-      protolintPath: '/workspaces/project/tools/protolint',
-      bufConfigPath: '/workspaces/project/configs/buf.yaml',
-      protolintConfigPath: '/workspaces/project/configs/protolint.yaml'
-    }));
+    expect(externalLinter.updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bufPath: '/workspaces/project/tools/buf',
+        protolintPath: '/workspaces/project/tools/protolint',
+        bufConfigPath: '/workspaces/project/configs/buf.yaml',
+        protolintConfigPath: '/workspaces/project/configs/protolint.yaml',
+      })
+    );
 
     expect(formatter.setBufPath).toHaveBeenCalledWith('/workspaces/project/custom/buf');
 
-    expect(clangFormat.updateSettings).toHaveBeenCalledWith(expect.objectContaining({
-      path: '/workspaces/project/bin/clang-format',
-      configPath: '/workspaces/project/configs/.clang-format'
-    }));
+    expect(clangFormat.updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: '/workspaces/project/bin/clang-format',
+        configPath: '/workspaces/project/configs/.clang-format',
+      })
+    );
   });
 
   it('should update logger settings when debug settings present', () => {
@@ -576,9 +585,9 @@ describe('ConfigManager', () => {
         ...defaultSettings.protobuf,
         debug: {
           verboseLogging: true,
-          logLevel: 'debug'
-        }
-      }
+          logLevel: 'debug',
+        },
+      },
     };
 
     updateProvidersWithSettings(
@@ -605,8 +614,8 @@ describe('ConfigManager', () => {
       ...defaultSettings,
       protobuf: {
         ...defaultSettings.protobuf,
-        debug: undefined as any
-      }
+        debug: undefined as any,
+      },
     };
 
     updateProvidersWithSettings(
@@ -636,9 +645,9 @@ describe('ConfigManager', () => {
           deprecatedUsage: undefined as any,
           unusedSymbols: undefined as any,
           circularDependencies: undefined as any,
-          documentationComments: undefined as any
-        }
-      }
+          documentationComments: undefined as any,
+        },
+      },
     };
 
     updateProvidersWithSettings(
@@ -660,7 +669,7 @@ describe('ConfigManager', () => {
         deprecatedUsage: true,
         unusedSymbols: false,
         circularDependencies: true,
-        documentationComments: true
+        documentationComments: true,
       })
     );
   });
@@ -689,8 +698,8 @@ describe('ConfigManager', () => {
       ...defaultSettings,
       protobuf: {
         ...defaultSettings.protobuf,
-        protoSrcsDir: 'protos'
-      }
+        protoSrcsDir: 'protos',
+      },
     };
 
     const result = updateProvidersWithSettings(
@@ -715,8 +724,8 @@ describe('ConfigManager', () => {
       ...defaultSettings,
       protobuf: {
         ...defaultSettings.protobuf,
-        protoSrcsDir: '${workspaceFolder}/src/protos'
-      }
+        protoSrcsDir: '${workspaceFolder}/src/protos',
+      },
     };
 
     const result = updateProvidersWithSettings(
@@ -745,9 +754,9 @@ describe('ConfigManager', () => {
           ...defaultSettings.protobuf,
           protoc: {
             ...defaultSettings.protobuf.protoc,
-            options: ['--proto_path', '/path/with/space']
-          }
-        }
+            options: ['--proto_path', '/path/with/space'],
+          },
+        },
       };
 
       updateProvidersWithSettings(
@@ -775,9 +784,9 @@ describe('ConfigManager', () => {
           ...defaultSettings.protobuf,
           protoc: {
             ...defaultSettings.protobuf.protoc,
-            options: ['--proto-path', '/path/hyphen/space']
-          }
-        }
+            options: ['--proto-path', '/path/hyphen/space'],
+          },
+        },
       };
 
       updateProvidersWithSettings(
@@ -805,9 +814,9 @@ describe('ConfigManager', () => {
           ...defaultSettings.protobuf,
           protoc: {
             ...defaultSettings.protobuf.protoc,
-            options: ['-I', '/path/after/dash/I']
-          }
-        }
+            options: ['-I', '/path/after/dash/I'],
+          },
+        },
       };
 
       updateProvidersWithSettings(
@@ -835,9 +844,9 @@ describe('ConfigManager', () => {
           ...defaultSettings.protobuf,
           protoc: {
             ...defaultSettings.protobuf.protoc,
-            options: ['--proto_path'] // No value after
-          }
-        }
+            options: ['--proto_path'], // No value after
+          },
+        },
       };
 
       updateProvidersWithSettings(
@@ -865,9 +874,9 @@ describe('ConfigManager', () => {
           ...defaultSettings.protobuf,
           protoc: {
             ...defaultSettings.protobuf.protoc,
-            options: []
-          }
-        }
+            options: [],
+          },
+        },
       };
 
       updateProvidersWithSettings(
@@ -894,9 +903,9 @@ describe('ConfigManager', () => {
           ...defaultSettings.protobuf,
           protoc: {
             ...defaultSettings.protobuf.protoc,
-            options: [null as any, undefined as any, '--proto_path=/valid']
-          }
-        }
+            options: [null as any, undefined as any, '--proto_path=/valid'],
+          },
+        },
       };
 
       updateProvidersWithSettings(
@@ -924,8 +933,8 @@ describe('ConfigManager', () => {
         ...defaultSettings,
         protobuf: {
           ...defaultSettings.protobuf,
-          includes: ['${workspaceRoot}/protos']
-        }
+          includes: ['${workspaceRoot}/protos'],
+        },
       };
 
       updateProvidersWithSettings(
@@ -952,8 +961,8 @@ describe('ConfigManager', () => {
         ...defaultSettings,
         protobuf: {
           ...defaultSettings.protobuf,
-          includes: ['/${workspaceFolderBasename}/protos']
-        }
+          includes: ['/${workspaceFolderBasename}/protos'],
+        },
       };
 
       updateProvidersWithSettings(
@@ -981,8 +990,8 @@ describe('ConfigManager', () => {
         ...defaultSettings,
         protobuf: {
           ...defaultSettings.protobuf,
-          includes: ['${env:MY_TEST_VAR}/protos']
-        }
+          includes: ['${env:MY_TEST_VAR}/protos'],
+        },
       };
 
       updateProvidersWithSettings(
@@ -1010,8 +1019,8 @@ describe('ConfigManager', () => {
         ...defaultSettings,
         protobuf: {
           ...defaultSettings.protobuf,
-          includes: ['${env.MY_DOT_VAR}/protos']
-        }
+          includes: ['${env.MY_DOT_VAR}/protos'],
+        },
       };
 
       updateProvidersWithSettings(
@@ -1038,8 +1047,8 @@ describe('ConfigManager', () => {
         ...defaultSettings,
         protobuf: {
           ...defaultSettings.protobuf,
-          includes: ['${env:NONEXISTENT_VAR}/protos']
-        }
+          includes: ['${env:NONEXISTENT_VAR}/protos'],
+        },
       };
 
       updateProvidersWithSettings(
@@ -1066,8 +1075,8 @@ describe('ConfigManager', () => {
         ...defaultSettings,
         protobuf: {
           ...defaultSettings.protobuf,
-          includes: ['${workspaceFolder}/protos']
-        }
+          includes: ['${workspaceFolder}/protos'],
+        },
       };
 
       updateProvidersWithSettings(
@@ -1095,8 +1104,8 @@ describe('ConfigManager', () => {
         ...defaultSettings,
         protobuf: {
           ...defaultSettings.protobuf,
-          includes: ['   '] // Just whitespace
-        }
+          includes: ['   '], // Just whitespace
+        },
       };
 
       updateProvidersWithSettings(
@@ -1130,8 +1139,8 @@ describe('ConfigManager', () => {
       jest.doMock('../../services/bufConfig', () => ({
         bufConfigProvider: {
           getProtoRoots: jest.fn().mockReturnValue(['/workspace/proto1', '/workspace/proto2']),
-          getWorkDirectories: jest.fn().mockReturnValue([])
-        }
+          getWorkDirectories: jest.fn().mockReturnValue([]),
+        },
       }));
 
       const settings: Settings = defaultSettings;
@@ -1179,7 +1188,7 @@ describe('ConfigManager', () => {
   describe('codeActionsProvider update', () => {
     it('should update codeActionsProvider when provided', () => {
       const codeActionsProvider = {
-        updateSettings: jest.fn()
+        updateSettings: jest.fn(),
       } as any;
 
       const settings: Settings = defaultSettings;
@@ -1205,8 +1214,8 @@ describe('ConfigManager', () => {
         formatterEnabled: settings.protobuf.formatter?.enabled ?? true,
         organizeImports: {
           enabled: settings.protobuf.organizeImports?.enabled ?? true,
-          groupByCategory: settings.protobuf.organizeImports?.groupByCategory ?? true
-        }
+          groupByCategory: settings.protobuf.organizeImports?.groupByCategory ?? true,
+        },
       });
     });
 
@@ -1258,8 +1267,8 @@ describe('ConfigManager', () => {
         ...defaultSettings,
         protobuf: {
           ...defaultSettings.protobuf,
-          includes: [nanopbPath]
-        }
+          includes: [nanopbPath],
+        },
       };
 
       updateProvidersWithSettings(
@@ -1287,9 +1296,7 @@ describe('ConfigManager', () => {
       expect(importPaths).not.toContain('/cache/well-known');
 
       // Should log that user-supplied google protos were detected
-      expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining('User-supplied google protos detected')
-      );
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('User-supplied google protos detected'));
     });
 
     it('should include system well-known paths when user does NOT provide google protos', () => {
@@ -1305,8 +1312,8 @@ describe('ConfigManager', () => {
         ...defaultSettings,
         protobuf: {
           ...defaultSettings.protobuf,
-          includes: [userPath]
-        }
+          includes: [userPath],
+        },
       };
 
       updateProvidersWithSettings(
@@ -1341,8 +1348,8 @@ describe('ConfigManager', () => {
         ...defaultSettings,
         protobuf: {
           ...defaultSettings.protobuf,
-          includes: [userPath]
-        }
+          includes: [userPath],
+        },
       };
 
       updateProvidersWithSettings(

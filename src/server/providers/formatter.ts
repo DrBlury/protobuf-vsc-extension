@@ -2,26 +2,17 @@
  * Code Formatter for Protocol Buffers
  */
 
-import type { TextEdit} from 'vscode-languageserver/node';
+import type { TextEdit } from 'vscode-languageserver/node';
 import { Range } from 'vscode-languageserver/node';
 import { URI } from 'vscode-uri';
 import type { ClangFormatProvider } from '../services/clangFormat';
 import type { BufFormatProvider } from '../services/bufFormat';
 import { logger } from '../utils/logger';
 import { splitLines } from '../../shared/textUtils';
-import type {
-  FormatterSettings,
-  AlignmentData} from './formatter/types';
-import {
-  DEFAULT_SETTINGS
-} from './formatter/types';
+import type { FormatterSettings, AlignmentData } from './formatter/types';
+import { DEFAULT_SETTINGS } from './formatter/types';
 import { calculateAlignmentInfo } from './formatter/alignment';
-import {
-  getIndent,
-  formatLine,
-  formatLineWithAlignment,
-  formatOptionLine
-} from './formatter/lineFormatting';
+import { getIndent, formatLine, formatLineWithAlignment, formatOptionLine } from './formatter/lineFormatting';
 import { renumberFields } from './formatter/renumber';
 
 // Re-export types for backwards compatibility
@@ -78,7 +69,9 @@ export class ProtoFormatter {
 
       // clang-format failed - log warning once and fall back
       if (!this.clangFormatWarningShown) {
-        logger.warn('clang-format failed or is not available. Falling back to minimal formatter. Check that clang-format is installed and the path is correct in settings.');
+        logger.warn(
+          'clang-format failed or is not available. Falling back to minimal formatter. Check that clang-format is installed and the path is correct in settings.'
+        );
         this.clangFormatWarningShown = true;
       }
     }
@@ -88,14 +81,18 @@ export class ProtoFormatter {
       const formatted = await this.bufFormat.format(text, filePath);
       if (formatted) {
         const lines = splitLines(text);
-        return [{
-          range: Range.create(0, 0, lines.length - 1, lines[lines.length - 1]!.length),
-          newText: formatted
-        }];
+        return [
+          {
+            range: Range.create(0, 0, lines.length - 1, lines[lines.length - 1]!.length),
+            newText: formatted,
+          },
+        ];
       }
       // buf format failed - log warning once
       if (!this.bufFormatWarningShown) {
-        logger.warn('Formatter preset is "buf" but buf format failed or is not available. Falling back to minimal formatter. Check that buf is installed and the path is correct in settings.');
+        logger.warn(
+          'Formatter preset is "buf" but buf format failed or is not available. Falling back to minimal formatter. Check that buf is installed and the path is correct in settings.'
+        );
         this.bufFormatWarningShown = true;
       }
     }
@@ -103,13 +100,15 @@ export class ProtoFormatter {
     const formatted = this.format(text);
     const lines = splitLines(text);
 
-    return [{
-      range: {
-        start: { line: 0, character: 0 },
-        end: { line: lines.length - 1, character: lines[lines.length - 1]!.length }
+    return [
+      {
+        range: {
+          start: { line: 0, character: 0 },
+          end: { line: lines.length - 1, character: lines[lines.length - 1]!.length },
+        },
+        newText: formatted,
       },
-      newText: formatted
-    }];
+    ];
   }
 
   async formatRange(text: string, range: Range, uri?: string): Promise<TextEdit[]> {
@@ -157,13 +156,15 @@ export class ProtoFormatter {
     // Format the range
     const formatted = this.formatRangeWithIndent(rangeText, indentLevel);
 
-    return [{
-      range: {
-        start: { line: startLine, character: 0 },
-        end: { line: endLine, character: lines[endLine]!.length }
+    return [
+      {
+        range: {
+          start: { line: startLine, character: 0 },
+          end: { line: endLine, character: lines[endLine]!.length },
+        },
+        newText: formatted,
       },
-      newText: formatted
-    }];
+    ];
   }
 
   private format(text: string): string {
@@ -173,9 +174,7 @@ export class ProtoFormatter {
     //       1;  // comment
     // Which should become:
     //   float value = 1;  // comment
-    const preprocessedText = this.settings.preserveMultiLineFields
-      ? text
-      : this.joinMultiLineFieldDeclarations(text);
+    const preprocessedText = this.settings.preserveMultiLineFields ? text : this.joinMultiLineFieldDeclarations(text);
     const lines = splitLines(preprocessedText);
 
     // If alignment is enabled, first pass to collect alignment info
@@ -219,6 +218,16 @@ export class ProtoFormatter {
         continue;
       }
 
+      // Preserve line comments without affecting indentation state
+      if (trimmedLine.startsWith('//')) {
+        const formattedLine =
+          this.settings.alignFields && alignmentInfo
+            ? formatLineWithAlignment(trimmedLine, indentLevel, alignmentInfo.get(i), this.settings, line)
+            : formatLine(trimmedLine, indentLevel, this.settings, line);
+        formattedLines.push(formattedLine);
+        continue;
+      }
+
       // Track multi-line option blocks
       if (optionBraceDepth > 0) {
         const openBraces = (trimmedLine.match(/\{/g) || []).length;
@@ -230,9 +239,10 @@ export class ProtoFormatter {
         }
 
         // Format option block lines with alignment if enabled (now using line-based lookup)
-        const formattedLine = this.settings.alignFields && alignmentInfo
-          ? formatOptionLine(trimmedLine, indentLevel, alignmentInfo.get(i), this.settings)
-          : formatLine(trimmedLine, indentLevel, this.settings);
+        const formattedLine =
+          this.settings.alignFields && alignmentInfo
+            ? formatOptionLine(trimmedLine, indentLevel, alignmentInfo.get(i), this.settings)
+            : formatLine(trimmedLine, indentLevel, this.settings);
         formattedLines.push(formattedLine);
 
         // Adjust indent for opening brace
@@ -350,9 +360,10 @@ export class ProtoFormatter {
       }
 
       // Format the line with alignment if enabled (now using line-based lookup for gofmt-style grouping)
-      const formattedLine = this.settings.alignFields && alignmentInfo
-        ? formatLineWithAlignment(trimmedLine, indentLevel, alignmentInfo.get(i), this.settings, line)
-        : formatLine(trimmedLine, indentLevel, this.settings, line);
+      const formattedLine =
+        this.settings.alignFields && alignmentInfo
+          ? formatLineWithAlignment(trimmedLine, indentLevel, alignmentInfo.get(i), this.settings, line)
+          : formatLine(trimmedLine, indentLevel, this.settings, line);
       formattedLines.push(formattedLine);
 
       // Check for opening brace
@@ -372,7 +383,9 @@ export class ProtoFormatter {
     let result = normalizedLines.join('\n');
 
     // Apply renumbering if enabled
-    logger.verbose(`Renumbering setting check: renumberOnFormat=${this.settings.renumberOnFormat} (type: ${typeof this.settings.renumberOnFormat})`);
+    logger.verbose(
+      `Renumbering setting check: renumberOnFormat=${this.settings.renumberOnFormat} (type: ${typeof this.settings.renumberOnFormat})`
+    );
     if (this.settings.renumberOnFormat) {
       logger.verbose('Renumbering enabled, applying field renumbering');
       result = renumberFields(result, this.settings);
@@ -389,9 +402,7 @@ export class ProtoFormatter {
 
   private formatRangeWithIndent(text: string, startIndentLevel: number): string {
     // Preprocess: join multi-line field declarations (unless preserveMultiLineFields is enabled)
-    const preprocessedText = this.settings.preserveMultiLineFields
-      ? text
-      : this.joinMultiLineFieldDeclarations(text);
+    const preprocessedText = this.settings.preserveMultiLineFields ? text : this.joinMultiLineFieldDeclarations(text);
     const lines = splitLines(preprocessedText);
     const formattedLines: string[] = [];
     let indentLevel = startIndentLevel;
@@ -401,6 +412,11 @@ export class ProtoFormatter {
 
       if (trimmedLine === '') {
         formattedLines.push('');
+        continue;
+      }
+
+      if (trimmedLine.startsWith('//')) {
+        formattedLines.push(formatLine(trimmedLine, indentLevel, this.settings, line));
         continue;
       }
 
@@ -520,10 +536,12 @@ export class ProtoFormatter {
   }
 
   private isCommentLine(trimmedLine: string): boolean {
-    return trimmedLine.startsWith('//') ||
+    return (
+      trimmedLine.startsWith('//') ||
       trimmedLine.startsWith('/*') ||
       trimmedLine.startsWith('*') ||
-      trimmedLine.startsWith('*/');
+      trimmedLine.startsWith('*/')
+    );
   }
 
   private collapseEmptyLines(lines: string[], maxEmptyLines: number): string[] {
@@ -577,11 +595,16 @@ export class ProtoFormatter {
 
       // Check if this line looks like the start of a multi-line field declaration
       // Pattern: ends with '=' (possibly followed by comment), no semicolon
-      const lineWithoutComment = trimmed.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\/$/, '').trim();
+      const lineWithoutComment = trimmed
+        .replace(/\/\/.*$/, '')
+        .replace(/\/\*.*?\*\/$/, '')
+        .trim();
 
       // Check for field-like pattern ending with '='
       // e.g., "float value =", "optional string name =", "repeated int32 ids ="
-      const isMultiLineFieldStart = /^(?:optional|required|repeated)?\s*[A-Za-z_][\w<>.,\s]*\s+[A-Za-z_]\w*\s*=$/.test(lineWithoutComment);
+      const isMultiLineFieldStart = /^(?:optional|required|repeated)?\s*[A-Za-z_][\w<>.,\s]*\s+[A-Za-z_]\w*\s*=$/.test(
+        lineWithoutComment
+      );
 
       if (isMultiLineFieldStart) {
         // Collect continuation lines until we find the semicolon
