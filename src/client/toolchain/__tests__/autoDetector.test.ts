@@ -358,7 +358,7 @@ function createMockProcess(stdout: string, stderr: string, exitCode: number, err
         }
         stdoutHandlers[event].push(callback);
         if (event === 'data' && stdout) {
-          queueMicrotask(() => callback(Buffer.from(stdout)));
+          setImmediate(() => callback(Buffer.from(stdout)));
         }
       }),
     },
@@ -369,7 +369,7 @@ function createMockProcess(stdout: string, stderr: string, exitCode: number, err
         }
         stderrHandlers[event].push(callback);
         if (event === 'data' && stderr) {
-          queueMicrotask(() => callback(Buffer.from(stderr)));
+          setImmediate(() => callback(Buffer.from(stderr)));
         }
       }),
     },
@@ -379,10 +379,10 @@ function createMockProcess(stdout: string, stderr: string, exitCode: number, err
       }
       procHandlers[event].push(callback);
       if (event === 'close') {
-        queueMicrotask(() => callback(exitCode));
+        setImmediate(() => callback(exitCode));
       }
       if (event === 'error' && error) {
-        queueMicrotask(() => callback(error));
+        setImmediate(() => callback(error));
       }
     }),
     kill: jest.fn(),
