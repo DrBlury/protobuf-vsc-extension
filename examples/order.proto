@@ -41,22 +41,22 @@ message Order
 // Line item in an order
 message LineItem
 {
-	string product_id = 1;
-	string product_name = 2;
-	int32 quantity = 3;
-	common.v1.Money unit_price = 4;
-	common.v1.Money total_price = 5;
+	string          product_id   = 1;
+	string          product_name = 2;
+	int32           quantity     = 3;
+	common.v1.Money unit_price   = 4;
+	common.v1.Money total_price  = 5;
 }
 
 // Order status
 enum OrderStatus
 {
 	ORDER_STATUS_UNSPECIFIED = 0;
-	ORDER_STATUS_PENDING = 1;
-	ORDER_STATUS_CONFIRMED = 2;
-	ORDER_STATUS_SHIPPED = 3;
-	ORDER_STATUS_DELIVERED = 4;
-	ORDER_STATUS_CANCELLED = 5;
+	ORDER_STATUS_PENDING     = 1;
+	ORDER_STATUS_CONFIRMED   = 2;
+	ORDER_STATUS_SHIPPED     = 3;
+	ORDER_STATUS_DELIVERED   = 4;
+	ORDER_STATUS_CANCELLED   = 5;
 }
 
 // Order service
@@ -87,7 +87,7 @@ message CreateOrderResponse
 
 message GetOrderRequest
 {
-	string id = 1;
+	string        id          = 1;
 	GlobalMessage global_info = 2;
 }
 
@@ -98,20 +98,20 @@ message GetOrderResponse
 
 message ListOrdersRequest
 {
-	string user_id = 1;
+	string                      user_id    = 1;
 	common.v1.PaginationRequest pagination = 2;
 }
 
 message ListOrdersResponse
 {
-	repeated Order orders = 1;
+	repeated Order               orders     = 1;
 	common.v1.PaginationResponse pagination = 2;
 }
 
 message UpdateOrderStatusRequest
 {
-	string order_id = 1;
-	OrderStatus status = 2;
+	string      order_id = 1;
+	OrderStatus status   = 2;
 }
 
 message UpdateOrderStatusResponse

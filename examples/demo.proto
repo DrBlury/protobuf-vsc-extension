@@ -6,25 +6,25 @@ import "google/protobuf/timestamp.proto";
 
 // A user in the system
 message User {
-	int32 id = 1;
-	string name = 2;
-	string email = 3;
-	UserStatus status = 4;
+	int32                     id         = 1;
+	string                    name       = 2;
+	string                    email      = 3;
+	UserStatus                status     = 4;
 	google.protobuf.Timestamp created_at = 5;
-	repeated Address addresses = 6;
+	repeated Address          addresses  = 6;
 }
 
 enum UserStatus {
 	USER_STATUS_UNSPECIFIED = 0;
-	USER_STATUS_ACTIVE = 1;
-	USER_STATUS_INACTIVE = 2;
-	USER_STATUS_BANNED = 3;
+	USER_STATUS_ACTIVE      = 1;
+	USER_STATUS_INACTIVE    = 2;
+	USER_STATUS_BANNED      = 3;
 }
 
 message Address {
-	string street = 1;
-	string city = 2;
-	string country = 3;
+	string street   = 1;
+	string city     = 2;
+	string country  = 3;
 	string zip_code = 4;
 }
 
@@ -48,11 +48,11 @@ service UserService {
 }
 
 message ListUsersRequest {
-	int32 page_size = 1;
+	int32  page_size  = 1;
 	string page_token = 2;
 }
 
 message ListUsersResponse {
-	repeated User users = 1;
-	string next_page_token = 2;
+	repeated User users           = 1;
+	string        next_page_token = 2;
 }

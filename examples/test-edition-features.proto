@@ -6,7 +6,6 @@ edition = "2024";
 // 2. Features option on fields with hover
 // 3. Diagnostic when features are used without edition
 
-
 package test.editions;
 
 message TestEditionFeatures {
@@ -27,8 +26,8 @@ enum TestEnum {
 	option features.enum_type = OPEN;
 
 	TEST_ENUM_UNSPECIFIED = 0;
-	TEST_ENUM_VALUE_1 = 1;
-	TEST_ENUM_VALUE_2 = 2;
+	TEST_ENUM_VALUE_1     = 1;
+	TEST_ENUM_VALUE_2     = 2;
 }
 
 message TestRepeated {
