@@ -1,12 +1,16 @@
 edition = "2023";
 
 package example.v1;
+import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
-
 import "google/type/date.proto";
 
 option go_package = "example.com/api/v1";
 option java_package = "com.example.api.v1";
+
+extend google.protobuf.FieldOptions {
+	repeated string labels = 50001;
+}
 
 // Example message representing a user
 message User {
@@ -15,7 +19,7 @@ message User {
 
 	// User's display name
 	string name = 2 // comment
-	[(check.labels) = { "required", "max_length:50" }];
+	[(example.v1.labels) = "required", (example.v1.labels) = "max_length:50"];
 
 	// User's status
 	UserStatus status = 3;
@@ -36,7 +40,7 @@ message User {
 
 	// Contact information - only one can be set
 	oneof contact {
-		string phone = 9;
+		string phone  = 9;
 		string mobile = 10;
 	}
 
@@ -47,19 +51,19 @@ message User {
 
 // Nested address message
 message Address {
-	string street = 1;
-	string city = 2;
-	string state = 3;
+	string street   = 1;
+	string city     = 2;
+	string state    = 3;
 	string zip_code = 4;
-	string country = 5;
+	string country  = 5;
 }
 
 // User status enumeration
 enum UserStatus {
 	USER_STATUS_UNSPECIFIED = 0;
-	USER_STATUS_ACTIVE = 1;
-	USER_STATUS_INACTIVE = 2;
-	USER_STATUS_BANNED = 3;
+	USER_STATUS_ACTIVE      = 1;
+	USER_STATUS_INACTIVE    = 2;
+	USER_STATUS_BANNED      = 3;
 }
 
 // User service definition
@@ -92,13 +96,13 @@ message GetUserResponse {
 }
 
 message ListUsersRequest {
-	int32 page_size = 1;
+	int32  page_size  = 1;
 	string page_token = 2;
 }
 
 message ListUsersResponse {
-	repeated User users = 1; // this is a comment;
-	string next_page_token = 2;
+	repeated User users           = 1; // this is a comment;
+	string        next_page_token = 2;
 }
 
 message CreateUserRequest {

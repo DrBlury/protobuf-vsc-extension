@@ -23,7 +23,7 @@
     "theme": "dark"
   },
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.108.0"
   },
   "categories": [
     "Programming Languages",
@@ -396,7 +396,7 @@
             "information",
             "hint"
           ],
-          "default": "error",
+          "default": "warning",
           "description": "Severity level for reporting of a non-canonical import path"
         },
         "protobuf.diagnostics.severity.breakingChanges": {

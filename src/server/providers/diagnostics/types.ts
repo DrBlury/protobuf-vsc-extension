@@ -25,7 +25,7 @@ export const DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS: DiagnosticsSeveritySettings 
   referenceErrors: 'error',
   fieldTagIssues: 'error',
   discouragedConstructs: 'warning',
-  nonCanonicalImportPath: 'error',
+  nonCanonicalImportPath: 'warning',
   breakingChanges: 'warning',
 };
 

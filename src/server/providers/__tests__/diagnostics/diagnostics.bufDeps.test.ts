@@ -148,5 +148,24 @@ message Sample {}`;
       const bsrHint = diags.find(d => d.message.includes('Buf registry dependency'));
       expect(bsrHint).toBeUndefined();
     });
+
+    it('suppresses unknown type errors when unresolved BSR imports exist', async () => {
+      const content = `syntax = "proto3";
+import "envoy/config/core/v3/address.proto";
+message Sample {
+  core.v3.Address address = 1;
+}`;
+      const uri = 'file:///test/sample.proto';
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
+
+      const diags = await providers.diagnostics.validate(uri, file, providers);
+
+      const unresolvedImport = diags.find(d => d.message.includes('cannot be resolved'));
+      expect(unresolvedImport).toBeDefined();
+
+      const unknownType = diags.find(d => d.message.includes("Unknown type 'core.v3.Address'"));
+      expect(unknownType).toBeUndefined();
+    });
   });
 });

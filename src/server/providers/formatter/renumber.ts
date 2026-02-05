@@ -12,6 +12,247 @@ import { splitLines } from './types';
 interface RenumberContext {
   type: string;
   fieldCounter: number;
+  reservedRanges?: ReservedRange[];
+}
+
+interface ReservedRange {
+  start: number;
+  end: number;
+}
+
+function parseIntegerLiteral(value: string): number | null {
+  let trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  let sign = 1;
+  if (trimmed.startsWith('-')) {
+    sign = -1;
+    trimmed = trimmed.slice(1);
+  } else if (trimmed.startsWith('+')) {
+    trimmed = trimmed.slice(1);
+  }
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (/^0x[0-9a-fA-F]+$/.test(trimmed)) {
+    return sign * parseInt(trimmed, 16);
+  }
+
+  if (trimmed.startsWith('0') && trimmed.length > 1 && /^0[0-7]+$/.test(trimmed)) {
+    return sign * parseInt(trimmed, 8);
+  }
+
+  if (/^\d+$/.test(trimmed)) {
+    return sign * parseInt(trimmed, 10);
+  }
+
+  return null;
+}
+
+function stripInlineComments(line: string): string {
+  const slIdx = line.indexOf('//');
+  const blockIdx = line.indexOf('/*');
+
+  if (slIdx === -1 && blockIdx === -1) {
+    return line;
+  }
+
+  if (slIdx === -1) {
+    return line.slice(0, blockIdx);
+  }
+
+  if (blockIdx === -1) {
+    return line.slice(0, slIdx);
+  }
+
+  return line.slice(0, Math.min(slIdx, blockIdx));
+}
+
+function parseReservedRanges(line: string): ReservedRange[] {
+  const withoutComments = stripInlineComments(line);
+  const match = withoutComments.match(/reserved\s+(.+?)\s*;/i);
+  if (!match?.[1]) {
+    return [];
+  }
+
+  const content = match[1].trim();
+  if (!content) {
+    return [];
+  }
+
+  if (/["']/.test(content)) {
+    return [];
+  }
+
+  const ranges: ReservedRange[] = [];
+  const parts = content
+    .split(',')
+    .map(part => part.trim())
+    .filter(part => part.length > 0);
+
+  for (const part of parts) {
+    const rangeMatch = part.match(/^(\S+)\s+to\s+(\S+)$/i);
+    if (rangeMatch) {
+      const startValue = parseIntegerLiteral(rangeMatch[1]!);
+      const endRaw = rangeMatch[2]!.toLowerCase();
+      const endValue = endRaw === 'max' ? FIELD_NUMBER.MAX : parseIntegerLiteral(rangeMatch[2]!);
+
+      if (startValue === null || endValue === null) {
+        continue;
+      }
+
+      const start = Math.min(startValue, endValue);
+      const end = Math.max(startValue, endValue);
+
+      if (end < FIELD_NUMBER.MIN) {
+        continue;
+      }
+
+      ranges.push({
+        start: Math.max(start, FIELD_NUMBER.MIN),
+        end: Math.min(end, FIELD_NUMBER.MAX),
+      });
+      continue;
+    }
+
+    const value = parseIntegerLiteral(part);
+    if (value === null) {
+      continue;
+    }
+
+    if (value < FIELD_NUMBER.MIN || value > FIELD_NUMBER.MAX) {
+      continue;
+    }
+
+    ranges.push({ start: value, end: value });
+  }
+
+  return ranges;
+}
+
+function collectMessageReservedRanges(lines: string[]): Map<number, ReservedRange[]> {
+  const reservedByMessage = new Map<number, ReservedRange[]>();
+  const stack: Array<{ type: string; startLine: number; reservedRanges: ReservedRange[] }> = [];
+  let pendingReserved: { context: { reservedRanges: ReservedRange[] }; buffer: string } | null = null;
+  let optionBraceDepth = 0;
+  let inlineOptionBraceDepth = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const trimmedLine = line.trim();
+
+    if (optionBraceDepth > 0) {
+      const openBraces = (trimmedLine.match(/\{/g) || []).length;
+      const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+      optionBraceDepth += openBraces - closeBraces;
+      continue;
+    }
+
+    if (inlineOptionBraceDepth > 0) {
+      const openBraces = (trimmedLine.match(/\{/g) || []).length;
+      const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+      inlineOptionBraceDepth += openBraces - closeBraces;
+      continue;
+    }
+
+    if (trimmedLine.startsWith('option') && trimmedLine.includes('{')) {
+      const openBraces = (trimmedLine.match(/\{/g) || []).length;
+      const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+      optionBraceDepth = openBraces - closeBraces;
+      continue;
+    }
+
+    if (trimmedLine.includes('[') && trimmedLine.includes('{')) {
+      const bracketStart = trimmedLine.indexOf('[');
+      const afterBracket = trimmedLine.slice(bracketStart);
+      const openBraces = (afterBracket.match(/\{/g) || []).length;
+      const closeBraces = (afterBracket.match(/\}/g) || []).length;
+      if (openBraces > closeBraces) {
+        inlineOptionBraceDepth = openBraces - closeBraces;
+        continue;
+      }
+    }
+
+    if (pendingReserved) {
+      pendingReserved.buffer = `${pendingReserved.buffer} ${trimmedLine}`.trim();
+      if (pendingReserved.buffer.includes(';')) {
+        pendingReserved.context.reservedRanges.push(...parseReservedRanges(pendingReserved.buffer));
+        pendingReserved = null;
+      }
+      continue;
+    }
+
+    if (/^(message|enum)\s+\w+\s*\{/.test(trimmedLine)) {
+      const type = trimmedLine.startsWith('message') ? 'message' : 'enum';
+      stack.push({ type, startLine: i, reservedRanges: [] });
+      continue;
+    }
+
+    if (/^oneof\s+\w+\s*\{/.test(trimmedLine)) {
+      stack.push({ type: 'oneof', startLine: i, reservedRanges: [] });
+      continue;
+    }
+
+    if (/^service\s+\w+\s*\{/.test(trimmedLine)) {
+      stack.push({ type: 'service', startLine: i, reservedRanges: [] });
+      continue;
+    }
+
+    if (trimmedLine === '}' || trimmedLine.startsWith('}')) {
+      const popped = stack.pop();
+      if (popped?.type === 'message') {
+        reservedByMessage.set(popped.startLine, popped.reservedRanges);
+      }
+      pendingReserved = null;
+      continue;
+    }
+
+    if (trimmedLine.startsWith('reserved') && stack.length > 0) {
+      const current = stack[stack.length - 1]!;
+      if (current.type === 'message') {
+        if (trimmedLine.includes(';')) {
+          current.reservedRanges.push(...parseReservedRanges(trimmedLine));
+        } else {
+          pendingReserved = { context: current, buffer: trimmedLine };
+        }
+      }
+    }
+  }
+
+  for (const context of stack) {
+    if (context.type === 'message' && !reservedByMessage.has(context.startLine)) {
+      reservedByMessage.set(context.startLine, context.reservedRanges);
+    }
+  }
+
+  return reservedByMessage;
+}
+
+function isReservedNumber(value: number, ranges: ReservedRange[]): boolean {
+  for (const range of ranges) {
+    if (value >= range.start && value <= range.end) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function getNextFieldNumber(currentContext: RenumberContext, increment: number): number {
+  let next = currentContext.fieldCounter;
+  const ranges = currentContext.reservedRanges ?? [];
+
+  while (true) {
+    const inInternalRange = next >= FIELD_NUMBER.RESERVED_RANGE_START && next <= FIELD_NUMBER.RESERVED_RANGE_END;
+    if (inInternalRange || isReservedNumber(next, ranges)) {
+      next += increment;
+      continue;
+    }
+    return next;
+  }
 }
 
 /**
@@ -21,6 +262,7 @@ interface RenumberContext {
 export function renumberFields(text: string, settings: FormatterSettings): string {
   const lines = splitLines(text);
   const result: string[] = [];
+  const reservedByMessage = collectMessageReservedRanges(lines);
 
   // Stack to track context: each entry is { type: 'message'|'enum'|'oneof', fieldCounter: number }
   const contextStack: RenumberContext[] = [];
@@ -86,12 +328,7 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
 
           if (fieldNumberMatch && (currentContext.type === 'message' || currentContext.type === 'oneof')) {
             const [, beforeNumber, , afterNumber] = fieldNumberMatch;
-            let finalNumber = currentContext.fieldCounter;
-
-            // Skip the internal reserved range
-            if (finalNumber >= FIELD_NUMBER.RESERVED_RANGE_START && finalNumber <= FIELD_NUMBER.RESERVED_RANGE_END) {
-              finalNumber = 20000;
-            }
+            const finalNumber = getNextFieldNumber(currentContext, increment);
 
             // Replace with the new sequential number
             line = `${beforeNumber}${finalNumber}${afterNumber}`;
@@ -113,12 +350,7 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
       if (continuationMatch) {
         const currentContext = contextStack[contextStack.length - 1]!;
         if (currentContext.type === 'message' || currentContext.type === 'oneof') {
-          let finalNumber = currentContext.fieldCounter;
-
-          // Skip the internal reserved range
-          if (finalNumber >= FIELD_NUMBER.RESERVED_RANGE_START && finalNumber <= FIELD_NUMBER.RESERVED_RANGE_END) {
-            finalNumber = 20000;
-          }
+          const finalNumber = getNextFieldNumber(currentContext, increment);
 
           const [, , rest] = continuationMatch;
           // Preserve the original indentation
@@ -146,7 +378,8 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
       const type = trimmedLine.startsWith('message') ? 'message' : 'enum';
       // For enums, start at 0; for messages, start at configured value
       const startNum = type === 'enum' ? 0 : settings.renumberStartNumber || 1;
-      contextStack.push({ type, fieldCounter: startNum });
+      const reservedRanges = type === 'message' ? reservedByMessage.get(i) ?? [] : [];
+      contextStack.push({ type, fieldCounter: startNum, reservedRanges });
       result.push(line);
       continue;
     }
@@ -154,7 +387,9 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
     if (/^oneof\s+\w+\s*\{/.test(trimmedLine)) {
       // Oneofs share field numbers with parent message, so don't reset counter
       const parentCounter = contextStack.length > 0 ? contextStack[contextStack.length - 1]!.fieldCounter : 1;
-      contextStack.push({ type: 'oneof', fieldCounter: parentCounter });
+      const parentMessage = [...contextStack].reverse().find(ctx => ctx.type === 'message');
+      const reservedRanges = parentMessage?.reservedRanges ?? [];
+      contextStack.push({ type: 'oneof', fieldCounter: parentCounter, reservedRanges });
       result.push(line);
       continue;
     }
@@ -169,7 +404,8 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
     if (contextStack.length > 0 && /^(message|enum)\s+\w+\s*\{/.test(trimmedLine)) {
       const type = trimmedLine.startsWith('message') ? 'message' : 'enum';
       const startNum = type === 'enum' ? 0 : settings.renumberStartNumber || 1;
-      contextStack.push({ type, fieldCounter: startNum });
+      const reservedRanges = type === 'message' ? reservedByMessage.get(i) ?? [] : [];
+      contextStack.push({ type, fieldCounter: startNum, reservedRanges });
       result.push(line);
       continue;
     }
@@ -263,12 +499,7 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
         const [, beforeNumber, , afterNumber] = fieldNumberMatch;
 
         // Use the current field counter for renumbering
-        let finalNumber = currentContext!.fieldCounter;
-
-        // Skip the internal reserved range
-        if (finalNumber >= FIELD_NUMBER.RESERVED_RANGE_START && finalNumber <= FIELD_NUMBER.RESERVED_RANGE_END) {
-          finalNumber = 20000;
-        }
+        const finalNumber = getNextFieldNumber(currentContext!, increment);
 
         // Replace with the new sequential number
         line = `${beforeNumber}${finalNumber}${afterNumber}`;

@@ -436,6 +436,26 @@ message DemoMessage2 {
       expect(result[0].newText).toContain('reserved 1 to 10');
     });
 
+    it('should skip reserved field numbers when renumbering', async () => {
+      formatter.updateSettings({ renumberOnFormat: true });
+      const text = `message Test {
+  reserved 4;
+  string field1 = 1;
+  string field2 = 2;
+  string field3 = 3;
+  string field4 = 4;
+  string field5 = 5;
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      expect(formatted).toContain('field1 = 1');
+      expect(formatted).toContain('field2 = 2');
+      expect(formatted).toContain('field3 = 3');
+      expect(formatted).toContain('field4 = 5');
+      expect(formatted).toContain('field5 = 6');
+    });
+
     it('should handle map fields without numbers', async () => {
       formatter.updateSettings({ renumberOnFormat: true });
       const text = 'message Test {map<string, int32> values;}';

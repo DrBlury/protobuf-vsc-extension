@@ -53,6 +53,7 @@ export class DiagnosticsProvider {
   private settings: DiagnosticsSettings = DEFAULT_DIAGNOSTICS_SETTINGS;
   private currentDocumentText?: string;
   private currentFile?: ProtoFile;
+  private currentFileHasUnresolvedBufImports = false;
 
   constructor(analyzer: SemanticAnalyzer) {
     this.analyzer = analyzer;
@@ -98,6 +99,10 @@ export class DiagnosticsProvider {
     // Store document text and file for context-aware validation
     this.currentDocumentText = documentText;
     this.currentFile = file;
+    const importsWithResolutions = this.analyzer.getImportsWithResolutions(uri);
+    this.currentFileHasUnresolvedBufImports = importsWithResolutions.some(
+      imp => !imp.resolvedUri && this.isBufRegistryImport(imp.importPath)
+    );
     const diagnostics: Diagnostic[] = [];
 
     // Consume syntax errors from parser
@@ -676,7 +681,7 @@ export class DiagnosticsProvider {
               symbolUri: workspaceMatch.location.uri,
             },
           });
-        } else {
+        } else if (!this.currentFileHasUnresolvedBufImports) {
           diagnostics.push({
             severity: Severity[this.settings.severity.referenceErrors],
             range: this.toRange(field.fieldTypeRange),
@@ -773,7 +778,7 @@ export class DiagnosticsProvider {
               symbolUri: workspaceMatch.location.uri,
             },
           });
-        } else {
+        } else if (!this.currentFileHasUnresolvedBufImports) {
           diagnostics.push({
             severity: Severity[this.settings.severity.referenceErrors],
             range: this.toRange(mapField.valueTypeRange),
@@ -1135,7 +1140,7 @@ export class DiagnosticsProvider {
                   symbolUri: workspaceMatch.location.uri,
                 },
               });
-            } else {
+            } else if (!this.currentFileHasUnresolvedBufImports) {
               diagnostics.push({
                 severity: Severity[this.settings.severity.referenceErrors],
                 range: this.toRange(inputTypeRange),
@@ -1172,7 +1177,7 @@ export class DiagnosticsProvider {
                   symbolUri: workspaceMatch.location.uri,
                 },
               });
-            } else {
+            } else if (!this.currentFileHasUnresolvedBufImports) {
               diagnostics.push({
                 severity: Severity[this.settings.severity.referenceErrors],
                 range: this.toRange(outputTypeRange),
@@ -1219,8 +1224,9 @@ export class DiagnosticsProvider {
         const hint = isBufDep
           ? `. This looks like a Buf registry dependency. Run 'buf export' or use the quick fix to export dependencies.`
           : '';
+        const severity = isBufDep ? DiagnosticSeverity.Warning : DiagnosticSeverity.Error;
         diagnostics.push({
-          severity: DiagnosticSeverity.Error,
+          severity,
           range: rangeInfo
             ? this.toRange(rangeInfo.range)
             : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },

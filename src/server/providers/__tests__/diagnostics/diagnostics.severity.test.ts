@@ -29,7 +29,7 @@ describe('DiagnosticsProvider severity', () => {
       const wrongImport = diags.find(d => d.message.includes('should be imported via'));
 
       expect(wrongImport).toBeDefined();
-      expect(wrongImport?.severity).toBe(DiagnosticSeverity.Error);
+      expect(wrongImport?.severity).toBe(DiagnosticSeverity.Warning);
     });
 
     it('reports non-canonical import path at specified severity', async () => {

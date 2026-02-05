@@ -1708,6 +1708,22 @@
       ]
     },
     "string": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "string_literal"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "string_literal"
+          }
+        }
+      ]
+    },
+    "string_literal": {
       "type": "CHOICE",
       "members": [
         {
@@ -1792,7 +1808,7 @@
               },
               {
                 "type": "PATTERN",
-                "value": "x[0-9a-fA-F]{2}"
+                "value": "[xX][0-9a-fA-F]{1,2}"
               },
               {
                 "type": "PATTERN",
@@ -1864,5 +1880,6 @@
   "precedences": [],
   "externals": [],
   "inline": [],
-  "supertypes": []
+  "supertypes": [],
+  "reserved": {}
 }

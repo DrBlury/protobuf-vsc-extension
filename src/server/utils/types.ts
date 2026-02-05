@@ -171,7 +171,7 @@ export const defaultSettings: Settings = {
         referenceErrors: 'error',
         fieldTagIssues: 'error',
         discouragedConstructs: 'warning',
-        nonCanonicalImportPath: 'error',
+        nonCanonicalImportPath: 'warning',
         breakingChanges: 'error',
       },
     },

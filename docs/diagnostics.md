@@ -304,7 +304,7 @@ You can configure the severity of different diagnostic categories:
   "protobuf.diagnostics.severity.referenceErrors": "error",
   "protobuf.diagnostics.severity.fieldTagIssues": "error",
   "protobuf.diagnostics.severity.discouragedConstructs": "warning",
-  "protobuf.diagnostics.severity.nonCanonicalImportPath": "error",
+  "protobuf.diagnostics.severity.nonCanonicalImportPath": "warning",
   "protobuf.diagnostics.severity.breakingChanges": "warning"
 }
 ```
