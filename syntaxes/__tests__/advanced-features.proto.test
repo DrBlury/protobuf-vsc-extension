@@ -14,23 +14,23 @@ import "google/protobuf/descriptor.proto";
 // =============================================================================
 
 message ExtensibleMessage {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
     optional string base_field = 1;
-//  ^^^^^^^^ keyword.other.modifier.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
 //           ^^^^^^ storage.type.proto
     extensions 100 to 199;
-//  ^^^^^^^^^^ keyword.other.extensions.proto
-//                 ^^ keyword.other.to.proto
+//  ^^^^^^^^^^ keyword.control.extensions.proto
+//                 ^^ keyword.control.to.proto
     extensions 1000 to max;
-//  ^^^^^^^^^^ keyword.other.extensions.proto
-//                     ^^^ keyword.other.max.proto
+//  ^^^^^^^^^^ keyword.control.extensions.proto
+//                     ^^^ keyword.control.max.proto
 }
 
 extend ExtensibleMessage {
-// <-- keyword.declaration.extend.proto
+// <-- keyword.control.extend.proto
 //     ^^^^^^^^^^^^^^^^^ entity.name.type.proto
     optional string ext_field = 100;
-//  ^^^^^^^^ keyword.other.modifier.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
 //           ^^^^^^ storage.type.proto
 //                  ^^^^^^^^^ variable.other.field.proto
 //                              ^^^ constant.numeric.proto
@@ -42,14 +42,14 @@ extend ExtensibleMessage {
 // =============================================================================
 
 extend google.protobuf.FieldOptions {
-// <-- keyword.declaration.extend.proto
+// <-- keyword.control.extend.proto
     optional string custom_option = 50001;
-//  ^^^^^^^^ keyword.other.modifier.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
 }
 
 extend google.protobuf.MessageOptions {
     optional bool msg_deprecated = 50002;
-//  ^^^^^^^^ keyword.other.modifier.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
 //           ^^^^ storage.type.proto
 }
 
@@ -60,22 +60,22 @@ extend google.protobuf.MessageOptions {
 
 message ReservedMessage {
     reserved 2, 15, 9 to 11;
-//  ^^^^^^^^ keyword.other.reserved.proto
-//                    ^^ keyword.other.to.proto
+//  ^^^^^^^^ keyword.control.reserved.proto
+//                    ^^ keyword.control.to.proto
 
     reserved 100 to 199, 1000 to max;
-//  ^^^^^^^^ keyword.other.reserved.proto
-//               ^^ keyword.other.to.proto
-//                            ^^ keyword.other.to.proto
-//                               ^^^ keyword.other.max.proto
+//  ^^^^^^^^ keyword.control.reserved.proto
+//               ^^ keyword.control.to.proto
+//                            ^^ keyword.control.to.proto
+//                               ^^^ keyword.control.max.proto
 
     reserved "old_field", "removed";
-//  ^^^^^^^^ keyword.other.reserved.proto
+//  ^^^^^^^^ keyword.control.reserved.proto
 //           ^^^^^^^^^^^ string.quoted.double.proto
 //                        ^^^^^^^^^ string.quoted.double.proto
 
     optional string active = 1;
-//  ^^^^^^^^ keyword.other.modifier.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
 }
 
 
@@ -85,33 +85,33 @@ message ReservedMessage {
 
 message GroupTests {
     optional group SimpleGroup = 1 {
-//  ^^^^^^^^ keyword.other.modifier.proto
-//           ^^^^^ keyword.declaration.group.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
+//           ^^^^^ keyword.control.group.proto
 //                 ^^^^^^^^^^^ entity.name.type.group.proto
 //                             ^ keyword.operator.assignment.proto
 //                               ^ constant.numeric.proto
 //                                 ^ punctuation.definition.block.proto
         optional string name = 1;
-//      ^^^^^^^^ keyword.other.modifier.proto
+//      ^^^^^^^^ keyword.control.modifier.proto
 //               ^^^^^^ storage.type.proto
         optional int32 value = 2;
-//      ^^^^^^^^ keyword.other.modifier.proto
+//      ^^^^^^^^ keyword.control.modifier.proto
 //               ^^^^^ storage.type.proto
     }
 
     repeated group ResultGroup = 2 {
-//  ^^^^^^^^ keyword.other.modifier.proto
-//           ^^^^^ keyword.declaration.group.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
+//           ^^^^^ keyword.control.group.proto
 //                 ^^^^^^^^^^^ entity.name.type.group.proto
         required string url = 1;
-//      ^^^^^^^^ keyword.other.modifier.proto
+//      ^^^^^^^^ keyword.control.modifier.proto
     }
 
     required group RequiredGroup = 3 {
-//  ^^^^^^^^ keyword.other.modifier.proto
-//           ^^^^^ keyword.declaration.group.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
+//           ^^^^^ keyword.control.group.proto
         required int64 id = 1;
-//      ^^^^^^^^ keyword.other.modifier.proto
+//      ^^^^^^^^ keyword.control.modifier.proto
 //               ^^^^^ storage.type.proto
     }
 }
@@ -123,18 +123,18 @@ message GroupTests {
 
 message OuterMessage {
     message InnerMessage {
-//  ^^^^^^^ keyword.declaration.message.proto
+//  ^^^^^^^ keyword.control.message.proto
 //          ^^^^^^^^^^^^ entity.name.type.message.proto
         message DeepMessage {
-//      ^^^^^^^ keyword.declaration.message.proto
+//      ^^^^^^^ keyword.control.message.proto
 //              ^^^^^^^^^^^ entity.name.type.message.proto
             optional string deep_field = 1;
-//          ^^^^^^^^ keyword.other.modifier.proto
+//          ^^^^^^^^ keyword.control.modifier.proto
         }
     }
 
     enum InnerEnum {
-//  ^^^^ keyword.declaration.enum.proto
+//  ^^^^ keyword.control.enum.proto
 //       ^^^^^^^^^ entity.name.type.enum.proto
         INNER_UNSPECIFIED = 0;
 //      ^^^^^^^^^^^^^^^^^ variable.other.enummember.proto
@@ -144,7 +144,7 @@ message OuterMessage {
 message QualifiedTypes {
     // Relative qualified names
     optional OuterMessage.InnerMessage inner = 1;
-//  ^^^^^^^^ keyword.other.modifier.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
 //           ^^^^^^^^^^^^^^^^^^^^^^^^^ entity.name.type.proto
 //                                     ^^^^^ variable.other.field.proto
 
@@ -172,7 +172,7 @@ message QualifiedTypes {
 
 message HexFieldNumbers {
     optional int32 hex_10 = 0x10;
-//  ^^^^^^^^ keyword.other.modifier.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
 //           ^^^^^ storage.type.proto
 //                 ^^^^^^ variable.other.field.proto
 //                        ^ keyword.operator.assignment.proto
@@ -192,7 +192,7 @@ message HexFieldNumbers {
 
 enum SpecialEnumValues {
     option allow_alias = true;
-//  ^^^^^^ keyword.other.option.proto
+//  ^^^^^^ keyword.control.option.proto
 //                     ^ keyword.operator.assignment.proto
 //                       ^^^^ constant.language.proto
 
@@ -225,7 +225,7 @@ enum SpecialEnumValues {
 
 message DefaultValues {
     optional double simple_float = 1 [default = 3.14159];
-//  ^^^^^^^^ keyword.other.modifier.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
 
     optional double exp_float = 2 [default = 1.5e10];
 
@@ -259,12 +259,12 @@ message Request {}
 message Response {}
 
 service AdvancedService {
-// <--- keyword.declaration.service.proto
+// <--- keyword.control.service.proto
 //      ^^^^^^^^^^^^^^^ entity.name.type.service.proto
 
     // Unary RPC
     rpc Unary(Request) returns (Response);
-//  ^^^ keyword.declaration.rpc.proto
+//  ^^^ keyword.control.rpc.proto
 //      ^^^^^ entity.name.function.rpc.proto
 //            ^^^^^^^ entity.name.type.proto
 //                     ^^^^^^^ keyword.control.returns.proto
@@ -272,26 +272,26 @@ service AdvancedService {
 
     // Server streaming
     rpc ServerStream(Request) returns (stream Response);
-//  ^^^ keyword.declaration.rpc.proto
+//  ^^^ keyword.control.rpc.proto
 //      ^^^^^^^^^^^^ entity.name.function.rpc.proto
-//                                     ^^^^^^ keyword.other.stream.proto
+//                                     ^^^^^^ keyword.control.stream.proto
 //                                            ^^^^^^^^ entity.name.type.proto
 
     // Client streaming
     rpc ClientStream(stream Request) returns (Response);
-//                   ^^^^^^ keyword.other.stream.proto
+//                   ^^^^^^ keyword.control.stream.proto
 //                          ^^^^^^^ entity.name.type.proto
 
     // Bidirectional streaming
     rpc BidiStream(stream Request) returns (stream Response);
-//                 ^^^^^^ keyword.other.stream.proto
-//                                          ^^^^^^ keyword.other.stream.proto
+//                 ^^^^^^ keyword.control.stream.proto
+//                                          ^^^^^^ keyword.control.stream.proto
 
     // RPC with option block
     rpc WithOptions(Request) returns (Response) {
-//  ^^^ keyword.declaration.rpc.proto
+//  ^^^ keyword.control.rpc.proto
         option deprecated = true;
-//      ^^^^^^ keyword.other.option.proto
+//      ^^^^^^ keyword.control.option.proto
 //             ^^^^^^^^^^ support.other.option.proto
 //                          ^^^^ constant.language.proto
     }

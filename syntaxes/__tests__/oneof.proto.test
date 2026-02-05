@@ -2,7 +2,7 @@
 
 message OneofMessage {
   oneof identifier {
-//^^^^^ keyword.declaration.oneof.proto
+//^^^^^ keyword.control.oneof.proto
 //      ^^^^^^^^^^ variable.other.oneof.proto
 //                 ^ punctuation.definition.block.proto
 
@@ -23,7 +23,7 @@ message NestedOneof {
   string prefix = 1;
 
   oneof value {
-//^^^^^ keyword.declaration.oneof.proto
+//^^^^^ keyword.control.oneof.proto
     string text = 2;
     bytes data = 3;
     int64 number = 4;

@@ -12,7 +12,7 @@ package testmessage;
 // <- comment.block.proto
 
 message TestMessage
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 //      ^^^^^^^^^^^ entity.name.type.message.proto
 {
     string content = 1;
@@ -27,7 +27,7 @@ message TestMessage
 
 // Test the multi-line field number pattern from Optionalf message
 message Optionalf
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 //      ^^^^^^^^ entity.name.type.message.proto
 {
     float value =

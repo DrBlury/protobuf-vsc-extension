@@ -1,7 +1,7 @@
 // SYNTAX TEST "source.proto" "Message definitions"
 
 message Person {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 //      ^^^^^^ entity.name.type.message.proto
 //             ^ punctuation.definition.block.proto
 
@@ -17,17 +17,17 @@ message Person {
 //      ^^^ variable.other.field.proto
 
   optional bool is_active = 3;
-//^^^^^^^^ keyword.other.modifier.proto
+//^^^^^^^^ keyword.control.modifier.proto
 //         ^^^^ storage.type.proto
 //              ^^^^^^^^^ variable.other.field.proto
 
   repeated string tags = 4;
-//^^^^^^^^ keyword.other.modifier.proto
+//^^^^^^^^ keyword.control.modifier.proto
 //         ^^^^^^ storage.type.proto
 //                ^^^^ variable.other.field.proto
 
   map<string, int32> metadata = 5;
-//^^^ keyword.other.map.proto
+//^^^ keyword.control.map.proto
 //   ^ punctuation.definition.typeparameters.begin.proto
 //    ^^^^^^ storage.type.proto
 //          ^ punctuation.separator.proto
@@ -36,7 +36,7 @@ message Person {
 
 message Nested {
   message Inner {
-//^^^^^^^ keyword.declaration.message.proto
+//^^^^^^^ keyword.control.message.proto
 //        ^^^^^ entity.name.type.message.proto
     string value = 1;
   }

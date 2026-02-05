@@ -13,7 +13,7 @@ import "google/protobuf/timestamp.proto";
 
 
 message User {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 //      ^^^^ entity.name.type.message.proto
     int32 id = 1;
 //  ^^^^^ storage.type.proto
@@ -29,7 +29,7 @@ message User {
 
 
 message Address {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 //      ^^^^^^^ entity.name.type.message.proto
     string street = 1;
 //  ^^^^^^ storage.type.proto

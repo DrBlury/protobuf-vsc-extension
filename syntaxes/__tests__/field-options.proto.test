@@ -14,7 +14,7 @@ message WithOptions {
 //                                                     ^ punctuation.definition.brackets.end.proto
 
   repeated int32 values = 4 [packed = true];
-//^^^^^^^^ keyword.other.modifier.proto
+//^^^^^^^^ keyword.control.modifier.proto
 //         ^^^^^ storage.type.proto
 //               ^^^^^^ variable.other.field.proto
 //                        ^ constant.numeric.proto

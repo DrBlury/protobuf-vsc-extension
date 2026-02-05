@@ -10,31 +10,31 @@ package unusual;
 // =============================================================================
 
 message EmptyMessage {}
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 //      ^^^^^^^^^^^^ entity.name.type.message.proto
 
 message EmptyWithSpace { }
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 
 enum EmptyEnum {
-// <-keyword.declaration.enum.proto
+// <-keyword.control.enum.proto
     EMPTY_UNSPECIFIED = 0;
 //  ^^^^^^^^^^^^^^^^^ variable.other.enummember.proto
 }
 
 service EmptyService {}
-// <--- keyword.declaration.service.proto
+// <--- keyword.control.service.proto
 
 // =============================================================================
 // SINGLE-LINE CONSTRUCTS
 // =============================================================================
 
 message SingleLine { string name = 1; }
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 //                   ^^^^^^ storage.type.proto
 
 message TwoFields { string a = 1; int32 b = 2; }
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 //                  ^^^^^^ storage.type.proto
 //                                ^^^^^ storage.type.proto
 
@@ -44,13 +44,13 @@ message TwoFields { string a = 1; int32 b = 2; }
 // =============================================================================
 
 message Level1 {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
     message Level2 {
-//  ^^^^^^^ keyword.declaration.message.proto
+//  ^^^^^^^ keyword.control.message.proto
         message Level3 {
-//      ^^^^^^^ keyword.declaration.message.proto
+//      ^^^^^^^ keyword.control.message.proto
             message Level4 {
-//          ^^^^^^^ keyword.declaration.message.proto
+//          ^^^^^^^ keyword.control.message.proto
                 string deep_value = 1;
 //              ^^^^^^ storage.type.proto
             }
@@ -82,7 +82,7 @@ message UsesDeepTypes {
 
 message OneofSingle {
     oneof single_choice {
-//  ^^^^^ keyword.declaration.oneof.proto
+//  ^^^^^ keyword.control.oneof.proto
 //        ^^^^^^^^^^^^^ variable.other.oneof.proto
         string only_option = 1;
 //      ^^^^^^ storage.type.proto
@@ -96,7 +96,7 @@ message OneofSingle {
 
 message OneofMany {
     oneof many_choices {
-//  ^^^^^ keyword.declaration.oneof.proto
+//  ^^^^^ keyword.control.oneof.proto
         string str_val = 1;
 //      ^^^^^^ storage.type.proto
         int32 int_val = 2;
@@ -137,7 +137,7 @@ message LongFieldName {
 // Math: ∑∏∫∂
 
 message AfterUnicode {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
     string field = 1;
 //  ^^^^^^ storage.type.proto
 }
@@ -155,7 +155,7 @@ message AfterUnicode {
 /* Block 3 */
 
 message AfterConsecutiveComments {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
     int32 id = 1;
 //  ^^^^^ storage.type.proto
 }
@@ -192,7 +192,7 @@ message MixedIndentation {
 // =============================================================================
 
 message TrailingWhitespace {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
     string field = 1;
 //  ^^^^^^ storage.type.proto
 }
@@ -235,9 +235,9 @@ message Request {}
 message Response {}
 
 service ServiceWithEmptyBody {
-// <--- keyword.declaration.service.proto
+// <--- keyword.control.service.proto
     rpc Method(Request) returns (Response) {}
-//  ^^^ keyword.declaration.rpc.proto
+//  ^^^ keyword.control.rpc.proto
 //      ^^^^^^ entity.name.function.rpc.proto
 }
 
@@ -247,7 +247,7 @@ service ServiceWithEmptyBody {
 // =============================================================================
 
 message FinalVerification {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
     string first = 1;
 //  ^^^^^^ storage.type.proto
     int32 second = 2;
@@ -255,10 +255,10 @@ message FinalVerification {
     bool third = 3;
 //  ^^^^ storage.type.proto
     repeated double fourth = 4;
-//  ^^^^^^^^ keyword.other.modifier.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
 //           ^^^^^^ storage.type.proto
     map<string, int32> fifth = 5;
-//  ^^^ keyword.other.map.proto
+//  ^^^ keyword.control.map.proto
 //      ^^^^^^ storage.type.proto
 //              ^^^^^ storage.type.proto
 }

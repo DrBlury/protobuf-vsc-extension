@@ -12,5 +12,5 @@ message Constants {
 
 message Extensions {
   extensions 1 to max;
-//                ^^^ keyword.other.max.proto
+//                ^^^ keyword.control.max.proto
 }

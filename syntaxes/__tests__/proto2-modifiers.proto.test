@@ -4,7 +4,7 @@ syntax = "proto2";
 
 message Proto2Message {
   required string name = 1;
-//^^^^^^^^ keyword.other.modifier.proto
+//^^^^^^^^ keyword.control.modifier.proto
 //         ^^^^^^ storage.type.proto
 //                ^^^^ variable.other.field.proto
 //                     ^ keyword.operator.assignment.proto
@@ -12,12 +12,12 @@ message Proto2Message {
 //                        ^ punctuation.terminator.proto
 
   optional int32 age = 2;
-//^^^^^^^^ keyword.other.modifier.proto
+//^^^^^^^^ keyword.control.modifier.proto
 //         ^^^^^ storage.type.proto
 //               ^^^ variable.other.field.proto
 
   repeated string tags = 3;
-//^^^^^^^^ keyword.other.modifier.proto
+//^^^^^^^^ keyword.control.modifier.proto
 //         ^^^^^^ storage.type.proto
 //                ^^^^ variable.other.field.proto
 }

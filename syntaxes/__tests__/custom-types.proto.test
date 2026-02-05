@@ -21,7 +21,7 @@ message Person {
 //                   ^ punctuation.terminator.proto
 
   repeated Address other_addresses = 3;
-//^^^^^^^^ keyword.other.modifier.proto
+//^^^^^^^^ keyword.control.modifier.proto
 //         ^^^^^^^ entity.name.type.proto
 //                 ^^^^^^^^^^^^^^^ variable.other.field.proto
 }

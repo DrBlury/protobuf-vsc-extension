@@ -3,11 +3,11 @@
 syntax = "proto3";
 
 message Outer {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 //      ^^^^^ entity.name.type.message.proto
 
   message Inner {
-//^^^^^^^ keyword.declaration.message.proto
+//^^^^^^^ keyword.control.message.proto
 //        ^^^^^ entity.name.type.message.proto
     string value = 1;
 //  ^^^^^^ storage.type.proto
@@ -15,7 +15,7 @@ message Outer {
   }
 
   enum Status {
-//^^^^ keyword.declaration.enum.proto
+//^^^^ keyword.control.enum.proto
 //     ^^^^^^ entity.name.type.enum.proto
     UNKNOWN = 0;
 //  ^^^^^^^ variable.other.enummember.proto

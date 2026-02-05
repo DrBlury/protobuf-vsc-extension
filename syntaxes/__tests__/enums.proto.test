@@ -1,7 +1,7 @@
 // SYNTAX TEST "source.proto" "Enum definitions"
 
 enum Status {
-// <- keyword.declaration.enum.proto
+// <- keyword.control.enum.proto
 //   ^^^^^^ entity.name.type.enum.proto
 //          ^ punctuation.definition.block.proto
 

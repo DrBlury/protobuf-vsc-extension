@@ -3,27 +3,27 @@
 syntax = "proto3";
 
 service TestService {
-// <--- keyword.declaration.service.proto
+// <--- keyword.control.service.proto
 //      ^^^^^^^^^^^ entity.name.type.service.proto
 
   rpc UnaryCall(Request) returns (Response) {
-//^^^ keyword.declaration.rpc.proto
+//^^^ keyword.control.rpc.proto
 //    ^^^^^^^^^ entity.name.function.rpc.proto
 //                       ^^^^^^^ keyword.control.returns.proto
 //                                          ^ punctuation.definition.block.proto
     option deprecated = true;
-//  ^^^^^^ keyword.other.option.proto
+//  ^^^^^^ keyword.control.option.proto
 //         ^^^^^^^^^^ support.other.option.proto
 //                      ^^^^ constant.language.proto
   }
 
   rpc StreamCall(stream Request) returns (stream Response) {
-//^^^ keyword.declaration.rpc.proto
-//               ^^^^^^ keyword.other.stream.proto
+//^^^ keyword.control.rpc.proto
+//               ^^^^^^ keyword.control.stream.proto
 //                               ^^^^^^^ keyword.control.returns.proto
-//                                        ^^^^^^ keyword.other.stream.proto
+//                                        ^^^^^^ keyword.control.stream.proto
     option idempotency_level = IDEMPOTENT;
-//  ^^^^^^ keyword.other.option.proto
+//  ^^^^^^ keyword.control.option.proto
   }
 }
 

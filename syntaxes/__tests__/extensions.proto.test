@@ -4,31 +4,31 @@ syntax = "proto2";
 
 message Extendable {
   extensions 100 to 199;
-//^^^^^^^^^^ keyword.other.extensions.proto
+//^^^^^^^^^^ keyword.control.extensions.proto
 //           ^^^ constant.numeric.integer.proto
-//               ^^ keyword.other.to.proto
+//               ^^ keyword.control.to.proto
 //                  ^^^ constant.numeric.integer.proto
 
   extensions 1000 to max;
-//^^^^^^^^^^ keyword.other.extensions.proto
-//                   ^^^ keyword.other.max.proto
+//^^^^^^^^^^ keyword.control.extensions.proto
+//                   ^^^ keyword.control.max.proto
 
   reserved 2, 15, 9 to 11;
-//^^^^^^^^ keyword.other.reserved.proto
+//^^^^^^^^ keyword.control.reserved.proto
 //         ^ constant.numeric.integer.proto
 //            ^^ constant.numeric.integer.proto
 //                ^ constant.numeric.integer.proto
-//                  ^^ keyword.other.to.proto
+//                  ^^ keyword.control.to.proto
 //                     ^^ constant.numeric.integer.proto
 
   reserved "foo", "bar";
-//^^^^^^^^ keyword.other.reserved.proto
+//^^^^^^^^ keyword.control.reserved.proto
 //         ^^^^^ string.quoted.double.proto
 //                ^^^^^ string.quoted.double.proto
 }
 
 extend Extendable {
-// <-- keyword.declaration.extend.proto
+// <-- keyword.control.extend.proto
 //     ^^^^^^^^^^ entity.name.type.proto
 //                ^ punctuation.definition.block.proto
 

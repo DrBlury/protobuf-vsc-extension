@@ -31,7 +31,9 @@ function normalizeForComparison(file: ProtoFile): unknown {
     edition: file.edition?.edition,
     package: file.package?.name,
     imports: file.imports.map(i => ({ path: i.path, modifier: i.modifier })).sort((a, b) => a.path.localeCompare(b.path)),
-    options: file.options.map(o => ({ name: o.name, value: o.value })).sort((a, b) => a.name.localeCompare(b.name)),
+    options: file.options
+      .map(o => ({ name: o.name, value: normalizeOptionValue(o.value) }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
     messages: file.messages.map(normalizeMessage).sort((a: any, b: any) => a.name.localeCompare(b.name)),
     enums: file.enums.map(normalizeEnum).sort((a: any, b: any) => a.name.localeCompare(b.name)),
     services: file.services.map(normalizeService).sort((a: any, b: any) => a.name.localeCompare(b.name)),
@@ -79,6 +81,73 @@ function normalizeField(field: FieldDefinition): unknown {
   };
 }
 
+function stripOptionComments(value: string): string {
+  let result = '';
+  let inSingle = false;
+  let inDouble = false;
+  let escaped = false;
+
+  for (let i = 0; i < value.length; i++) {
+    const ch = value[i]!;
+    const next = value[i + 1];
+
+    if (escaped) {
+      result += ch;
+      escaped = false;
+      continue;
+    }
+
+    if ((inSingle || inDouble) && ch === '\\') {
+      result += ch;
+      escaped = true;
+      continue;
+    }
+
+    if (!inSingle && !inDouble) {
+      if (ch === '/' && next === '/') {
+        i += 2;
+        while (i < value.length && value[i] !== '\n') {
+          i++;
+        }
+        result += ' ';
+        if (value[i] === '\n') {
+          result += '\n';
+        }
+        continue;
+      }
+
+      if (ch === '/' && next === '*') {
+        i += 2;
+        while (i < value.length - 1) {
+          if (value[i] === '*' && value[i + 1] === '/') {
+            i++;
+            break;
+          }
+          i++;
+        }
+        result += ' ';
+        continue;
+      }
+    }
+
+    if (!inSingle && ch === '"') {
+      inDouble = !inDouble;
+      result += ch;
+      continue;
+    }
+
+    if (!inDouble && ch === "'") {
+      inSingle = !inSingle;
+      result += ch;
+      continue;
+    }
+
+    result += ch;
+  }
+
+  return result;
+}
+
 /**
  * Normalize option values to handle whitespace differences in textproto-style values
  * e.g., "{ lt { seconds: 300 } }" vs "{lt {seconds: 300}}"
@@ -87,8 +156,10 @@ function normalizeOptionValue(value: unknown): unknown {
   if (typeof value !== 'string') return value;
   if (!value.startsWith('{')) return value;
 
+  const withoutComments = stripOptionComments(value);
+
   // Normalize whitespace: collapse multiple spaces, normalize around braces and colons
-  return value
+  return withoutComments
     .replace(/\s+/g, ' ')           // Collapse multiple whitespace to single space
     .replace(/\{\s*/g, '{')         // Remove space after {
     .replace(/\s*\}/g, '}')         // Remove space before }
@@ -103,9 +174,13 @@ function normalizeEnum(enumDef: EnumDefinition): unknown {
     values: enumDef.values.map(v => ({
       name: v.name,
       number: v.number,
-      options: (v.options || []).map(o => ({ name: o.name, value: o.value })).sort((a, b) => a.name.localeCompare(b.name))
+      options: (v.options || [])
+        .map(o => ({ name: o.name, value: normalizeOptionValue(o.value) }))
+        .sort((a, b) => a.name.localeCompare(b.name))
     })).sort((a, b) => a.number - b.number),
-    options: enumDef.options.map(o => ({ name: o.name, value: o.value })).sort((a, b) => a.name.localeCompare(b.name))
+    options: enumDef.options
+      .map(o => ({ name: o.name, value: normalizeOptionValue(o.value) }))
+      .sort((a, b) => a.name.localeCompare(b.name))
   };
 }
 

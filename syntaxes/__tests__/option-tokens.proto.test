@@ -4,14 +4,14 @@ syntax = "proto3";
 
 message Test {
   option deprecated = true;
-//^^^^^^ keyword.other.option.proto
+//^^^^^^ keyword.control.option.proto
 //       ^^^^^^^^^^ support.other.option.proto
 //                  ^ keyword.operator.assignment.proto
 //                    ^^^^ constant.language.proto
 //                        ^ punctuation.terminator.proto
 
   option (custom.option) = "value";
-//^^^^^^ keyword.other.option.proto
+//^^^^^^ keyword.control.option.proto
 //        ^^^^^^^^^^^^^ variable.other.option.proto
 //                       ^ keyword.operator.assignment.proto
 //                         ^^^^^^^ string.quoted.double.proto
@@ -22,7 +22,7 @@ message Test {
 
 enum Status {
   option allow_alias = true;
-//^^^^^^ keyword.other.option.proto
+//^^^^^^ keyword.control.option.proto
 //                   ^ keyword.operator.assignment.proto
 //                     ^^^^ constant.language.proto
 //                         ^ punctuation.terminator.proto
@@ -32,7 +32,7 @@ enum Status {
 
 service Svc {
   option deprecated = false;
-//^^^^^^ keyword.other.option.proto
+//^^^^^^ keyword.control.option.proto
 //       ^^^^^^^^^^ support.other.option.proto
 //                  ^ keyword.operator.assignment.proto
 //                    ^^^^^ constant.language.proto

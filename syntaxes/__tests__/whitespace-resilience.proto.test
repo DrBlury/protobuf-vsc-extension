@@ -14,7 +14,7 @@ import "google/protobuf/timestamp.proto";
 
 
 message FirstMessage {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 //      ^^^^^^^^^^^^ entity.name.type.message.proto
     int32 id = 1;
 //  ^^^^^ storage.type.proto
@@ -23,7 +23,7 @@ message FirstMessage {
 //  ^^^^^^ storage.type.proto
 //         ^^^^ variable.other.field.proto
     repeated string tags = 3;
-//  ^^^^^^^^ keyword.other.modifier.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
 //           ^^^^^^ storage.type.proto
 //                  ^^^^ variable.other.field.proto
 }
@@ -31,7 +31,7 @@ message FirstMessage {
 // Comment between constructs
 
 enum Status {
-// <-keyword.declaration.enum.proto
+// <-keyword.control.enum.proto
 //   ^^^^^^ entity.name.type.enum.proto
     STATUS_UNSPECIFIED = 0;
 //  ^^^^^^^^^^^^^^^^^^ variable.other.enummember.proto
@@ -44,7 +44,7 @@ enum Status {
 
 
 message SecondMessage {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 //      ^^^^^^^^^^^^^ entity.name.type.message.proto
     int32 count = 1;
 //  ^^^^^ storage.type.proto
@@ -56,7 +56,7 @@ message SecondMessage {
 //  ^^^^ storage.type.proto
 //       ^^^^^^^ variable.other.field.proto
     repeated int64 numbers = 4;
-//  ^^^^^^^^ keyword.other.modifier.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
 //           ^^^^^ storage.type.proto
 //                 ^^^^^^^ variable.other.field.proto
 }
@@ -68,7 +68,7 @@ message SecondMessage {
 
 
 message ThirdMessage {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
     double ratio = 1;
 //  ^^^^^^ storage.type.proto
     float percentage = 2;
@@ -87,10 +87,10 @@ message ThirdMessage {
 
 
 service TestService {
-// <--- keyword.declaration.service.proto
+// <--- keyword.control.service.proto
 //      ^^^^^^^^^^^ entity.name.type.service.proto
     rpc GetItem(FirstMessage) returns (SecondMessage);
-//  ^^^ keyword.declaration.rpc.proto
+//  ^^^ keyword.control.rpc.proto
 //      ^^^^^^^ entity.name.function.rpc.proto
 //              ^^^^^^^^^^^^ entity.name.type.proto
 //                            ^^^^^^^ keyword.control.returns.proto
@@ -102,7 +102,7 @@ service TestService {
 
 
 message FourthMessage {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 //      ^^^^^^^^^^^^^ entity.name.type.message.proto
     int32 final_field = 1;
 //  ^^^^^ storage.type.proto
@@ -111,7 +111,7 @@ message FourthMessage {
 //  ^^^^^^ storage.type.proto
 //         ^^^^^^^^^^^ variable.other.field.proto
     optional bool opt_bool = 3;
-//  ^^^^^^^^ keyword.other.modifier.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
 //           ^^^^ storage.type.proto
 //                ^^^^^^^^ variable.other.field.proto
 }
@@ -121,12 +121,12 @@ message FourthMessage {
 
 
 message FinalMessage {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
     int32 a = 1;
 //  ^^^^^ storage.type.proto
     string b = 2;
 //  ^^^^^^ storage.type.proto
     repeated int32 c = 3;
-//  ^^^^^^^^ keyword.other.modifier.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
 //           ^^^^^ storage.type.proto
 }

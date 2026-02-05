@@ -4,11 +4,11 @@ syntax = "proto3";
 
 enum WithOptions {
   option allow_alias = true;
-//^^^^^^ keyword.other.option.proto
+//^^^^^^ keyword.control.option.proto
 //                     ^^^^ constant.language.proto
 
   option deprecated = true;
-//^^^^^^ keyword.other.option.proto
+//^^^^^^ keyword.control.option.proto
 //       ^^^^^^^^^^ support.other.option.proto
 //                    ^^^^ constant.language.proto
 

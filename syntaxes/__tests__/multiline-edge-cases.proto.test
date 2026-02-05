@@ -11,7 +11,7 @@ package edgecases;
 // EDGE CASE 1: Message with brace on next line
 // =============================================================================
 message BraceOnNextLine
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 //      ^^^^^^^^^^^^^^^ entity.name.type.message.proto
 {
     int32 id = 1;
@@ -62,13 +62,13 @@ message FieldNumberWithComment {
 // =============================================================================
 message ModifierMultiLine {
     optional string opt_field =
-//  ^^^^^^^^ keyword.other.modifier.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
 //           ^^^^^^ storage.type.proto
 //                  ^^^^^^^^^ variable.other.field.proto
         1;
 //      ^ constant.numeric.proto
     repeated int32 rep_field =
-//  ^^^^^^^^ keyword.other.modifier.proto
+//  ^^^^^^^^ keyword.control.modifier.proto
 //           ^^^^^ storage.type.proto
 //                 ^^^^^^^^^ variable.other.field.proto
         2;
@@ -112,7 +112,7 @@ message MultiLineOptions {
 // EDGE CASE 7: Enum with brace on next line
 // =============================================================================
 enum StatusEnum
-// <-keyword.declaration.enum.proto
+// <-keyword.control.enum.proto
 //   ^^^^^^^^^^ entity.name.type.enum.proto
 {
     STATUS_UNSPECIFIED = 0;
@@ -126,11 +126,11 @@ enum StatusEnum
 // EDGE CASE 8: Service with brace on next line
 // =============================================================================
 service MyService
-// <--- keyword.declaration.service.proto
+// <--- keyword.control.service.proto
 //      ^^^^^^^^^ entity.name.type.service.proto
 {
     rpc GetItem(GetRequest) returns (GetResponse);
-//  ^^^ keyword.declaration.rpc.proto
+//  ^^^ keyword.control.rpc.proto
 //      ^^^^^^^ entity.name.function.rpc.proto
 }
 
@@ -141,7 +141,7 @@ service MyService
 
 
 message AfterBlanks {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 
 
     int32 field1 = 1;
@@ -160,7 +160,7 @@ message AfterBlanks {
 // =============================================================================
 message OuterMessage {
     message InnerMessage
-//  ^^^^^^^ keyword.declaration.message.proto
+//  ^^^^^^^ keyword.control.message.proto
 //          ^^^^^^^^^^^^ entity.name.type.message.proto
     {
         int32 inner_id = 1;
@@ -178,7 +178,7 @@ message OuterMessage {
 // =============================================================================
 message OneofTest {
     oneof test_oneof
-//  ^^^^^ keyword.declaration.oneof.proto
+//  ^^^^^ keyword.control.oneof.proto
 //        ^^^^^^^^^^ variable.other.oneof.proto
     {
         string name = 1;
@@ -206,7 +206,7 @@ message CustomTypeMultiLine {
 // =============================================================================
 message MapTest {
     map<string, int32> data = 1;
-//  ^^^ keyword.other.map.proto
+//  ^^^ keyword.control.map.proto
 //      ^^^^^^ storage.type.proto
 //              ^^^^^ storage.type.proto
 //                     ^^^^ variable.other.field.proto
@@ -222,7 +222,7 @@ message MapTest {
 
 
 message FirstConstruct {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
     int32 a = 1;
 //  ^^^^^ storage.type.proto
 }
@@ -231,7 +231,7 @@ message FirstConstruct {
 
 
 enum SecondConstruct {
-// <-keyword.declaration.enum.proto
+// <-keyword.control.enum.proto
     VALUE = 0;
 }
 
@@ -239,7 +239,7 @@ enum SecondConstruct {
 
 
 message ThirdConstruct {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
     string b = 1;
 //  ^^^^^^ storage.type.proto
 }
@@ -248,16 +248,16 @@ message ThirdConstruct {
 
 
 service FourthConstruct {
-// <--- keyword.declaration.service.proto
+// <--- keyword.control.service.proto
     rpc Method(FirstConstruct) returns (ThirdConstruct);
-//  ^^^ keyword.declaration.rpc.proto
+//  ^^^ keyword.control.rpc.proto
 }
 
 
 
 
 message FifthConstruct {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
     bool c = 1;
 //  ^^^^ storage.type.proto
 }
@@ -285,7 +285,7 @@ message ListResponse {}
 service FormattingService {
     // Standard single line
     rpc Get(GetRequest) returns (GetResponse);
-//  ^^^ keyword.declaration.rpc.proto
+//  ^^^ keyword.control.rpc.proto
 //      ^^^ entity.name.function.rpc.proto
 //          ^^^^^^^^^^ entity.name.type.proto
 //                      ^^^^^^^ keyword.control.returns.proto
@@ -293,8 +293,8 @@ service FormattingService {
 
     // With streaming
     rpc List(ListRequest) returns (stream ListResponse);
-//  ^^^ keyword.declaration.rpc.proto
+//  ^^^ keyword.control.rpc.proto
 //      ^^^^ entity.name.function.rpc.proto
-//                                 ^^^^^^ keyword.other.stream.proto
+//                                 ^^^^^^ keyword.control.stream.proto
 //                                        ^^^^^^^^^^^^ entity.name.type.proto
 }

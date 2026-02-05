@@ -6,7 +6,7 @@ message Value {}
 
 message MapTypes {
   map<string, string> string_map = 1;
-//^^^ keyword.other.map.proto
+//^^^ keyword.control.map.proto
 //   ^ punctuation.definition.typeparameters.begin.proto
 //    ^^^^^^ storage.type.proto
 //          ^ punctuation.separator.proto
@@ -15,13 +15,13 @@ message MapTypes {
 //                    ^^^^^^^^^^ variable.other.field.proto
 
   map<int32, bool> int_bool_map = 2;
-//^^^ keyword.other.map.proto
+//^^^ keyword.control.map.proto
 //    ^^^^^ storage.type.proto
 //         ^ punctuation.separator.proto
 //           ^^^^ storage.type.proto
 
   map<string, bytes> bytes_map = 3;
-//^^^ keyword.other.map.proto
+//^^^ keyword.control.map.proto
 //    ^^^^^^ storage.type.proto
 //            ^^^^^ storage.type.proto
 

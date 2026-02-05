@@ -306,7 +306,7 @@ message Response {
 }`;
       const result = renumberFields(text, defaultSettings);
       expect(result).toContain('reserved 1, 2, 3');
-      expect(result).toContain('name = 1');
+      expect(result).toContain('name = 4');
     });
 
     it('should skip rpc lines', () => {

@@ -16,6 +16,8 @@ export interface FormatterSettings {
   renumberOnFormat?: boolean;
   renumberStartNumber?: number;
   renumberIncrement?: number;
+  preserveReserved?: boolean;
+  skipInternalRange?: boolean;
   preset?: 'minimal' | 'google' | 'buf' | 'custom';
   alignFields?: boolean;
   /** When true, preserves multi-line field declarations instead of joining them to single lines */
@@ -43,6 +45,8 @@ export const DEFAULT_SETTINGS: FormatterSettings = {
   renumberOnFormat: false,
   renumberStartNumber: 1,
   renumberIncrement: 1,
+  preserveReserved: true,
+  skipInternalRange: true,
   preset: 'minimal',
   alignFields: true,
   preserveMultiLineFields: false,

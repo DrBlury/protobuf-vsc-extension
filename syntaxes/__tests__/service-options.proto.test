@@ -4,12 +4,12 @@ syntax = "proto3";
 
 service MyService {
   option deprecated = true;
-//^^^^^^ keyword.other.option.proto
+//^^^^^^ keyword.control.option.proto
 //       ^^^^^^^^^^ support.other.option.proto
 //                    ^^^^ constant.language.proto
 
   option (custom.service_option) = "value";
-//^^^^^^ keyword.other.option.proto
+//^^^^^^ keyword.control.option.proto
 //        ^^^^^^^^^^^^^^^^^^^^^ variable.other.option.proto
 //                                 ^^^^^^^ string.quoted.double.proto
 

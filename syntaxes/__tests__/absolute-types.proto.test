@@ -17,12 +17,12 @@ message Container {
 //                               ^ punctuation.terminator.proto
 
   optional .other.Type optional_abs = 2;
-//^^^^^^^^ keyword.other.modifier.proto
+//^^^^^^^^ keyword.control.modifier.proto
 //         ^^^^^^^^^^^ entity.name.type.proto
 //                     ^^^^^^^^^^^^ variable.other.field.proto
 
   repeated .pkg.Message repeated_abs = 3;
-//^^^^^^^^ keyword.other.modifier.proto
+//^^^^^^^^ keyword.control.modifier.proto
 //         ^^^^^^^^^^^^ entity.name.type.proto
 //                      ^^^^^^^^^^^^ variable.other.field.proto
 }

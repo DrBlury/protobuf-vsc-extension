@@ -227,6 +227,8 @@ export function updateProvidersWithSettings(
     renumberOnFormat: settings.protobuf.renumber.onFormat,
     renumberStartNumber: settings.protobuf.renumber.startNumber,
     renumberIncrement: settings.protobuf.renumber.increment,
+    preserveReserved: settings.protobuf.renumber.preserveReserved,
+    skipInternalRange: settings.protobuf.renumber.skipInternalRange,
     preset: settings.protobuf.formatter?.preset as 'minimal' | 'google' | 'buf' | 'custom',
     alignFields: settings.protobuf.formatter?.alignFields,
     preserveMultiLineFields: settings.protobuf.formatter?.preserveMultiLineFields,

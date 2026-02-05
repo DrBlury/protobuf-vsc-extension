@@ -24,9 +24,9 @@ import "other.proto";
 
 import public "public.proto";
 // <-- keyword.control.import.proto
-//     ^^^^^^ keyword.other.import.modifier.proto
+//     ^^^^^^ keyword.control.import.modifier.proto
 //            ^^^^^^^^^^^^^^ string.quoted.double.proto
 
 import weak "weak.proto";
 // <-- keyword.control.import.proto
-//     ^^^^ keyword.other.import.modifier.proto
+//     ^^^^ keyword.control.import.modifier.proto

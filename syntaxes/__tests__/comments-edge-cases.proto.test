@@ -51,7 +51,7 @@ package comments;
 // =============================================================================
 
 message RealMessage {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
 //      ^^^^^^^^^^^ entity.name.type.message.proto
     string name = 1;
 //  ^^^^^^ storage.type.proto
@@ -93,7 +93,7 @@ message WithInlineComments {
 // =============================================================================
 
 enum StatusWithComments {
-// <-- keyword.declaration.enum.proto
+// <-- keyword.control.enum.proto
     // Comment inside enum
 //  ^^^^^^^^^^^^^^^^^^^^^^^ comment.line.double-slash.proto
     STATUS_UNSPECIFIED = 0; // enum value comment
@@ -114,18 +114,18 @@ message Request {}
 message Response {}
 
 service ServiceWithComments {
-// <--- keyword.declaration.service.proto
+// <--- keyword.control.service.proto
     // Comment before RPC
 //  ^^^^^^^^^^^^^^^^^^^^^^ comment.line.double-slash.proto
     rpc GetItem(Request) returns (Response); // trailing
-//  ^^^ keyword.declaration.rpc.proto
+//  ^^^ keyword.control.rpc.proto
 //      ^^^^^^^ entity.name.function.rpc.proto
 //                                           ^^^^^^^^^^ comment.line.double-slash.proto
 
     /* block comment before RPC */
 //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ comment.block.proto
     rpc ListItems(Request) returns (Response);
-//  ^^^ keyword.declaration.rpc.proto
+//  ^^^ keyword.control.rpc.proto
 }
 
 
@@ -137,7 +137,7 @@ service ServiceWithComments {
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ comment.block.proto
 
 message AfterNestedComment {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
     string valid = 1;
 //  ^^^^^^ storage.type.proto
 }
@@ -163,7 +163,7 @@ message StringsWithCommentLikeContent {
 /* */
 
 message AfterEmptyComments {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
     int32 still_works = 1;
 //  ^^^^^ storage.type.proto
 }
@@ -184,7 +184,7 @@ message AfterEmptyComments {
 /* Special chars: < > & " ' / \ | @ # $ % ^ * ( ) [ ] { } */
 
 message FinalMessage {
-// <--- keyword.declaration.message.proto
+// <--- keyword.control.message.proto
     string last_field = 1;
 //  ^^^^^^ storage.type.proto
 }

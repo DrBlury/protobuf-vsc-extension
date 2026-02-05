@@ -6,7 +6,7 @@ import "google/api/resource.proto";
 
 message Book {
   option (google.api.resource) = {
-//^^^^^^ keyword.other.option.proto
+//^^^^^^ keyword.control.option.proto
 //       ^^^^^^^^^^^^^^^^^^^^^ variable.other.option.googleapi.proto
     type: "library.googleapis.com/Book"
 //  ^^^^ support.type.property-name.resource.proto

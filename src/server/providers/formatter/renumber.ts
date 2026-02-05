@@ -241,12 +241,13 @@ function isReservedNumber(value: number, ranges: ReservedRange[]): boolean {
   return false;
 }
 
-function getNextFieldNumber(currentContext: RenumberContext, increment: number): number {
+function getNextFieldNumber(currentContext: RenumberContext, increment: number, skipInternalRange: boolean): number {
   let next = currentContext.fieldCounter;
   const ranges = currentContext.reservedRanges ?? [];
 
   while (true) {
-    const inInternalRange = next >= FIELD_NUMBER.RESERVED_RANGE_START && next <= FIELD_NUMBER.RESERVED_RANGE_END;
+    const inInternalRange =
+      skipInternalRange && next >= FIELD_NUMBER.RESERVED_RANGE_START && next <= FIELD_NUMBER.RESERVED_RANGE_END;
     if (inInternalRange || isReservedNumber(next, ranges)) {
       next += increment;
       continue;
@@ -262,7 +263,9 @@ function getNextFieldNumber(currentContext: RenumberContext, increment: number):
 export function renumberFields(text: string, settings: FormatterSettings): string {
   const lines = splitLines(text);
   const result: string[] = [];
-  const reservedByMessage = collectMessageReservedRanges(lines);
+  const preserveReserved = settings.preserveReserved ?? true;
+  const skipInternalRange = settings.skipInternalRange ?? true;
+  const reservedByMessage = preserveReserved ? collectMessageReservedRanges(lines) : new Map<number, ReservedRange[]>();
 
   // Stack to track context: each entry is { type: 'message'|'enum'|'oneof', fieldCounter: number }
   const contextStack: RenumberContext[] = [];
@@ -328,7 +331,7 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
 
           if (fieldNumberMatch && (currentContext.type === 'message' || currentContext.type === 'oneof')) {
             const [, beforeNumber, , afterNumber] = fieldNumberMatch;
-            const finalNumber = getNextFieldNumber(currentContext, increment);
+            const finalNumber = getNextFieldNumber(currentContext, increment, skipInternalRange);
 
             // Replace with the new sequential number
             line = `${beforeNumber}${finalNumber}${afterNumber}`;
@@ -350,7 +353,7 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
       if (continuationMatch) {
         const currentContext = contextStack[contextStack.length - 1]!;
         if (currentContext.type === 'message' || currentContext.type === 'oneof') {
-          const finalNumber = getNextFieldNumber(currentContext, increment);
+          const finalNumber = getNextFieldNumber(currentContext, increment, skipInternalRange);
 
           const [, , rest] = continuationMatch;
           // Preserve the original indentation
@@ -499,7 +502,7 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
         const [, beforeNumber, , afterNumber] = fieldNumberMatch;
 
         // Use the current field counter for renumbering
-        const finalNumber = getNextFieldNumber(currentContext!, increment);
+        const finalNumber = getNextFieldNumber(currentContext!, increment, skipInternalRange);
 
         // Replace with the new sequential number
         line = `${beforeNumber}${finalNumber}${afterNumber}`;

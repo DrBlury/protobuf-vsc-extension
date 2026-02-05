@@ -4,12 +4,12 @@ syntax = "proto3";
 
 message WithOptions {
   option deprecated = true;
-//^^^^^^ keyword.other.option.proto
+//^^^^^^ keyword.control.option.proto
 //       ^^^^^^^^^^ support.other.option.proto
 //                    ^^^^ constant.language.proto
 
   option (my.custom.option) = "value";
-//^^^^^^ keyword.other.option.proto
+//^^^^^^ keyword.control.option.proto
 //        ^^^^^^^^^^^^^^^^ variable.other.option.proto
 //                            ^^^^^^^ string.quoted.double.proto
 }
