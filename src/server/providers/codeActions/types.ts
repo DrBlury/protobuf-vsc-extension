@@ -5,12 +5,7 @@
 import type { CodeActionKind, Diagnostic } from 'vscode-languageserver/node';
 
 // Re-export text utilities from shared for backwards compatibility
-export {
-  splitLines,
-  joinLines,
-  getLineAt,
-  lineCount
-} from '../../../shared/textUtils';
+export { splitLines, joinLines, getLineAt, lineCount } from '../../../shared/textUtils';
 
 /**
  * Context passed to code action handlers
@@ -45,6 +40,6 @@ export const DEFAULT_CODE_ACTIONS_SETTINGS: CodeActionsSettings = {
   formatterEnabled: true,
   organizeImports: {
     enabled: true,
-    groupByCategory: true
-  }
+    groupByCategory: true,
+  },
 };

@@ -3,10 +3,7 @@
  * Handles semantic tokens requests
  */
 
-import type {
-  SemanticTokensParams,
-  SemanticTokens
-} from 'vscode-languageserver/node';
+import type { SemanticTokensParams, SemanticTokens } from 'vscode-languageserver/node';
 
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { SemanticTokensProvider } from '../providers/semanticTokens';
@@ -32,9 +29,5 @@ export function handleSemanticTokensFull(
     return { data: [] };
   }
 
-  return semanticTokensProvider.getSemanticTokens(
-    params.textDocument.uri,
-    document.getText(),
-    mode
-  );
+  return semanticTokensProvider.getSemanticTokens(params.textDocument.uri, document.getText(), mode);
 }

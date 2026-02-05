@@ -17,6 +17,7 @@ module.exports = {
     "src/server/**/*.ts",
     "!src/server/server.ts", // Exclude main server file from coverage
     "!src/server/**/__tests__/**", // Exclude test files from coverage
+    "!src/server/**/index.ts", // Exclude barrel export files from coverage
   ],
   coverageDirectory: "coverage",
   coverageThreshold: {

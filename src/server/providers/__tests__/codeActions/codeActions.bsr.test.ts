@@ -135,7 +135,9 @@ describe('BSR Module Detection Patterns', () => {
     });
 
     it('should suggest correct module for opentelemetry imports', () => {
-      expect(suggestBufModule('opentelemetry/proto/trace/v1/trace.proto')).toBe('buf.build/opentelemetry/opentelemetry');
+      expect(suggestBufModule('opentelemetry/proto/trace/v1/trace.proto')).toBe(
+        'buf.build/opentelemetry/opentelemetry'
+      );
     });
 
     it('should suggest correct module for cosmos imports', () => {

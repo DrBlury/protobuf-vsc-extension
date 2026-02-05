@@ -54,6 +54,6 @@ export interface CelContext {
 export function calculateReplaceRange(position: Position, prefixLength: number): Range {
   return {
     start: { line: position.line, character: position.character - prefixLength },
-    end: { line: position.line, character: position.character }
+    end: { line: position.line, character: position.character },
   };
 }

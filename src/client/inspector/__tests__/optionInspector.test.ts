@@ -4,10 +4,14 @@ const mockVscode = createMockVscode();
 
 jest.mock('vscode', () => mockVscode, { virtual: true });
 
-jest.mock('vscode-languageclient/node', () => ({
-  LanguageClient: jest.fn(),
-  TransportKind: { ipc: 1, stdio: 2 },
-}), { virtual: true });
+jest.mock(
+  'vscode-languageclient/node',
+  () => ({
+    LanguageClient: jest.fn(),
+    TransportKind: { ipc: 1, stdio: 2 },
+  }),
+  { virtual: true }
+);
 
 import { OptionInspectorProvider } from '../optionInspector';
 
@@ -86,19 +90,16 @@ describe('OptionInspectorProvider', () => {
     });
 
     it('should request options from language client for proto files', async () => {
-      const mockEditor = createMockTextEditor({ 
+      const mockEditor = createMockTextEditor({
         languageId: 'proto',
-        uri: 'file:///test/test.proto'
+        uri: 'file:///test/test.proto',
       });
       mockVscode.window.activeTextEditor = mockEditor;
       mockClient.sendRequest.mockResolvedValue([]);
 
       await provider.getChildren();
 
-      expect(mockClient.sendRequest).toHaveBeenCalledWith(
-        'protobuf/getAllOptions',
-        { uri: 'file:///test/test.proto' }
-      );
+      expect(mockClient.sendRequest).toHaveBeenCalledWith('protobuf/getAllOptions', { uri: 'file:///test/test.proto' });
     });
 
     it('should return "No options found" item when server returns empty array', async () => {
@@ -149,9 +150,7 @@ describe('OptionInspectorProvider', () => {
       const mockEditor = createMockTextEditor({ languageId: 'proto' });
       mockVscode.window.activeTextEditor = mockEditor;
 
-      const mockOptions = [
-        { name: 'optimize_for', value: 1, parent: 'FileOptions' },
-      ];
+      const mockOptions = [{ name: 'optimize_for', value: 1, parent: 'FileOptions' }];
       mockClient.sendRequest.mockResolvedValue(mockOptions);
 
       const children = await provider.getChildren();
@@ -171,8 +170,8 @@ describe('OptionInspectorProvider', () => {
           parent: 'FileOptions',
           range: {
             start: { line: 5, character: 0 },
-            end: { line: 5, character: 30 }
-          }
+            end: { line: 5, character: 30 },
+          },
         },
       ];
       mockClient.sendRequest.mockResolvedValue(mockOptions);
@@ -188,9 +187,7 @@ describe('OptionInspectorProvider', () => {
       const mockEditor = createMockTextEditor({ languageId: 'proto' });
       mockVscode.window.activeTextEditor = mockEditor;
 
-      const mockOptions = [
-        { name: 'java_package', value: 'com.example', parent: 'FileOptions' },
-      ];
+      const mockOptions = [{ name: 'java_package', value: 'com.example', parent: 'FileOptions' }];
       mockClient.sendRequest.mockResolvedValue(mockOptions);
 
       const children = await provider.getChildren();
@@ -229,9 +226,7 @@ describe('OptionInspectorProvider', () => {
       const mockEditor = createMockTextEditor({ languageId: 'proto' });
       mockVscode.window.activeTextEditor = mockEditor;
 
-      const mockOptions = [
-        { name: 'java_package', value: 'com.example', parent: 'FileOptions' },
-      ];
+      const mockOptions = [{ name: 'java_package', value: 'com.example', parent: 'FileOptions' }];
       mockClient.sendRequest.mockResolvedValue(mockOptions);
 
       const children = await provider.getChildren();
@@ -243,9 +238,7 @@ describe('OptionInspectorProvider', () => {
       const mockEditor = createMockTextEditor({ languageId: 'proto' });
       mockVscode.window.activeTextEditor = mockEditor;
 
-      const mockOptions = [
-        { name: 'java_package', value: 'com.example', parent: 'FileOptions' },
-      ];
+      const mockOptions = [{ name: 'java_package', value: 'com.example', parent: 'FileOptions' }];
       mockClient.sendRequest.mockResolvedValue(mockOptions);
 
       const children = await provider.getChildren();

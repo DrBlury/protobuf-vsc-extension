@@ -14,10 +14,10 @@ describe('ReferencesHandler', () => {
 
   beforeEach(() => {
     documents = {
-      get: jest.fn()
+      get: jest.fn(),
     } as any;
     referencesProvider = {
-      findReferences: jest.fn()
+      findReferences: jest.fn(),
     } as any;
   });
 
@@ -25,7 +25,7 @@ describe('ReferencesHandler', () => {
     const params: ReferenceParams = {
       textDocument: { uri: 'file:///nonexistent.proto' },
       position: { line: 0, character: 0 },
-      context: { includeDeclaration: true }
+      context: { includeDeclaration: true },
     };
 
     documents.get.mockReturnValue(undefined);
@@ -44,22 +44,17 @@ describe('ReferencesHandler', () => {
     const params: ReferenceParams = {
       textDocument: { uri },
       position: { line: 1, character: 10 },
-      context: { includeDeclaration: true }
+      context: { includeDeclaration: true },
     };
 
     const locations: Location[] = [
-      Location.create(uri, { start: { line: 1, character: 8 }, end: { line: 1, character: 12 } })
+      Location.create(uri, { start: { line: 1, character: 8 }, end: { line: 1, character: 12 } }),
     ];
     referencesProvider.findReferences.mockReturnValue(locations);
 
     const result = handleReferences(params, documents, referencesProvider);
 
-    expect(referencesProvider.findReferences).toHaveBeenCalledWith(
-      uri,
-      params.position,
-      'message Test {}',
-      true
-    );
+    expect(referencesProvider.findReferences).toHaveBeenCalledWith(uri, params.position, 'message Test {}', true);
     expect(result).toEqual(locations);
   });
 
@@ -72,19 +67,14 @@ describe('ReferencesHandler', () => {
     const params: ReferenceParams = {
       textDocument: { uri },
       position: { line: 0, character: 0 },
-      context: { includeDeclaration: false }
+      context: { includeDeclaration: false },
     };
 
     referencesProvider.findReferences.mockReturnValue([]);
 
     handleReferences(params, documents, referencesProvider);
 
-    expect(referencesProvider.findReferences).toHaveBeenCalledWith(
-      uri,
-      params.position,
-      'syntax = "proto3";',
-      false
-    );
+    expect(referencesProvider.findReferences).toHaveBeenCalledWith(uri, params.position, 'syntax = "proto3";', false);
   });
 
   it('should handle position beyond document lines', () => {
@@ -96,19 +86,14 @@ describe('ReferencesHandler', () => {
     const params: ReferenceParams = {
       textDocument: { uri },
       position: { line: 10, character: 0 },
-      context: { includeDeclaration: true }
+      context: { includeDeclaration: true },
     };
 
     referencesProvider.findReferences.mockReturnValue([]);
 
     const result = handleReferences(params, documents, referencesProvider);
 
-    expect(referencesProvider.findReferences).toHaveBeenCalledWith(
-      uri,
-      params.position,
-      '',
-      true
-    );
+    expect(referencesProvider.findReferences).toHaveBeenCalledWith(uri, params.position, '', true);
     expect(result).toEqual([]);
   });
 
@@ -121,19 +106,14 @@ describe('ReferencesHandler', () => {
     const params: ReferenceParams = {
       textDocument: { uri },
       position: { line: 1, character: 0 },
-      context: { includeDeclaration: true }
+      context: { includeDeclaration: true },
     };
 
     referencesProvider.findReferences.mockReturnValue([]);
 
     const result = handleReferences(params, documents, referencesProvider);
 
-    expect(referencesProvider.findReferences).toHaveBeenCalledWith(
-      uri,
-      params.position,
-      '',
-      true
-    );
+    expect(referencesProvider.findReferences).toHaveBeenCalledWith(uri, params.position, '', true);
     expect(result).toEqual([]);
   });
 });

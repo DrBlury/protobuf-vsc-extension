@@ -5,10 +5,14 @@ const mockVscode = createMockVscode();
 
 jest.mock('vscode', () => mockVscode, { virtual: true });
 
-jest.mock('vscode-languageclient/node', () => ({
-  LanguageClient: jest.fn(),
-  TransportKind: { ipc: 1, stdio: 2 },
-}), { virtual: true });
+jest.mock(
+  'vscode-languageclient/node',
+  () => ({
+    LanguageClient: jest.fn(),
+    TransportKind: { ipc: 1, stdio: 2 },
+  }),
+  { virtual: true }
+);
 
 import { SchemaGraphPanel } from '../schemaGraphPanel';
 
@@ -20,7 +24,7 @@ describe('SchemaGraphPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (SchemaGraphPanel as unknown as { currentPanel: undefined }).currentPanel = undefined;
-    
+
     mockClient = createMockLanguageClient();
     mockExtensionUri = { fsPath: '/test/extension' };
     mockWebviewPanel = mockVscode.window.createWebviewPanel();
@@ -66,7 +70,7 @@ describe('SchemaGraphPanel', () => {
       };
 
       SchemaGraphPanel.createOrShow(mockExtensionUri as never, mockClient, options);
-      
+
       await new Promise(resolve => setTimeout(resolve, 10));
       jest.clearAllMocks();
 
@@ -108,13 +112,10 @@ describe('SchemaGraphPanel', () => {
 
       await new Promise(resolve => setTimeout(resolve, 20));
 
-      expect(mockClient.sendRequest).toHaveBeenCalledWith(
-        'protobuf/getSchemaGraph',
-        {
-          uri: 'file://test.proto',
-          scope: 'workspace',
-        }
-      );
+      expect(mockClient.sendRequest).toHaveBeenCalledWith('protobuf/getSchemaGraph', {
+        uri: 'file://test.proto',
+        scope: 'workspace',
+      });
     });
 
     it('should set HTML on webview with graph data', async () => {
@@ -199,7 +200,7 @@ describe('SchemaGraphPanel', () => {
 
       SchemaGraphPanel.createOrShow(mockExtensionUri as never, mockClient, options);
       expect(mockVscode.window.createWebviewPanel).toHaveBeenCalledTimes(1);
-      
+
       await new Promise(resolve => setTimeout(resolve, 10));
 
       const disposeHandler = (mockWebviewPanel.onDidDispose as jest.Mock).mock.calls[0]?.[0];
@@ -298,7 +299,7 @@ describe('SchemaGraphPanel', () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       const messageHandler = (mockWebviewPanel.webview.onDidReceiveMessage as jest.Mock).mock.calls[0]?.[0];
-      
+
       jest.clearAllMocks();
       mockClient.sendRequest.mockResolvedValue(mockGraphData);
 

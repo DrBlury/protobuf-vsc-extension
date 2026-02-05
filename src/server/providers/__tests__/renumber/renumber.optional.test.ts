@@ -1,6 +1,6 @@
 /**
  * Tests for renumbering with optional/required/repeated field modifiers
- * Issue: 'optional' fields were being skipped because startsWith('option') 
+ * Issue: 'optional' fields were being skipped because startsWith('option')
  * matched both 'option' statements and 'optional' field modifier
  */
 
@@ -18,7 +18,7 @@ describe('renumberFields with field modifiers', () => {
     renumberIncrement: 1,
     preset: 'minimal',
     alignFields: false,
-    preserveMultiLineFields: false
+    preserveMultiLineFields: false,
   };
 
   describe('optional field modifier', () => {
@@ -30,7 +30,7 @@ message TestOptional {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       expect(result).toContain('optional MyMessage optional_field = 1');
       expect(result).toContain('MyMessage regular_field = 2');
     });
@@ -44,7 +44,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       expect(result).toContain('optional string name = 1');
       expect(result).toContain('optional int32 age = 2');
       expect(result).toContain('optional bool active = 3');
@@ -60,7 +60,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       expect(result).toContain('optional string name = 1');
       expect(result).toContain('int32 id = 2');
       expect(result).toContain('optional bool active = 3');
@@ -75,7 +75,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       expect(result).toContain('optional foo.bar.CustomType field1 = 1');
       expect(result).toContain('optional .absolute.Type field2 = 2');
     });
@@ -90,7 +90,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       expect(result).toContain('required string name = 1');
       expect(result).toContain('required int32 id = 2');
     });
@@ -104,7 +104,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       expect(result).toContain('required string name = 1');
       expect(result).toContain('optional int32 age = 2');
       expect(result).toContain('required bool active = 3');
@@ -120,7 +120,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       expect(result).toContain('repeated string names = 1');
       expect(result).toContain('repeated int32 ids = 2');
     });
@@ -135,7 +135,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       expect(result).toContain('optional string name = 1');
       expect(result).toContain('repeated string tags = 2');
       expect(result).toContain('optional int32 count = 3');
@@ -153,7 +153,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       // Option statement should be preserved unchanged
       expect(result).toContain('option deprecated = true');
       // Fields should be renumbered
@@ -171,7 +171,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       // Option statements should be preserved unchanged
       expect(result).toContain('option (custom.option) = "value"');
       expect(result).toContain('option (another.option) = 123');
@@ -190,7 +190,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       // Option statements should be preserved unchanged
       expect(result).toContain('option deprecated = true');
       expect(result).toContain('option (my.option) = false');
@@ -211,7 +211,7 @@ enum Status {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       // Option statement should be preserved unchanged
       expect(result).toContain('option allow_alias = true');
       // Enum values should preserve existing numbers (enum renumbering behavior)
@@ -227,7 +227,7 @@ enum Status {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       expect(result).toContain('option (my_enum_option) = "value"');
       expect(result).toContain('UNKNOWN = 0');
     });
@@ -246,7 +246,7 @@ message Outer {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       // Outer message fields
       expect(result).toContain('optional string outer_name = 1');
       expect(result).toContain('optional Inner nested = 2');
@@ -267,7 +267,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       expect(result).toContain('optional string name = 1');
       expect(result).toContain('string option_a = 2');
       expect(result).toContain('int32 option_b = 3');
@@ -284,7 +284,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       expect(result).toContain('optional string name = 1');
       expect(result).toContain('optional int32 age = 2');
       // Simple field options should be preserved
@@ -301,7 +301,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       expect(result).toContain('optional string name = 1');
       expect(result).toContain('map<string, int32> scores = 2');
       expect(result).toContain('optional bool active = 3');
@@ -318,7 +318,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       // Fields named "option" or "optional" should be renumbered
       expect(result).toContain('string option = 1');
       expect(result).toContain('string optional = 2');
@@ -334,7 +334,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       expect(result).toContain('OptionConfig config = 1');
       expect(result).toContain('OptionalSettings settings = 2');
       expect(result).toContain('optional OptionValue value = 3');
@@ -349,7 +349,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       // All fields should be renumbered sequentially
       expect(result).toContain('optional string name = 1');
       expect(result).toContain('optional int32 age = 2');
@@ -366,7 +366,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       expect(result).toContain('// This is a name field');
       expect(result).toContain('optional string name = 1');
       expect(result).toContain('/* This is an age field */');
@@ -381,11 +381,11 @@ message Test {
 }
 `;
       const result = renumberFields(text, defaultSettings);
-      
+
       expect(result).toContain('optional string name = 1');
       expect(result).toContain('optional int32 age = 2');
-      expect(result).toContain('// User\'s name');
-      expect(result).toContain('// User\'s age');
+      expect(result).toContain("// User's name");
+      expect(result).toContain("// User's age");
     });
   });
 
@@ -399,7 +399,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, settings);
-      
+
       expect(result).toContain('optional string name = 10');
       expect(result).toContain('optional int32 age = 11');
     });
@@ -414,7 +414,7 @@ message Test {
 }
 `;
       const result = renumberFields(text, settings);
-      
+
       expect(result).toContain('optional string name = 1');
       expect(result).toContain('optional int32 age = 11');
       expect(result).toContain('optional bool active = 21');

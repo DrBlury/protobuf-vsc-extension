@@ -33,7 +33,8 @@
   ],
   "activationEvents": [
     "onLanguage:proto",
-    "onLanguage:textproto"
+    "onLanguage:textproto",
+    "onCustomEditor:protobuf.binaryInspector"
   ],
   "keywords": [
     "protobuf",
@@ -56,6 +57,15 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "protobuf-explorer",
+          "title": "Protobuf",
+          "icon": "resources/protobuf-icon.svg"
+        }
+      ]
+    },
     "languages": [
       {
         "id": "proto",
@@ -129,6 +139,11 @@
           "type": "boolean",
           "default": false,
           "description": "Automatically format proto files on save"
+        },
+        "protobuf.enableBetaFeatures": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable beta features such as the Binary Inspector and Playground (reload required)."
         },
         "protobuf.indentSize": {
           "type": "number",
@@ -489,6 +504,11 @@
           "default": false,
           "description": "Use the buf CLI installed by the Protobuf VSC extension instead of the system PATH. When enabled, the extension will use its own managed buf binary."
         },
+        "protobuf.grpcurl.path": {
+          "type": "string",
+          "default": "grpcurl",
+          "description": "Path to the grpcurl CLI. Used by the Protobuf Playground for gRPC requests. Defaults to 'grpcurl' in PATH."
+        },
         "protobuf.breaking.enabled": {
           "type": "boolean",
           "default": false,
@@ -783,7 +803,14 @@
       {
         "command": "protobuf.openPlayground",
         "title": "Open Request Playground",
-        "category": "Protobuf"
+        "category": "Protobuf",
+        "enablement": "config.protobuf.enableBetaFeatures"
+      },
+      {
+        "command": "protobuf.openProtovalidatePlayground",
+        "title": "Open Protovalidate Playground",
+        "category": "Protobuf",
+        "enablement": "config.protobuf.enableBetaFeatures"
       },
       {
         "command": "protobuf.addBufDependency",
@@ -814,6 +841,32 @@
         "command": "protobuf.suggestDependencies",
         "title": "Suggest Dependencies for Unresolved Imports",
         "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.showDocumentation",
+        "title": "Show Documentation Preview",
+        "category": "Protobuf"
+      },
+      {
+        "command": "protobuf.sidebar.refresh",
+        "title": "Refresh Sidebar",
+        "category": "Protobuf",
+        "icon": "$(refresh)"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "protobuf.binaryInspector",
+        "displayName": "Protobuf Binary Inspector",
+        "selector": [
+          {
+            "filenamePattern": "*.pb"
+          },
+          {
+            "filenamePattern": "*.bin"
+          }
+        ],
+        "priority": "default"
       }
     ],
     "menus": {
@@ -876,17 +929,48 @@
         },
         {
           "command": "protobuf.showAvailableLintRules"
+        },
+        {
+          "command": "protobuf.showDocumentation",
+          "when": "resourceLangId == proto"
+        },
+        {
+          "command": "protobuf.sidebar.refresh",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "protobuf.sidebar.refresh",
+          "when": "view == protobufExplorer",
+          "group": "navigation"
         }
       ]
     },
     "views": {
+      "protobuf-explorer": [
+        {
+          "id": "protobufExplorer",
+          "name": "Protobuf",
+          "icon": "$(file-code)",
+          "contextualTitle": "Protobuf Explorer"
+        }
+      ],
       "explorer": [
         {
+          "icon": "resources/protobuf-icon.svg",
           "id": "protobufOptionInspector",
           "name": "Proto Options"
         }
       ]
-    }
+    },
+    "viewsWelcome": [
+      {
+        "view": "protobufExplorer",
+        "contents": "Welcome to Protobuf VSC!\n\nNo proto files found in workspace.\n\n[Create Proto File](command:workbench.action.files.newUntitledFile)\n\nTo get started, create a .proto file or open a workspace with proto files.",
+        "when": "workspaceFolderCount > 0"
+      }
+    ]
   },
   "scripts": {
     "pretest": "node -e \"require('fs').mkdirSync('.vscode-test',{recursive:true});\"",
@@ -895,6 +979,9 @@
     "watch": "tsc -b -w",
     "type-check": "tsc --noEmit",
     "lint": "eslint ./src",
+    "lint:fix": "eslint ./src --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
     "test": "node ./node_modules/jest/bin/jest.js",
     "test:watch": "node ./node_modules/jest/bin/jest.js --watch",
     "test:coverage": "node ./node_modules/jest/bin/jest.js --coverage",
@@ -916,7 +1003,10 @@
     "@typescript-eslint/parser": "^8.51.0",
     "@vscode/vsce": "^3.7.1",
     "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
     "jest": "^30.2.0",
+    "prettier": "^3.7.4",
     "tree-sitter-cli": "^0.26.3",
     "ts-jest": "^29.4.6",
     "typescript": "^5.9.3",

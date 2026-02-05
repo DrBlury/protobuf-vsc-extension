@@ -11,14 +11,28 @@ jest.mock('child_process', () => ({
 
 import { CodegenManager } from '../codegenManager';
 
+/**
+ * Helper to flush promises and advance fake timers
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    jest.advanceTimersByTime(20);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
+
 describe('CodegenManager', () => {
   let manager: CodegenManager;
   let mockOutputChannel: ReturnType<typeof mockVscode.window.createOutputChannel>;
 
   function setupConfig(profiles: Record<string, unknown>, protocPath = 'protoc') {
     const configGet = jest.fn((key: string, defaultValue?: unknown) => {
-      if (key === 'codegen.profiles') {return profiles;}
-      if (key === 'protoc.path') {return protocPath;}
+      if (key === 'codegen.profiles') {
+        return profiles;
+      }
+      if (key === 'protoc.path') {
+        return protocPath;
+      }
       return defaultValue;
     });
     mockVscode.workspace.getConfiguration = jest.fn(() => ({
@@ -32,12 +46,15 @@ describe('CodegenManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     mockOutputChannel = mockVscode.window.createOutputChannel();
     mockVscode.window.activeTextEditor = undefined;
-    mockVscode.workspace.workspaceFolders = [
-      { uri: { fsPath: '/test/workspace' } },
-    ];
+    mockVscode.workspace.workspaceFolders = [{ uri: { fsPath: '/test/workspace' } }];
     manager = new CodegenManager(mockOutputChannel);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -86,8 +103,8 @@ describe('CodegenManager', () => {
     describe('when profiles are configured', () => {
       beforeEach(() => {
         setupConfig({
-          'go': ['--go_out=${workspaceFolder}/gen/go', '${file}'],
-          'typescript': ['--ts_out=${workspaceFolder}/gen/ts', '${file}'],
+          go: ['--go_out=${workspaceFolder}/gen/go', '${file}'],
+          typescript: ['--ts_out=${workspaceFolder}/gen/ts', '${file}'],
         });
       });
 
@@ -96,10 +113,9 @@ describe('CodegenManager', () => {
 
         await manager.generateCode();
 
-        expect(mockVscode.window.showQuickPick).toHaveBeenCalledWith(
-          ['go', 'typescript'],
-          { placeHolder: 'Select a codegen profile to run' }
-        );
+        expect(mockVscode.window.showQuickPick).toHaveBeenCalledWith(['go', 'typescript'], {
+          placeHolder: 'Select a codegen profile to run',
+        });
       });
 
       it('should return early when user cancels quick pick', async () => {
@@ -111,7 +127,7 @@ describe('CodegenManager', () => {
       });
 
       it('should show error for invalid profile (not an array)', async () => {
-        setupConfig({ 'invalid': 'not-an-array' });
+        setupConfig({ invalid: 'not-an-array' });
         mockVscode.window.showQuickPick.mockResolvedValue('invalid');
 
         await manager.generateCode();
@@ -132,9 +148,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockSpawn).toHaveBeenCalledWith(
           'protoc',
@@ -150,9 +166,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode(providedUri as never);
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode(providedUri as never);
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockSpawn).toHaveBeenCalledWith(
           'protoc',
@@ -169,9 +185,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockOutputChannel.show).toHaveBeenCalledWith(true);
       });
@@ -184,13 +200,11 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
-        await new Promise(resolve => setTimeout(resolve, 20));
-
-        expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
-          expect.stringContaining('Running: protoc')
-        );
+        expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Running: protoc'));
       });
 
       it('should show success message when codegen completes successfully', async () => {
@@ -201,16 +215,12 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('Generated successfully', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
-        await new Promise(resolve => setTimeout(resolve, 20));
-
-        expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
-          'Codegen completed successfully.'
-        );
-        expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(
-          'Codegen completed successfully.'
-        );
+        expect(mockOutputChannel.appendLine).toHaveBeenCalledWith('Codegen completed successfully.');
+        expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith('Codegen completed successfully.');
       });
 
       it('should show error message when codegen fails', async () => {
@@ -221,13 +231,11 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', 'Error: missing import', 1);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
-        await new Promise(resolve => setTimeout(resolve, 20));
-
-        expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
-          'Codegen failed with exit code 1.'
-        );
+        expect(mockOutputChannel.appendLine).toHaveBeenCalledWith('Codegen failed with exit code 1.');
         expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
           'Codegen failed with exit code 1. Check output for details.'
         );
@@ -241,13 +249,11 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0, new Error('spawn ENOENT'));
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
-        await new Promise(resolve => setTimeout(resolve, 20));
-
-        expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
-          expect.stringContaining('Failed to start process')
-        );
+        expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Failed to start process'));
         expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
           expect.stringContaining('Failed to start protoc')
         );
@@ -261,9 +267,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('stdout output', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockOutputChannel.append).toHaveBeenCalledWith('stdout output');
       });
@@ -276,15 +282,15 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', 'stderr output', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockOutputChannel.append).toHaveBeenCalledWith('stderr output');
       });
 
       it('should use custom protoc path from config', async () => {
-        setupConfig({ 'go': ['--go_out=gen', '${file}'] }, '/custom/path/to/protoc');
+        setupConfig({ go: ['--go_out=gen', '${file}'] }, '/custom/path/to/protoc');
         mockVscode.window.showQuickPick.mockResolvedValue('go');
         const mockEditor = createMockTextEditor({ uri: 'file:///test/file.proto' });
         mockVscode.window.activeTextEditor = mockEditor;
@@ -292,15 +298,11 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
-        await new Promise(resolve => setTimeout(resolve, 20));
-
-        expect(mockSpawn).toHaveBeenCalledWith(
-          '/custom/path/to/protoc',
-          expect.any(Array),
-          expect.any(Object)
-        );
+        expect(mockSpawn).toHaveBeenCalledWith('/custom/path/to/protoc', expect.any(Array), expect.any(Object));
       });
 
       it('should use workspace folder as cwd', async () => {
@@ -311,9 +313,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockSpawn).toHaveBeenCalledWith(
           expect.any(String),
@@ -346,9 +348,9 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockSpawn).toHaveBeenCalledWith(
           'protoc',
@@ -370,19 +372,13 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockSpawn).toHaveBeenCalledWith(
           'protoc',
-          [
-            '/test/workspace',
-            '${file}',
-            '${fileDirname}',
-            '${fileBasename}',
-            '${fileBasenameNoExtension}',
-          ],
+          ['/test/workspace', '${file}', '${fileDirname}', '${fileBasename}', '${fileBasenameNoExtension}'],
           expect.any(Object)
         );
       });
@@ -398,16 +394,13 @@ describe('CodegenManager', () => {
         const mockProc = createMockChildProcess('', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await manager.generateCode();
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const codegenPromise = manager.generateCode();
+        await flushPromisesAndTimers();
+        await codegenPromise;
 
         expect(mockSpawn).toHaveBeenCalledWith(
           'protoc',
-          expect.arrayContaining([
-            '',
-            '/standalone/file.proto',
-          ]),
+          expect.arrayContaining(['', '/standalone/file.proto']),
           expect.any(Object)
         );
       });

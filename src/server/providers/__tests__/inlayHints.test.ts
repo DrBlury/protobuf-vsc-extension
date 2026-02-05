@@ -11,7 +11,7 @@ import { ProtoFile, FieldDefinition, EnumValue } from '../../core/ast';
 function createRange(startLine: number, startChar: number, endLine: number, endChar: number) {
   return {
     start: { line: startLine, character: startChar },
-    end: { line: endLine, character: endChar }
+    end: { line: endLine, character: endChar },
   };
 }
 
@@ -25,7 +25,7 @@ function createField(name: string, line: number, options?: FieldDefinition['opti
     fieldTypeRange: createRange(line, 2, line, 8),
     number: 1,
     options,
-    range: createRange(line, 0, line, 30)
+    range: createRange(line, 0, line, 30),
   };
 }
 
@@ -36,7 +36,7 @@ function createEnumValue(name: string, number: number, line: number): EnumValue 
     name,
     nameRange: createRange(line, 2, line, 2 + name.length),
     number,
-    range: createRange(line, 0, line, 20)
+    range: createRange(line, 0, line, 20),
   };
 }
 
@@ -62,7 +62,7 @@ describe('InlayHintsProvider', () => {
       const settings: InlayHintsSettings = {
         showFieldNumbers: true,
         showEnumValues: false,
-        showDefaults: true
+        showDefaults: true,
       };
       const provider = new InlayHintsProvider(settings);
       expect(provider).toBeDefined();
@@ -80,9 +80,9 @@ describe('InlayHintsProvider', () => {
         messages: [],
         enums: [],
         services: [],
-        extends: []
+        extends: [],
       };
-      
+
       const hints = provider.getInlayHints(emptyFile, []);
       expect(hints).toEqual([]);
     });
@@ -95,9 +95,9 @@ message User {
       const lines = content.split('\n');
       const file = parser.parse(content, 'file:///test.proto');
       const provider = new InlayHintsProvider({ showDefaults: true });
-      
+
       const hints = provider.getInlayHints(file, lines);
-      
+
       // Should show default value hint
       const defaultHint = hints.find(h => h.label.toString().includes('default'));
       expect(defaultHint).toBeDefined();
@@ -115,34 +115,36 @@ message User {
         fieldType: 'string',
         fieldTypeRange: createRange(1, 2, 1, 8),
         number: 1,
-        range: createRange(1, 0, 1, 20)
+        range: createRange(1, 0, 1, 20),
       };
-      
+
       const file: ProtoFile = {
         type: 'file',
         range: createRange(0, 0, 10, 0),
         imports: [],
         options: [],
-        messages: [{
-          type: 'message',
-          name: 'Test',
-          nameRange: createRange(0, 0, 0, 4),
-          range: createRange(0, 0, 3, 1),
-          fields: [fieldWithoutNameRange],
-          nestedMessages: [],
-          nestedEnums: [],
-          oneofs: [],
-          options: [],
-          reserved: [],
-          extensions: [],
-          maps: [],
-          groups: []
-        }],
+        messages: [
+          {
+            type: 'message',
+            name: 'Test',
+            nameRange: createRange(0, 0, 0, 4),
+            range: createRange(0, 0, 3, 1),
+            fields: [fieldWithoutNameRange],
+            nestedMessages: [],
+            nestedEnums: [],
+            oneofs: [],
+            options: [],
+            reserved: [],
+            extensions: [],
+            maps: [],
+            groups: [],
+          },
+        ],
         enums: [],
         services: [],
-        extends: []
+        extends: [],
       };
-      
+
       const lines = ['message Test {', '  string field1 = 1;', '}'];
       const hints = provider.getInlayHints(file, lines);
       // Should not crash and return no hints for fields without nameRange
@@ -156,26 +158,28 @@ message User {
         range: createRange(0, 0, 10, 0),
         imports: [],
         options: [],
-        messages: [{
-          type: 'message',
-          name: 'Test',
-          nameRange: createRange(0, 0, 0, 4),
-          range: createRange(0, 0, 3, 1),
-          fields: [createField('field1', 1)],
-          nestedMessages: [],
-          nestedEnums: [],
-          oneofs: [],
-          options: [],
-          reserved: [],
-          extensions: [],
-          maps: [],
-          groups: []
-        }],
+        messages: [
+          {
+            type: 'message',
+            name: 'Test',
+            nameRange: createRange(0, 0, 0, 4),
+            range: createRange(0, 0, 3, 1),
+            fields: [createField('field1', 1)],
+            nestedMessages: [],
+            nestedEnums: [],
+            oneofs: [],
+            options: [],
+            reserved: [],
+            extensions: [],
+            maps: [],
+            groups: [],
+          },
+        ],
         enums: [],
         services: [],
-        extends: []
+        extends: [],
       };
-      
+
       // Line without semicolon
       const lines = ['message Test {', '  string field1 = 1', '}'];
       const hints = provider.getInlayHints(file, lines);
@@ -193,7 +197,7 @@ message Outer {
       const lines = content.split('\n');
       const file = parser.parse(content, 'file:///test.proto');
       const provider = new InlayHintsProvider({ showDefaults: true });
-      
+
       const hints = provider.getInlayHints(file, lines);
       // Should process nested message fields
       expect(hints.length).toBeGreaterThanOrEqual(0);
@@ -207,7 +211,7 @@ message User {
       const lines = content.split('\n');
       const file = parser.parse(content, 'file:///test.proto');
       const provider = new InlayHintsProvider();
-      
+
       // Should not crash when processing maps
       const hints = provider.getInlayHints(file, lines);
       expect(hints).toBeDefined();
@@ -223,7 +227,7 @@ enum Status {
       const lines = content.split('\n');
       const file = parser.parse(content, 'file:///test.proto');
       const provider = new InlayHintsProvider({ showEnumValues: true });
-      
+
       const hints = provider.getInlayHints(file, lines);
       // Should show hex values for large numbers
       const hexHint = hints.find(h => h.label.toString().includes('0x'));
@@ -238,7 +242,7 @@ enum Status {
       const lines = content.split('\n');
       const file = parser.parse(content, 'file:///test.proto');
       const provider = new InlayHintsProvider({ showEnumValues: true });
-      
+
       const hints = provider.getInlayHints(file, lines);
       // Should show negative hex value
       const negHint = hints.find(h => h.label.toString().includes('-0x'));
@@ -252,28 +256,30 @@ enum Status {
         name: 'UNKNOWN',
         nameRange: undefined as unknown as EnumValue['nameRange'],
         number: 5000,
-        range: createRange(1, 0, 1, 15)
+        range: createRange(1, 0, 1, 15),
       };
-      
+
       const file: ProtoFile = {
         type: 'file',
         range: createRange(0, 0, 10, 0),
         imports: [],
         options: [],
         messages: [],
-        enums: [{
-          type: 'enum',
-          name: 'Status',
-          nameRange: createRange(0, 5, 0, 11),
-          values: [enumValueWithoutNameRange],
-          options: [],
-          reserved: [],
-          range: createRange(0, 0, 2, 1)
-        }],
+        enums: [
+          {
+            type: 'enum',
+            name: 'Status',
+            nameRange: createRange(0, 5, 0, 11),
+            values: [enumValueWithoutNameRange],
+            options: [],
+            reserved: [],
+            range: createRange(0, 0, 2, 1),
+          },
+        ],
         services: [],
-        extends: []
+        extends: [],
       };
-      
+
       const lines = ['enum Status {', '  UNKNOWN = 5000;', '}'];
       const hints = provider.getInlayHints(file, lines);
       expect(hints).toEqual([]);
@@ -287,19 +293,21 @@ enum Status {
         imports: [],
         options: [],
         messages: [],
-        enums: [{
-          type: 'enum',
-          name: 'Status',
-          nameRange: createRange(0, 5, 0, 11),
-          values: [createEnumValue('UNKNOWN', 5000, 1)],
-          options: [],
-          reserved: [],
-          range: createRange(0, 0, 2, 1)
-        }],
+        enums: [
+          {
+            type: 'enum',
+            name: 'Status',
+            nameRange: createRange(0, 5, 0, 11),
+            values: [createEnumValue('UNKNOWN', 5000, 1)],
+            options: [],
+            reserved: [],
+            range: createRange(0, 0, 2, 1),
+          },
+        ],
         services: [],
-        extends: []
+        extends: [],
       };
-      
+
       // Line without semicolon
       const lines = ['enum Status {', '  UNKNOWN = 5000', '}'];
       const hints = provider.getInlayHints(file, lines);
@@ -316,7 +324,7 @@ enum Status {
       const lines = content.split('\n');
       const file = parser.parse(content, 'file:///test.proto');
       const provider = new InlayHintsProvider({ showEnumValues: true });
-      
+
       const hints = provider.getInlayHints(file, lines);
       // Should not show hex for small numbers (< 1000)
       expect(hints.length).toBe(0);
@@ -330,7 +338,7 @@ enum Status {
       const lines = content.split('\n');
       const file = parser.parse(content, 'file:///test.proto');
       const provider = new InlayHintsProvider({ showEnumValues: false });
-      
+
       const hints = provider.getInlayHints(file, lines);
       expect(hints.length).toBe(0);
     });
@@ -346,7 +354,7 @@ extend Extendee {
       const lines = content.split('\n');
       const file = parser.parse(content, 'file:///test.proto');
       const provider = new InlayHintsProvider({ showDefaults: true });
-      
+
       // Should process extensions without crashing
       const hints = provider.getInlayHints(file, lines);
       expect(hints).toBeDefined();
@@ -359,11 +367,11 @@ message User {
 }`;
       const lines = content.split('\n');
       const file = parser.parse(content, 'file:///test.proto');
-      const provider = new InlayHintsProvider({ 
-        showFieldNumbers: false, 
-        showDefaults: false 
+      const provider = new InlayHintsProvider({
+        showFieldNumbers: false,
+        showDefaults: false,
       });
-      
+
       const hints = provider.getInlayHints(file, lines);
       expect(hints.length).toBe(0);
     });
@@ -380,7 +388,7 @@ message User {
       const lines = content.split('\n');
       const file = parser.parse(content, 'file:///test.proto');
       const provider = new InlayHintsProvider({ showEnumValues: true });
-      
+
       const hints = provider.getInlayHints(file, lines);
       // Should process nested enums - the method is called even if no hints are returned
       // for values under 1000 or values already visible in the source
@@ -390,34 +398,36 @@ message User {
     it('should handle missing line text gracefully', () => {
       const provider = new InlayHintsProvider({ showDefaults: true });
       const fieldWithOptions = createField('field1', 5, [
-        { type: 'field_option', name: 'default', value: 'test', range: createRange(0, 0, 0, 0) }
+        { type: 'field_option', name: 'default', value: 'test', range: createRange(0, 0, 0, 0) },
       ]);
-      
+
       const file: ProtoFile = {
         type: 'file',
         range: createRange(0, 0, 10, 0),
         imports: [],
         options: [],
-        messages: [{
-          type: 'message',
-          name: 'Test',
-          nameRange: createRange(0, 0, 0, 4),
-          range: createRange(0, 0, 3, 1),
-          fields: [fieldWithOptions],
-          nestedMessages: [],
-          nestedEnums: [],
-          oneofs: [],
-          options: [],
-          reserved: [],
-          extensions: [],
-          maps: [],
-          groups: []
-        }],
+        messages: [
+          {
+            type: 'message',
+            name: 'Test',
+            nameRange: createRange(0, 0, 0, 4),
+            range: createRange(0, 0, 3, 1),
+            fields: [fieldWithOptions],
+            nestedMessages: [],
+            nestedEnums: [],
+            oneofs: [],
+            options: [],
+            reserved: [],
+            extensions: [],
+            maps: [],
+            groups: [],
+          },
+        ],
         enums: [],
         services: [],
-        extends: []
+        extends: [],
       };
-      
+
       // Only 3 lines but field references line 5
       const lines = ['message Test {', '  string field1 = 1;', '}'];
       const hints = provider.getInlayHints(file, lines);
@@ -434,7 +444,7 @@ message Config {
       const lines = content.split('\n');
       const file = parser.parse(content, 'file:///test.proto');
       const provider = new InlayHintsProvider({ showDefaults: true });
-      
+
       const hints = provider.getInlayHints(file, lines);
       const trueHint = hints.find(h => h.label.toString().includes('true'));
       const falseHint = hints.find(h => h.label.toString().includes('false'));
@@ -449,7 +459,7 @@ message Config {
       const lines = content.split('\n');
       const file = parser.parse(content, 'file:///test.proto');
       const provider = new InlayHintsProvider({ showDefaults: true });
-      
+
       const hints = provider.getInlayHints(file, lines);
       const numHint = hints.find(h => h.label.toString().includes('42'));
       expect(numHint).toBeDefined();
@@ -469,34 +479,36 @@ describe('formatValue (via InlayHintsProvider)', () => {
       fieldTypeRange: createRange(1, 2, 1, 8),
       number: 1,
       options: [{ type: 'field_option', name: 'default', value: NaN, range: createRange(0, 0, 0, 0) }],
-      range: createRange(1, 0, 1, 30)
+      range: createRange(1, 0, 1, 30),
     };
-    
+
     const file: ProtoFile = {
       type: 'file',
       range: createRange(0, 0, 10, 0),
       imports: [],
       options: [],
-      messages: [{
-        type: 'message',
-        name: 'Test',
-        nameRange: createRange(0, 8, 0, 12),
-        range: createRange(0, 0, 3, 1),
-        fields: [field],
-        nestedMessages: [],
-        nestedEnums: [],
-        oneofs: [],
-        options: [],
-        reserved: [],
-        extensions: [],
-        maps: [],
-        groups: []
-      }],
+      messages: [
+        {
+          type: 'message',
+          name: 'Test',
+          nameRange: createRange(0, 8, 0, 12),
+          range: createRange(0, 0, 3, 1),
+          fields: [field],
+          nestedMessages: [],
+          nestedEnums: [],
+          oneofs: [],
+          options: [],
+          reserved: [],
+          extensions: [],
+          maps: [],
+          groups: [],
+        },
+      ],
       enums: [],
       services: [],
-      extends: []
+      extends: [],
     };
-    
+
     const lines = ['message Test {', '  double value = 1 [default = nan];', '}'];
     const hints = provider.getInlayHints(file, lines);
     const nanHint = hints.find(h => h.label.toString().includes('nan'));
@@ -513,34 +525,36 @@ describe('formatValue (via InlayHintsProvider)', () => {
       fieldTypeRange: createRange(1, 2, 1, 8),
       number: 1,
       options: [{ type: 'field_option', name: 'default', value: Infinity, range: createRange(0, 0, 0, 0) }],
-      range: createRange(1, 0, 1, 30)
+      range: createRange(1, 0, 1, 30),
     };
-    
+
     const file: ProtoFile = {
       type: 'file',
       range: createRange(0, 0, 10, 0),
       imports: [],
       options: [],
-      messages: [{
-        type: 'message',
-        name: 'Test',
-        nameRange: createRange(0, 8, 0, 12),
-        range: createRange(0, 0, 3, 1),
-        fields: [field],
-        nestedMessages: [],
-        nestedEnums: [],
-        oneofs: [],
-        options: [],
-        reserved: [],
-        extensions: [],
-        maps: [],
-        groups: []
-      }],
+      messages: [
+        {
+          type: 'message',
+          name: 'Test',
+          nameRange: createRange(0, 8, 0, 12),
+          range: createRange(0, 0, 3, 1),
+          fields: [field],
+          nestedMessages: [],
+          nestedEnums: [],
+          oneofs: [],
+          options: [],
+          reserved: [],
+          extensions: [],
+          maps: [],
+          groups: [],
+        },
+      ],
       enums: [],
       services: [],
-      extends: []
+      extends: [],
     };
-    
+
     const lines = ['message Test {', '  double posInf = 1 [default = inf];', '}'];
     const hints = provider.getInlayHints(file, lines);
     const infHint = hints.find(h => h.label.toString().includes('inf'));
@@ -557,34 +571,36 @@ describe('formatValue (via InlayHintsProvider)', () => {
       fieldTypeRange: createRange(1, 2, 1, 8),
       number: 1,
       options: [{ type: 'field_option', name: 'default', value: -Infinity, range: createRange(0, 0, 0, 0) }],
-      range: createRange(1, 0, 1, 30)
+      range: createRange(1, 0, 1, 30),
     };
-    
+
     const file: ProtoFile = {
       type: 'file',
       range: createRange(0, 0, 10, 0),
       imports: [],
       options: [],
-      messages: [{
-        type: 'message',
-        name: 'Test',
-        nameRange: createRange(0, 8, 0, 12),
-        range: createRange(0, 0, 3, 1),
-        fields: [field],
-        nestedMessages: [],
-        nestedEnums: [],
-        oneofs: [],
-        options: [],
-        reserved: [],
-        extensions: [],
-        maps: [],
-        groups: []
-      }],
+      messages: [
+        {
+          type: 'message',
+          name: 'Test',
+          nameRange: createRange(0, 8, 0, 12),
+          range: createRange(0, 0, 3, 1),
+          fields: [field],
+          nestedMessages: [],
+          nestedEnums: [],
+          oneofs: [],
+          options: [],
+          reserved: [],
+          extensions: [],
+          maps: [],
+          groups: [],
+        },
+      ],
       enums: [],
       services: [],
-      extends: []
+      extends: [],
     };
-    
+
     const lines = ['message Test {', '  double negInf = 1 [default = -inf];', '}'];
     const hints = provider.getInlayHints(file, lines);
     const negInfHint = hints.find(h => h.label.toString().includes('-inf'));

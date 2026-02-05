@@ -8,7 +8,7 @@ import type { TextDocuments } from 'vscode-languageserver/node';
 import type { ProtoFile } from '../core/ast';
 import type { IProtoParser } from '../core/parserFactory';
 import type { SemanticAnalyzer } from '../core/analyzer';
-import type { ContentHashCache} from './cache';
+import type { ContentHashCache } from './cache';
 import { simpleHash } from './cache';
 import { logger } from './logger';
 import { getErrorMessage } from './utils';

@@ -278,7 +278,9 @@ message User {
       providers.analyzer.updateFile(uri, file);
 
       const diags = await providers.diagnostics.validate(uri, file, providers, content);
-      const invalidRange = diags.find(d => d.message.includes('Extension range start') && d.message.includes('greater than end'));
+      const invalidRange = diags.find(
+        d => d.message.includes('Extension range start') && d.message.includes('greater than end')
+      );
 
       expect(invalidRange).toBeDefined();
     });
@@ -333,6 +335,74 @@ message Container {
     });
   });
 
+  describe('Unused Imports with Options and Extends', () => {
+    it('should treat custom option references as import usage', async () => {
+      const gorumsContent = `syntax = "proto3";
+package gorums;
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.MethodOptions {
+  bool quorumcall = 50004;
+}`;
+      const gorumsUri = 'file:///workspace/gorums.proto';
+      const gorumsFile = providers.parser.parse(gorumsContent, gorumsUri);
+      providers.analyzer.updateFile(gorumsUri, gorumsFile);
+
+      const descriptorContent = `syntax = "proto3";
+package google.protobuf;
+
+message MethodOptions {}`;
+      const descriptorUri = 'file:///workspace/google/protobuf/descriptor.proto';
+      const descriptorFile = providers.parser.parse(descriptorContent, descriptorUri);
+      providers.analyzer.updateFile(descriptorUri, descriptorFile);
+
+      const content = `syntax = "proto3";
+package proto;
+
+import "gorums.proto";
+
+service Quiz {
+  rpc Ping(google.protobuf.MethodOptions) returns (google.protobuf.MethodOptions) {
+    option (gorums.quorumcall) = true;
+  }
+}`;
+      const uri = 'file:///workspace/main.proto';
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
+
+      const diags = await providers.diagnostics.validate(uri, file, providers, content);
+      const unusedImport = diags.find(d => d.message.includes("Unused import 'gorums.proto'"));
+      expect(unusedImport).toBeUndefined();
+    });
+
+    it('should treat extend extendee types as import usage', async () => {
+      const descriptorContent = `syntax = "proto3";
+package google.protobuf;
+
+message MethodOptions {}`;
+      const descriptorUri = 'file:///workspace/google/protobuf/descriptor.proto';
+      const descriptorFile = providers.parser.parse(descriptorContent, descriptorUri);
+      providers.analyzer.updateFile(descriptorUri, descriptorFile);
+
+      const content = `syntax = "proto3";
+package test.v1;
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.MethodOptions {
+  bool custom = 50001;
+}`;
+      const uri = 'file:///workspace/extend.proto';
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
+
+      const diags = await providers.diagnostics.validate(uri, file, providers, content);
+      const unusedImport = diags.find(d => d.message.includes("Unused import 'google/protobuf/descriptor.proto'"));
+      expect(unusedImport).toBeUndefined();
+    });
+  });
+
   describe('Documentation Comment Validation', () => {
     it('should suggest documentation for services', async () => {
       const content = `syntax = "proto3";
@@ -367,9 +437,8 @@ message TestMessage {
       providers.diagnostics.updateSettings({ documentationComments: true });
       const diags = await providers.diagnostics.validate(uri, file, providers, content);
 
-      const missingDocDiag = diags.find(d =>
-        d.message.includes('Consider adding documentation comment') &&
-        d.message.includes('TestMessage')
+      const missingDocDiag = diags.find(
+        d => d.message.includes('Consider adding documentation comment') && d.message.includes('TestMessage')
       );
       expect(missingDocDiag).toBeUndefined();
     });
@@ -392,9 +461,8 @@ message TestMessage {
       providers.diagnostics.updateSettings({ documentationComments: true });
       const diags = await providers.diagnostics.validate(uri, file, providers, content);
 
-      const missingDocDiag = diags.find(d =>
-        d.message.includes('Consider adding documentation comment') &&
-        d.message.includes('TestMessage')
+      const missingDocDiag = diags.find(
+        d => d.message.includes('Consider adding documentation comment') && d.message.includes('TestMessage')
       );
       expect(missingDocDiag).toBeUndefined();
     });
@@ -417,9 +485,8 @@ message TestMessage {
       providers.diagnostics.updateSettings({ documentationComments: true });
       const diags = await providers.diagnostics.validate(uri, file, providers, content);
 
-      const missingDocDiag = diags.find(d =>
-        d.message.includes('Consider adding documentation comment') &&
-        d.message.includes('TestMessage')
+      const missingDocDiag = diags.find(
+        d => d.message.includes('Consider adding documentation comment') && d.message.includes('TestMessage')
       );
       expect(missingDocDiag).toBeUndefined();
     });
@@ -439,9 +506,8 @@ message TestMessage {
       providers.diagnostics.updateSettings({ documentationComments: true });
       const diags = await providers.diagnostics.validate(uri, file, providers, content);
 
-      const missingDocDiag = diags.find(d =>
-        d.message.includes('Consider adding documentation comment') &&
-        d.message.includes('TestMessage')
+      const missingDocDiag = diags.find(
+        d => d.message.includes('Consider adding documentation comment') && d.message.includes('TestMessage')
       );
       expect(missingDocDiag).toBeUndefined();
     });
@@ -460,9 +526,8 @@ message TestMessage {
       providers.diagnostics.updateSettings({ documentationComments: true });
       const diags = await providers.diagnostics.validate(uri, file, providers, content);
 
-      const missingDocDiag = diags.find(d =>
-        d.message.includes('Consider adding documentation comment') &&
-        d.message.includes('TestMessage')
+      const missingDocDiag = diags.find(
+        d => d.message.includes('Consider adding documentation comment') && d.message.includes('TestMessage')
       );
       expect(missingDocDiag).toBeDefined();
     });
@@ -484,9 +549,8 @@ message User {
 
       const diags = await providers.diagnostics.validate(uri, file, providers, content);
 
-      const syntaxError = diags.find(d =>
-        d.message.includes('unexpected semicolon') &&
-        d.severity === DiagnosticSeverity.Error
+      const syntaxError = diags.find(
+        d => d.message.includes('unexpected semicolon') && d.severity === DiagnosticSeverity.Error
       );
       expect(syntaxError).toBeDefined();
     });
@@ -506,9 +570,7 @@ message User {
 
       const diags = await providers.diagnostics.validate(uri, file, providers, content);
 
-      const syntaxError = diags.find(d =>
-        d.message.includes('unexpected semicolon')
-      );
+      const syntaxError = diags.find(d => d.message.includes('unexpected semicolon'));
       expect(syntaxError).toBeUndefined();
     });
   });

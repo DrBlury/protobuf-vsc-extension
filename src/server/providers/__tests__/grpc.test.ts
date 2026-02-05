@@ -62,7 +62,9 @@ describe('GrpcProvider', () => {
     });
 
     it('should collect services from multiple files', () => {
-      parseAndUpdate('file:///user.proto', `
+      parseAndUpdate(
+        'file:///user.proto',
+        `
         syntax = "proto3";
         package users;
         service UserService {
@@ -70,9 +72,12 @@ describe('GrpcProvider', () => {
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
-      parseAndUpdate('file:///order.proto', `
+      parseAndUpdate(
+        'file:///order.proto',
+        `
         syntax = "proto3";
         package orders;
         service OrderService {
@@ -80,7 +85,8 @@ describe('GrpcProvider', () => {
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services).toHaveLength(2);
@@ -146,7 +152,9 @@ describe('GrpcProvider', () => {
 
   describe('getService', () => {
     beforeEach(() => {
-      parseAndUpdate('file:///user.proto', `
+      parseAndUpdate(
+        'file:///user.proto',
+        `
         syntax = "proto3";
         package api.users;
         service UserService {
@@ -154,9 +162,12 @@ describe('GrpcProvider', () => {
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
-      parseAndUpdate('file:///admin.proto', `
+      parseAndUpdate(
+        'file:///admin.proto',
+        `
         syntax = "proto3";
         package api.admin;
         service UserService {
@@ -164,7 +175,8 @@ describe('GrpcProvider', () => {
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
     });
 
     it('should find service by fully qualified name', () => {
@@ -194,7 +206,9 @@ describe('GrpcProvider', () => {
 
   describe('getRpc', () => {
     beforeEach(() => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         package test;
         service TestService {
@@ -205,7 +219,8 @@ describe('GrpcProvider', () => {
         message GetUserResponse {}
         message CreateUserRequest {}
         message CreateUserResponse {}
-      `);
+      `
+      );
     });
 
     it('should find RPC by fully qualified name', () => {
@@ -229,7 +244,9 @@ describe('GrpcProvider', () => {
 
   describe('getRpcsUsingType', () => {
     beforeEach(() => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         package test;
 
@@ -246,7 +263,8 @@ describe('GrpcProvider', () => {
           rpc GetOrder (Empty) returns (Order);
           rpc GetUserOrders (User) returns (Order);
         }
-      `);
+      `
+      );
     });
 
     it('should find all RPCs using a type as input', () => {
@@ -268,14 +286,17 @@ describe('GrpcProvider', () => {
 
   describe('streaming type detection', () => {
     it('should detect unary RPC', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service Test {
           rpc Unary (Request) returns (Response);
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services[0]!.rpcs[0]!.streamingType).toBe('unary');
@@ -284,14 +305,17 @@ describe('GrpcProvider', () => {
     });
 
     it('should detect server-streaming RPC', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service Test {
           rpc ServerStream (Request) returns (stream Response);
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services[0]!.rpcs[0]!.streamingType).toBe('server-streaming');
@@ -300,14 +324,17 @@ describe('GrpcProvider', () => {
     });
 
     it('should detect client-streaming RPC', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service Test {
           rpc ClientStream (stream Request) returns (Response);
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services[0]!.rpcs[0]!.streamingType).toBe('client-streaming');
@@ -316,14 +343,17 @@ describe('GrpcProvider', () => {
     });
 
     it('should detect bidirectional-streaming RPC', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service Test {
           rpc BiDiStream (stream Request) returns (stream Response);
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services[0]!.rpcs[0]!.streamingType).toBe('bidirectional-streaming');
@@ -336,7 +366,9 @@ describe('GrpcProvider', () => {
     let service: ReturnType<typeof grpcProvider.getAllServices>[0];
 
     beforeEach(() => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         package myapi;
         service MyService {
@@ -347,7 +379,8 @@ describe('GrpcProvider', () => {
         message GetItemResponse {}
         message ListItemsRequest {}
         message ListItemsResponse {}
-      `);
+      `
+      );
       service = grpcProvider.getAllServices()[0]!;
     });
 
@@ -388,7 +421,9 @@ describe('GrpcProvider', () => {
     let service: ReturnType<typeof grpcProvider.getAllServices>[0];
 
     beforeEach(() => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         package api;
         service TestService {
@@ -396,7 +431,8 @@ describe('GrpcProvider', () => {
         }
         message ActionRequest {}
         message ActionResponse {}
-      `);
+      `
+      );
       service = grpcProvider.getAllServices()[0]!;
     });
 
@@ -439,7 +475,9 @@ describe('GrpcProvider', () => {
 
   describe('toSnakeCase', () => {
     it('should convert camelCase to snake_case via Python stub generation', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service Test {
           rpc GetUserById (R) returns (R);
@@ -447,7 +485,8 @@ describe('GrpcProvider', () => {
           rpc HTMLParser (R) returns (R);
         }
         message R {}
-      `);
+      `
+      );
 
       const service = grpcProvider.getAllServices()[0]!;
       const stub = grpcProvider.generateClientStubPreview(service, 'python');
@@ -458,13 +497,16 @@ describe('GrpcProvider', () => {
     });
 
     it('should handle already snake_case names', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service Test {
           rpc get_user (R) returns (R);
         }
         message R {}
-      `);
+      `
+      );
 
       const service = grpcProvider.getAllServices()[0]!;
       const stub = grpcProvider.generateClientStubPreview(service, 'python');
@@ -475,7 +517,9 @@ describe('GrpcProvider', () => {
 
   describe('getServiceStats', () => {
     it('should calculate statistics for service with mixed RPC types', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service MixedService {
           rpc Unary1 (R) returns (R);
@@ -485,7 +529,8 @@ describe('GrpcProvider', () => {
           rpc BiDi (stream R) returns (stream R);
         }
         message R {}
-      `);
+      `
+      );
 
       const service = grpcProvider.getAllServices()[0]!;
       const stats = grpcProvider.getServiceStats(service);
@@ -499,10 +544,13 @@ describe('GrpcProvider', () => {
     });
 
     it('should return zeros for empty service', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service EmptyService {}
-      `);
+      `
+      );
 
       const service = grpcProvider.getAllServices()[0]!;
       const stats = grpcProvider.getServiceStats(service);
@@ -513,7 +561,9 @@ describe('GrpcProvider', () => {
     });
 
     it('should handle service with only unary RPCs', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service UnaryOnly {
           rpc A (R) returns (R);
@@ -521,7 +571,8 @@ describe('GrpcProvider', () => {
           rpc C (R) returns (R);
         }
         message R {}
-      `);
+      `
+      );
 
       const service = grpcProvider.getAllServices()[0]!;
       const stats = grpcProvider.getServiceStats(service);
@@ -534,7 +585,9 @@ describe('GrpcProvider', () => {
 
   describe('edge cases', () => {
     it('should handle service with nested message types in RPC', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         package test;
 
@@ -547,7 +600,8 @@ describe('GrpcProvider', () => {
         service Test {
           rpc Process (Outer.Inner) returns (Outer.Inner);
         }
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services[0]!.rpcs[0]!.inputType).toBe('Outer.Inner');
@@ -555,7 +609,9 @@ describe('GrpcProvider', () => {
     });
 
     it('should handle multiple services in same file', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         package multi;
 
@@ -572,7 +628,8 @@ describe('GrpcProvider', () => {
         }
 
         message R {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services).toHaveLength(3);
@@ -580,28 +637,32 @@ describe('GrpcProvider', () => {
     });
 
     it('should handle service with many RPCs', () => {
-      const rpcs = Array.from({ length: 20 }, (_, i) =>
-        `rpc Method${i} (R) returns (R);`
-      ).join('\n');
+      const rpcs = Array.from({ length: 20 }, (_, i) => `rpc Method${i} (R) returns (R);`).join('\n');
 
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service LargeService {
           ${rpcs}
         }
         message R {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services[0]!.rpcs).toHaveLength(20);
     });
 
     it('should handle services after file removal', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service Test { rpc A (R) returns (R); }
         message R {}
-      `);
+      `
+      );
 
       expect(grpcProvider.getAllServices()).toHaveLength(1);
 
@@ -611,7 +672,9 @@ describe('GrpcProvider', () => {
     });
 
     it('should handle nested message types in service', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service Test {
           rpc Method(Request) returns (Response);
@@ -629,7 +692,8 @@ describe('GrpcProvider', () => {
           }
           Status status = 1;
         }
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services).toHaveLength(1);
@@ -637,7 +701,9 @@ describe('GrpcProvider', () => {
     });
 
     it('should handle extend declarations in service files', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         import "google/protobuf/descriptor.proto";
         service Test {
@@ -648,14 +714,17 @@ describe('GrpcProvider', () => {
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services).toHaveLength(1);
     });
 
     it('should handle options on services', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         option java_package = "com.example";
         service Test {
@@ -664,7 +733,8 @@ describe('GrpcProvider', () => {
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services).toHaveLength(1);
@@ -672,7 +742,9 @@ describe('GrpcProvider', () => {
     });
 
     it('should handle streaming RPCs', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service Test {
           rpc ClientStream (stream Request) returns (Response);
@@ -681,7 +753,8 @@ describe('GrpcProvider', () => {
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services).toHaveLength(1);
@@ -690,7 +763,9 @@ describe('GrpcProvider', () => {
     });
 
     it('should handle deeply nested packages', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         package com.example.api.v1;
         service Test {
@@ -698,7 +773,8 @@ describe('GrpcProvider', () => {
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services).toHaveLength(1);
@@ -707,11 +783,14 @@ describe('GrpcProvider', () => {
     });
 
     it('should handle services with no package and no RPCs', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service EmptyService {
         }
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services).toHaveLength(1);
@@ -719,7 +798,9 @@ describe('GrpcProvider', () => {
     });
 
     it('should handle RPCs with options', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service Test {
           rpc Method(Request) returns (Response) {
@@ -728,7 +809,8 @@ describe('GrpcProvider', () => {
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services).toHaveLength(1);
@@ -736,7 +818,9 @@ describe('GrpcProvider', () => {
     });
 
     it('should handle multiple packages in different files', () => {
-      parseAndUpdate('file:///user.proto', `
+      parseAndUpdate(
+        'file:///user.proto',
+        `
         syntax = "proto3";
         package user;
         service UserService {
@@ -744,9 +828,12 @@ describe('GrpcProvider', () => {
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
-      parseAndUpdate('file:///order.proto', `
+      parseAndUpdate(
+        'file:///order.proto',
+        `
         syntax = "proto3";
         package order;
         service OrderService {
@@ -754,9 +841,12 @@ describe('GrpcProvider', () => {
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
-      parseAndUpdate('file:///payment.proto', `
+      parseAndUpdate(
+        'file:///payment.proto',
+        `
         syntax = "proto3";
         package payment;
         service PaymentService {
@@ -764,7 +854,8 @@ describe('GrpcProvider', () => {
         }
         message Request {}
         message Response {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services).toHaveLength(3);
@@ -773,7 +864,9 @@ describe('GrpcProvider', () => {
     });
 
     it('should handle reserved fields in messages', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service Test {
           rpc Method(Request) returns (Response);
@@ -784,14 +877,17 @@ describe('GrpcProvider', () => {
           string name = 1;
         }
         message Response {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services).toHaveLength(1);
     });
 
     it('should handle map fields in messages', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service Test {
           rpc Method(Request) returns (Response);
@@ -804,14 +900,17 @@ describe('GrpcProvider', () => {
           string name = 1;
         }
         message Response {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services).toHaveLength(1);
     });
 
     it('should handle oneof fields in messages', () => {
-      parseAndUpdate('file:///test.proto', `
+      parseAndUpdate(
+        'file:///test.proto',
+        `
         syntax = "proto3";
         service Test {
           rpc Method(Request) returns (Response);
@@ -823,7 +922,8 @@ describe('GrpcProvider', () => {
           }
         }
         message Response {}
-      `);
+      `
+      );
 
       const services = grpcProvider.getAllServices();
       expect(services).toHaveLength(1);

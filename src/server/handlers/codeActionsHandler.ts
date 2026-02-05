@@ -3,10 +3,7 @@
  * Handles code action requests
  */
 
-import type {
-  CodeActionParams,
-  CodeAction
-} from 'vscode-languageserver/node';
+import type { CodeActionParams, CodeAction } from 'vscode-languageserver/node';
 
 import type { TextDocuments } from 'vscode-languageserver/node';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
@@ -26,10 +23,5 @@ export function handleCodeActions(
     return [];
   }
 
-  return codeActionsProvider.getCodeActions(
-    params.textDocument.uri,
-    params.range,
-    params.context,
-    document.getText()
-  );
+  return codeActionsProvider.getCodeActions(params.textDocument.uri, params.range, params.context, document.getText());
 }

@@ -42,6 +42,16 @@ Full Protocol Buffers language support for VS Code: navigation, IntelliSense, di
 
 > **Note:** Use `protobuf.includes` for configuring import paths. The extension also extracts `--proto_path` from `protobuf.protoc.options` as a fallback, but `protobuf.includes` is preferred for better IntelliSense and diagnostics support.
 
+If you use Go-style module imports, you can map a virtual prefix to a local directory using `virtual=path` entries:
+
+```jsonc
+{
+  "protobuf.includes": [
+    "example.com/org/my-project=${workspaceFolder}"
+  ]
+}
+```
+
 ---
 
 ## Install

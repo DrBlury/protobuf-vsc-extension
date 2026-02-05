@@ -17,13 +17,16 @@ describe('SemanticAnalyzer', () => {
 
   describe('updateFile', () => {
     it('should extract message symbols', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {
           string name = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -36,14 +39,17 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should extract enum symbols', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         enum Status {
           UNKNOWN = 0;
           ACTIVE = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -55,13 +61,16 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should extract service symbols', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         service UserService {
           rpc GetUser(Request) returns (Response);
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -76,14 +85,17 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should extract field symbols', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {
           string name = 1;
           int32 age = 2;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -95,7 +107,8 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should extract nested message symbols', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message Outer {
@@ -103,7 +116,9 @@ describe('SemanticAnalyzer', () => {
             string value = 1;
           }
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -116,14 +131,17 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should extract enum value symbols', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         enum Status {
           UNKNOWN = 0;
           ACTIVE = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -135,7 +153,8 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should extract oneof symbols', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message Contact {
@@ -144,7 +163,9 @@ describe('SemanticAnalyzer', () => {
             string phone = 2;
           }
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -158,10 +179,13 @@ describe('SemanticAnalyzer', () => {
 
   describe('removeFile', () => {
     it('should remove symbols when file is removed', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         message User {}
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
       expect(analyzer.getAllSymbols().length).toBeGreaterThan(0);
@@ -175,11 +199,14 @@ describe('SemanticAnalyzer', () => {
 
   describe('resolveType', () => {
     it('should resolve type by simple name', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {}
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -190,11 +217,14 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should resolve type by fully qualified name', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {}
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -205,10 +235,13 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should return undefined for builtin types', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         message User {}
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -218,13 +251,16 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should resolve nested types', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message Outer {
           message Inner {}
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -235,20 +271,26 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should resolve types from imported files', () => {
-      const commonFile = parser.parse(`
+      const commonFile = parser.parse(
+        `
         syntax = "proto3";
         package common.v1;
         message Timestamp {}
-      `, 'file:///common.proto');
+      `,
+        'file:///common.proto'
+      );
 
-      const mainFile = parser.parse(`
+      const mainFile = parser.parse(
+        `
         syntax = "proto3";
         package main.v1;
         import "common.proto";
         message Event {
           common.v1.Timestamp created_at = 1;
         }
-      `, 'file:///main.proto');
+      `,
+        'file:///main.proto'
+      );
 
       analyzer.updateFile('file:///common.proto', commonFile);
       analyzer.updateFile('file:///main.proto', mainFile);
@@ -260,7 +302,8 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should resolve forward references within the same file', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {
@@ -270,7 +313,9 @@ describe('SemanticAnalyzer', () => {
           UNKNOWN = 0;
           ACTIVE = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -284,7 +329,8 @@ describe('SemanticAnalyzer', () => {
 
   describe('findReferences', () => {
     it('should find references in field types', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {
@@ -293,7 +339,9 @@ describe('SemanticAnalyzer', () => {
         message GetUserResponse {
           User user = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -304,7 +352,8 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should find references in RPC types', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message Request {}
@@ -312,7 +361,9 @@ describe('SemanticAnalyzer', () => {
         service TestService {
           rpc Get(Request) returns (Response);
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -324,14 +375,17 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should find references in map value types', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message Value {}
         message Container {
           map<string, Value> items = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -341,7 +395,8 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should find references in oneof fields', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {}
@@ -351,7 +406,9 @@ describe('SemanticAnalyzer', () => {
             string email = 2;
           }
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -361,29 +418,38 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should find references across multiple files', () => {
-      const commonFile = parser.parse(`
+      const commonFile = parser.parse(
+        `
         syntax = "proto3";
         package common.v1;
         message Status {}
-      `, 'file:///common.proto');
+      `,
+        'file:///common.proto'
+      );
 
-      const userFile = parser.parse(`
+      const userFile = parser.parse(
+        `
         syntax = "proto3";
         package user.v1;
         import "common.proto";
         message User {
           Status status = 1;
         }
-      `, 'file:///user.proto');
+      `,
+        'file:///user.proto'
+      );
 
-      const orderFile = parser.parse(`
+      const orderFile = parser.parse(
+        `
         syntax = "proto3";
         package order.v1;
         import "common.proto";
         message Order {
           Status status = 1;
         }
-      `, 'file:///order.proto');
+      `,
+        'file:///order.proto'
+      );
 
       analyzer.updateFile('file:///common.proto', commonFile);
       analyzer.updateFile('file:///user.proto', userFile);
@@ -395,7 +461,8 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should find multiple references in same message', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {}
@@ -403,7 +470,9 @@ describe('SemanticAnalyzer', () => {
           User user = 1;
           repeated User users = 2;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -413,14 +482,17 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should find references with fully qualified names', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {}
         message Response {
           User user = 1;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -430,7 +502,8 @@ describe('SemanticAnalyzer', () => {
     });
 
     it('should find references in extend definitions', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message Options {}
@@ -438,7 +511,9 @@ describe('SemanticAnalyzer', () => {
         extend Options {
           Value custom = 50000;
         }
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -452,15 +527,21 @@ describe('SemanticAnalyzer', () => {
 
   describe('getSymbolsInFile', () => {
     it('should return only symbols from specified file', () => {
-      const file1 = parser.parse(`
+      const file1 = parser.parse(
+        `
         syntax = "proto3";
         message User {}
-      `, 'file:///file1.proto');
+      `,
+        'file:///file1.proto'
+      );
 
-      const file2 = parser.parse(`
+      const file2 = parser.parse(
+        `
         syntax = "proto3";
         message Order {}
-      `, 'file:///file2.proto');
+      `,
+        'file:///file2.proto'
+      );
 
       analyzer.updateFile('file:///file1.proto', file1);
       analyzer.updateFile('file:///file2.proto', file2);
@@ -473,13 +554,16 @@ describe('SemanticAnalyzer', () => {
 
   describe('getTypeCompletions', () => {
     it('should return message and enum types for completions', () => {
-      const file = parser.parse(`
+      const file = parser.parse(
+        `
         syntax = "proto3";
         package test.v1;
         message User {}
         enum Status { UNKNOWN = 0; }
         service TestService {}
-      `, 'file:///test.proto');
+      `,
+        'file:///test.proto'
+      );
 
       analyzer.updateFile('file:///test.proto', file);
 
@@ -494,18 +578,24 @@ describe('SemanticAnalyzer', () => {
 
   describe('getAccessibleSymbols', () => {
     it('should include symbols from imported files', () => {
-      const commonFile = parser.parse(`
+      const commonFile = parser.parse(
+        `
         syntax = "proto3";
         package common;
         message Timestamp {}
-      `, 'file:///common.proto');
+      `,
+        'file:///common.proto'
+      );
 
-      const mainFile = parser.parse(`
+      const mainFile = parser.parse(
+        `
         syntax = "proto3";
         package main;
         import "common.proto";
         message Event {}
-      `, 'file:///main.proto');
+      `,
+        'file:///main.proto'
+      );
 
       analyzer.updateFile('file:///common.proto', commonFile);
       analyzer.updateFile('file:///main.proto', mainFile);
@@ -522,11 +612,14 @@ describe('SemanticAnalyzer', () => {
     it('should clear import resolution cache when paths change', () => {
       // This test ensures that when import paths are updated (e.g., via settings change),
       // the cached import resolutions are cleared so imports are re-resolved with new paths
-      const mainFile = parser.parse(`
+      const mainFile = parser.parse(
+        `
         syntax = "proto3";
         import "types.proto";
         message Event {}
-      `, 'file:///main.proto');
+      `,
+        'file:///main.proto'
+      );
 
       analyzer.updateFile('file:///main.proto', mainFile);
 
@@ -535,10 +628,13 @@ describe('SemanticAnalyzer', () => {
       expect(beforeUri).toBeUndefined();
 
       // Now add the types.proto file (simulating it being found after import path is configured)
-      const typesFile = parser.parse(`
+      const typesFile = parser.parse(
+        `
         syntax = "proto3";
         message Timestamp {}
-      `, 'file:///protos/types.proto');
+      `,
+        'file:///protos/types.proto'
+      );
       analyzer.updateFile('file:///protos/types.proto', typesFile);
 
       // Update import paths - this should clear the cache

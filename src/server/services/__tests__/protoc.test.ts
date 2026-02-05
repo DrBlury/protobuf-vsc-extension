@@ -18,11 +18,22 @@ function pathContains(fullPath: string, segment: string): boolean {
   return normalizePath(fullPath).includes(normalizePath(segment));
 }
 
+/**
+ * Helper to flush promises and advance fake timers
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    jest.advanceTimersByTime(20);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
+
 describe('ProtocCompiler', () => {
   let compiler: ProtocCompiler;
   let mockSpawn: jest.MockedFunction<typeof spawn>;
 
   beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     compiler = new ProtocCompiler();
     mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
     jest.clearAllMocks();
@@ -31,6 +42,7 @@ describe('ProtocCompiler', () => {
   afterEach(() => {
     // Clean up any active processes
     compiler.cancelAll();
+    jest.useRealTimers();
   });
 
   describe('updateSettings', () => {
@@ -55,30 +67,36 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.getVersion();
+      const versionPromise1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await versionPromise1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Get version again - should use cache
-      await compiler.getVersion();
+      const versionPromise2 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await versionPromise2;
       expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional call
 
       // Change path - should clear cache
       compiler.updateSettings({ path: '/different/protoc' });
 
       // Next call should spawn again
-      await compiler.getVersion();
+      const versionPromise3 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await versionPromise3;
       expect(mockSpawn).toHaveBeenCalledTimes(2);
     });
   });
@@ -98,12 +116,14 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.isAvailable();
+      const resultPromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(true);
     });
 
@@ -114,12 +134,14 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(1), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.isAvailable();
+      const resultPromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(false);
     });
 
@@ -130,12 +152,14 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.isAvailable();
+      const resultPromise = compiler.isAvailable();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe(false);
     });
   });
@@ -149,19 +173,21 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.getVersion();
+      const resultPromise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe('3.20.0');
     });
 
@@ -173,19 +199,21 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('protoc version 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.getVersion();
+      const resultPromise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBe('protoc version 3.20.0');
     });
 
@@ -196,31 +224,35 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.getVersion();
+      const resultPromise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBeNull();
     });
 
     it('should return null on non-zero exit code', async () => {
       const mockProcess = {
         stdout: {
-          on: jest.fn()
+          on: jest.fn(),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(1), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.getVersion();
+      const resultPromise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result).toBeNull();
     });
 
@@ -232,25 +264,29 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       // First call
-      const result1 = await compiler.getVersion();
+      const result1Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result1 = await result1Promise;
       expect(result1).toBe('3.20.0');
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Second call - should use cache
-      const result2 = await compiler.getVersion();
+      const result2Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result2 = await result2Promise;
       expect(result2).toBe('3.20.0');
       expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional spawn
     });
@@ -263,24 +299,28 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       // First call
-      await compiler.getVersion();
+      const p1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Force refresh
-      await compiler.getVersion(true);
+      const p2 = compiler.getVersion(true);
+      await flushPromisesAndTimers();
+      await p2;
       expect(mockSpawn).toHaveBeenCalledTimes(2);
     });
 
@@ -292,27 +332,31 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       // First call
-      await compiler.getVersion();
+      const p1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Clear cache
       compiler.clearVersionCache();
 
       // Next call should spawn again
-      await compiler.getVersion();
+      const p2 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p2;
       expect(mockSpawn).toHaveBeenCalledTimes(2);
     });
 
@@ -325,18 +369,22 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(1), 0); // Non-zero exit = failure
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       // First call - should return null
-      const result1 = await compiler.getVersion();
+      const result1Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result1 = await result1Promise;
       expect(result1).toBeNull();
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Second call - should use cached null
-      const result2 = await compiler.getVersion();
+      const result2Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result2 = await result2Promise;
       expect(result2).toBeNull();
       expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional spawn
     });
@@ -349,27 +397,31 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       // Cache version for default path
-      await compiler.getVersion();
+      const p1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Change to different path
       compiler.updateSettings({ path: '/new/protoc' });
 
       // Should fetch again due to path change
-      await compiler.getVersion();
+      const p2 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p2;
       expect(mockSpawn).toHaveBeenCalledTimes(2);
     });
 
@@ -383,27 +435,31 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       // Cache version
-      await compiler.getVersion();
+      const p1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Update with same path (should not clear cache)
       compiler.updateSettings({ path: '/my/protoc' });
 
       // Should still use cache
-      await compiler.getVersion();
+      const p2 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p2;
       expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional spawn
     });
 
@@ -415,20 +471,22 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       // Cache version
-      await compiler.getVersion();
+      const p1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Update unrelated settings
@@ -436,7 +494,9 @@ describe('ProtocCompiler', () => {
       compiler.updateSettings({ options: ['--go_out=gen'] });
 
       // Should still use cache
-      await compiler.getVersion();
+      const p2 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p2;
       expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional spawn
     });
 
@@ -453,25 +513,29 @@ describe('ProtocCompiler', () => {
                 const version = versions[currentCall];
                 setTimeout(() => callback(Buffer.from(`libprotoc ${version}`)), 0);
               }
-            })
+            }),
           },
           on: jest.fn((event: string, callback: (code: number) => void) => {
             if (event === 'close') {
               callCount++;
               setTimeout(() => callback(0), 10);
             }
-          })
+          }),
         } as any;
       });
 
       // Get version for first protoc
       compiler.updateSettings({ path: '/protoc/v3' });
-      const v1 = await compiler.getVersion();
+      const v1Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const v1 = await v1Promise;
       expect(v1).toBe('3.20.0');
 
       // Get version for second protoc (path change clears cache)
       compiler.updateSettings({ path: '/protoc/v4' });
-      const v2 = await compiler.getVersion();
+      const v2Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const v2 = await v2Promise;
       expect(v2).toBe('4.0.0');
 
       expect(mockSpawn).toHaveBeenCalledTimes(2);
@@ -485,27 +549,35 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       // First call - caches the result
-      const result1 = await compiler.getVersion();
+      const result1Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result1 = await result1Promise;
       expect(result1).toBe('3.20.0');
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Sequential calls after cache is populated should all use cache
-      const result2 = await compiler.getVersion();
-      const result3 = await compiler.getVersion();
-      const result4 = await compiler.getVersion();
+      const result2Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result2 = await result2Promise;
+      const result3Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result3 = await result3Promise;
+      const result4Promise = compiler.getVersion();
+      await flushPromisesAndTimers();
+      const result4 = await result4Promise;
 
       expect(result2).toBe('3.20.0');
       expect(result3).toBe('3.20.0');
@@ -523,34 +595,42 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       // First cycle
-      await compiler.getVersion();
+      const p1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
       compiler.clearVersionCache();
 
       // Second cycle
-      await compiler.getVersion();
+      const p2 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p2;
       expect(mockSpawn).toHaveBeenCalledTimes(2);
       compiler.clearVersionCache();
 
       // Third cycle
-      await compiler.getVersion();
+      const p3 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p3;
       expect(mockSpawn).toHaveBeenCalledTimes(3);
 
       // Verify cache works after clearing
-      await compiler.getVersion();
+      const p4 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p4;
       expect(mockSpawn).toHaveBeenCalledTimes(3); // Should use cache
     });
 
@@ -562,24 +642,28 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('libprotoc 3.20.0')), 0);
             }
             return mockProcess.stdout;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       // First call
-      await compiler.getVersion();
+      const p1 = compiler.getVersion();
+      await flushPromisesAndTimers();
+      await p1;
       expect(mockSpawn).toHaveBeenCalledTimes(1);
 
       // Explicit forceRefresh=false should use cache
-      await compiler.getVersion(false);
+      const p2 = compiler.getVersion(false);
+      await flushPromisesAndTimers();
+      await p2;
       expect(mockSpawn).toHaveBeenCalledTimes(1); // No additional spawn
     });
   });
@@ -588,10 +672,10 @@ describe('ProtocCompiler', () => {
     it('should compile proto file successfully', async () => {
       const mockProcess = {
         stdout: {
-          on: jest.fn()
+          on: jest.fn(),
         },
         stderr: {
-          on: jest.fn()
+          on: jest.fn(),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
@@ -599,12 +683,14 @@ describe('ProtocCompiler', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileFile('test.proto');
+      const resultPromise = compiler.compileFile('test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result.success).toBe(true);
     });
 
@@ -637,12 +723,14 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/protos/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/protos/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -658,7 +746,7 @@ describe('ProtocCompiler', () => {
       // Key test: when user specifies a parent directory as proto_path,
       // the file should use a relative path from that proto_path
       compiler.updateSettings({
-        options: ['--proto_path=/workspace']
+        options: ['--proto_path=/workspace'],
       });
 
       const mockProcess = {
@@ -669,12 +757,14 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/protos/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/protos/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -694,11 +784,7 @@ describe('ProtocCompiler', () => {
     it('should include user-configured proto paths before file directory', async () => {
       // User proto paths should come first for import resolution
       compiler.updateSettings({
-        options: [
-          '--proto_path=/usr/local/include',
-          '-I/workspace/common',
-          '--go_out=gen/go'
-        ]
+        options: ['--proto_path=/usr/local/include', '-I/workspace/common', '--go_out=gen/go'],
       });
 
       const mockProcess = {
@@ -709,12 +795,14 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/protos/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/protos/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -740,7 +828,7 @@ describe('ProtocCompiler', () => {
 
     it('should not duplicate proto path if user already specified file directory', async () => {
       compiler.updateSettings({
-        options: ['--proto_path=/workspace/src/protos']
+        options: ['--proto_path=/workspace/src/protos'],
       });
 
       const mockProcess = {
@@ -751,12 +839,15 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/protos/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/protos/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
+
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -770,7 +861,7 @@ describe('ProtocCompiler', () => {
 
     it('should support -I= format for proto paths', async () => {
       compiler.updateSettings({
-        options: ['-I=/workspace/common']
+        options: ['-I=/workspace/common'],
       });
 
       const mockProcess = {
@@ -781,12 +872,15 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
+
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -802,7 +896,7 @@ describe('ProtocCompiler', () => {
     it('should handle compilation errors', async () => {
       const mockProcess = {
         stdout: {
-          on: jest.fn()
+          on: jest.fn(),
         },
         stderr: {
           on: jest.fn((event: string, callback: (data: Buffer) => void) => {
@@ -810,19 +904,22 @@ describe('ProtocCompiler', () => {
               setTimeout(() => callback(Buffer.from('test.proto:5:10: Error message')), 0);
             }
             return mockProcess.stderr;
-          })
+          }),
         },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(1), 10);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileFile('test.proto');
+      const compilePromise = compiler.compileFile('test.proto');
+      await flushPromisesAndTimers();
+      const result = await compilePromise;
+
       expect(result.success).toBe(false);
       expect(result.errors.length).toBeGreaterThanOrEqual(0);
     });
@@ -839,12 +936,15 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('test.proto');
+      const compilePromise = compiler.compileFile('test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
+
       expect(mockSpawn).toHaveBeenCalled();
     });
 
@@ -859,12 +959,15 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('test.proto');
+      const compilePromise = compiler.compileFile('test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
+
       expect(mockSpawn).toHaveBeenCalled();
     });
   });
@@ -879,7 +982,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -887,7 +990,10 @@ describe('ProtocCompiler', () => {
       compiler.updateSettings({ compileAllPath: '/workspace' });
       compiler.setWorkspaceRoot('/workspace');
 
-      const result = await compiler.compileAll();
+      const compilePromise = compiler.compileAll();
+      await flushPromisesAndTimers();
+      const result = await compilePromise;
+
       expect(result).toBeDefined();
     });
 
@@ -901,7 +1007,7 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -912,7 +1018,9 @@ describe('ProtocCompiler', () => {
         // Return many long file paths to exceed command line limit
         const files: string[] = [];
         for (let i = 0; i < 200; i++) {
-          files.push(`/very/long/path/to/proto/files/directory/subdirectory/another_level/file_${i}_with_long_name.proto`);
+          files.push(
+            `/very/long/path/to/proto/files/directory/subdirectory/another_level/file_${i}_with_long_name.proto`
+          );
         }
         return files;
       };
@@ -920,7 +1028,10 @@ describe('ProtocCompiler', () => {
       compiler.updateSettings({ compileAllPath: '/workspace' });
       compiler.setWorkspaceRoot('/workspace');
 
-      const result = await compiler.compileAll();
+      const compilePromise = compiler.compileAll();
+      await flushPromisesAndTimers();
+      const result = await compilePromise;
+
       expect(result).toBeDefined();
 
       // Verify that spawn was called - either directly or with a response file
@@ -1160,7 +1271,7 @@ describe('ProtocCompiler', () => {
   describe('buildArgs edge cases', () => {
     it('should skip empty options', async () => {
       compiler.updateSettings({
-        options: ['', '  ', '--go_out=gen/go', '']
+        options: ['', '  ', '--go_out=gen/go', ''],
       });
 
       const mockProcess = {
@@ -1171,12 +1282,14 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1190,7 +1303,7 @@ describe('ProtocCompiler', () => {
 
     it('should handle paths with trailing slashes in user options', async () => {
       compiler.updateSettings({
-        options: ['--proto_path=/workspace/common/']
+        options: ['--proto_path=/workspace/common/'],
       });
 
       const mockProcess = {
@@ -1201,12 +1314,14 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1219,7 +1334,7 @@ describe('ProtocCompiler', () => {
 
     it('should handle relative proto paths in options', async () => {
       compiler.updateSettings({
-        options: ['--proto_path=./common']
+        options: ['--proto_path=./common'],
       });
 
       const mockProcess = {
@@ -1230,12 +1345,14 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1248,7 +1365,7 @@ describe('ProtocCompiler', () => {
 
     it('should handle --proto-path (hyphen) as well as --proto_path (underscore)', async () => {
       compiler.updateSettings({
-        options: ['--proto-path=/workspace/common']
+        options: ['--proto-path=/workspace/common'],
       });
 
       const mockProcess = {
@@ -1259,12 +1376,14 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1277,7 +1396,7 @@ describe('ProtocCompiler', () => {
 
     it('should handle -I without equals sign', async () => {
       compiler.updateSettings({
-        options: ['-I/workspace/common']
+        options: ['-I/workspace/common'],
       });
 
       const mockProcess = {
@@ -1288,12 +1407,14 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1308,10 +1429,7 @@ describe('ProtocCompiler', () => {
       // Access the private buildArgs method for testing
       const buildArgs = (compiler as any).buildArgs.bind(compiler);
 
-      const args = buildArgs(
-        '/workspace/src/service.proto',
-        '/workspace/common/types.proto'
-      );
+      const args = buildArgs('/workspace/src/service.proto', '/workspace/common/types.proto');
 
       // Should have proto paths for both directories
       const protoPathArgs = args.filter((arg: string) => arg.startsWith('--proto_path='));
@@ -1325,7 +1443,7 @@ describe('ProtocCompiler', () => {
     it('should expand workspace variables in options', async () => {
       compiler.setWorkspaceRoot('/my/workspace');
       compiler.updateSettings({
-        options: ['--proto_path=${workspaceFolder}/protos']
+        options: ['--proto_path=${workspaceFolder}/protos'],
       });
 
       const mockProcess = {
@@ -1336,12 +1454,14 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1356,7 +1476,7 @@ describe('ProtocCompiler', () => {
     it('should expand workspaceRoot variable (legacy)', async () => {
       compiler.setWorkspaceRoot('/my/workspace');
       compiler.updateSettings({
-        options: ['--proto_path=${workspaceRoot}/protos']
+        options: ['--proto_path=${workspaceRoot}/protos'],
       });
 
       const mockProcess = {
@@ -1367,12 +1487,14 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1384,7 +1506,7 @@ describe('ProtocCompiler', () => {
 
     it('should handle output options with spaces in path', async () => {
       compiler.updateSettings({
-        options: ['--go_out=/path/with spaces/output']
+        options: ['--go_out=/path/with spaces/output'],
       });
 
       const mockProcess = {
@@ -1395,12 +1517,14 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1413,7 +1537,7 @@ describe('ProtocCompiler', () => {
     it('should quote --proto_path paths with spaces', async () => {
       // Simulate a directory path with spaces (like user's issue: "Outdoor Aerial")
       compiler.updateSettings({
-        options: ['--go_out=/output']
+        options: ['--go_out=/output'],
       });
       compiler.setWorkspaceRoot('/Users/test/Documents/My Project');
 
@@ -1425,13 +1549,15 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       // File in a path with spaces
-      await compiler.compileFile('/Users/test/Documents/My Project/protos/test.proto');
+      const compilePromise = compiler.compileFile('/Users/test/Documents/My Project/protos/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1447,7 +1573,7 @@ describe('ProtocCompiler', () => {
 
     it('should quote output options with spaces', async () => {
       compiler.updateSettings({
-        options: ['--go_out=/path/with spaces/output']
+        options: ['--go_out=/path/with spaces/output'],
       });
 
       const mockProcess = {
@@ -1458,12 +1584,14 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
@@ -1482,7 +1610,7 @@ describe('ProtocCompiler', () => {
       // the absolute path is used which may contain spaces
       compiler.updateSettings({
         options: ['--go_out=/output'],
-        useAbsolutePath: true
+        useAbsolutePath: true,
       });
       // Clear any user proto paths so the file falls back to absolute path
       compiler.setWorkspaceRoot('/other/workspace');
@@ -1495,23 +1623,23 @@ describe('ProtocCompiler', () => {
             setTimeout(() => callback(0), 0);
           }
           return mockProcess;
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
       // File path with spaces in directory name - the file dir will be added as proto_path
       // but since we're testing the quoting, let's verify proto_path is quoted
-      await compiler.compileFile('/Users/test/Documents/My Project/protos/test.proto');
+      const compilePromise = compiler.compileFile('/Users/test/Documents/My Project/protos/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
       const args = spawnCall[1] as string[];
 
       // The proto_path for the file's directory should be quoted
-      const protoPathArg = args.find(arg =>
-        arg.startsWith('--proto_path=') && arg.includes('My Project')
-      );
+      const protoPathArg = args.find(arg => arg.startsWith('--proto_path=') && arg.includes('My Project'));
       expect(protoPathArg).toBeDefined();
       expect(protoPathArg).toMatch(/--proto_path=".*My Project.*"/);
     });
@@ -1519,7 +1647,7 @@ describe('ProtocCompiler', () => {
     it('should not add duplicate proto_path when same as file directory', async () => {
       // Using normalized paths - this tests the path normalization logic
       compiler.updateSettings({
-        options: ['--proto_path=/workspace/src']  // Same as file directory
+        options: ['--proto_path=/workspace/src'], // Same as file directory
       });
 
       const mockProcess = {
@@ -1531,20 +1659,22 @@ describe('ProtocCompiler', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await compiler.compileFile('/workspace/src/test.proto');
+      const compilePromise = compiler.compileFile('/workspace/src/test.proto');
+      await flushPromisesAndTimers();
+      await compilePromise;
       expect(mockSpawn).toHaveBeenCalled();
 
       const spawnCall = mockSpawn.mock.calls[0];
       const args = spawnCall[1] as string[];
 
       // Count proto_path args that reference /workspace/src
-      const srcProtoPathArgs = args.filter(arg =>
-        arg.startsWith('--proto_path=') && arg.includes('workspace') && arg.includes('src')
+      const srcProtoPathArgs = args.filter(
+        arg => arg.startsWith('--proto_path=') && arg.includes('workspace') && arg.includes('src')
       );
       // Should only have one (no duplicate)
       expect(srcProtoPathArgs.length).toBe(1);
@@ -1571,7 +1701,7 @@ describe('ProtocCompiler', () => {
           if (closeCallback) {
             closeCallback(null);
           }
-        })
+        }),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1605,7 +1735,7 @@ describe('ProtocCompiler', () => {
           }
           return mockProcess;
         }),
-        kill: mockKill
+        kill: mockKill,
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
@@ -1637,12 +1767,14 @@ describe('ProtocCompiler', () => {
           }
           return mockProcess;
         }),
-        kill: jest.fn()
+        kill: jest.fn(),
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const result = await compiler.compileFile('/workspace/test.proto');
+      const resultPromise = compiler.compileFile('/workspace/test.proto');
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
       expect(result.executionTime).toBeDefined();
       expect(result.executionTime).toBeGreaterThanOrEqual(0);
     });

@@ -27,7 +27,7 @@ export class CodegenManager {
     }
 
     const selected = await vscode.window.showQuickPick(profileNames, {
-      placeHolder: 'Select a codegen profile to run'
+      placeHolder: 'Select a codegen profile to run',
     });
 
     if (!selected) {
@@ -36,8 +36,8 @@ export class CodegenManager {
 
     const argsTemplate = profiles[selected];
     if (!argsTemplate || !Array.isArray(argsTemplate)) {
-        vscode.window.showErrorMessage(`Profile "${selected}" is invalid. It must be an array of string arguments.`);
-        return;
+      vscode.window.showErrorMessage(`Profile "${selected}" is invalid. It must be an array of string arguments.`);
+      return;
     }
 
     // Determine context (file or workspace)
@@ -59,10 +59,13 @@ export class CodegenManager {
     let result = str.replace(/\${workspaceFolder}/g, workspaceFolder);
 
     if (fileUri) {
-        result = result.replace(/\${file}/g, fileUri.fsPath);
-        result = result.replace(/\${fileDirname}/g, path.dirname(fileUri.fsPath));
-        result = result.replace(/\${fileBasename}/g, path.basename(fileUri.fsPath));
-        result = result.replace(/\${fileBasenameNoExtension}/g, path.basename(fileUri.fsPath, path.extname(fileUri.fsPath)));
+      result = result.replace(/\${file}/g, fileUri.fsPath);
+      result = result.replace(/\${fileDirname}/g, path.dirname(fileUri.fsPath));
+      result = result.replace(/\${fileBasename}/g, path.basename(fileUri.fsPath));
+      result = result.replace(
+        /\${fileBasenameNoExtension}/g,
+        path.basename(fileUri.fsPath, path.extname(fileUri.fsPath))
+      );
     }
     return result;
   }
@@ -71,21 +74,21 @@ export class CodegenManager {
     this.outputChannel.show(true);
     this.outputChannel.appendLine(`Running: ${command} ${args.join(' ')}`);
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const proc = cp.spawn(command, args, {
         cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
-        shell: true
+        shell: true,
       });
 
-      proc.stdout.on('data', (data) => {
-        this.outputChannel.append(data.toString());
+      proc.stdout.on('data', (data: Buffer) => {
+        this.outputChannel.append(data.toString('utf8'));
       });
 
-      proc.stderr.on('data', (data) => {
-        this.outputChannel.append(data.toString());
+      proc.stderr.on('data', (data: Buffer) => {
+        this.outputChannel.append(data.toString('utf8'));
       });
 
-      proc.on('close', (code) => {
+      proc.on('close', code => {
         if (code === 0) {
           this.outputChannel.appendLine('Codegen completed successfully.');
           vscode.window.showInformationMessage('Codegen completed successfully.');
@@ -96,7 +99,7 @@ export class CodegenManager {
         resolve();
       });
 
-      proc.on('error', (err) => {
+      proc.on('error', err => {
         this.outputChannel.appendLine(`Failed to start process: ${err}`);
         vscode.window.showErrorMessage(`Failed to start protoc: ${err.message}`);
         resolve();

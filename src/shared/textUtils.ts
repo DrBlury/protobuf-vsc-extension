@@ -7,7 +7,7 @@
  * This normalizes line endings for consistent text processing.
  */
 export function splitLines(text: string): string[] {
-  return text.split('\n').map(line => line.endsWith('\r') ? line.slice(0, -1) : line);
+  return text.split('\n').map(line => (line.endsWith('\r') ? line.slice(0, -1) : line));
 }
 
 /**
@@ -44,5 +44,7 @@ export function getIndentation(line: string): string {
  * Remove trailing whitespace from each line
  */
 export function trimTrailingWhitespace(text: string): string {
-  return splitLines(text).map(line => line.trimEnd()).join('\n');
+  return splitLines(text)
+    .map(line => line.trimEnd())
+    .join('\n');
 }

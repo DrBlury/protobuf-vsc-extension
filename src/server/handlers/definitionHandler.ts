@@ -3,11 +3,7 @@
  * Handles go-to-definition requests
  */
 
-import type {
-  DefinitionParams,
-  Location,
-  LocationLink
-} from 'vscode-languageserver/node';
+import type { DefinitionParams, Location, LocationLink } from 'vscode-languageserver/node';
 
 import type { TextDocuments } from 'vscode-languageserver/node';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
@@ -94,11 +90,7 @@ export function handleDefinition(
       `Definition request: uri=${params.textDocument.uri} line=${params.position.line} char=${params.position.character} identifier=${identifier || '<none>'}`
     );
 
-    const result = definitionProvider.getDefinition(
-      params.textDocument.uri,
-      params.position,
-      lineText
-    );
+    const result = definitionProvider.getDefinition(params.textDocument.uri, params.position, lineText);
 
     if (result) {
       const locations = Array.isArray(result) ? result : [result];
@@ -106,14 +98,16 @@ export function handleDefinition(
         logger.debug(`Definition resolved: ${loc.uri}:${loc.range.start.line}:${loc.range.start.character}`);
       }
     } else {
-      logger.debug(`Definition resolved: null (symbols=${analyzer.getAllSymbols().length}, touched=${touchedUris.length})`);
+      logger.debug(
+        `Definition resolved: null (symbols=${analyzer.getAllSymbols().length}, touched=${touchedUris.length})`
+      );
     }
     return result;
   } catch (error) {
     logger.errorWithContext('Definition handler failed', {
       uri: params.textDocument.uri,
       position: params.position,
-      error
+      error,
     });
     return null;
   }

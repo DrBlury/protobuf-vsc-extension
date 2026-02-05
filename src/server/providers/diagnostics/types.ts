@@ -64,18 +64,18 @@ export const DEFAULT_DIAGNOSTICS_SETTINGS: DiagnosticsSettings = {
   documentationComments: true,
   editionFeatures: true,
   breakingChanges: false,
-  severity: DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS
+  severity: DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS,
 };
 
 /**
  * Common patterns for external dependency directories that should be skipped
  */
 export const EXTERNAL_DEP_PATTERNS = [
-  '/.buf-deps/',      // Buf exported dependencies
-  '/vendor/',         // Go vendor directory
-  '/third_party/',    // Common third-party directory
-  '/external/',       // External dependencies
-  '/node_modules/',   // Node modules (unlikely for proto but possible)
+  '/.buf-deps/', // Buf exported dependencies
+  '/vendor/', // Go vendor directory
+  '/third_party/', // Common third-party directory
+  '/external/', // External dependencies
+  '/node_modules/', // Node modules (unlikely for proto but possible)
 ];
 
 /**

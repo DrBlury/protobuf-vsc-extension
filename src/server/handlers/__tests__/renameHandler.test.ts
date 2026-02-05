@@ -14,11 +14,11 @@ describe('RenameHandler', () => {
 
   beforeEach(() => {
     documents = {
-      get: jest.fn()
+      get: jest.fn(),
     } as any;
     renameProvider = {
       prepareRename: jest.fn(),
-      rename: jest.fn()
+      rename: jest.fn(),
     } as any;
   });
 
@@ -26,7 +26,7 @@ describe('RenameHandler', () => {
     it('should return null when document not found', () => {
       const params: PrepareRenameParams = {
         textDocument: { uri: 'file:///nonexistent.proto' },
-        position: { line: 0, character: 0 }
+        position: { line: 0, character: 0 },
       };
 
       documents.get.mockReturnValue(undefined);
@@ -44,7 +44,7 @@ describe('RenameHandler', () => {
 
       const params: PrepareRenameParams = {
         textDocument: { uri },
-        position: { line: 0, character: 0 }
+        position: { line: 0, character: 0 },
       };
 
       renameProvider.prepareRename.mockReturnValue(null);
@@ -61,24 +61,20 @@ describe('RenameHandler', () => {
 
       const params: PrepareRenameParams = {
         textDocument: { uri },
-        position: { line: 0, character: 8 }
+        position: { line: 0, character: 8 },
       };
 
       renameProvider.prepareRename.mockReturnValue({
         range: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } },
-        placeholder: 'Test'
+        placeholder: 'Test',
       });
 
       const result = handlePrepareRename(params, documents, renameProvider);
 
-      expect(renameProvider.prepareRename).toHaveBeenCalledWith(
-        uri,
-        params.position,
-        'message Test {}'
-      );
+      expect(renameProvider.prepareRename).toHaveBeenCalledWith(uri, params.position, 'message Test {}');
       expect(result).toEqual({
         range: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } },
-        placeholder: 'Test'
+        placeholder: 'Test',
       });
     });
   });
@@ -88,7 +84,7 @@ describe('RenameHandler', () => {
       const params: RenameParams = {
         textDocument: { uri: 'file:///nonexistent.proto' },
         position: { line: 0, character: 0 },
-        newName: 'NewTest'
+        newName: 'NewTest',
       };
 
       documents.get.mockReturnValue(undefined);
@@ -107,7 +103,7 @@ describe('RenameHandler', () => {
       const params: RenameParams = {
         textDocument: { uri },
         position: { line: 0, character: 0 },
-        newName: 'NewTest'
+        newName: 'NewTest',
       };
 
       renameProvider.rename.mockReturnValue({ changes: new Map() });
@@ -125,22 +121,23 @@ describe('RenameHandler', () => {
       const params: RenameParams = {
         textDocument: { uri },
         position: { line: 0, character: 8 },
-        newName: 'NewTest'
+        newName: 'NewTest',
       };
 
       const changes = new Map<string, any[]>();
-      changes.set(uri, [{ range: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } }, newText: 'NewTest' }]);
+      changes.set(uri, [
+        { range: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } }, newText: 'NewTest' },
+      ]);
       renameProvider.rename.mockReturnValue({ changes });
 
       const result = handleRename(params, documents, renameProvider);
 
-      expect(renameProvider.rename).toHaveBeenCalledWith(
-        uri,
-        params.position,
-        'message Test {}',
-        'NewTest'
-      );
-      expect(result).toEqual({ changes: { [uri]: [{ range: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } }, newText: 'NewTest' }] } });
+      expect(renameProvider.rename).toHaveBeenCalledWith(uri, params.position, 'message Test {}', 'NewTest');
+      expect(result).toEqual({
+        changes: {
+          [uri]: [{ range: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } }, newText: 'NewTest' }],
+        },
+      });
     });
 
     it('should handle multiple files in changes', () => {
@@ -152,13 +149,17 @@ describe('RenameHandler', () => {
       const params: RenameParams = {
         textDocument: { uri },
         position: { line: 0, character: 8 },
-        newName: 'NewTest'
+        newName: 'NewTest',
       };
 
       const uri2 = 'file:///test2.proto';
       const changes = new Map<string, any[]>();
-      changes.set(uri, [{ range: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } }, newText: 'NewTest' }]);
-      changes.set(uri2, [{ range: { start: { line: 5, character: 10 }, end: { line: 5, character: 14 } }, newText: 'NewTest' }]);
+      changes.set(uri, [
+        { range: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } }, newText: 'NewTest' },
+      ]);
+      changes.set(uri2, [
+        { range: { start: { line: 5, character: 10 }, end: { line: 5, character: 14 } }, newText: 'NewTest' },
+      ]);
       renameProvider.rename.mockReturnValue({ changes });
 
       const result = handleRename(params, documents, renameProvider);
@@ -166,8 +167,10 @@ describe('RenameHandler', () => {
       expect(result).toEqual({
         changes: {
           [uri]: [{ range: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } }, newText: 'NewTest' }],
-          [uri2]: [{ range: { start: { line: 5, character: 10 }, end: { line: 5, character: 14 } }, newText: 'NewTest' }]
-        }
+          [uri2]: [
+            { range: { start: { line: 5, character: 10 }, end: { line: 5, character: 14 } }, newText: 'NewTest' },
+          ],
+        },
       });
     });
   });

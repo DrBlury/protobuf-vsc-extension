@@ -4,7 +4,12 @@
 
 import { handleDocumentSymbols, handleWorkspaceSymbols } from '../symbolsHandler';
 import { SymbolProvider } from '../../providers';
-import { DocumentSymbolParams, WorkspaceSymbolParams, DocumentSymbol, SymbolInformation } from 'vscode-languageserver/node';
+import {
+  DocumentSymbolParams,
+  WorkspaceSymbolParams,
+  DocumentSymbol,
+  SymbolInformation,
+} from 'vscode-languageserver/node';
 
 describe('SymbolsHandler', () => {
   let symbolsProvider: jest.Mocked<SymbolProvider>;
@@ -12,14 +17,14 @@ describe('SymbolsHandler', () => {
   beforeEach(() => {
     symbolsProvider = {
       getDocumentSymbols: jest.fn(),
-      getWorkspaceSymbols: jest.fn()
+      getWorkspaceSymbols: jest.fn(),
     } as any;
   });
 
   describe('handleDocumentSymbols', () => {
     it('should return document symbols from provider', () => {
       const params: DocumentSymbolParams = {
-        textDocument: { uri: 'file:///test.proto' }
+        textDocument: { uri: 'file:///test.proto' },
       };
 
       const symbols: DocumentSymbol[] = [
@@ -27,8 +32,8 @@ describe('SymbolsHandler', () => {
           name: 'Test',
           kind: 11,
           range: { start: { line: 0, character: 0 }, end: { line: 2, character: 1 } },
-          selectionRange: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } }
-        }
+          selectionRange: { start: { line: 0, character: 8 }, end: { line: 0, character: 12 } },
+        },
       ];
       symbolsProvider.getDocumentSymbols.mockReturnValue(symbols);
 
@@ -40,7 +45,7 @@ describe('SymbolsHandler', () => {
 
     it('should return empty array when provider returns no symbols', () => {
       const params: DocumentSymbolParams = {
-        textDocument: { uri: 'file:///test.proto' }
+        textDocument: { uri: 'file:///test.proto' },
       };
 
       symbolsProvider.getDocumentSymbols.mockReturnValue([]);
@@ -54,7 +59,7 @@ describe('SymbolsHandler', () => {
   describe('handleWorkspaceSymbols', () => {
     it('should return workspace symbols from provider', () => {
       const params: WorkspaceSymbolParams = {
-        query: 'Test'
+        query: 'Test',
       };
 
       const symbols: SymbolInformation[] = [
@@ -63,9 +68,9 @@ describe('SymbolsHandler', () => {
           kind: 11,
           location: {
             uri: 'file:///test.proto',
-            range: { start: { line: 0, character: 0 }, end: { line: 2, character: 1 } }
-          }
-        }
+            range: { start: { line: 0, character: 0 }, end: { line: 2, character: 1 } },
+          },
+        },
       ];
       symbolsProvider.getWorkspaceSymbols.mockReturnValue(symbols);
 
@@ -77,7 +82,7 @@ describe('SymbolsHandler', () => {
 
     it('should return empty array when provider returns no symbols', () => {
       const params: WorkspaceSymbolParams = {
-        query: 'Nonexistent'
+        query: 'Nonexistent',
       };
 
       symbolsProvider.getWorkspaceSymbols.mockReturnValue([]);
@@ -89,7 +94,7 @@ describe('SymbolsHandler', () => {
 
     it('should handle empty query', () => {
       const params: WorkspaceSymbolParams = {
-        query: ''
+        query: '',
       };
 
       symbolsProvider.getWorkspaceSymbols.mockReturnValue([]);

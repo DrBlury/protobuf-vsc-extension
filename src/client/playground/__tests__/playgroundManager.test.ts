@@ -1,4 +1,9 @@
-import { createMockVscode, createMockTextEditor, createMockExtensionContext, createMockChildProcess } from '../../__tests__/testUtils';
+import {
+  createMockVscode,
+  createMockTextEditor,
+  createMockExtensionContext,
+  createMockChildProcess,
+} from '../../__tests__/testUtils';
 
 const mockVscode = createMockVscode();
 
@@ -9,7 +14,36 @@ jest.mock('child_process', () => ({
   spawn: mockSpawn,
 }));
 
+// Mock os module to always return non-Windows platform for consistent test behavior
+jest.mock('os', () => ({
+  platform: () => 'darwin',
+  homedir: () => '/home/user',
+}));
+
+// Mock path module to always use posix (forward slashes) for consistent test behavior
+jest.mock('path', () => {
+  const posix = jest.requireActual('path').posix;
+  return {
+    ...posix,
+    join: (...args: string[]) => posix.join(...args),
+    dirname: (p: string) => posix.dirname(p),
+  };
+});
+
 import { PlaygroundManager } from '../playgroundManager';
+
+/**
+ * Helper to flush promises and setImmediate callbacks.
+ * Since mock child process uses setImmediate (not faked), we just need to flush the queue.
+ * Uses 20 iterations to handle triple-nested setImmediate in mock child process.
+ */
+async function flushPromisesAndTimers(): Promise<void> {
+  // Flush multiple times to handle nested setImmediate calls
+  // The mock child process uses triple-nested setImmediate for close event
+  for (let i = 0; i < 20; i++) {
+    await new Promise(resolve => setImmediate(resolve));
+  }
+}
 
 describe('PlaygroundManager', () => {
   let manager: PlaygroundManager;
@@ -20,7 +54,9 @@ describe('PlaygroundManager', () => {
   function setupConfig(includes: string[] = []) {
     mockVscode.workspace.getConfiguration = jest.fn(() => ({
       get: jest.fn((key: string) => {
-        if (key === 'includes') {return includes;}
+        if (key === 'includes') {
+          return includes;
+        }
         return undefined;
       }),
       update: jest.fn().mockResolvedValue(undefined),
@@ -31,12 +67,17 @@ describe('PlaygroundManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     mockContext = createMockExtensionContext();
     mockOutputChannel = mockVscode.window.createOutputChannel();
     mockWebviewPanel = mockVscode.window.createWebviewPanel();
     mockVscode.window.activeTextEditor = undefined;
     setupConfig();
     manager = new PlaygroundManager(mockContext as never, mockOutputChannel);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -92,7 +133,7 @@ describe('PlaygroundManager', () => {
         uri: 'file:///test/project/api.proto',
       });
       mockVscode.window.activeTextEditor = mockEditor;
-      
+
       const mockProc = createMockChildProcess('service.MyService\n', '', 0);
       mockSpawn.mockReturnValue(mockProc);
 
@@ -129,12 +170,13 @@ describe('PlaygroundManager', () => {
 
       manager.openPlayground();
 
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await flushPromisesAndTimers();
 
+      // Should use managed grpcurl path (full path without shell: true to handle spaces)
       expect(mockSpawn).toHaveBeenCalledWith(
-        'grpcurl',
+        '/test/global-storage/bin/grpcurl',
         expect.arrayContaining(['-proto', '/test/project/api.proto', 'list']),
-        expect.objectContaining({ shell: true })
+        expect.objectContaining({ cwd: '/test/project' })
       );
     });
   });
@@ -153,12 +195,13 @@ describe('PlaygroundManager', () => {
         const mockProc = createMockChildProcess('mypackage.Service1\nmypackage.Service2', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await messageHandler?.({ command: 'listServices', file: '/test/api.proto' });
+        const handlerPromise = messageHandler?.({ command: 'listServices', file: '/test/api.proto' });
+        await flushPromisesAndTimers();
+        await handlerPromise;
 
-        await new Promise(resolve => setTimeout(resolve, 20));
-
+        // Uses managed grpcurl path (full path to handle spaces in path)
         expect(mockSpawn).toHaveBeenCalledWith(
-          'grpcurl',
+          '/test/global-storage/bin/grpcurl',
           expect.arrayContaining(['-proto', '/test/api.proto', 'list']),
           expect.any(Object)
         );
@@ -174,16 +217,14 @@ describe('PlaygroundManager', () => {
         const mockProc = createMockChildProcess('Service1', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await messageHandler?.({ command: 'listServices', file: '/test/api.proto' });
+        const handlerPromise = messageHandler?.({ command: 'listServices', file: '/test/api.proto' });
+        await flushPromisesAndTimers();
+        await handlerPromise;
 
-        await new Promise(resolve => setTimeout(resolve, 20));
-
+        // Uses managed grpcurl path and includes configured import paths
         expect(mockSpawn).toHaveBeenCalledWith(
-          'grpcurl',
-          expect.arrayContaining([
-            '-import-path', '/imports/common',
-            '-import-path', '/imports/shared',
-          ]),
+          '/test/global-storage/bin/grpcurl',
+          expect.arrayContaining(['-import-path', '/imports/common', '-import-path', '/imports/shared']),
           expect.any(Object)
         );
       });
@@ -192,9 +233,9 @@ describe('PlaygroundManager', () => {
         const mockProc = createMockChildProcess('pkg.Service1\npkg.Service2\n', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await messageHandler?.({ command: 'listServices', file: '/test/api.proto' });
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const handlerPromise = messageHandler?.({ command: 'listServices', file: '/test/api.proto' });
+        await flushPromisesAndTimers();
+        await handlerPromise;
 
         expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith({
           command: 'servicesLoaded',
@@ -206,13 +247,11 @@ describe('PlaygroundManager', () => {
         const mockProc = createMockChildProcess('', 'Failed to parse proto', 1);
         mockSpawn.mockReturnValue(mockProc);
 
-        await messageHandler?.({ command: 'listServices', file: '/test/api.proto' });
+        const handlerPromise = messageHandler?.({ command: 'listServices', file: '/test/api.proto' });
+        await flushPromisesAndTimers();
+        await handlerPromise;
 
-        await new Promise(resolve => setTimeout(resolve, 20));
-
-        expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
-          expect.stringContaining('Failed to list services')
-        );
+        expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Failed to list services'));
         expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith(
           expect.objectContaining({ command: 'error' })
         );
@@ -232,15 +271,18 @@ describe('PlaygroundManager', () => {
         const mockProc = createMockChildProcess('{"name": "John"}', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await messageHandler?.({ command: 'runRequest', data: requestData });
+        const handlerPromise = messageHandler?.({ command: 'runRequest', data: requestData });
+        await flushPromisesAndTimers();
+        await handlerPromise;
 
-        await new Promise(resolve => setTimeout(resolve, 20));
-
+        // Uses managed grpcurl path (full path to handle spaces in path)
         expect(mockSpawn).toHaveBeenCalledWith(
-          'grpcurl',
+          '/test/global-storage/bin/grpcurl',
           expect.arrayContaining([
-            '-proto', '/test/user.proto',
-            '-d', '{"id": 1}',
+            '-proto',
+            '/test/user.proto',
+            '-d',
+            '{"id": 1}',
             '-plaintext',
             'localhost:50051',
             'mypackage.UserService/GetUser',
@@ -253,12 +295,13 @@ describe('PlaygroundManager', () => {
         const mockProc = createMockChildProcess('{}', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await messageHandler?.({ command: 'runRequest', data: requestData });
+        const handlerPromise = messageHandler?.({ command: 'runRequest', data: requestData });
+        await flushPromisesAndTimers();
+        await handlerPromise;
 
-        await new Promise(resolve => setTimeout(resolve, 20));
-
+        // Logs the full managed path
         expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
-          expect.stringContaining('Running: grpcurl')
+          expect.stringContaining('Running: /test/global-storage/bin/grpcurl')
         );
       });
 
@@ -266,9 +309,9 @@ describe('PlaygroundManager', () => {
         const mockProc = createMockChildProcess('{"result": "success"}', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await messageHandler?.({ command: 'runRequest', data: requestData });
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const handlerPromise = messageHandler?.({ command: 'runRequest', data: requestData });
+        await flushPromisesAndTimers();
+        await handlerPromise;
 
         expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith({
           command: 'response',
@@ -280,9 +323,9 @@ describe('PlaygroundManager', () => {
         const mockProc = createMockChildProcess('', 'Connection refused', 1);
         mockSpawn.mockReturnValue(mockProc);
 
-        await messageHandler?.({ command: 'runRequest', data: requestData });
-
-        await new Promise(resolve => setTimeout(resolve, 20));
+        const handlerPromise = messageHandler?.({ command: 'runRequest', data: requestData });
+        await flushPromisesAndTimers();
+        await handlerPromise;
 
         expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith({
           command: 'responseError',
@@ -300,16 +343,98 @@ describe('PlaygroundManager', () => {
         const mockProc = createMockChildProcess('{}', '', 0);
         mockSpawn.mockReturnValue(mockProc);
 
-        await messageHandler?.({ command: 'runRequest', data: requestData });
+        const handlerPromise = messageHandler?.({ command: 'runRequest', data: requestData });
+        await flushPromisesAndTimers();
+        await handlerPromise;
 
-        await new Promise(resolve => setTimeout(resolve, 20));
-
+        // Uses managed grpcurl path and includes configured import paths
         expect(mockSpawn).toHaveBeenCalledWith(
-          'grpcurl',
+          '/test/global-storage/bin/grpcurl',
           expect.arrayContaining(['-import-path', '/common/protos']),
           expect.any(Object)
         );
       });
+    });
+  });
+
+  describe('configuration changes', () => {
+    it('should re-detect grpcurl path when the grpcurl setting changes', async () => {
+      let grpcurlSetting = '/test/global-storage/bin/grpcurl';
+      const configListeners: Array<(e: { affectsConfiguration: (section: string) => boolean }) => void> = [];
+
+      (mockVscode.workspace.onDidChangeConfiguration as unknown as jest.Mock).mockImplementation((listener: any) => {
+        configListeners.push(listener as (e: { affectsConfiguration: (section: string) => boolean }) => void);
+        return { dispose: jest.fn() };
+      });
+
+      (mockVscode.workspace.getConfiguration as unknown as jest.Mock).mockImplementation((section: string) => {
+        if (section === 'protobuf.grpcurl') {
+          return {
+            get: jest.fn((key: string) => (key === 'path' ? grpcurlSetting : undefined)),
+            update: jest.fn().mockResolvedValue(undefined),
+            has: jest.fn(() => false),
+            inspect: jest.fn(),
+          };
+        }
+        if (section === 'protobuf') {
+          return {
+            get: jest.fn((key: string) => {
+              if (key === 'includes') {
+                return [];
+              }
+              return undefined;
+            }),
+            update: jest.fn().mockResolvedValue(undefined),
+            has: jest.fn(() => false),
+            inspect: jest.fn(),
+          };
+        }
+        return {
+          get: jest.fn(),
+          update: jest.fn().mockResolvedValue(undefined),
+          has: jest.fn(() => false),
+          inspect: jest.fn(),
+        };
+      });
+
+      manager = new PlaygroundManager(mockContext as never, mockOutputChannel);
+      manager.openPlayground();
+      const handler = (mockWebviewPanel.webview.onDidReceiveMessage as jest.Mock).mock.calls[0]?.[0];
+
+      const firstProc = createMockChildProcess('svc.Service', '', 0);
+      mockSpawn.mockReturnValue(firstProc);
+
+      const firstRun = handler?.({ command: 'listServices', file: '/test/api.proto' });
+      await flushPromisesAndTimers();
+      await firstRun;
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        '/test/global-storage/bin/grpcurl',
+        expect.arrayContaining(['-proto', '/test/api.proto', 'list']),
+        expect.any(Object)
+      );
+
+      mockSpawn.mockClear();
+      grpcurlSetting = '/usr/local/bin/grpcurl';
+      configListeners.forEach(listener =>
+        listener({
+          affectsConfiguration: (section: string) =>
+            section === 'protobuf.grpcurl.path' || section === 'protobuf.grpcurl',
+        })
+      );
+
+      const secondProc = createMockChildProcess('svc.Service', '', 0);
+      mockSpawn.mockReturnValue(secondProc);
+
+      const secondRun = handler?.({ command: 'listServices', file: '/test/api.proto' });
+      await flushPromisesAndTimers();
+      await secondRun;
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        '/usr/local/bin/grpcurl',
+        expect.arrayContaining(['-proto', '/test/api.proto', 'list']),
+        expect.any(Object)
+      );
     });
   });
 

@@ -45,7 +45,7 @@ export const DEFAULT_SETTINGS: FormatterSettings = {
   renumberIncrement: 1,
   preset: 'minimal',
   alignFields: true,
-  preserveMultiLineFields: false
+  preserveMultiLineFields: false,
 };
 
 /**
