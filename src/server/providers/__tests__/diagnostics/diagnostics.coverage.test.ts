@@ -5,17 +5,20 @@
 
 import { DiagnosticsProvider } from '../../diagnostics';
 import { SemanticAnalyzer } from '../../../core/analyzer';
-import { ProtoParser } from '../../../core/parser';
+import { ParserFactory } from '../../../core/parserFactory';
+import { ProviderRegistry } from '../../../utils';
 
 describe('DiagnosticsProvider Coverage Tests', () => {
+  let providers: ProviderRegistry;
   let provider: DiagnosticsProvider;
   let analyzer: SemanticAnalyzer;
-  let parser: ProtoParser;
+  let parser: ParserFactory;
 
   beforeEach(() => {
-    parser = new ProtoParser();
-    analyzer = new SemanticAnalyzer();
-    provider = new DiagnosticsProvider(analyzer);
+    providers = new ProviderRegistry();
+    parser = providers.parser;
+    analyzer = providers.analyzer;
+    provider = providers.diagnostics;
     provider.updateSettings({
       fieldTagChecks: true,
       duplicateFieldChecks: true,
@@ -29,7 +32,7 @@ describe('DiagnosticsProvider Coverage Tests', () => {
   });
 
   describe('RPC validation (lines 1076, 1085)', () => {
-    it('should validate RPC with undefined request type', () => {
+    it('should validate RPC with undefined request type', async () => {
       const text = `syntax = "proto3";
 
 message Response {}
@@ -40,7 +43,7 @@ service TestService {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       // Should report undefined type
       const rpcErrors = diagnostics.filter(
@@ -49,7 +52,7 @@ service TestService {
       expect(rpcErrors.length).toBeGreaterThanOrEqual(0);
     });
 
-    it('should validate RPC with undefined response type', () => {
+    it('should validate RPC with undefined response type', async () => {
       const text = `syntax = "proto3";
 
 message Request {}
@@ -60,7 +63,7 @@ service TestService {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       // Should report undefined type
       const rpcErrors = diagnostics.filter(
@@ -69,7 +72,7 @@ service TestService {
       expect(rpcErrors.length).toBeGreaterThanOrEqual(0);
     });
 
-    it('should validate RPC naming convention', () => {
+    it('should validate RPC naming convention', async () => {
       const text = `syntax = "proto3";
 
 message Request {}
@@ -81,7 +84,7 @@ service TestService {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const namingDiags = diagnostics.filter(d => d.message.includes('PascalCase'));
       expect(namingDiags.length).toBeGreaterThan(0);
@@ -89,7 +92,7 @@ service TestService {
   });
 
   describe('unused symbol detection (lines 1753-1756, 1769-1774)', () => {
-    it('should not mark message as unused if used in another message', () => {
+    it('should not mark message as unused if used in another message', async () => {
       const text = `syntax = "proto3";
 
 message UsedMessage {
@@ -102,7 +105,7 @@ message Container {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const unusedDiags = diagnostics.filter(
         d => d.message.includes('never used') && d.message.includes('UsedMessage')
@@ -110,7 +113,7 @@ message Container {
       expect(unusedDiags.length).toBe(0);
     });
 
-    it('should not mark enum as unused if used in message field', () => {
+    it('should not mark enum as unused if used in message field', async () => {
       const text = `syntax = "proto3";
 
 enum UsedStatus {
@@ -123,13 +126,13 @@ message Container {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const unusedDiags = diagnostics.filter(d => d.message.includes('never used') && d.message.includes('UsedStatus'));
       expect(unusedDiags.length).toBe(0);
     });
 
-    it('should not report message used in service RPC', () => {
+    it('should not report message used in service RPC', async () => {
       const text = `syntax = "proto3";
 
 message Request {
@@ -146,7 +149,7 @@ service DataService {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const unusedDiags = diagnostics.filter(
         d => d.message.includes('never used') && (d.message.includes('Request') || d.message.includes('Response'))
@@ -156,7 +159,7 @@ service DataService {
   });
 
   describe('reserved range overlap detection (lines 1547-1553)', () => {
-    it('should detect overlapping reserved ranges', () => {
+    it('should detect overlapping reserved ranges', async () => {
       const text = `syntax = "proto3";
 
 message Test {
@@ -167,13 +170,13 @@ message Test {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const overlapDiags = diagnostics.filter(d => d.message.includes('overlap'));
       expect(overlapDiags.length).toBeGreaterThan(0);
     });
 
-    it('should detect reserved range with max', () => {
+    it('should detect reserved range with max', async () => {
       const text = `syntax = "proto3";
 
 message Test {
@@ -184,7 +187,7 @@ message Test {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const overlapDiags = diagnostics.filter(d => d.message.includes('overlap'));
       expect(overlapDiags.length).toBeGreaterThan(0);
@@ -192,7 +195,7 @@ message Test {
   });
 
   describe('field number gap detection (lines 1524)', () => {
-    it('should detect gaps in field numbers', () => {
+    it('should detect gaps in field numbers', async () => {
       const text = `syntax = "proto3";
 
 message Test {
@@ -203,7 +206,7 @@ message Test {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const gapDiags = diagnostics.filter(d => d.message.includes('Gap in field numbers'));
       expect(gapDiags.length).toBeGreaterThan(0);
@@ -211,7 +214,7 @@ message Test {
   });
 
   describe('group validation (lines 911-916, 932, 937)', () => {
-    it('should validate fields within groups', () => {
+    it('should validate fields within groups', async () => {
       const text = `syntax = "proto2";
 
 message Test {
@@ -223,7 +226,7 @@ message Test {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       // Groups are discouraged construct
       const groupDiags = diagnostics.filter(
@@ -234,7 +237,7 @@ message Test {
   });
 
   describe('import validation (lines 1214-1221)', () => {
-    it('should validate BSR imports without buf.yaml deps', () => {
+    it('should validate BSR imports without buf.yaml deps', async () => {
       const text = `syntax = "proto3";
 import "buf/validate/validate.proto";
 
@@ -244,7 +247,7 @@ message Test {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       // Should have import resolution warning
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
@@ -252,7 +255,7 @@ message Test {
   });
 
   describe('multi-line option handling (lines 319-331)', () => {
-    it('should handle multi-line inline options with braces', () => {
+    it('should handle multi-line inline options with braces', async () => {
       const text = `syntax = "proto3";
 
 import "google/api/field_behavior.proto";
@@ -265,14 +268,14 @@ message Test {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       // Should not report missing semicolon for multi-line options
       const missingSemi = diagnostics.filter(d => d.message.includes('Missing semicolon'));
       expect(missingSemi.length).toBe(0);
     });
 
-    it('should handle complex multi-line options', () => {
+    it('should handle complex multi-line options', async () => {
       const text = `syntax = "proto3";
 
 message Test {
@@ -284,7 +287,7 @@ message Test {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const missingSemi = diagnostics.filter(d => d.message.includes('Missing semicolon'));
       expect(missingSemi.length).toBe(0);
@@ -292,7 +295,7 @@ message Test {
   });
 
   describe('service naming convention', () => {
-    it('should warn about service not following naming convention', () => {
+    it('should warn about service not following naming convention', async () => {
       const text = `syntax = "proto3";
 
 message Request {}
@@ -304,7 +307,7 @@ service my_service {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const namingDiags = diagnostics.filter(d => d.message.includes('PascalCase') && d.message.includes('Service'));
       expect(namingDiags.length).toBeGreaterThan(0);
@@ -312,7 +315,7 @@ service my_service {
   });
 
   describe('enum value naming', () => {
-    it('should warn about enum values not following convention', () => {
+    it('should warn about enum values not following convention', async () => {
       const text = `syntax = "proto3";
 
 enum Status {
@@ -322,7 +325,7 @@ enum Status {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const namingDiags = diagnostics.filter(
         d => d.message.includes('UPPER_SNAKE_CASE') || d.message.includes('uppercase')
@@ -330,7 +333,7 @@ enum Status {
       expect(namingDiags.length).toBeGreaterThanOrEqual(0);
     });
 
-    it('should warn about enum prefix mismatch', () => {
+    it('should warn about enum prefix mismatch', async () => {
       const text = `syntax = "proto3";
 
 enum Status {
@@ -340,7 +343,7 @@ enum Status {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const prefixDiags = diagnostics.filter(d => d.message.includes('prefix') || d.message.includes('PREFIX'));
       expect(prefixDiags.length).toBeGreaterThanOrEqual(0);
@@ -348,7 +351,7 @@ enum Status {
   });
 
   describe('deprecated field usage', () => {
-    it('should warn when using deprecated field', () => {
+    it('should warn when using deprecated field', async () => {
       const text = `syntax = "proto3";
 
 message OldMessage {
@@ -362,7 +365,7 @@ message NewMessage {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const deprecatedDiags = diagnostics.filter(d => d.message.toLowerCase().includes('deprecated'));
       expect(deprecatedDiags.length).toBeGreaterThanOrEqual(0);
@@ -370,7 +373,7 @@ message NewMessage {
   });
 
   describe('extensions validation', () => {
-    it('should validate extension ranges', () => {
+    it('should validate extension ranges', async () => {
       const text = `syntax = "proto2";
 
 message Extendable {
@@ -380,7 +383,7 @@ message Extendable {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       // Extension range overlap
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
@@ -388,7 +391,7 @@ message Extendable {
   });
 
   describe('field type resolution', () => {
-    it('should report unresolved field types', () => {
+    it('should report unresolved field types', async () => {
       const text = `syntax = "proto3";
 
 message Test {
@@ -397,7 +400,7 @@ message Test {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const unresolvedDiags = diagnostics.filter(
         d => d.message.includes('Unknown') || d.message.includes('resolve') || d.message.includes('undefined')
@@ -407,7 +410,7 @@ message Test {
   });
 
   describe('map field validation', () => {
-    it('should validate map key types', () => {
+    it('should validate map key types', async () => {
       const text = `syntax = "proto3";
 
 message Test {
@@ -416,7 +419,7 @@ message Test {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const mapDiags = diagnostics.filter(d => d.message.includes('map') || d.message.includes('key'));
       expect(mapDiags.length).toBeGreaterThanOrEqual(0);
@@ -424,7 +427,7 @@ message Test {
   });
 
   describe('oneof validation', () => {
-    it('should validate oneof fields', () => {
+    it('should validate oneof fields', async () => {
       const text = `syntax = "proto3";
 
 message Test {
@@ -436,7 +439,7 @@ message Test {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const oneofDiags = diagnostics.filter(d => d.message.includes('Duplicate') || d.message.includes('field number'));
       expect(oneofDiags.length).toBeGreaterThan(0);
@@ -444,7 +447,7 @@ message Test {
   });
 
   describe('reserved name validation', () => {
-    it('should detect field using reserved name', () => {
+    it('should detect field using reserved name', async () => {
       const text = `syntax = "proto3";
 
 message Test {
@@ -454,13 +457,13 @@ message Test {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const reservedDiags = diagnostics.filter(d => d.message.includes('reserved'));
       expect(reservedDiags.length).toBeGreaterThan(0);
     });
 
-    it('should detect field using reserved number', () => {
+    it('should detect field using reserved number', async () => {
       const text = `syntax = "proto3";
 
 message Test {
@@ -470,7 +473,7 @@ message Test {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const reservedDiags = diagnostics.filter(d => d.message.includes('reserved'));
       expect(reservedDiags.length).toBeGreaterThan(0);
@@ -478,7 +481,7 @@ message Test {
   });
 
   describe('package naming', () => {
-    it('should warn about package not following convention', () => {
+    it('should warn about package not following convention', async () => {
       const text = `syntax = "proto3";
 package MyPackage;
 
@@ -488,7 +491,7 @@ message Test {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const packageDiags = diagnostics.filter(d => d.message.includes('Package') || d.message.includes('lowercase'));
       expect(packageDiags.length).toBeGreaterThanOrEqual(0);
@@ -496,7 +499,7 @@ message Test {
   });
 
   describe('first enum value validation', () => {
-    it('should warn when first enum value is not zero', () => {
+    it('should warn when first enum value is not zero', async () => {
       const text = `syntax = "proto3";
 
 enum Status {
@@ -506,7 +509,7 @@ enum Status {
       const uri = 'file:///test.proto';
       const file = parser.parse(text, uri);
       analyzer.updateFile(uri, file);
-      const diagnostics = provider.validate(uri, file, text);
+      const diagnostics = await provider.validate(uri, file, providers, text);
 
       const enumDiags = diagnostics.filter(
         d => d.message.includes('first') || d.message.includes('zero') || d.message.includes('0')

@@ -174,6 +174,11 @@ describe('SchemaDiffManager', () => {
 
       const oldContent = 'syntax = "proto2";';
       setupGitMock({ showStdout: oldContent });
+      const getFileContentAtRefSpy = jest.spyOn(
+        manager as unknown as { getFileContentAtRef: (filePath: string, ref: string) => Promise<string> },
+        'getFileContentAtRef'
+      );
+      getFileContentAtRefSpy.mockResolvedValue(oldContent);
 
       const diffPromise = manager.diffSchema(uri);
       await flushPromisesAndTimers();
@@ -198,6 +203,11 @@ describe('SchemaDiffManager', () => {
       });
 
       setupGitMock({ showStdout: 'content' });
+      const getFileContentAtRefSpy = jest.spyOn(
+        manager as unknown as { getFileContentAtRef: (filePath: string, ref: string) => Promise<string> },
+        'getFileContentAtRef'
+      );
+      getFileContentAtRefSpy.mockResolvedValue('content');
 
       const diffPromise = manager.diffSchema(uri);
       await flushPromisesAndTimers();
