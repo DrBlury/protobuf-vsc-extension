@@ -1,19 +1,15 @@
-import { DiagnosticsProvider } from '../../diagnostics';
-import { ProtoParser } from '../../../core/parser';
-import { SemanticAnalyzer } from '../../../core/analyzer';
+import { ProviderRegistry } from '../../../utils';
 
 describe('DiagnosticsProvider nested include paths end-to-end', () => {
-  const parser = new ProtoParser();
-  const analyzer = new SemanticAnalyzer();
-  const diagnosticsProvider = new DiagnosticsProvider(analyzer);
+  const providers = new ProviderRegistry();
 
   beforeEach(() => {
     // Setup the exact user configuration
-    analyzer.setWorkspaceRoots(['/workspace']);
-    analyzer.setImportPaths(['/workspace/vendor']); // protobuf.includes: ["${workspaceFolder}/vendor"]
+    providers.setWorkspaceRoots(['/workspace']);
+    providers.analyzer.setImportPaths(['/workspace/vendor']); // protobuf.includes: ["${workspaceFolder}/vendor"]
   });
 
-  it('should not report incorrect import path for nested includes', () => {
+  it('should not report incorrect import path for nested includes', async () => {
     // Simulate the user's file structure:
     // test.proto (imports nested/import.proto)
     // vendor/import.proto (defines import.Message)
@@ -29,8 +25,8 @@ describe('DiagnosticsProvider nested include paths end-to-end', () => {
       }
     `;
 
-    const vendorImportFile = parser.parse(vendorImportContent, 'file:///workspace/vendor/import.proto');
-    analyzer.updateFile('file:///workspace/vendor/import.proto', vendorImportFile);
+    const vendorImportFile = providers.parser.parse(vendorImportContent, 'file:///workspace/vendor/import.proto');
+    providers.analyzer.updateFile('file:///workspace/vendor/import.proto', vendorImportFile);
 
     // Parse and add vendor/nested/import.proto
     const vendorNestedImportContent = `
@@ -42,11 +38,11 @@ describe('DiagnosticsProvider nested include paths end-to-end', () => {
       }
     `;
 
-    const vendorNestedImportFile = parser.parse(
+    const vendorNestedImportFile = providers.parser.parse(
       vendorNestedImportContent,
       'file:///workspace/vendor/nested/import.proto'
     );
-    analyzer.updateFile('file:///workspace/vendor/nested/import.proto', vendorNestedImportFile);
+    providers.analyzer.updateFile('file:///workspace/vendor/nested/import.proto', vendorNestedImportFile);
 
     // Parse test.proto that imports both files
     const testProtoContent = `
@@ -65,12 +61,11 @@ describe('DiagnosticsProvider nested include paths end-to-end', () => {
       }
     `;
 
-    const testProtoFile = parser.parse(testProtoContent, 'file:///workspace/test.proto');
-    analyzer.updateFile('file:///workspace/test.proto', testProtoFile);
+    const testProtoFile = providers.parser.parse(testProtoContent, 'file:///workspace/test.proto');
+    providers.analyzer.updateFile('file:///workspace/test.proto', testProtoFile);
 
     // Get diagnostics for test.proto
-    const diagnostics = diagnosticsProvider.validate('file:///workspace/test.proto', testProtoFile);
-
+    const diagnostics = await providers.diagnostics.validate('file:///workspace/test.proto', testProtoFile, providers);
     // Should NOT contain any "should be imported via" errors
     const importPathErrors = diagnostics.filter(d => d.message.includes('should be imported via'));
     expect(importPathErrors).toHaveLength(0);

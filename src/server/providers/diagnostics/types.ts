@@ -3,6 +3,31 @@
  */
 
 import { DiagnosticSeverity } from 'vscode-languageserver/node';
+import type { SeveritySetting } from '../../utils/types';
+
+/**
+ * Settings for severities of diagnostic settings
+ */
+export interface DiagnosticsSeveritySettings {
+  namingConventions: SeveritySetting;
+  referenceErrors: SeveritySetting;
+  fieldTagIssues: SeveritySetting;
+  discouragedConstructs: SeveritySetting;
+  nonCanonicalImportPath: SeveritySetting;
+  breakingChanges: SeveritySetting;
+}
+
+/**
+ * Default severity settings
+ */
+export const DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS: DiagnosticsSeveritySettings = {
+  namingConventions: 'warning',
+  referenceErrors: 'error',
+  fieldTagIssues: 'error',
+  discouragedConstructs: 'warning',
+  nonCanonicalImportPath: 'error',
+  breakingChanges: 'warning',
+};
 
 /**
  * Settings for controlling which diagnostics are enabled
@@ -19,6 +44,8 @@ export interface DiagnosticsSettings {
   circularDependencies: boolean;
   documentationComments: boolean;
   editionFeatures: boolean;
+  breakingChanges: boolean;
+  severity: DiagnosticsSeveritySettings;
 }
 
 /**
@@ -36,6 +63,8 @@ export const DEFAULT_DIAGNOSTICS_SETTINGS: DiagnosticsSettings = {
   circularDependencies: true,
   documentationComments: true,
   editionFeatures: true,
+  breakingChanges: false,
+  severity: DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS,
 };
 
 /**
@@ -61,9 +90,9 @@ export function isExternalDependencyFile(uri: string): boolean {
 /**
  * Diagnostic severity helpers
  */
-export const Severity = {
-  Error: DiagnosticSeverity.Error,
-  Warning: DiagnosticSeverity.Warning,
-  Information: DiagnosticSeverity.Information,
-  Hint: DiagnosticSeverity.Hint,
-} as const;
+export const Severity: { [sev in SeveritySetting]: DiagnosticSeverity } = {
+  error: DiagnosticSeverity.Error,
+  warning: DiagnosticSeverity.Warning,
+  information: DiagnosticSeverity.Information,
+  hint: DiagnosticSeverity.Hint,
+};

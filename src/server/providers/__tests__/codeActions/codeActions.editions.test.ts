@@ -3,29 +3,19 @@
  * Validates quick fixes for 'optional' and 'required' modifiers in editions files
  */
 
-import { CodeActionsProvider, CodeActionContext } from '../../codeActions';
-import { DiagnosticsProvider } from '../../diagnostics';
-import { SemanticAnalyzer } from '../../../core/analyzer';
-import { ProtoParser } from '../../../core/parser';
-import { RenumberProvider } from '../../renumber';
+import { CodeActionContext } from '../../codeActions';
 import { ERROR_CODES } from '../../../utils/constants';
+import { ProviderRegistry } from '../../../utils';
 
 describe('CodeActionsProvider editions fixes', () => {
-  let parser: ProtoParser;
-  let analyzer: SemanticAnalyzer;
-  let diagnosticsProvider: DiagnosticsProvider;
-  let codeActionsProvider: CodeActionsProvider;
+  let providers: ProviderRegistry;
 
   beforeEach(() => {
-    parser = new ProtoParser();
-    analyzer = new SemanticAnalyzer();
-    diagnosticsProvider = new DiagnosticsProvider(analyzer);
-    const renumberProvider = new RenumberProvider(parser);
-    codeActionsProvider = new CodeActionsProvider(analyzer, renumberProvider);
+    providers = new ProviderRegistry();
   });
 
   describe('optional modifier fix', () => {
-    it('should provide quick fix to convert optional to features.field_presence', () => {
+    it('should provide quick fix to convert optional to features.field_presence', async () => {
       const content = `edition = "2023";
 
 message Person {
@@ -33,10 +23,10 @@ message Person {
 }
 `;
       const uri = 'test://editions-fix.proto';
-      const file = parser.parse(content, uri);
-      analyzer.updateFile(uri, file);
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
 
-      const diagnostics = diagnosticsProvider.validate(uri, file, content);
+      const diagnostics = await providers.diagnostics.validate(uri, file, providers, content);
       const optionalDiag = diagnostics.find(d => d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED);
 
       expect(optionalDiag).toBeDefined();
@@ -45,7 +35,7 @@ message Person {
         diagnostics: [optionalDiag!],
       };
 
-      const actions = codeActionsProvider.getCodeActions(uri, optionalDiag!.range, context, content);
+      const actions = providers.codeActions.getCodeActions(uri, optionalDiag!.range, context, content);
 
       const convertAction = actions.find(a => a.title.includes('features.field_presence = EXPLICIT'));
 
@@ -58,7 +48,7 @@ message Person {
       expect(edit?.newText).not.toContain('optional');
     });
 
-    it('should provide quick fix to remove optional modifier', () => {
+    it('should provide quick fix to remove optional modifier', async () => {
       const content = `edition = "2023";
 
 message Person {
@@ -66,10 +56,10 @@ message Person {
 }
 `;
       const uri = 'test://editions-remove.proto';
-      const file = parser.parse(content, uri);
-      analyzer.updateFile(uri, file);
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
 
-      const diagnostics = diagnosticsProvider.validate(uri, file, content);
+      const diagnostics = await providers.diagnostics.validate(uri, file, providers, content);
       const optionalDiag = diagnostics.find(d => d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED);
 
       expect(optionalDiag).toBeDefined();
@@ -78,7 +68,7 @@ message Person {
         diagnostics: [optionalDiag!],
       };
 
-      const actions = codeActionsProvider.getCodeActions(uri, optionalDiag!.range, context, content);
+      const actions = providers.codeActions.getCodeActions(uri, optionalDiag!.range, context, content);
 
       const removeAction = actions.find(a => a.title.includes("Remove 'optional' modifier"));
 
@@ -90,7 +80,7 @@ message Person {
       expect(edit?.newText).not.toContain('optional');
     });
 
-    it('should preserve existing options when converting optional', () => {
+    it('should preserve existing options when converting optional', async () => {
       const content = `edition = "2023";
 
 message Person {
@@ -98,10 +88,10 @@ message Person {
 }
 `;
       const uri = 'test://editions-options.proto';
-      const file = parser.parse(content, uri);
-      analyzer.updateFile(uri, file);
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
 
-      const diagnostics = diagnosticsProvider.validate(uri, file, content);
+      const diagnostics = await providers.diagnostics.validate(uri, file, providers, content);
       const optionalDiag = diagnostics.find(d => d.code === ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED);
 
       expect(optionalDiag).toBeDefined();
@@ -110,7 +100,7 @@ message Person {
         diagnostics: [optionalDiag!],
       };
 
-      const actions = codeActionsProvider.getCodeActions(uri, optionalDiag!.range, context, content);
+      const actions = providers.codeActions.getCodeActions(uri, optionalDiag!.range, context, content);
 
       const convertAction = actions.find(a => a.title.includes('features.field_presence = EXPLICIT'));
 
@@ -123,7 +113,7 @@ message Person {
   });
 
   describe('required modifier fix', () => {
-    it('should provide quick fix to convert required to features.field_presence', () => {
+    it('should provide quick fix to convert required to features.field_presence', async () => {
       const content = `edition = "2023";
 
 message Person {
@@ -131,10 +121,10 @@ message Person {
 }
 `;
       const uri = 'test://editions-required-fix.proto';
-      const file = parser.parse(content, uri);
-      analyzer.updateFile(uri, file);
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
 
-      const diagnostics = diagnosticsProvider.validate(uri, file, content);
+      const diagnostics = await providers.diagnostics.validate(uri, file, providers, content);
       const requiredDiag = diagnostics.find(d => d.message.includes("'required' label is not allowed in editions"));
 
       expect(requiredDiag).toBeDefined();
@@ -143,7 +133,7 @@ message Person {
         diagnostics: [requiredDiag!],
       };
 
-      const actions = codeActionsProvider.getCodeActions(uri, requiredDiag!.range, context, content);
+      const actions = await providers.codeActions.getCodeActions(uri, requiredDiag!.range, context, content);
 
       const convertAction = actions.find(a => a.title.includes('features.field_presence = LEGACY_REQUIRED'));
 
@@ -155,7 +145,7 @@ message Person {
       expect(edit?.newText).not.toContain('required');
     });
 
-    it('should provide quick fix to remove required modifier', () => {
+    it('should provide quick fix to remove required modifier', async () => {
       const content = `edition = "2023";
 
 message Person {
@@ -163,10 +153,10 @@ message Person {
 }
 `;
       const uri = 'test://editions-required-remove.proto';
-      const file = parser.parse(content, uri);
-      analyzer.updateFile(uri, file);
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
 
-      const diagnostics = diagnosticsProvider.validate(uri, file, content);
+      const diagnostics = await providers.diagnostics.validate(uri, file, providers, content);
       const requiredDiag = diagnostics.find(d => d.message.includes("'required' label is not allowed in editions"));
 
       expect(requiredDiag).toBeDefined();
@@ -175,7 +165,7 @@ message Person {
         diagnostics: [requiredDiag!],
       };
 
-      const actions = codeActionsProvider.getCodeActions(uri, requiredDiag!.range, context, content);
+      const actions = await providers.codeActions.getCodeActions(uri, requiredDiag!.range, context, content);
 
       const removeAction = actions.find(a => a.title.includes("Remove 'required' modifier"));
 
@@ -188,7 +178,7 @@ message Person {
   });
 
   describe('source.fixAll editions action', () => {
-    it('should provide source.fixAll action to fix all optional/required modifiers', () => {
+    it('should provide source.fixAll action to fix all optional/required modifiers', async () => {
       const content = `edition = "2023";
 
 message Person {
@@ -198,15 +188,15 @@ message Person {
 }
 `;
       const uri = 'test://editions-fix-all.proto';
-      const file = parser.parse(content, uri);
-      analyzer.updateFile(uri, file);
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
 
       const context: CodeActionContext = {
         diagnostics: [],
         only: ['source.fixAll' as any],
       };
 
-      const actions = codeActionsProvider.getCodeActions(
+      const actions = providers.codeActions.getCodeActions(
         uri,
         { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
         context,
@@ -245,15 +235,15 @@ message Person {
 }
 `;
       const uri = 'test://proto3-no-fix.proto';
-      const file = parser.parse(content, uri);
-      analyzer.updateFile(uri, file);
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
 
       const context: CodeActionContext = {
         diagnostics: [],
         only: ['source.fixAll' as any],
       };
 
-      const actions = codeActionsProvider.getCodeActions(
+      const actions = providers.codeActions.getCodeActions(
         uri,
         { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
         context,
@@ -273,15 +263,15 @@ message Person {
 }
 `;
       const uri = 'test://editions-fix-all-options.proto';
-      const file = parser.parse(content, uri);
-      analyzer.updateFile(uri, file);
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
 
       const context: CodeActionContext = {
         diagnostics: [],
         only: ['source.fixAll' as any],
       };
 
-      const actions = codeActionsProvider.getCodeActions(
+      const actions = providers.codeActions.getCodeActions(
         uri,
         { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
         context,

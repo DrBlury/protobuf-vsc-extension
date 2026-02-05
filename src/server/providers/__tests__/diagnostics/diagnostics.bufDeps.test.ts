@@ -3,25 +3,20 @@
  * Verifies that resolved BSR imports without buf.yaml deps trigger warnings
  */
 
-import { DiagnosticsProvider } from '../../diagnostics';
-import { ProtoParser } from '../../../core/parser';
-import { SemanticAnalyzer } from '../../../core/analyzer';
+import { ProviderRegistry } from '../../../utils';
 
 describe('DiagnosticsProvider BSR dependency validation', () => {
-  const parser = new ProtoParser();
-  let analyzer: SemanticAnalyzer;
-  let diagnosticsProvider: DiagnosticsProvider;
+  let providers = new ProviderRegistry();
 
   beforeEach(() => {
-    analyzer = new SemanticAnalyzer();
-    diagnosticsProvider = new DiagnosticsProvider(analyzer);
+    providers = new ProviderRegistry();
   });
 
   describe('suggestBufModule patterns', () => {
     // Test internal suggestBufModule logic indirectly through diagnostics
     // The module suggestion is embedded in the diagnostic message
 
-    it('should identify googleapis modules for google/type imports', () => {
+    it('should identify googleapis modules for google/type imports', async () => {
       // Create a mock resolved import by adding the imported file
       const dateContent = `syntax = "proto3";
 package google.type;
@@ -31,8 +26,8 @@ message Date {
   int32 day = 3;
 }`;
       const dateUri = 'file:///test/.buf-deps/google/type/date.proto';
-      analyzer.updateFile(dateUri, parser.parse(dateContent, dateUri));
-      analyzer.setImportPaths(['/test/.buf-deps']);
+      providers.analyzer.updateFile(dateUri, providers.parser.parse(dateContent, dateUri));
+      providers.analyzer.setImportPaths(['/test/.buf-deps']);
 
       const content = `syntax = "proto3";
 import "google/type/date.proto";
@@ -42,10 +37,10 @@ message Sample {
 }`;
       // Use a path that won't find a real buf.yaml
       const uri = 'file:///test/sample.proto';
-      const file = parser.parse(content, uri);
-      analyzer.updateFile(uri, file);
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
 
-      const diags = diagnosticsProvider.validate(uri, file);
+      const diags = await providers.diagnostics.validate(uri, file, providers);
 
       // Should have a warning about googleapis not being in buf.yaml
       const _bufDepWarning = diags.find(
@@ -62,14 +57,14 @@ message Sample {
       expect(unresolvedError).toBeUndefined();
     });
 
-    it('should identify protovalidate module for buf/validate imports', () => {
+    it('should identify protovalidate module for buf/validate imports', async () => {
       // Setup buf/validate mock
       const validateContent = `syntax = "proto3";
 package buf.validate;
 message FieldConstraints {}`;
       const validateUri = 'file:///test/.buf-deps/buf/validate/validate.proto';
-      analyzer.updateFile(validateUri, parser.parse(validateContent, validateUri));
-      analyzer.setImportPaths(['/test/.buf-deps']);
+      providers.analyzer.updateFile(validateUri, providers.parser.parse(validateContent, validateUri));
+      providers.analyzer.setImportPaths(['/test/.buf-deps']);
 
       const content = `syntax = "proto3";
 import "buf/validate/validate.proto";
@@ -78,10 +73,10 @@ message Sample {
   string name = 1;
 }`;
       const uri = 'file:///test/sample.proto';
-      const file = parser.parse(content, uri);
-      analyzer.updateFile(uri, file);
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
 
-      const diags = diagnosticsProvider.validate(uri, file);
+      const diags = await providers.diagnostics.validate(uri, file, providers);
 
       // The import should resolve
       const unresolvedError = diags.find(d => d.message.includes('cannot be resolved'));
@@ -92,15 +87,15 @@ message Sample {
   describe('BSR import pattern detection', () => {
     // These tests verify that the isBufRegistryImport patterns work correctly
 
-    it('should detect google/api as BSR import', () => {
+    it('should detect google/api as BSR import', async () => {
       const content = `syntax = "proto3";
 import "google/api/annotations.proto";
 message Sample {}`;
       const uri = 'file:///test/sample.proto';
-      const file = parser.parse(content, uri);
-      analyzer.updateFile(uri, file);
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
 
-      const diags = diagnosticsProvider.validate(uri, file);
+      const diags = await providers.diagnostics.validate(uri, file, providers);
 
       // Should show BSR-specific hint for unresolved google/api import
       const unresolvedError = diags.find(
@@ -109,15 +104,15 @@ message Sample {}`;
       expect(unresolvedError).toBeDefined();
     });
 
-    it('should detect buf/validate as BSR import', () => {
+    it('should detect buf/validate as BSR import', async () => {
       const content = `syntax = "proto3";
 import "buf/validate/validate.proto";
 message Sample {}`;
       const uri = 'file:///test/sample.proto';
-      const file = parser.parse(content, uri);
-      analyzer.updateFile(uri, file);
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
 
-      const diags = diagnosticsProvider.validate(uri, file);
+      const diags = await providers.diagnostics.validate(uri, file, providers);
 
       const unresolvedError = diags.find(
         d => d.message.includes('cannot be resolved') && d.message.includes('Buf registry dependency')
@@ -125,30 +120,30 @@ message Sample {}`;
       expect(unresolvedError).toBeDefined();
     });
 
-    it('should NOT detect google/protobuf as BSR import (well-known types)', () => {
+    it('should NOT detect google/protobuf as BSR import (well-known types)', async () => {
       const content = `syntax = "proto3";
 import "google/protobuf/timestamp.proto";
 message Sample {}`;
       const uri = 'file:///test/sample.proto';
-      const file = parser.parse(content, uri);
-      analyzer.updateFile(uri, file);
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
 
-      const diags = diagnosticsProvider.validate(uri, file);
+      const diags = await providers.diagnostics.validate(uri, file, providers);
 
       // google/protobuf is well-known types, not BSR - should not have BSR hint
       const bsrHint = diags.find(d => d.message.includes('Buf registry dependency'));
       expect(bsrHint).toBeUndefined();
     });
 
-    it('should NOT detect custom imports as BSR import', () => {
+    it('should NOT detect custom imports as BSR import', async () => {
       const content = `syntax = "proto3";
 import "mycompany/service.proto";
 message Sample {}`;
       const uri = 'file:///test/sample.proto';
-      const file = parser.parse(content, uri);
-      analyzer.updateFile(uri, file);
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
 
-      const diags = diagnosticsProvider.validate(uri, file);
+      const diags = await providers.diagnostics.validate(uri, file, providers);
 
       const bsrHint = diags.find(d => d.message.includes('Buf registry dependency'));
       expect(bsrHint).toBeUndefined();

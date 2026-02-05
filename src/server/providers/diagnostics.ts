@@ -5,6 +5,7 @@
 
 import type { Diagnostic, Range } from 'vscode-languageserver/node';
 import { DiagnosticSeverity } from 'vscode-languageserver/node';
+import { URI } from 'vscode-uri';
 
 import type {
   ProtoFile,
@@ -29,8 +30,9 @@ import type { SemanticAnalyzer } from '../core/analyzer';
 import { ERROR_CODES, DIAGNOSTIC_SOURCE, FILE_EXTENSIONS } from '../utils/constants';
 import { logger } from '../utils/logger';
 import { bufConfigProvider } from '../services/bufConfig';
+import type { ProviderRegistry } from '../utils';
 import type { DiagnosticsSettings } from './diagnostics/index';
-import { DEFAULT_DIAGNOSTICS_SETTINGS, isExternalDependencyFile } from './diagnostics/index';
+import { DEFAULT_DIAGNOSTICS_SETTINGS, isExternalDependencyFile, Severity } from './diagnostics/index';
 import { isPascalCase, isSnakeCase, isScreamingSnakeCase } from './diagnostics/index';
 
 const TEXT_FORMAT_EXTENSIONS = [
@@ -44,6 +46,7 @@ const TEXT_FORMAT_EXTENSIONS = [
 
 // Re-export for external consumers
 export type { DiagnosticsSettings } from './diagnostics/index';
+export { DEFAULT_DIAGNOSTICS_SETTINGS } from './diagnostics/index';
 
 export class DiagnosticsProvider {
   private analyzer: SemanticAnalyzer;
@@ -75,7 +78,7 @@ export class DiagnosticsProvider {
     return this.currentFile?.syntax?.version === 'proto3';
   }
 
-  validate(uri: string, file: ProtoFile, documentText?: string): Diagnostic[] {
+  async validate(uri: string, file: ProtoFile, providers: ProviderRegistry, documentText?: string): Promise<Diagnostic[]> {
     // Skip validation for external dependency files (e.g., .buf-deps, vendor directories)
     // These are generated/exported files that should be validated by their source tools
     if (isExternalDependencyFile(uri)) {
@@ -171,6 +174,11 @@ export class DiagnosticsProvider {
     // Validate documentation comments
     if (this.settings.documentationComments) {
       this.validateDocumentationComments(uri, file, diagnostics);
+    }
+
+    // Check for breaking changes
+    if (this.settings.breakingChanges) {
+      await this.checkBreakingChanges(uri, file, providers, diagnostics);
     }
 
     return diagnostics;
@@ -286,7 +294,6 @@ export class DiagnosticsProvider {
 
       if (
         /^(message|enum|service|oneof)\b/.test(trimmed) ||
-        trimmed.startsWith('extend') ||
         trimmed.startsWith('option') ||
         trimmed.startsWith('import') ||
         trimmed.startsWith('syntax') ||
@@ -433,7 +440,7 @@ export class DiagnosticsProvider {
     // Check naming convention (PascalCase)
     if (this.settings.namingConventions && !isPascalCase(message.name)) {
       diagnostics.push({
-        severity: DiagnosticSeverity.Warning,
+        severity: Severity[this.settings.severity.namingConventions],
         range: this.toRange(message.nameRange),
         message: `Message name '${message.name}' should be PascalCase`,
         source: DIAGNOSTIC_SOURCE,
@@ -525,7 +532,7 @@ export class DiagnosticsProvider {
           logger.verbose(`Found duplicate field number ${number} used by ${fields.length} fields in '${fullName}'`);
           for (const field of fields) {
             diagnostics.push({
-              severity: DiagnosticSeverity.Error,
+              severity: Severity[this.settings.severity.fieldTagIssues],
               range: this.toRange(field.range),
               message: `Duplicate field number ${number}`,
               source: DIAGNOSTIC_SOURCE,
@@ -542,7 +549,7 @@ export class DiagnosticsProvider {
         if (fields.length > 1) {
           for (const field of fields) {
             diagnostics.push({
-              severity: DiagnosticSeverity.Error,
+              severity: Severity[this.settings.severity.fieldTagIssues],
               range: this.toRange(field.nameRange),
               message: `Duplicate field name '${name}'`,
               source: DIAGNOSTIC_SOURCE,
@@ -573,7 +580,7 @@ export class DiagnosticsProvider {
     for (const oneof of message.oneofs) {
       if (this.settings.namingConventions && !isSnakeCase(oneof.name)) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Warning,
+          severity: Severity[this.settings.severity.namingConventions],
           range: this.toRange(oneof.nameRange),
           message: `Oneof name '${oneof.name}' should be snake_case`,
           source: DIAGNOSTIC_SOURCE,
@@ -594,7 +601,7 @@ export class DiagnosticsProvider {
     // Check naming convention (snake_case)
     if (this.settings.namingConventions && !isSnakeCase(field.name)) {
       diagnostics.push({
-        severity: DiagnosticSeverity.Warning,
+        severity: Severity[this.settings.severity.namingConventions],
         range: this.toRange(field.nameRange),
         message: `Field name '${field.name}' should be snake_case`,
         source: DIAGNOSTIC_SOURCE,
@@ -606,7 +613,7 @@ export class DiagnosticsProvider {
     if (this.settings.fieldTagChecks) {
       if (field.number < MIN_FIELD_NUMBER || field.number > MAX_FIELD_NUMBER) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Error,
+          severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(field.range),
           message: `Field number ${field.number} is out of valid range (${MIN_FIELD_NUMBER}-${MAX_FIELD_NUMBER})`,
           source: DIAGNOSTIC_SOURCE,
@@ -614,7 +621,7 @@ export class DiagnosticsProvider {
         });
       } else if (field.number >= RESERVED_RANGE_START && field.number <= RESERVED_RANGE_END) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Error,
+          severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(field.range),
           message: `Field number ${field.number} is in reserved range (${RESERVED_RANGE_START}-${RESERVED_RANGE_END})`,
           source: DIAGNOSTIC_SOURCE,
@@ -625,7 +632,7 @@ export class DiagnosticsProvider {
       // Check if using reserved number
       if (isNumberReserved(field.number)) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Error,
+          severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(field.range),
           message: `Field number ${field.number} is reserved`,
           source: DIAGNOSTIC_SOURCE,
@@ -636,7 +643,7 @@ export class DiagnosticsProvider {
       // Check if using reserved name
       if (reservedNames.has(field.name)) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Error,
+          severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(field.nameRange),
           message: `Field name '${field.name}' is reserved`,
           source: DIAGNOSTIC_SOURCE,
@@ -653,7 +660,7 @@ export class DiagnosticsProvider {
         if (workspaceMatch) {
           // Type exists in workspace but not imported - show unqualified type error
           diagnostics.push({
-            severity: DiagnosticSeverity.Error,
+            severity: Severity[this.settings.severity.referenceErrors],
             range: this.toRange(field.fieldTypeRange),
             message: `Type '${field.fieldType}' must be fully qualified as '${workspaceMatch.fullName}' and requires import`,
             source: DIAGNOSTIC_SOURCE,
@@ -666,7 +673,7 @@ export class DiagnosticsProvider {
           });
         } else {
           diagnostics.push({
-            severity: DiagnosticSeverity.Error,
+            severity: Severity[this.settings.severity.referenceErrors],
             range: this.toRange(field.fieldTypeRange),
             message: `Unknown type '${field.fieldType}'`,
             source: DIAGNOSTIC_SOURCE,
@@ -685,7 +692,7 @@ export class DiagnosticsProvider {
       // 'required' is only invalid/discouraged in proto3, it's valid in proto2
       if (field.modifier === 'required' && this.currentFile?.syntax?.version === 'proto3') {
         diagnostics.push({
-          severity: DiagnosticSeverity.Warning,
+          severity: Severity[this.settings.severity.discouragedConstructs],
           range: this.toRange(field.range),
           message: `'required' is not supported in proto3. Consider using 'optional' or no modifier`,
           source: DIAGNOSTIC_SOURCE,
@@ -750,7 +757,7 @@ export class DiagnosticsProvider {
         if (workspaceMatch) {
           // Type exists in workspace but not imported - show unqualified type error
           diagnostics.push({
-            severity: DiagnosticSeverity.Error,
+            severity: Severity[this.settings.severity.referenceErrors],
             range: this.toRange(mapField.valueTypeRange),
             message: `Type '${mapField.valueType}' must be fully qualified as '${workspaceMatch.fullName}' and requires import`,
             source: DIAGNOSTIC_SOURCE,
@@ -763,7 +770,7 @@ export class DiagnosticsProvider {
           });
         } else {
           diagnostics.push({
-            severity: DiagnosticSeverity.Error,
+            severity: Severity[this.settings.severity.referenceErrors],
             range: this.toRange(mapField.valueTypeRange),
             message: `Unknown type '${mapField.valueType}'`,
             source: DIAGNOSTIC_SOURCE,
@@ -785,7 +792,7 @@ export class DiagnosticsProvider {
     // Check naming convention
     if (this.settings.namingConventions && !isSnakeCase(mapField.name)) {
       diagnostics.push({
-        severity: DiagnosticSeverity.Warning,
+        severity: Severity[this.settings.severity.namingConventions],
         range: this.toRange(mapField.nameRange),
         message: `Field name '${mapField.name}' should be snake_case`,
         source: DIAGNOSTIC_SOURCE,
@@ -796,7 +803,7 @@ export class DiagnosticsProvider {
     if (this.settings.fieldTagChecks) {
       if (mapField.number < MIN_FIELD_NUMBER || mapField.number > MAX_FIELD_NUMBER) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Error,
+          severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(mapField.range),
           message: `Field number ${mapField.number} is out of valid range`,
           source: DIAGNOSTIC_SOURCE,
@@ -805,7 +812,7 @@ export class DiagnosticsProvider {
 
       if (isNumberReserved(mapField.number)) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Error,
+          severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(mapField.range),
           message: `Field number ${mapField.number} is reserved`,
           source: DIAGNOSTIC_SOURCE,
@@ -814,7 +821,7 @@ export class DiagnosticsProvider {
 
       if (reservedNames.has(mapField.name)) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Error,
+          severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(mapField.nameRange),
           message: `Field name '${mapField.name}' is reserved`,
           source: DIAGNOSTIC_SOURCE,
@@ -834,7 +841,7 @@ export class DiagnosticsProvider {
     // Check naming convention (PascalCase for group names)
     if (this.settings.namingConventions && !isPascalCase(group.name)) {
       diagnostics.push({
-        severity: DiagnosticSeverity.Warning,
+        severity: Severity[this.settings.severity.namingConventions],
         range: this.toRange(group.nameRange),
         message: `Group name '${group.name}' should be PascalCase`,
         source: DIAGNOSTIC_SOURCE,
@@ -845,7 +852,7 @@ export class DiagnosticsProvider {
     if (this.settings.fieldTagChecks) {
       if (group.number < MIN_FIELD_NUMBER || group.number > MAX_FIELD_NUMBER) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Error,
+          severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(group.range),
           message: `Group number ${group.number} is out of valid range`,
           source: DIAGNOSTIC_SOURCE,
@@ -854,7 +861,7 @@ export class DiagnosticsProvider {
 
       if (isNumberReserved(group.number)) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Error,
+          severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(group.range),
           message: `Group number ${group.number} is reserved`,
           source: DIAGNOSTIC_SOURCE,
@@ -863,7 +870,7 @@ export class DiagnosticsProvider {
 
       if (reservedNames.has(group.name)) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Error,
+          severity: Severity[this.settings.severity.fieldTagIssues],
           range: this.toRange(group.nameRange),
           message: `Group name '${group.name}' is reserved`,
           source: DIAGNOSTIC_SOURCE,
@@ -878,7 +885,7 @@ export class DiagnosticsProvider {
 
       if (isProto3) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Error,
+          severity: Severity[this.settings.severity.discouragedConstructs],
           range: this.toRange(group.range),
           message: 'Groups are not supported in proto3. Use nested messages instead.',
           source: DIAGNOSTIC_SOURCE,
@@ -886,7 +893,7 @@ export class DiagnosticsProvider {
         });
       } else if (isEdition) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Error,
+          severity: Severity[this.settings.severity.discouragedConstructs],
           range: this.toRange(group.range),
           message: 'Groups are not supported in editions. Use nested messages with DELIMITED encoding instead.',
           source: DIAGNOSTIC_SOURCE,
@@ -895,7 +902,7 @@ export class DiagnosticsProvider {
       } else {
         // Proto2: valid but deprecated
         diagnostics.push({
-          severity: DiagnosticSeverity.Information,
+          severity: Severity[this.settings.severity.discouragedConstructs],
           range: this.toRange(group.range),
           message: 'Groups are deprecated. Consider using nested messages instead.',
           source: DIAGNOSTIC_SOURCE,
@@ -946,7 +953,7 @@ export class DiagnosticsProvider {
     // Check naming convention (PascalCase)
     if (this.settings.namingConventions && !isPascalCase(enumDef.name)) {
       diagnostics.push({
-        severity: DiagnosticSeverity.Warning,
+        severity: Severity[this.settings.severity.namingConventions],
         range: this.toRange(enumDef.nameRange),
         message: `Enum name '${enumDef.name}' should be PascalCase`,
         source: DIAGNOSTIC_SOURCE,
@@ -961,7 +968,7 @@ export class DiagnosticsProvider {
       // Check naming convention (SCREAMING_SNAKE_CASE)
       if (this.settings.namingConventions && !isScreamingSnakeCase(value.name)) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Warning,
+          severity: Severity[this.settings.severity.namingConventions],
           range: this.toRange(value.nameRange),
           message: `Enum value '${value.name}' should be SCREAMING_SNAKE_CASE`,
           source: DIAGNOSTIC_SOURCE,
@@ -982,10 +989,11 @@ export class DiagnosticsProvider {
     // Check for first value being 0 (required for proto3 only)
     if (this.settings.discouragedConstructs && this.isProto3() && !hasZeroValue && enumDef.values.length > 0) {
       diagnostics.push({
-        severity: DiagnosticSeverity.Warning,
+        severity: Severity[this.settings.severity.discouragedConstructs],
         range: this.toRange(enumDef.values[0]!.range),
         message: `First enum value should be 0 in proto3`,
         source: DIAGNOSTIC_SOURCE,
+        code: ERROR_CODES.DISCOURAGED_CONSTRUCT,
       });
     }
 
@@ -1062,7 +1070,7 @@ export class DiagnosticsProvider {
     // Check naming convention (PascalCase)
     if (this.settings.namingConventions && !isPascalCase(service.name)) {
       diagnostics.push({
-        severity: DiagnosticSeverity.Warning,
+        severity: Severity[this.settings.severity.namingConventions],
         range: this.toRange(service.nameRange),
         message: `Service name '${service.name}' should be PascalCase`,
         source: DIAGNOSTIC_SOURCE,
@@ -1074,7 +1082,7 @@ export class DiagnosticsProvider {
       // Check naming convention (PascalCase)
       if (this.settings.namingConventions && !isPascalCase(rpc.name)) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Warning,
+          severity: Severity[this.settings.severity.namingConventions],
           range: this.toRange(rpc.nameRange),
           message: `RPC name '${rpc.name}' should be PascalCase`,
           source: DIAGNOSTIC_SOURCE,
@@ -1111,7 +1119,7 @@ export class DiagnosticsProvider {
             const workspaceMatch = this.findTypeInWorkspace(inputType, uri);
             if (workspaceMatch) {
               diagnostics.push({
-                severity: DiagnosticSeverity.Error,
+                severity: Severity[this.settings.severity.referenceErrors],
                 range: this.toRange(inputTypeRange),
                 message: `Type '${inputType}' must be fully qualified as '${workspaceMatch.fullName}' and requires import`,
                 source: DIAGNOSTIC_SOURCE,
@@ -1124,7 +1132,7 @@ export class DiagnosticsProvider {
               });
             } else {
               diagnostics.push({
-                severity: DiagnosticSeverity.Error,
+                severity: Severity[this.settings.severity.referenceErrors],
                 range: this.toRange(inputTypeRange),
                 message: `Unknown type '${inputType}'`,
                 source: DIAGNOSTIC_SOURCE,
@@ -1148,7 +1156,7 @@ export class DiagnosticsProvider {
             const workspaceMatch = this.findTypeInWorkspace(outputType, uri);
             if (workspaceMatch) {
               diagnostics.push({
-                severity: DiagnosticSeverity.Error,
+                severity: Severity[this.settings.severity.referenceErrors],
                 range: this.toRange(outputTypeRange),
                 message: `Type '${outputType}' must be fully qualified as '${workspaceMatch.fullName}' and requires import`,
                 source: DIAGNOSTIC_SOURCE,
@@ -1161,7 +1169,7 @@ export class DiagnosticsProvider {
               });
             } else {
               diagnostics.push({
-                severity: DiagnosticSeverity.Error,
+                severity: Severity[this.settings.severity.referenceErrors],
                 range: this.toRange(outputTypeRange),
                 message: `Unknown type '${outputType}'`,
                 source: DIAGNOSTIC_SOURCE,
@@ -1323,7 +1331,7 @@ export class DiagnosticsProvider {
       // (common when proto_path points above the proto root) but flag imports that drop required segments.
       if (suggestedImport && !this.areImportPathsCompatible(importedVia.importPath, suggestedImport)) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Error,
+          severity: Severity[this.settings.severity.nonCanonicalImportPath],
           range,
           message: `Type '${typeName}' should be imported via "${suggestedImport}" (found "${importedVia.importPath}")`,
           source: DIAGNOSTIC_SOURCE,
@@ -2327,6 +2335,25 @@ export class DiagnosticsProvider {
     }
 
     return false;
+  }
+
+  private async checkBreakingChanges(uri: string, file: ProtoFile, providers: ProviderRegistry, diagnostics: Diagnostic[]) {
+    const filePath = URI.parse(uri).fsPath;
+
+    // Get baseline content from git
+    const baselineContent = await providers.breaking.getBaseline(filePath);
+    let baselineFile: ProtoFile | null = null;
+
+    if (baselineContent) {
+      try {
+        baselineFile = providers.parser.parse(baselineContent, uri);
+      } catch {
+        // Baseline file might not be valid proto
+      }
+    }
+
+    const changes = providers.breaking.detectBreakingChanges(file, baselineFile, Severity[this.settings.severity.breakingChanges]);
+    diagnostics.push(...changes);
   }
 
   /**

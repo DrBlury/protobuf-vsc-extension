@@ -280,13 +280,9 @@ connection.onDidChangeWatchedFiles(async (params: DidChangeWatchedFilesParams) =
     const uri = change.uri;
 
     // Check if this is a buf config file change
-    if (
-      uri.endsWith('buf.yaml') ||
-      uri.endsWith('buf.yml') ||
-      uri.endsWith('buf.work.yaml') ||
-      uri.endsWith('buf.work.yml') ||
-      uri.endsWith('buf.lock')
-    ) {
+    if (uri.endsWith('buf.yaml') || uri.endsWith('buf.yml') ||
+      uri.endsWith('buf.work.yaml') || uri.endsWith('buf.work.yml') ||
+      uri.endsWith('buf.lock')) {
       hasBufConfigChange = true;
       needsRevalidation = true;
       logger.verboseWithContext('Buf config file changed', { uri, type: change.type });
@@ -473,7 +469,7 @@ async function validateDocument(document: TextDocument): Promise<void> {
     // Run built-in diagnostics only if useBuiltIn is enabled
     let diagnostics: Diagnostic[] = [];
     if (globalSettings.protobuf.diagnostics.useBuiltIn !== false) {
-      diagnostics = providers.diagnostics.validate(uri, file, text);
+      diagnostics = await providers.diagnostics.validate(uri, file, providers, text);
     } else {
       logger.verboseWithContext('Built-in diagnostics disabled, skipping AST validation', { uri });
     }
@@ -934,7 +930,7 @@ connection.onRequest(REQUEST_METHODS.CHECK_BREAKING_CHANGES, async (params: { ur
   const currentFile = providers.parser.parse(document.getText(), params.uri);
 
   // Get baseline content from git
-  const baselineContent = await providers.breaking.getBaselineFromGit(filePath);
+  const baselineContent = await providers.breaking.getBaseline(filePath);
   let baselineFile: ProtoFile | null = null;
 
   if (baselineContent) {
@@ -945,7 +941,8 @@ connection.onRequest(REQUEST_METHODS.CHECK_BREAKING_CHANGES, async (params: { ur
     }
   }
 
-  return providers.breaking.detectBreakingChanges(currentFile, baselineFile, params.uri);
+  const changes = providers.breaking.detectBreakingChanges(currentFile, baselineFile);
+  return { changes };
 });
 
 // Helper to collect options from AST
@@ -1029,7 +1026,7 @@ function collectOptions(file: ProtoFile): CollectedOption[] {
               name: opt.name,
               value: opt.value,
               range: field.range, // Approximate range or we need range on field option
-              parent: `Field ${prefix}${field.name}`,
+              parent: `Field ${prefix}${field.name}`
             });
           }
         }

@@ -19,7 +19,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { int32 id = 1; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { string id = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
 
@@ -27,7 +27,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { string newName = 1; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { string oldName = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
 
@@ -38,7 +38,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       );
       const baseline = parser.parse('syntax = "proto3"; message Test { string tags = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -46,7 +46,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { reserved 1; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { string name = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       // Should not error when field number is reserved
       const deleteErrors = diagnostics.filter(d => d.message.includes('deleted without reserving'));
       expect(deleteErrors.length).toBe(0);
@@ -58,7 +58,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; enum Status { UNKNOWN = 0; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; enum Status { UNKNOWN = 0; OK = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
 
@@ -72,7 +72,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       // Enum value name changes may or may not be detected as breaking depending on implementation
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
@@ -86,7 +86,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
 
@@ -100,7 +100,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
 
@@ -114,7 +114,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
   });
@@ -124,7 +124,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Outer {}', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Outer { message Inner {} }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
 
@@ -135,7 +135,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThan(0);
     });
   });
@@ -148,7 +148,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       );
       const baseline = parser.parse('syntax = "proto3"; message Test { string name = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -159,7 +159,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       );
       const baseline = parser.parse('syntax = "proto3"; message Test { string name = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -173,7 +173,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       );
       const baseline = parser.parse('syntax = "proto3"; message Test { string old_name = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       const nameChangeErrors = diagnostics.filter(d => d.message.includes('name') && d.message.includes('changed'));
       expect(nameChangeErrors.length).toBe(0);
     });
@@ -183,7 +183,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { string name = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -199,7 +199,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -210,7 +210,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -226,7 +226,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -240,7 +240,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -256,7 +256,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -267,7 +267,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -283,7 +283,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -294,7 +294,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3";', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; package myapp.v1;', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -303,7 +303,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; package myapp.v2;', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; package myapp.v1;', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -317,7 +317,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -328,7 +328,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       const current = parser.parse('syntax = "proto3"; message Test { reserved 1, 2; }', 'file:///test.proto');
       const baseline = parser.parse('syntax = "proto3"; message Test { reserved 1, 2, 3; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -340,7 +340,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -354,7 +354,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
       );
       const baseline = parser.parse('syntax = "proto3"; message Test { string name = 1; }', 'file:///test.proto');
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -368,7 +368,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -383,7 +383,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -397,7 +397,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -409,7 +409,7 @@ describe('BreakingChangeDetector Edge Cases', () => {
         'file:///test.proto'
       );
 
-      const diagnostics = detector.detectBreakingChanges(current, baseline, 'file:///test.proto');
+      const diagnostics = detector.detectBreakingChanges(current, baseline);
       expect(diagnostics.length).toBeGreaterThanOrEqual(0);
     });
   });

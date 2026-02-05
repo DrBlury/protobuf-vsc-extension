@@ -111,6 +111,12 @@ Settings can be configured in:
 - **Default**: `"warning"`
 - **Description**: Severity level for discouraged constructs
 
+##### `protobuf.diagnostics.severity.breakingChanges`
+
+- **Type**: `"error" | "warning" | "information" | "hint"`
+- **Default**: `"warning"`
+- **Description**: Severity level for breaking changes
+
 ### Formatter
 
 #### `protobuf.formatter.enabled`

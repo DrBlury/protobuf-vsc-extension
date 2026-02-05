@@ -8,31 +8,16 @@ import { spawn } from 'child_process';
 
 jest.mock('child_process');
 
-/**
- * Helper to flush promises and advance fake timers
- */
-async function flushPromisesAndTimers(): Promise<void> {
-  for (let i = 0; i < 20; i++) {
-    jest.advanceTimersByTime(20);
-    await new Promise(resolve => setImmediate(resolve));
-  }
-}
-
 describe('BreakingChangeDetector', () => {
   let detector: BreakingChangeDetector;
   let parser: ProtoParser;
   let mockSpawn: jest.MockedFunction<typeof spawn>;
 
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
     detector = new BreakingChangeDetector();
     parser = new ProtoParser();
     mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
     jest.clearAllMocks();
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
   });
 
   describe('updateSettings', () => {
@@ -61,7 +46,7 @@ describe('BreakingChangeDetector', () => {
       const currentFile = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
       const baselineFile = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
 
-      const result = detector.detectBreakingChanges(currentFile, baselineFile, 'file:///test.proto');
+      const result = detector.detectBreakingChanges(currentFile, baselineFile);
       expect(result).toEqual([]);
     });
 
@@ -69,7 +54,7 @@ describe('BreakingChangeDetector', () => {
       detector.updateSettings({ enabled: true });
       const currentFile = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
 
-      const result = detector.detectBreakingChanges(currentFile, null, 'file:///test.proto');
+      const result = detector.detectBreakingChanges(currentFile, null);
       expect(result).toEqual([]);
     });
 
@@ -78,7 +63,7 @@ describe('BreakingChangeDetector', () => {
       const currentFile = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
       const baselineFile = parser.parse('syntax = "proto3"; message Test { string name = 1; }', 'file:///test.proto');
 
-      const result = detector.detectBreakingChanges(currentFile, baselineFile, 'file:///test.proto');
+      const result = detector.detectBreakingChanges(currentFile, baselineFile);
       // Should detect field deletion if FIELD_NO_DELETE rule is enabled
       expect(result.length).toBeGreaterThanOrEqual(0);
     });
@@ -88,7 +73,7 @@ describe('BreakingChangeDetector', () => {
       const currentFile = parser.parse('syntax = "proto3";', 'file:///test.proto');
       const baselineFile = parser.parse('syntax = "proto3"; message Test {}', 'file:///test.proto');
 
-      const result = detector.detectBreakingChanges(currentFile, baselineFile, 'file:///test.proto');
+      const result = detector.detectBreakingChanges(currentFile, baselineFile);
       expect(result.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -97,7 +82,7 @@ describe('BreakingChangeDetector', () => {
       const currentFile = parser.parse('syntax = "proto3"; message Test { int32 id = 1; }', 'file:///test.proto');
       const baselineFile = parser.parse('syntax = "proto3"; message Test { string id = 1; }', 'file:///test.proto');
 
-      const result = detector.detectBreakingChanges(currentFile, baselineFile, 'file:///test.proto');
+      const result = detector.detectBreakingChanges(currentFile, baselineFile);
       expect(result.length).toBeGreaterThanOrEqual(0);
     });
   });
@@ -105,7 +90,7 @@ describe('BreakingChangeDetector', () => {
   describe('getBaselineFromGit', () => {
     it('should get baseline file from git', async () => {
       detector.setWorkspaceRoot('/workspace');
-      detector.updateSettings({ againstGitRef: 'HEAD~1' });
+      detector.updateSettings({ againstStrategy: 'git', againstGitRef: 'HEAD~1' });
 
       const mockProcess = {
         stdout: {
@@ -114,7 +99,7 @@ describe('BreakingChangeDetector', () => {
               setTimeout(() => callback(Buffer.from('syntax = "proto3";')), 0);
             }
             return mockProcess.stdout;
-          }),
+          })
         },
         stderr: { on: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
@@ -122,14 +107,12 @@ describe('BreakingChangeDetector', () => {
             setTimeout(() => callback(0), 10);
           }
           return mockProcess;
-        }),
+        })
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const resultPromise = detector.getBaselineFromGit('/workspace/test.proto');
-      await flushPromisesAndTimers();
-      const result = await resultPromise;
+      const result = await detector.getBaseline('/workspace/test.proto');
       expect(result).toBe('syntax = "proto3";');
     });
 
@@ -143,14 +126,12 @@ describe('BreakingChangeDetector', () => {
             setTimeout(() => callback(1), 0);
           }
           return mockProcess;
-        }),
+        })
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const resultPromise = detector.getBaselineFromGit('/workspace/test.proto');
-      await flushPromisesAndTimers();
-      const result = await resultPromise;
+      const result = await detector.getBaseline('/workspace/test.proto');
       expect(result).toBeNull();
     });
 
@@ -162,14 +143,12 @@ describe('BreakingChangeDetector', () => {
             setTimeout(() => callback(), 0);
           }
           return mockProcess;
-        }),
+        })
       } as any;
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const resultPromise = detector.getBaselineFromGit('/workspace/test.proto');
-      await flushPromisesAndTimers();
-      const result = await resultPromise;
+      const result = await detector.getBaseline('/workspace/test.proto');
       expect(result).toBeNull();
     });
   });

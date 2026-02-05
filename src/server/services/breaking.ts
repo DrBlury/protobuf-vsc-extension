@@ -15,6 +15,7 @@ import type {
 } from '../core/ast';
 import { spawn } from 'child_process';
 import * as path from 'path';
+import * as fs from 'fs/promises';
 
 export interface BreakingChangeSettings {
   enabled: boolean;
@@ -94,7 +95,11 @@ export class BreakingChangeDetector {
   /**
    * Check for breaking changes between current and baseline proto files
    */
-  detectBreakingChanges(currentFile: ProtoFile, baselineFile: ProtoFile | null, _currentUri: string): Diagnostic[] {
+  detectBreakingChanges(
+    currentFile: ProtoFile,
+    baselineFile: ProtoFile | null,
+    severityOverride?: DiagnosticSeverity
+  ): Diagnostic[] {
     if (!this.settings.enabled || !baselineFile) {
       return [];
     }
@@ -105,7 +110,7 @@ export class BreakingChangeDetector {
     for (const change of changes) {
       if (this.settings.rules.includes(change.rule)) {
         diagnostics.push({
-          severity: change.severity === 'error' ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
+          severity: change.severity === 'error' ? (severityOverride ?? DiagnosticSeverity.Error) : DiagnosticSeverity.Warning,
           range: change.range,
           message: `Breaking change: ${change.message}`,
           source: 'protobuf-breaking',
@@ -117,11 +122,21 @@ export class BreakingChangeDetector {
     return diagnostics;
   }
 
+  async getBaseline(filePath: string): Promise<string | null> {
+    if (this.settings.againstStrategy === 'git') {
+      return this.getBaselineFromGit(filePath);
+    } else if (this.settings.againstStrategy === 'file') {
+      return this.getBaselineFromFile();
+    } else {
+      return null;
+    }
+  }
+
   /**
    * Get baseline file content from git
    */
-  async getBaselineFromGit(filePath: string): Promise<string | null> {
-    return new Promise(resolve => {
+  private async getBaselineFromGit(filePath: string): Promise<string | null> {
+    return new Promise((resolve) => {
       const relativePath = path.relative(this.workspaceRoot, filePath);
       const ref = this.settings.againstGitRef || 'HEAD~1';
 
@@ -154,6 +169,24 @@ export class BreakingChangeDetector {
         resolve(null);
       });
     });
+  }
+
+  private async getBaselineFromFile(): Promise<string | null> {
+    const baselinePath = this.settings.againstFilePath;
+    if (!baselinePath) {
+      return null;
+    }
+
+    const fullPath = path.isAbsolute(baselinePath)
+      ? baselinePath
+      : path.join(this.workspaceRoot, baselinePath);
+
+    try {
+      const content = await fs.readFile(fullPath, 'utf-8');
+      return content;
+    } catch {
+      return null;
+    }
   }
 
   private compareFiles(current: ProtoFile, baseline: ProtoFile): BreakingChange[] {
