@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package issue63;
+
+enum Status {
+  STATUS_UNKNOWN = 0;
+  STATUS_ACTIVE = 1;
+}

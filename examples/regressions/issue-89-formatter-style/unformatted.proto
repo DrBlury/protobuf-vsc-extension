@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package example.formatter;
+
+message DemoMessage {
+  string field_one = 1;
+  int32 field_two=2;
+  repeated string tags=3;
+}

@@ -1,0 +1,13 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "protobuf.includes": [
+      "example.com/org/my-project=${workspaceFolder}",
+      "example.com/org=${workspaceFolder}/vendor"
+    ]
+  }
+}

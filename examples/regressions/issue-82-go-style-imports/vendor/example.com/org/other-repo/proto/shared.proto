@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package other.repo;
+
+message SharedType {
+  string value = 1;
+}

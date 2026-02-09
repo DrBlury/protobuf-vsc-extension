@@ -1,0 +1,13 @@
+syntax = "proto3";
+package proto;
+
+import "google/protobuf/empty.proto";
+import "gorums.proto";
+
+option go_package = "dat520/qubit/proto";
+
+service Quiz {
+  rpc Ping(google.protobuf.Empty) returns (google.protobuf.Empty) {
+    option (gorums.quorumcall) = true;
+  }
+}

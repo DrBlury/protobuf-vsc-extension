@@ -1,0 +1,11 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "protobuf.clangFormat.enabled": true,
+    "protobuf.clangFormat.style": "{UseTab: Never, IndentWidth: 2, TabWidth: 2, ColumnLimit: 0}"
+  }
+}

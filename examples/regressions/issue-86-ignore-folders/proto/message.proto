@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package issue86.core;
+
+message RealMessage {
+  string id = 1;
+}

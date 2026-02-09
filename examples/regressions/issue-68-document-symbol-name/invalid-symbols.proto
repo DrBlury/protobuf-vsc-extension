@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package issue68;
+
+message {
+  string id = 1;
+}
+
+enum {
+  VALUE_UNSPECIFIED = 0;
+}
+
+service {
+  rpc Ping (PingRequest) returns (PingResponse);
+}
+
+message PingRequest {}
+message PingResponse {}

@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package issue88;
+
+enum SubscriptionStatusEnum {
+    SUBSCRIPTION_STATUS_UNSPECIFIED = 0;
+    SUBSCRIPTION_STATUS_ACTIVE = 1;
+    SUBSCRIPTION_STATUS_BARRED = 2;
+    SUBSCRIPTION_STATUS_DEACTIVE = 3;
+    SUBSCRIPTION_STATUS_PAUSED = 4;
+    SUBSCRIPTION_STATUS_INITIAL = 5;
+}
+
+message ExampleMessage {
+    SubsSubscriptionShippingChargesType shippingCharges = 24; // Exists only in GRPC on purpose.
+    RRequestingAccountDetailsType requestingAccountDetails = 26; // Exists only in GRPC on purpose.
+}
+
+message SubsSubscriptionShippingChargesType {
+  string placeholder = 1;
+}
+
+message RRequestingAccountDetailsType {
+  string placeholder = 1;
+}

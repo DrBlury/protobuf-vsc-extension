@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package example.api;
+
+import "example.com/org/my-project/proto/common/types.proto";
+import "example.com/org/other-repo/proto/shared.proto";
+
+message ApiMessage {
+  example.types.CommonType common = 1;
+  other.repo.SharedType shared = 2;
+}
