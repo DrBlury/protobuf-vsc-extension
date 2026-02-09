@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Discussions
+    url: https://github.com/DrBlury/protobuf-vsc-extension/discussions
+    about: For questions, ideas, and general discussions about the extension
