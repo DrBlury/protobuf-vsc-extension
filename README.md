@@ -238,7 +238,17 @@ If you like the extension, please star the repo or rate it on the Marketplace.
 
 ## Contributing
 
-Pull requests and issue reports are welcome. Please run `npm run lint`, `npm run type-check`, and `npm run test` before submitting. Pre-commit hooks are configured to run lint and tests on commit.
+**Please do not submit Pull Requests.** Instead, create a detailed issue with an LLM-optimized prompt that describes the bug, feature request, or improvement you'd like to see. This allows me to leverage AI tools to implement changes consistently with the project's architecture and coding standards.
+
+When creating an issue, please use the provided issue template and include:
+
+- A clear description of the problem or feature
+- Reproduction steps (for bugs)
+- Expected vs actual behavior
+- Test cases or examples
+- A detailed prompt that an LLM could use to implement the solution
+
+Your well-crafted issue reports are invaluable and help improve the extension for everyone. Thank you!
 
 ---
 
