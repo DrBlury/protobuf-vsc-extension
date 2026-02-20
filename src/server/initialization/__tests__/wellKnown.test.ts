@@ -21,6 +21,7 @@ jest.mock('../../utils/logger', () => ({
 
 describe('wellKnown', () => {
   const mockedFs = jest.mocked(fs);
+  const originalPathEnv = process.env.PATH;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -29,6 +30,11 @@ describe('wellKnown', () => {
   afterEach(() => {
     // Clean up env variables
     delete process.env.PROTOC_INCLUDE;
+    if (originalPathEnv === undefined) {
+      delete process.env.PATH;
+    } else {
+      process.env.PATH = originalPathEnv;
+    }
   });
 
   describe('discoverWellKnownIncludePath', () => {
@@ -133,6 +139,28 @@ describe('wellKnown', () => {
       });
 
       expect(result).toBe(fallbackBase);
+    });
+
+    it('should derive include path from protoc binary found on PATH', () => {
+      const protocBinDir = '/custom/protoc/bin';
+      const protocBinary = path.join(protocBinDir, process.platform === 'win32' ? 'protoc.exe' : 'protoc');
+      const derivedInclude = path.join(protocBinDir, '..', 'include');
+      const derivedTestFile = path.join(derivedInclude, 'google/protobuf/timestamp.proto');
+
+      process.env.PATH = protocBinDir;
+
+      mockedFs.existsSync.mockImplementation((p: any) => {
+        const normalized = path.normalize(String(p));
+        return normalized === path.normalize(protocBinary) || normalized === path.normalize(derivedTestFile);
+      });
+
+      let result: string | undefined;
+      jest.isolateModules(() => {
+        const { discoverWellKnownIncludePath } = require('../wellKnown');
+        result = discoverWellKnownIncludePath();
+      });
+
+      expect(result).toBe(derivedInclude);
     });
   });
 

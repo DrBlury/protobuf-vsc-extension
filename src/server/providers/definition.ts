@@ -5,10 +5,21 @@
  */
 
 import type { Location, Position, Range } from 'vscode-languageserver/node';
-import type { ProtoFile, MessageDefinition } from '../core/ast';
-import { BUILTIN_TYPES, PROTOBUF_KEYWORDS } from '../core/ast';
+import type { ProtoFile, MessageDefinition, SymbolInfo } from '../core/ast';
+import { BUILTIN_TYPES, PROTOBUF_KEYWORDS, SymbolKind } from '../core/ast';
 import type { SemanticAnalyzer } from '../core/analyzer';
 import * as path from 'path';
+
+interface WordInfo {
+  word: string;
+  start: number;
+  end: number;
+}
+
+interface ParsedOptionName {
+  extensionName: string;
+  suffixPath: string[];
+}
 
 export class DefinitionProvider {
   private analyzer: SemanticAnalyzer;
@@ -17,12 +28,18 @@ export class DefinitionProvider {
     this.analyzer = analyzer;
   }
 
-  getDefinition(uri: string, position: Position, lineText: string): Location | Location[] | null {
+  getDefinition(
+    uri: string,
+    position: Position,
+    lineText: string,
+    documentText?: string
+  ): Location | Location[] | null {
     // Extract word at position (including dots for fully qualified names)
-    const word = this.getWordAtPosition(lineText, position.character);
-    if (!word) {
+    const wordInfo = this.getWordInfoAtPosition(lineText, position.character);
+    if (!wordInfo) {
       return null;
     }
+    const word = wordInfo.word;
 
     // Built-in types don't have definitions
     if (BUILTIN_TYPES.includes(word)) {
@@ -45,6 +62,12 @@ export class DefinitionProvider {
     if (importMatch) {
       const importPath = importMatch[2]!;
       return this.resolveImportLocation(uri, importPath);
+    }
+
+    // Resolve map-style option keys using option extension type context
+    const optionFieldDefinition = this.resolveOptionFieldDefinition(uri, position, lineText, wordInfo, documentText);
+    if (optionFieldDefinition) {
+      return optionFieldDefinition;
     }
 
     // Get the file and current package context
@@ -117,9 +140,275 @@ export class DefinitionProvider {
 
     // 5. Handle the case where typeName might be a partial qualified name
     // e.g., "v1.Date" when the full name is "domain.v1.Date"
-    for (const sym of allSymbols) {
-      if (sym.fullName.includes(`.${typeName}`) || sym.fullName.endsWith(typeName)) {
-        return sym;
+    if (typeName.includes('.')) {
+      for (const sym of allSymbols) {
+        if (sym.fullName.includes(`.${typeName}`)) {
+          return sym;
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Resolve aggregate option field keys (e.g., post/body in option (google.api.http) = { ... })
+   */
+  private resolveOptionFieldDefinition(
+    uri: string,
+    position: Position,
+    lineText: string,
+    wordInfo: WordInfo,
+    documentText?: string
+  ): Location | null {
+    if (!documentText) {
+      return null;
+    }
+
+    if (!this.isOptionKeyAtPosition(lineText, wordInfo)) {
+      return null;
+    }
+
+    const optionName = this.findEnclosingAggregateOptionName(documentText, position);
+    if (!optionName) {
+      return null;
+    }
+
+    const parsedOption = this.parseOptionName(optionName);
+    if (!parsedOption) {
+      return null;
+    }
+
+    const extensionField = this.resolveOptionExtensionField(uri, parsedOption.extensionName);
+    if (!extensionField) {
+      return null;
+    }
+
+    const extensionType = this.analyzer.resolveType(
+      extensionField.fieldType,
+      extensionField.uri,
+      extensionField.packageName
+    );
+    if (!extensionType || extensionType.kind !== SymbolKind.Message) {
+      return null;
+    }
+
+    const fullPath = [...parsedOption.suffixPath, wordInfo.word];
+    const fieldSymbol = this.resolveMessageFieldPath(uri, extensionType, fullPath);
+    return fieldSymbol?.location ?? null;
+  }
+
+  private isOptionKeyAtPosition(lineText: string, wordInfo: WordInfo): boolean {
+    const trailing = lineText.slice(wordInfo.end).trimStart();
+    return trailing.startsWith(':');
+  }
+
+  private findEnclosingAggregateOptionName(documentText: string, position: Position): string | null {
+    const lines = documentText.split('\n');
+    if (lines.length === 0 || position.line < 0 || position.line >= lines.length) {
+      return null;
+    }
+
+    let braceDepth = 0;
+    const optionStack: Array<{ name: string; depth: number }> = [];
+
+    for (let lineIndex = 0; lineIndex <= position.line; lineIndex++) {
+      const rawLine = lines[lineIndex] ?? '';
+      const line = lineIndex === position.line ? rawLine.slice(0, Math.max(0, position.character + 1)) : rawLine;
+
+      const optionMatch = this.matchAggregateOptionStart(line);
+      if (optionMatch) {
+        optionStack.push({ name: optionMatch, depth: braceDepth });
+      }
+
+      let inString = false;
+      let stringDelimiter = '';
+
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i]!;
+        const next = i + 1 < line.length ? line[i + 1]! : '';
+        const prev = i > 0 ? line[i - 1]! : '';
+
+        if (!inString && ch === '/' && next === '/') {
+          break;
+        }
+
+        if (inString) {
+          if (ch === stringDelimiter && prev !== '\\') {
+            inString = false;
+            stringDelimiter = '';
+          }
+          continue;
+        }
+
+        if (ch === '"' || ch === "'") {
+          inString = true;
+          stringDelimiter = ch;
+          continue;
+        }
+
+        if (ch === '{') {
+          braceDepth++;
+          continue;
+        }
+
+        if (ch === '}') {
+          braceDepth = Math.max(0, braceDepth - 1);
+          while (optionStack.length > 0 && braceDepth <= optionStack[optionStack.length - 1]!.depth) {
+            optionStack.pop();
+          }
+        }
+      }
+    }
+
+    return optionStack.length > 0 ? optionStack[optionStack.length - 1]!.name : null;
+  }
+
+  private matchAggregateOptionStart(line: string): string | null {
+    const withoutComment = line.replace(/\/\/.*$/, '');
+    const match = withoutComment.match(/\boption\s+(\([^)]+\)(?:\.[A-Za-z_][A-Za-z0-9_.]*)?)\s*=\s*\{/);
+    return match?.[1]?.trim() ?? null;
+  }
+
+  private parseOptionName(optionName: string): ParsedOptionName | null {
+    const match = optionName.match(/^\(([^)]+)\)(?:\.(.+))?$/);
+    if (!match) {
+      return null;
+    }
+
+    const extensionName = match[1]!.replace(/^\.+/, '');
+    const suffixPath = match[2] ? match[2].split('.').filter(Boolean) : [];
+
+    return {
+      extensionName,
+      suffixPath,
+    };
+  }
+
+  private resolveOptionExtensionField(
+    currentUri: string,
+    extensionName: string
+  ): { fieldType: string; uri: string; packageName: string } | null {
+    const normalizedExtension = extensionName.replace(/^\.+/, '');
+    const accessibleUris = this.collectAccessibleFileUris(currentUri);
+
+    for (const fileUri of accessibleUris) {
+      const file = this.analyzer.getFile(fileUri);
+      if (!file) {
+        continue;
+      }
+
+      const packageName = file.package?.name || '';
+      for (const extendDef of file.extends) {
+        for (const field of extendDef.fields) {
+          const candidates = new Set<string>([field.name]);
+          if (packageName) {
+            candidates.add(`${packageName}.${field.name}`);
+          }
+
+          if (candidates.has(normalizedExtension)) {
+            return {
+              fieldType: field.fieldType,
+              uri: fileUri,
+              packageName,
+            };
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private collectAccessibleFileUris(startUri: string): string[] {
+    const visited = new Set<string>();
+    const stack = [startUri];
+
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      if (visited.has(current)) {
+        continue;
+      }
+      visited.add(current);
+
+      for (const importedUri of this.analyzer.getImportedFileUris(current)) {
+        if (!visited.has(importedUri)) {
+          stack.push(importedUri);
+        }
+      }
+    }
+
+    return Array.from(visited);
+  }
+
+  private resolveMessageFieldPath(
+    currentUri: string,
+    rootMessage: SymbolInfo,
+    pathSegments: string[]
+  ): SymbolInfo | null {
+    if (pathSegments.length === 0) {
+      return null;
+    }
+
+    let currentMessage = rootMessage;
+    for (let i = 0; i < pathSegments.length; i++) {
+      const segment = pathSegments[i]!;
+      const fieldSymbol = this.findFieldSymbol(currentUri, currentMessage.fullName, segment);
+      if (!fieldSymbol) {
+        return null;
+      }
+
+      if (i === pathSegments.length - 1) {
+        return fieldSymbol;
+      }
+
+      const fieldType = this.getMessageFieldType(currentMessage.fullName, segment);
+      if (!fieldType) {
+        return null;
+      }
+
+      const nextMessage = this.analyzer.resolveType(fieldType, currentMessage.location.uri, currentMessage.fullName);
+      if (!nextMessage || nextMessage.kind !== SymbolKind.Message) {
+        return null;
+      }
+      currentMessage = nextMessage;
+    }
+
+    return null;
+  }
+
+  private findFieldSymbol(currentUri: string, containerFullName: string, fieldName: string): SymbolInfo | null {
+    const accessibleSymbols = this.analyzer.getAccessibleSymbols(currentUri);
+
+    for (const symbol of accessibleSymbols) {
+      if (symbol.kind === SymbolKind.Field && symbol.containerName === containerFullName && symbol.name === fieldName) {
+        return symbol;
+      }
+    }
+
+    return null;
+  }
+
+  private getMessageFieldType(messageFullName: string, fieldName: string): string | undefined {
+    const messageDefinition = this.analyzer.getMessageDefinition(messageFullName);
+    if (!messageDefinition) {
+      return undefined;
+    }
+
+    const directField = messageDefinition.fields.find(field => field.name === fieldName);
+    if (directField) {
+      return directField.fieldType;
+    }
+
+    const mapField = messageDefinition.maps.find(field => field.name === fieldName);
+    if (mapField) {
+      return mapField.valueType;
+    }
+
+    for (const oneof of messageDefinition.oneofs) {
+      const oneofField = oneof.fields.find(field => field.name === fieldName);
+      if (oneofField) {
+        return oneofField.fieldType;
       }
     }
 
@@ -187,10 +476,7 @@ export class DefinitionProvider {
     return true;
   }
 
-  /**
-   * Extract the word at the given position, including dots for fully qualified names
-   */
-  private getWordAtPosition(line: string, character: number): string | null {
+  private getWordInfoAtPosition(line: string, character: number): WordInfo | null {
     // Expand valid chars to include underscore (proto identifiers allow it)
     const isIdentChar = (ch: string) => /[a-zA-Z0-9_.]/.test(ch) || ch === '_';
 
@@ -218,7 +504,15 @@ export class DefinitionProvider {
     const word = line.substring(start, end);
 
     // Remove trailing dots but keep leading dots (they're significant in protobuf)
-    return word.replace(/\.+$/g, '');
+    const normalizedWord = word.replace(/\.+$/g, '');
+    const trailingDots = word.length - normalizedWord.length;
+    const adjustedEnd = trailingDots > 0 ? end - trailingDots : end;
+
+    return {
+      word: normalizedWord,
+      start,
+      end: adjustedEnd,
+    };
   }
 
   /**

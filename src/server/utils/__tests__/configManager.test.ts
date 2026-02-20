@@ -498,7 +498,7 @@ describe('ConfigManager', () => {
     });
   });
 
-  it('expands workspace variables in executable paths', () => {
+  it('expands workspace variables in tool paths and clang-format file style', () => {
     const workspaceFolders = ['/workspaces/project'];
     const settings = JSON.parse(JSON.stringify(defaultSettings)) as Settings;
 
@@ -528,7 +528,7 @@ describe('ConfigManager', () => {
       ...settings.protobuf.clangFormat,
       enabled: true,
       path: '${workspaceFolder}/bin/clang-format',
-      style: 'file',
+      style: 'file:${workspaceFolder}/config/codestyle/.clang-format',
       fallbackStyle: 'Google',
       configPath: '${workspaceFolder}/configs/.clang-format',
     };
@@ -575,6 +575,7 @@ describe('ConfigManager', () => {
     expect(clangFormat.updateSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         path: '/workspaces/project/bin/clang-format',
+        style: 'file:/workspaces/project/config/codestyle/.clang-format',
         configPath: '/workspaces/project/configs/.clang-format',
       })
     );

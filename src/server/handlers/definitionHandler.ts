@@ -71,7 +71,8 @@ export function handleDefinition(
       return null;
     }
 
-    const lines = document.getText().split('\n');
+    const documentText = document.getText();
+    const lines = documentText.split('\n');
     const lineText = lines[params.position.line] || '';
 
     const identifier = extractIdentifierAtPosition(lineText, params.position.character);
@@ -90,7 +91,7 @@ export function handleDefinition(
       `Definition request: uri=${params.textDocument.uri} line=${params.position.line} char=${params.position.character} identifier=${identifier || '<none>'}`
     );
 
-    const result = definitionProvider.getDefinition(params.textDocument.uri, params.position, lineText);
+    const result = definitionProvider.getDefinition(params.textDocument.uri, params.position, lineText, documentText);
 
     if (result) {
       const locations = Array.isArray(result) ? result : [result];

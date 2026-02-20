@@ -1468,20 +1468,32 @@ export class TreeSitterProtoParser {
 
   private parseExtend(node: Node): ExtendDefinition {
     const text = getText(node);
-    const match = text.match(/extend\s+(\w+(?:\.\w+)*)/);
-    const extendType = match?.[1] ?? '';
+    const typeNode = getField(node, 'type');
+    const match = text.match(/extend\s+(\.?\w+(?:\.\w+)*)/);
+    const extendType = (typeNode ? getText(typeNode) : match?.[1]) ?? '';
+    const extendTypeRange = typeNode ? nodeToRange(typeNode) : nodeToRange(node);
 
-    return {
+    const extendDef: ExtendDefinition = {
       type: 'extend',
       extendType,
-      extendTypeRange: nodeToRange(node),
+      extendTypeRange,
       fields: [],
       groups: [],
       // Backward compatibility
       messageName: extendType,
-      messageNameRange: nodeToRange(node),
+      messageNameRange: extendTypeRange,
       range: nodeToRange(node),
     };
+
+    for (const child of getChildren(node)) {
+      if (child.type === 'field') {
+        extendDef.fields.push(...this.parseFields(child));
+      } else if (child.type === 'group') {
+        extendDef.groups.push(this.parseGroup(child));
+      }
+    }
+
+    return extendDef;
   }
 
   private parseReserved(node: Node): ReservedStatement {

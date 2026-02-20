@@ -395,11 +395,13 @@ export function updateProvidersWithSettings(
   const clangSettings = settings.protobuf.clangFormat;
   const expandedClangPath = expandPathSetting(clangSettings.path, workspaceFolders);
   const expandedClangConfigPath = expandPathSetting(clangSettings.configPath, workspaceFolders);
+  const expandedClangStyle = expandPathSetting(clangSettings.style, workspaceFolders);
   const resolvedClangPath = expandedClangPath || clangSettings.path || 'clang-format';
+  const resolvedClangStyle = expandedClangStyle || clangSettings.style;
   clangFormat.updateSettings({
     enabled: clangSettings.enabled,
     path: resolvedClangPath,
-    style: clangSettings.style,
+    style: resolvedClangStyle,
     fallbackStyle: clangSettings.fallbackStyle,
     configPath: expandedClangConfigPath || clangSettings.configPath,
   });
@@ -419,7 +421,7 @@ export function updateProvidersWithSettings(
     const configPathInfo = expandedClangConfigPath ? `, configPath="${expandedClangConfigPath}"` : '';
 
     logger.info(
-      `clang-format enabled. configured="${configuredPath}" resolved="${usedPath}"${expansionInfo} (${pathDetails}). style=${clangSettings.style || 'file'}, fallback=${clangSettings.fallbackStyle || 'Google'}${configPathInfo}`
+      `clang-format enabled. configured="${configuredPath}" resolved="${usedPath}"${expansionInfo} (${pathDetails}). style=${resolvedClangStyle || 'file'}, fallback=${clangSettings.fallbackStyle || 'Google'}${configPathInfo}`
     );
 
     logger.verboseWithContext('clang-format configuration expanded', {
@@ -429,7 +431,7 @@ export function updateProvidersWithSettings(
       resolvedPath: resolvedClangPath,
       configPath: expandedClangConfigPath || clangSettings.configPath || '(auto-detect)',
       workspaceFolders: workspaceFolders.join(', ') || '(none)',
-      style: clangSettings.style,
+      style: resolvedClangStyle,
       fallbackStyle: clangSettings.fallbackStyle,
     });
   } else {
