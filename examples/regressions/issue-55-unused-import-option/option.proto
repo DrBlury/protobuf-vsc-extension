@@ -1,0 +1,8 @@
+syntax = "proto3";
+package proto_unused_import;
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.MessageOptions {
+	uint32 version = 40001;
+}

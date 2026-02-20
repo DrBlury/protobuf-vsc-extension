@@ -12,23 +12,98 @@ import { logger } from '../utils/logger';
 import { PROTOC_INCLUDE_PATHS, GOOGLE_WELL_KNOWN_TEST_FILE } from '../utils/constants';
 import { GOOGLE_WELL_KNOWN_FILES, GOOGLE_WELL_KNOWN_PROTOS } from '../utils/googleWellKnown';
 
+function sanitizePathEntry(rawPath: string | undefined): string | undefined {
+  if (!rawPath) {
+    return undefined;
+  }
+  const trimmed = rawPath.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  return trimmed.replace(/^"(.*)"$/, '$1');
+}
+
+function discoverProtocBinaryOnPath(): string | undefined {
+  const pathEnv = process.env.PATH;
+  if (!pathEnv) {
+    return undefined;
+  }
+
+  const executableNames =
+    process.platform === 'win32' ? ['protoc.exe', 'protoc.cmd', 'protoc.bat', 'protoc'] : ['protoc'];
+
+  for (const pathEntry of pathEnv.split(path.delimiter)) {
+    const directory = sanitizePathEntry(pathEntry);
+    if (!directory) {
+      continue;
+    }
+
+    for (const executableName of executableNames) {
+      const candidate = path.join(directory, executableName);
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function deriveIncludeCandidatesFromProtocBinary(protocBinaryPath: string): string[] {
+  const binDir = path.dirname(protocBinaryPath);
+  const candidates = [path.join(path.dirname(binDir), 'include'), path.join(binDir, 'include')];
+  const uniqueCandidates: string[] = [];
+  const seen = new Set<string>();
+
+  for (const candidate of candidates) {
+    const normalized = path.normalize(candidate);
+    if (!seen.has(normalized)) {
+      seen.add(normalized);
+      uniqueCandidates.push(candidate);
+    }
+  }
+
+  return uniqueCandidates;
+}
+
 /**
  * Locate a protoc include directory that contains google/protobuf/timestamp.proto.
- * Checks env hint then common install locations.
+ * Checks env hint, then protoc location on PATH, then common install locations.
  */
 export function discoverWellKnownIncludePath(): string | undefined {
   const candidates: string[] = [];
+  const seen = new Set<string>();
+
+  const addCandidate = (candidate: string | undefined): void => {
+    const sanitized = sanitizePathEntry(candidate);
+    if (!sanitized) {
+      return;
+    }
+    const normalized = path.normalize(sanitized);
+    if (!seen.has(normalized)) {
+      seen.add(normalized);
+      candidates.push(sanitized);
+    }
+  };
 
   if (process.env.PROTOC_INCLUDE) {
-    candidates.push(...process.env.PROTOC_INCLUDE.split(path.delimiter));
+    for (const envPath of process.env.PROTOC_INCLUDE.split(path.delimiter)) {
+      addCandidate(envPath);
+    }
   }
 
-  candidates.push(...PROTOC_INCLUDE_PATHS);
+  const protocBinaryPath = discoverProtocBinaryOnPath();
+  if (protocBinaryPath) {
+    for (const includePath of deriveIncludeCandidatesFromProtocBinary(protocBinaryPath)) {
+      addCandidate(includePath);
+    }
+  }
+
+  for (const includePath of PROTOC_INCLUDE_PATHS) {
+    addCandidate(includePath);
+  }
 
   for (const base of candidates) {
-    if (!base) {
-      continue;
-    }
     const testPath = path.join(base, GOOGLE_WELL_KNOWN_TEST_FILE);
     if (fs.existsSync(testPath)) {
       logger.debug(`Discovered protoc include path: ${base}`);

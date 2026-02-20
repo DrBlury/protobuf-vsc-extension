@@ -126,7 +126,7 @@ describe('DefinitionHandler', () => {
 
       const result = handleDefinition(params, documents, definitionProvider, parser, analyzer, parsedFileCache);
 
-      expect(definitionProvider.getDefinition).toHaveBeenCalledWith(uri, params.position, 'message Test {}');
+      expect(definitionProvider.getDefinition).toHaveBeenCalledWith(uri, params.position, 'message Test {}', content);
       expect(result).toEqual(location);
     });
 
@@ -145,7 +145,7 @@ describe('DefinitionHandler', () => {
 
       const result = handleDefinition(params, documents, definitionProvider, parser, analyzer, parsedFileCache);
 
-      expect(definitionProvider.getDefinition).toHaveBeenCalledWith(uri, params.position, '');
+      expect(definitionProvider.getDefinition).toHaveBeenCalledWith(uri, params.position, '', content);
       expect(result).toBeNull();
     });
 

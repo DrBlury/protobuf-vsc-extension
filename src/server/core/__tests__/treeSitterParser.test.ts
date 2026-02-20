@@ -595,6 +595,34 @@ describe('treeSitterParser', () => {
         expect(result.extends[0].extendType).toBe('google.protobuf.MessageOptions');
       });
 
+      it('should parse extend fields', async () => {
+        const extendTypeNode = createMockNode('message_type', 'google.protobuf.MethodOptions');
+        const fieldNode = createMockNode('field', 'HttpRule http = 72295728;');
+        const extendNode = createMockNode(
+          'extend',
+          'extend google.protobuf.MethodOptions { HttpRule http = 72295728; }',
+          [fieldNode],
+          { type: extendTypeNode }
+        );
+        const root = createMockNode(
+          'source_file',
+          'extend google.protobuf.MethodOptions { HttpRule http = 72295728; }',
+          [extendNode]
+        );
+        mockParse.mockReturnValue({ rootNode: root });
+
+        const { treeSitterParser } = require('../treeSitterParser');
+        const result = treeSitterParser.parse(
+          'extend google.protobuf.MethodOptions { HttpRule http = 72295728; }',
+          'test.proto'
+        );
+
+        expect(result.extends).toHaveLength(1);
+        expect(result.extends[0].fields).toHaveLength(1);
+        expect(result.extends[0].fields[0].name).toBe('http');
+        expect(result.extends[0].fields[0].fieldType).toBe('HttpRule');
+      });
+
       it('should parse reserved statement with ranges', async () => {
         const reservedNode = createMockNode('reserved', 'reserved 1, 2, 5 to 10;');
         const nameNode = createMockNode('identifier', 'TestMessage');
