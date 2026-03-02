@@ -60,7 +60,7 @@ jobs:
           output-file: release-grype.sarif
 
       - name: Upload Release SBOM
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-sbom
           path: release-sbom.json
