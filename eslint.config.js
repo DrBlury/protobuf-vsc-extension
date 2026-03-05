@@ -55,6 +55,9 @@ module.exports = [
       ],
       "@typescript-eslint/consistent-type-imports": "warn",
       "@typescript-eslint/consistent-type-exports": "warn",
+      // Keep ESLint 10 rollout focused on dependency upgrades without broad refactors.
+      "no-useless-assignment": "off",
+      "preserve-caught-error": "off",
       curly: "warn",
       eqeqeq: "warn",
       "no-throw-literal": "warn",
@@ -109,6 +112,8 @@ module.exports = [
       ],
       // Allow require() in tests for jest.isolateModules and dynamic imports
       "@typescript-eslint/no-require-imports": "off",
+      "no-useless-assignment": "off",
+      "preserve-caught-error": "off",
       curly: "warn",
       eqeqeq: "warn",
       "no-throw-literal": "warn",

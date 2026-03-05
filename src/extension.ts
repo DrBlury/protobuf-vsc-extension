@@ -737,7 +737,9 @@ breaking:
 
   // Register Option Inspector Provider
   const optionInspectorProvider = new OptionInspectorProvider(client);
-  context.subscriptions.push(vscode.window.registerTreeDataProvider('protobufOptionInspector', optionInspectorProvider));
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider('protobufOptionInspector', optionInspectorProvider)
+  );
 
   // Register all commands
   const commandDisposables = registerAllCommands(context, client);

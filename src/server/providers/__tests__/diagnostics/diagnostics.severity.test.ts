@@ -85,9 +85,7 @@ describe('DiagnosticsProvider severity', () => {
       });
 
       const diags = await providers.diagnostics.validate(uri, file, providers);
-      const namingDiagnostics = diags.filter(
-        d => d.message.includes('PascalCase') || d.message.includes('snake_case')
-      );
+      const namingDiagnostics = diags.filter(d => d.message.includes('PascalCase') || d.message.includes('snake_case'));
 
       expect(namingDiagnostics).toHaveLength(0);
     });

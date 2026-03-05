@@ -278,12 +278,10 @@ describe('Extension Activation', () => {
     mockVscode.commands.executeCommand.mockResolvedValue(undefined);
 
     let activeEditorListener: ((editor: any) => void) | undefined;
-    mockVscode.window.onDidChangeActiveTextEditor.mockImplementationOnce(
-      ((listener: (editor: any) => void) => {
-        activeEditorListener = listener;
-        return { dispose: jest.fn() };
-      }) as any
-    );
+    mockVscode.window.onDidChangeActiveTextEditor.mockImplementationOnce(((listener: (editor: any) => void) => {
+      activeEditorListener = listener;
+      return { dispose: jest.fn() };
+    }) as any);
 
     await activate(mockExtensionContext as any);
 
