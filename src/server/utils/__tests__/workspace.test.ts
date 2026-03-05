@@ -102,7 +102,7 @@ describe('Workspace utilities', () => {
 
     it('should skip files under ignored directories', () => {
       mockFs.readdirSync.mockImplementation((dirPath: any) => {
-        const dir = String(dirPath);
+        const dir = String(dirPath).replace(/\\/g, '/');
         if (dir === '/test') {
           return [
             { name: 'build', isDirectory: () => true, isFile: () => false },
@@ -274,7 +274,7 @@ describe('Workspace utilities', () => {
       const protoContent = 'syntax = "proto3"; message Test {}';
       mockFs.readFileSync.mockReturnValue(protoContent);
       mockFs.readdirSync.mockImplementation((dirPath: any) => {
-        const dir = String(dirPath);
+        const dir = String(dirPath).replace(/\\/g, '/');
         if (dir === '/workspace') {
           return [
             { name: 'build', isDirectory: () => true, isFile: () => false },
