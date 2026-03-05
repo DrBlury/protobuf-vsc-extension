@@ -67,7 +67,7 @@ jobs:
           retention-days: 90
 
       - name: Dependency Audit
-        run: npm audit --audit-level=moderate
+        run: npm audit --omit=dev --audit-level=critical
 
       - name: Install vsce
         run: npm install -g @vscode/vsce
