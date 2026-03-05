@@ -16,6 +16,28 @@ function splitLines(text: string): string[] {
   return text.split('\n').map(line => (line.endsWith('\r') ? line.slice(0, -1) : line));
 }
 
+/**
+ * Convert an LSP position (UTF-16 code units) to a UTF-8 byte offset for clang-format.
+ */
+function toUtf8Offset(lines: string[], line: number, character: number, newlineLength: number): number {
+  if (lines.length === 0) {
+    return 0;
+  }
+
+  const clampedLine = Math.max(0, Math.min(line, lines.length - 1));
+  let offset = 0;
+
+  for (let i = 0; i < clampedLine; i++) {
+    offset += Buffer.byteLength(lines[i] || '', 'utf8') + newlineLength;
+  }
+
+  const lineText = lines[clampedLine] || '';
+  const clampedCharacter = Math.max(0, Math.min(character, lineText.length));
+  offset += Buffer.byteLength(lineText.slice(0, clampedCharacter), 'utf8');
+
+  return offset;
+}
+
 export interface ClangFormatSettings {
   enabled: boolean;
   path: string;
@@ -134,26 +156,10 @@ export class ClangFormatProvider {
 
     const lines = splitLines(text);
 
-    // Calculate byte offsets for the range
-    // clang-format expects byte offsets in the original text, so we need to account for CRLF
-    let offset = 0;
-    for (let i = 0; i < range.start.line; i++) {
-      offset += lines[i]!.length + newlineLength;
-    }
-    offset += range.start.character;
-
-    let length = 0;
-    for (let i = range.start.line; i <= range.end.line; i++) {
-      if (i === range.start.line && i === range.end.line) {
-        length = range.end.character - range.start.character;
-      } else if (i === range.start.line) {
-        length += lines[i]!.length - range.start.character + newlineLength;
-      } else if (i === range.end.line) {
-        length += range.end.character;
-      } else {
-        length += lines[i]!.length + newlineLength;
-      }
-    }
+    // clang-format expects UTF-8 byte offsets. LSP positions are UTF-16 code units.
+    const offset = toUtf8Offset(lines, range.start.line, range.start.character, newlineLength);
+    const endOffset = toUtf8Offset(lines, range.end.line, range.end.character, newlineLength);
+    const length = Math.max(0, endOffset - offset);
 
     const formatted = await this.runClangFormat(text, filePath, offset, length);
 

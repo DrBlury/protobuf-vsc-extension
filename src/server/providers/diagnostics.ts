@@ -60,7 +60,41 @@ export class DiagnosticsProvider {
   }
 
   updateSettings(settings: Partial<DiagnosticsSettings>): void {
-    this.settings = { ...this.settings, ...settings };
+    const merged: DiagnosticsSettings = {
+      ...this.settings,
+      ...settings,
+      severity: {
+        ...this.settings.severity,
+        ...(settings.severity || {}),
+      },
+    };
+    this.settings = this.normalizeSettingsForDisabledSeverities(merged);
+  }
+
+  private normalizeSettingsForDisabledSeverities(settings: DiagnosticsSettings): DiagnosticsSettings {
+    const normalized: DiagnosticsSettings = {
+      ...settings,
+      severity: { ...settings.severity },
+    };
+
+    if (normalized.severity.namingConventions === 'none') {
+      normalized.namingConventions = false;
+    }
+    if (normalized.severity.referenceErrors === 'none') {
+      normalized.referenceChecks = false;
+    }
+    if (normalized.severity.fieldTagIssues === 'none') {
+      normalized.fieldTagChecks = false;
+      normalized.duplicateFieldChecks = false;
+    }
+    if (normalized.severity.discouragedConstructs === 'none') {
+      normalized.discouragedConstructs = false;
+    }
+    if (normalized.severity.breakingChanges === 'none') {
+      normalized.breakingChanges = false;
+    }
+
+    return normalized;
   }
 
   private shouldSkipDiagnostics(uri: string): boolean {
@@ -1340,7 +1374,11 @@ export class DiagnosticsProvider {
     if (importedVia) {
       // Already imported, but check if the path is meaningfully different. Allow extra directory prefixes
       // (common when proto_path points above the proto root) but flag imports that drop required segments.
-      if (suggestedImport && !this.areImportPathsCompatible(importedVia.importPath, suggestedImport)) {
+      if (
+        this.settings.severity.nonCanonicalImportPath !== 'none' &&
+        suggestedImport &&
+        !this.areImportPathsCompatible(importedVia.importPath, suggestedImport)
+      ) {
         diagnostics.push({
           severity: Severity[this.settings.severity.nonCanonicalImportPath],
           range,
@@ -2354,6 +2392,10 @@ export class DiagnosticsProvider {
     providers: ProviderRegistry,
     diagnostics: Diagnostic[]
   ) {
+    if (this.settings.severity.breakingChanges === 'none') {
+      return;
+    }
+
     const filePath = URI.parse(uri).fsPath;
 
     // Get baseline content from git

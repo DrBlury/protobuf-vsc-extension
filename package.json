@@ -228,6 +228,14 @@
           "default": "",
           "description": "Optional subdirectory path to limit proto file searches (e.g., 'protos' or 'src/proto'). When set, proto files are searched in {workspaceFolder}/{protoSrcsDir}/** instead of {workspaceFolder}/**. This significantly improves performance in large repositories with many ignored files."
         },
+        "protobuf.workspace.ignorePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Folders or glob patterns to exclude from workspace proto discovery (diagnostics, symbols, go-to-definition). Supports names (e.g., 'build'), path segments (e.g., 'generated/proto'), and globs (e.g., '**/build/**')."
+        },
         "protobuf.renumber.startNumber": {
           "type": "number",
           "default": 1,
@@ -350,10 +358,11 @@
             "error",
             "warning",
             "information",
-            "hint"
+            "hint",
+            "none"
           ],
           "default": "warning",
-          "description": "Severity level for naming convention violations"
+          "description": "Severity level for naming convention violations. Set to 'none' to disable this diagnostic category."
         },
         "protobuf.diagnostics.severity.referenceErrors": {
           "type": "string",
@@ -361,10 +370,11 @@
             "error",
             "warning",
             "information",
-            "hint"
+            "hint",
+            "none"
           ],
           "default": "error",
-          "description": "Severity level for undefined reference errors"
+          "description": "Severity level for undefined reference errors. Set to 'none' to disable reference diagnostics."
         },
         "protobuf.diagnostics.severity.fieldTagIssues": {
           "type": "string",
@@ -372,10 +382,11 @@
             "error",
             "warning",
             "information",
-            "hint"
+            "hint",
+            "none"
           ],
           "default": "error",
-          "description": "Severity level for field tag issues"
+          "description": "Severity level for field tag issues. Set to 'none' to disable field-tag and duplicate-field diagnostics."
         },
         "protobuf.diagnostics.severity.discouragedConstructs": {
           "type": "string",
@@ -383,10 +394,11 @@
             "error",
             "warning",
             "information",
-            "hint"
+            "hint",
+            "none"
           ],
           "default": "warning",
-          "description": "Severity level for discouraged constructs"
+          "description": "Severity level for discouraged constructs. Set to 'none' to disable this diagnostic category."
         },
         "protobuf.diagnostics.severity.nonCanonicalImportPath": {
           "type": "string",
@@ -394,10 +406,11 @@
             "error",
             "warning",
             "information",
-            "hint"
+            "hint",
+            "none"
           ],
           "default": "warning",
-          "description": "Severity level for reporting of a non-canonical import path"
+          "description": "Severity level for reporting of a non-canonical import path. Set to 'none' to suppress this warning."
         },
         "protobuf.diagnostics.severity.breakingChanges": {
           "type": "string",
@@ -405,10 +418,11 @@
             "error",
             "warning",
             "information",
-            "hint"
+            "hint",
+            "none"
           ],
           "default": "error",
-          "description": "Severity level for breaking changes"
+          "description": "Severity level for breaking changes. Set to 'none' to disable breaking-change diagnostics."
         },
         "protobuf.completion.autoImport": {
           "type": "boolean",
@@ -965,7 +979,8 @@
         {
           "icon": "resources/protobuf-icon.svg",
           "id": "protobufOptionInspector",
-          "name": "Proto Options"
+          "name": "Proto Options",
+          "when": "protobuf.optionInspector.visible"
         }
       ]
     },

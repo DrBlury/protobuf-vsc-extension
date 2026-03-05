@@ -8,7 +8,7 @@ import { DEFAULT_CONFIG } from './constants';
 /**
  * Setting value for a severity
  */
-export type SeveritySetting = 'error' | 'warning' | 'information' | 'hint';
+export type SeveritySetting = 'error' | 'warning' | 'information' | 'hint' | 'none';
 
 /**
  * Configuration settings for the Protobuf extension
@@ -33,6 +33,9 @@ export interface Settings {
     };
     includes: string[];
     protoSrcsDir: string;
+    workspace: {
+      ignorePatterns: string[];
+    };
     renumber: {
       startNumber: number;
       increment: number;
@@ -143,6 +146,9 @@ export const defaultSettings: Settings = {
     },
     includes: [],
     protoSrcsDir: '',
+    workspace: {
+      ignorePatterns: [],
+    },
     renumber: {
       startNumber: DEFAULT_CONFIG.RENUMBER_START,
       increment: DEFAULT_CONFIG.RENUMBER_INCREMENT,

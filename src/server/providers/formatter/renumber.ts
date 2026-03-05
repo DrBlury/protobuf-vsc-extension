@@ -274,8 +274,8 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
   // Track depth inside option blocks (aggregate options like CEL)
   // When > 0, we're inside a multi-line option and should not renumber anything
   let optionBraceDepth = 0;
-  // Track depth inside inline field options [...] containing braces
-  let inlineOptionBraceDepth = 0;
+  // Track depth inside multi-line inline field options [...]
+  let inlineOptionBracketDepth = 0;
   // Track multi-line field declarations (field_type field_name =\n   NUMBER;)
   let pendingMultiLineField = false;
 
@@ -296,11 +296,12 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
       continue;
     }
 
-    // Track inline field options with braces (e.g., field = 1 [(buf.validate.field).cel = { ... }])
-    if (inlineOptionBraceDepth > 0) {
-      const openBraces = (trimmedLine.match(/\{/g) || []).length;
-      const closeBraces = (trimmedLine.match(/\}/g) || []).length;
-      inlineOptionBraceDepth += openBraces - closeBraces;
+    // Track inline field options (e.g., field = 1 [ ... ])
+    if (inlineOptionBracketDepth > 0) {
+      const codePortion = stripInlineComments(trimmedLine);
+      const openBrackets = (codePortion.match(/\[/g) || []).length;
+      const closeBrackets = (codePortion.match(/\]/g) || []).length;
+      inlineOptionBracketDepth += openBrackets - closeBrackets;
 
       // Don't process lines inside inline option blocks - just pass them through
       result.push(line);
@@ -316,15 +317,21 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
       continue;
     }
 
-    // Check if this line has inline field options with braces
-    if (trimmedLine.includes('[') && trimmedLine.includes('{')) {
-      const bracketStart = trimmedLine.indexOf('[');
-      const afterBracket = trimmedLine.slice(bracketStart);
-      const openBraces = (afterBracket.match(/\{/g) || []).length;
-      const closeBraces = (afterBracket.match(/\}/g) || []).length;
+    // Check if this line starts a multi-line inline field options block
+    // Handles both brace-style options and bracket-only options:
+    //   field = 1 [(x) = { ... }]
+    //   field = 2 [
+    //     (x) = 1,
+    //   ];
+    const codePortion = stripInlineComments(trimmedLine);
+    if (codePortion.includes('[')) {
+      const bracketStart = codePortion.indexOf('[');
+      const afterBracket = codePortion.slice(bracketStart);
+      const openBrackets = (afterBracket.match(/\[/g) || []).length;
+      const closeBrackets = (afterBracket.match(/\]/g) || []).length;
 
-      if (openBraces > closeBraces) {
-        // Multi-line inline option - renumber the field but preserve the structure
+      if (openBrackets > closeBrackets) {
+        // Multi-line inline option - renumber the field line only.
         if (contextStack.length > 0) {
           const currentContext = contextStack[contextStack.length - 1]!;
           const fieldNumberMatch = line.match(/^(.+=\s*)(\d+)(.*)$/);
@@ -333,14 +340,12 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
             const [, beforeNumber, , afterNumber] = fieldNumberMatch;
             const finalNumber = getNextFieldNumber(currentContext, increment, skipInternalRange);
 
-            // Replace with the new sequential number
             line = `${beforeNumber}${finalNumber}${afterNumber}`;
             currentContext.fieldCounter = finalNumber + increment;
           }
         }
 
-        // Track brace depth and continue to next line
-        inlineOptionBraceDepth = openBraces - closeBraces;
+        inlineOptionBracketDepth = openBrackets - closeBrackets;
         result.push(line);
         continue;
       }

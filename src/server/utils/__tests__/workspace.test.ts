@@ -99,6 +99,30 @@ describe('Workspace utilities', () => {
       expect(files).toHaveLength(2);
       expect(files).toContain('existing.proto');
     });
+
+    it('should skip files under ignored directories', () => {
+      mockFs.readdirSync.mockImplementation((dirPath: any) => {
+        const dir = String(dirPath);
+        if (dir === '/test') {
+          return [
+            { name: 'build', isDirectory: () => true, isFile: () => false },
+            { name: 'src', isDirectory: () => true, isFile: () => false },
+          ] as any;
+        }
+        if (dir === '/test/build') {
+          return [{ name: 'generated.proto', isDirectory: () => false, isFile: () => true }] as any;
+        }
+        if (dir === '/test/src') {
+          return [{ name: 'keep.proto', isDirectory: () => false, isFile: () => true }] as any;
+        }
+        return [] as any;
+      });
+
+      const files = findProtoFiles('/test', [], false, { rootDir: '/test', ignorePatterns: ['build'] });
+      expect(files).toHaveLength(1);
+      expect(files[0]).toContain('keep.proto');
+      expect(files[0]).not.toContain('generated.proto');
+    });
   });
 
   describe('scanWorkspaceForProtoFiles', () => {
@@ -244,6 +268,34 @@ describe('Workspace utilities', () => {
       expect(updateFileSpy).toHaveBeenCalled();
       // But should log the path traversal warning
       expect(logger.verbose).toHaveBeenCalledWith(expect.stringContaining('outside workspace'));
+    });
+
+    it('should skip ignored workspace directories when patterns are configured', () => {
+      const protoContent = 'syntax = "proto3"; message Test {}';
+      mockFs.readFileSync.mockReturnValue(protoContent);
+      mockFs.readdirSync.mockImplementation((dirPath: any) => {
+        const dir = String(dirPath);
+        if (dir === '/workspace') {
+          return [
+            { name: 'build', isDirectory: () => true, isFile: () => false },
+            { name: 'proto', isDirectory: () => true, isFile: () => false },
+          ] as any;
+        }
+        if (dir === '/workspace/build') {
+          return [{ name: 'generated.proto', isDirectory: () => false, isFile: () => true }] as any;
+        }
+        if (dir === '/workspace/proto') {
+          return [{ name: 'message.proto', isDirectory: () => false, isFile: () => true }] as any;
+        }
+        return [] as any;
+      });
+
+      const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
+
+      scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer, undefined, ['build']);
+
+      expect(updateFileSpy).toHaveBeenCalledTimes(1);
+      expect(updateFileSpy.mock.calls[0]?.[0]).toContain('/workspace/proto/message.proto');
     });
   });
 

@@ -345,6 +345,42 @@ describe('ClangFormatProvider', () => {
       expect(lengthArg).toBe('--length=5');
     });
 
+    it('should calculate UTF-8 byte offsets for multibyte characters', async () => {
+      provider.updateSettings({ enabled: true });
+      const text = 'line1\n场景ID\nline3';
+
+      const mockProcess: any = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        stdin: { write: jest.fn(), end: jest.fn() },
+        on: jest.fn((event: string, callback: (code?: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 0);
+          }
+          return mockProcess;
+        }),
+      };
+
+      let capturedArgs: string[] = [];
+      (spawn as any).mockImplementation((_cmd: any, args: string[]) => {
+        capturedArgs = args;
+        return mockProcess;
+      });
+
+      // line 0 ("line1\n") => 6 bytes offset to line 1 start.
+      // "场景" are 2 CJK chars => 6 UTF-8 bytes.
+      const range = Range.create(1, 0, 1, 2);
+      const formatPromise = provider.formatRange(text, range);
+      await flushPromisesAndTimers();
+      await formatPromise;
+
+      const offsetArg = capturedArgs.find(a => a.startsWith('--offset='));
+      const lengthArg = capturedArgs.find(a => a.startsWith('--length='));
+
+      expect(offsetArg).toBe('--offset=6');
+      expect(lengthArg).toBe('--length=6');
+    });
+
     it('should format range when enabled', async () => {
       provider.updateSettings({ enabled: true });
       const text = 'message Test {\n  string name = 1;\n}';

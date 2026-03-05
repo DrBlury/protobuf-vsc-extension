@@ -95,4 +95,6 @@ export const Severity: { [sev in SeveritySetting]: DiagnosticSeverity } = {
   warning: DiagnosticSeverity.Warning,
   information: DiagnosticSeverity.Information,
   hint: DiagnosticSeverity.Hint,
+  // 'none' is normalized into disabled checks before severity is consumed.
+  none: DiagnosticSeverity.Hint,
 };

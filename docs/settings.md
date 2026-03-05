@@ -89,33 +89,39 @@ Settings can be configured in:
 
 ##### `protobuf.diagnostics.severity.namingConventions`
 
-- **Type**: `"error" | "warning" | "information" | "hint"`
+- **Type**: `"error" | "warning" | "information" | "hint" | "none"`
 - **Default**: `"warning"`
-- **Description**: Severity level for naming convention violations
+- **Description**: Severity level for naming convention violations. Use `"none"` to disable this category.
 
 ##### `protobuf.diagnostics.severity.referenceErrors`
 
-- **Type**: `"error" | "warning" | "information" | "hint"`
+- **Type**: `"error" | "warning" | "information" | "hint" | "none"`
 - **Default**: `"error"`
-- **Description**: Severity level for undefined reference errors
+- **Description**: Severity level for undefined reference errors. Use `"none"` to disable reference diagnostics.
 
 ##### `protobuf.diagnostics.severity.fieldTagIssues`
 
-- **Type**: `"error" | "warning" | "information" | "hint"`
+- **Type**: `"error" | "warning" | "information" | "hint" | "none"`
 - **Default**: `"error"`
-- **Description**: Severity level for field tag issues
+- **Description**: Severity level for field tag issues. Use `"none"` to disable field-tag/duplicate-field diagnostics.
 
 ##### `protobuf.diagnostics.severity.discouragedConstructs`
 
-- **Type**: `"error" | "warning" | "information" | "hint"`
+- **Type**: `"error" | "warning" | "information" | "hint" | "none"`
 - **Default**: `"warning"`
-- **Description**: Severity level for discouraged constructs
+- **Description**: Severity level for discouraged constructs. Use `"none"` to disable this category.
+
+##### `protobuf.diagnostics.severity.nonCanonicalImportPath`
+
+- **Type**: `"error" | "warning" | "information" | "hint" | "none"`
+- **Default**: `"warning"`
+- **Description**: Severity for non-canonical import path warnings. Use `"none"` to suppress this warning.
 
 ##### `protobuf.diagnostics.severity.breakingChanges`
 
-- **Type**: `"error" | "warning" | "information" | "hint"`
+- **Type**: `"error" | "warning" | "information" | "hint" | "none"`
 - **Default**: `"warning"`
-- **Description**: Severity level for breaking changes
+- **Description**: Severity level for breaking changes. Use `"none"` to disable breaking-change diagnostics.
 
 ### Formatter
 
@@ -313,6 +319,23 @@ These sources now populate the analyzer automatically, so most projects no longe
 ```jsonc
 {
   "protobuf.protoSrcsDir": "examples/regressions"
+}
+```
+
+#### `protobuf.workspace.ignorePatterns`
+
+- **Type**: `string[]`
+- **Default**: `[]`
+- **Description**: Exclude folders or glob patterns from workspace proto discovery (indexing for diagnostics/symbols/go-to-definition). Use this to ignore generated directories such as `build/` or `dist/`.
+
+**Example:**
+
+```jsonc
+{
+  "protobuf.workspace.ignorePatterns": [
+    "build",
+    "**/generated/**"
+  ]
 }
 ```
 

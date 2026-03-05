@@ -259,6 +259,47 @@ describe('Extension Activation', () => {
     expect(mockVscode.commands.registerCommand).toHaveBeenCalled();
   });
 
+  it('should initialize option inspector visibility context from active editor', async () => {
+    mockVscode.window.createOutputChannel.mockReturnValue(createTestOutputChannel());
+    mockVscode.window.activeTextEditor = undefined as any;
+    mockVscode.commands.executeCommand.mockResolvedValue(undefined);
+
+    await activate(mockExtensionContext as any);
+
+    expect(mockVscode.commands.executeCommand).toHaveBeenCalledWith(
+      'setContext',
+      'protobuf.optionInspector.visible',
+      false
+    );
+  });
+
+  it('should update option inspector visibility context when active editor changes', async () => {
+    mockVscode.window.createOutputChannel.mockReturnValue(createTestOutputChannel());
+    mockVscode.commands.executeCommand.mockResolvedValue(undefined);
+
+    let activeEditorListener: ((editor: any) => void) | undefined;
+    mockVscode.window.onDidChangeActiveTextEditor.mockImplementationOnce(
+      ((listener: (editor: any) => void) => {
+        activeEditorListener = listener;
+        return { dispose: jest.fn() };
+      }) as any
+    );
+
+    await activate(mockExtensionContext as any);
+
+    activeEditorListener?.({
+      document: {
+        languageId: 'proto',
+      },
+    });
+
+    expect(mockVscode.commands.executeCommand).toHaveBeenCalledWith(
+      'setContext',
+      'protobuf.optionInspector.visible',
+      true
+    );
+  });
+
   it('should setup file system watchers', async () => {
     mockVscode.window.createOutputChannel.mockReturnValue(createTestOutputChannel());
     const mockWatcher = { dispose: jest.fn(), onDidCreate: jest.fn(), onDidChange: jest.fn(), onDidDelete: jest.fn() };

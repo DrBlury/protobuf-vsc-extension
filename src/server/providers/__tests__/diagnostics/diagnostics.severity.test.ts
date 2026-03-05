@@ -25,6 +25,12 @@ describe('DiagnosticsProvider severity', () => {
     providers.analyzer.updateFile(uri, file);
 
     it('reports non-canonical import path at default severity', async () => {
+      providers.diagnostics.updateSettings({
+        severity: {
+          ...DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS,
+          nonCanonicalImportPath: 'warning',
+        },
+      });
       const diags = await providers.diagnostics.validate(uri, file, providers);
       const wrongImport = diags.find(d => d.message.includes('should be imported via'));
 
@@ -44,6 +50,46 @@ describe('DiagnosticsProvider severity', () => {
 
       expect(wrongImport).toBeDefined();
       expect(wrongImport?.severity).toBe(DiagnosticSeverity.Hint);
+    });
+
+    it('does not report non-canonical import path when severity is none', async () => {
+      providers.diagnostics.updateSettings({
+        severity: {
+          ...DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS,
+          nonCanonicalImportPath: 'none',
+        },
+      });
+      const diags = await providers.diagnostics.validate(uri, file, providers);
+      const wrongImport = diags.find(d => d.message.includes('should be imported via'));
+
+      expect(wrongImport).toBeUndefined();
+    });
+  });
+
+  describe('none severity disables category', () => {
+    it('disables naming convention diagnostics when naming severity is none', async () => {
+      const content = `syntax = "proto3";
+      message bad_message_name {
+        string SomeCamelCaseField = 1;
+      }`;
+      const uri = 'file:///naming_none.proto';
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
+
+      providers.diagnostics.updateSettings({
+        namingConventions: true,
+        severity: {
+          ...DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS,
+          namingConventions: 'none',
+        },
+      });
+
+      const diags = await providers.diagnostics.validate(uri, file, providers);
+      const namingDiagnostics = diags.filter(
+        d => d.message.includes('PascalCase') || d.message.includes('snake_case')
+      );
+
+      expect(namingDiagnostics).toHaveLength(0);
     });
   });
 });

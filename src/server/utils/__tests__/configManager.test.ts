@@ -749,6 +749,54 @@ describe('ConfigManager', () => {
     expect(result.protoSrcsDir).toBe('/workspace/src/protos');
   });
 
+  it('should return empty workspace ignore patterns when not set', () => {
+    const settings: Settings = defaultSettings;
+    const result = updateProvidersWithSettings(
+      settings,
+      diagnosticsProvider,
+      formatter,
+      renumberProvider,
+      analyzer,
+      protocCompiler,
+      breakingChangeDetector,
+      externalLinter,
+      clangFormat,
+      undefined,
+      undefined
+    );
+
+    expect(result.workspaceIgnorePatterns).toEqual([]);
+  });
+
+  it('should expand variables in workspace ignore patterns', () => {
+    const settings: Settings = {
+      ...defaultSettings,
+      protobuf: {
+        ...defaultSettings.protobuf,
+        workspace: {
+          ignorePatterns: ['build', '${workspaceFolder}/generated'],
+        },
+      },
+    };
+
+    const result = updateProvidersWithSettings(
+      settings,
+      diagnosticsProvider,
+      formatter,
+      renumberProvider,
+      analyzer,
+      protocCompiler,
+      breakingChangeDetector,
+      externalLinter,
+      clangFormat,
+      undefined,
+      undefined,
+      ['/workspace']
+    );
+
+    expect(result.workspaceIgnorePatterns).toEqual(['build', '/workspace/generated']);
+  });
+
   describe('proto path extraction edge cases', () => {
     it('should handle --proto_path with space-separated value', () => {
       const settings: Settings = {

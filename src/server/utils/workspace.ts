@@ -19,6 +19,64 @@ function toWorkspaceRelative(filePath: string, workspaceFolder: string): string 
   return relative.split(path.sep).join('/');
 }
 
+interface FileDiscoveryOptions {
+  rootDir?: string;
+  ignorePatterns?: string[];
+}
+
+function matchGlobPattern(pathValue: string, pattern: string): boolean {
+  let regexPattern = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*\*/g, '{{GLOBSTAR}}')
+    .replace(/\*/g, '[^/]*')
+    .replace(/\?/g, '.')
+    .replace(/\{\{GLOBSTAR\}\}/g, '.*');
+
+  try {
+    const regex = new RegExp(`^${regexPattern}$`);
+    return regex.test(pathValue);
+  } catch {
+    return false;
+  }
+}
+
+function isIgnoredPath(fullPath: string, name: string, rootDir: string, ignorePatterns: string[]): boolean {
+  if (ignorePatterns.length === 0) {
+    return false;
+  }
+
+  const relativePath = path.relative(rootDir, fullPath).split(path.sep).join('/');
+
+  for (const pattern of ignorePatterns) {
+    if (pattern === name) {
+      return true;
+    }
+
+    const segments = relativePath.split('/');
+    if (segments.includes(pattern)) {
+      return true;
+    }
+
+    if (pattern.includes('/') && !pattern.includes('*')) {
+      const normalizedPattern = pattern.split(/[/\\]/).join('/');
+      if (
+        relativePath.startsWith(normalizedPattern + '/') ||
+        relativePath === normalizedPattern ||
+        relativePath.includes('/' + normalizedPattern + '/') ||
+        relativePath.includes('/' + normalizedPattern)
+      ) {
+        return true;
+      }
+    }
+
+    if (matchGlobPattern(relativePath, pattern)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /**
  * Recursively find all .proto files in a directory
  * @param dir - The directory to search
@@ -26,7 +84,15 @@ function toWorkspaceRelative(filePath: string, workspaceFolder: string): string 
  * @param includeHidden - Whether to include hidden directories (e.g., .buf-deps)
  * @returns Array of proto file paths
  */
-export function findProtoFiles(dir: string, files: string[] = [], includeHidden: boolean = false): string[] {
+export function findProtoFiles(
+  dir: string,
+  files: string[] = [],
+  includeHidden: boolean = false,
+  options: FileDiscoveryOptions = { rootDir: dir, ignorePatterns: [] }
+): string[] {
+  const rootDir = options.rootDir || dir;
+  const ignorePatterns = options.ignorePatterns || [];
+
   try {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
@@ -34,11 +100,14 @@ export function findProtoFiles(dir: string, files: string[] = [], includeHidden:
       if (entry.isDirectory()) {
         // Skip node_modules, and optionally skip hidden directories
         const skipHidden = !includeHidden && entry.name.startsWith('.');
-        if (!skipHidden && entry.name !== 'node_modules') {
-          findProtoFiles(fullPath, files, includeHidden);
+        const skipIgnored = isIgnoredPath(fullPath, entry.name, rootDir, ignorePatterns);
+        if (!skipHidden && entry.name !== 'node_modules' && !skipIgnored) {
+          findProtoFiles(fullPath, files, includeHidden, { rootDir, ignorePatterns });
         }
       } else if (entry.isFile() && entry.name.endsWith('.proto')) {
-        files.push(fullPath);
+        if (!isIgnoredPath(fullPath, entry.name, rootDir, ignorePatterns)) {
+          files.push(fullPath);
+        }
       }
     }
   } catch (error) {
@@ -56,14 +125,19 @@ export function findProtoFiles(dir: string, files: string[] = [], includeHidden:
  * @param protoSrcsDir - Optional subdirectory to prioritize for proto file search (e.g., 'protos')
  *                       Note: The full workspace is always scanned to discover all proto files,
  *                       but protoSrcsDir is registered as a proto root for import path resolution.
+ * @param ignorePatterns - Optional glob/path patterns to exclude from workspace discovery
  */
 export function scanWorkspaceForProtoFiles(
   workspaceFolders: string[],
   parser: IProtoParser,
   analyzer: SemanticAnalyzer,
-  protoSrcsDir?: string
+  protoSrcsDir?: string,
+  ignorePatterns: string[] = []
 ): void {
   logger.info(`Scanning ${workspaceFolders.length} workspace folder(s) for proto files`);
+  if (ignorePatterns.length > 0) {
+    logger.info(`Workspace discovery ignore patterns: ${ignorePatterns.join(', ')}`);
+  }
 
   let totalFiles = 0;
   let parsedFiles = 0;
@@ -71,7 +145,7 @@ export function scanWorkspaceForProtoFiles(
   for (const folder of workspaceFolders) {
     // Always scan the full workspace to discover all proto files
     // This ensures types in any directory can be found and suggested for import
-    const protoFiles = findProtoFiles(folder);
+    const protoFiles = findProtoFiles(folder, [], false, { rootDir: folder, ignorePatterns });
     totalFiles += protoFiles.length;
 
     logger.verbose(`Found ${protoFiles.length} proto file(s) in workspace folder: ${folder}`);

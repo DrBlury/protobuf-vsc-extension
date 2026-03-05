@@ -175,7 +175,7 @@ function parsePathMapping(rawPath: string): { virtual: string; actual: string } 
 
 /**
  * Updates all providers with new settings
- * @returns An object containing the expanded include paths and protoSrcsDir
+ * @returns Expanded include paths, protoSrcsDir, and workspace discovery ignore patterns
  */
 export function updateProvidersWithSettings(
   settings: Settings,
@@ -191,7 +191,7 @@ export function updateProvidersWithSettings(
   wellKnownCacheDir: string | undefined,
   workspaceFolders: string[] = [],
   codeActionsProvider?: CodeActionsProvider
-): { includePaths: string[]; protoSrcsDir: string } {
+): { includePaths: string[]; protoSrcsDir: string; workspaceIgnorePatterns: string[] } {
   // Update diagnostics settings
   const diag = settings.protobuf.diagnostics;
   const diagSettings: Partial<DiagnosticsSettings> = {
@@ -460,6 +460,9 @@ export function updateProvidersWithSettings(
 
   // Expand protoSrcsDir with variable substitution
   const protoSrcsDir = expandVariables(settings.protobuf.protoSrcsDir || '', workspaceFolders);
+  const workspaceIgnorePatterns = (settings.protobuf.workspace?.ignorePatterns || [])
+    .map(pattern => expandVariables(pattern, workspaceFolders).trim())
+    .filter(Boolean);
 
   logger.info('Tool configuration summary:');
   logger.info(`  protoc.path: ${expandedProtocPath || protocSettings.path || 'protoc'}`);
@@ -484,11 +487,13 @@ export function updateProvidersWithSettings(
   logger.info(`  clangFormat.path: ${resolvedClangPath} (enabled=${clangSettings.enabled})`);
   logger.info(`  includePaths: ${includePaths.join(', ') || '(none)'}`);
   logger.info(`  protoSrcsDir: ${protoSrcsDir || '(workspace root)'}`);
+  logger.info(`  workspace.ignorePatterns: ${workspaceIgnorePatterns.join(', ') || '(none)'}`);
 
   // Return the user-configured include paths (expanded) and protoSrcsDir for scanning
   // Note: includePaths already computed above with variable expansion
   return {
     includePaths: includePaths.filter(p => p !== wellKnownIncludePath && p !== wellKnownCacheDir),
     protoSrcsDir,
+    workspaceIgnorePatterns,
   };
 }

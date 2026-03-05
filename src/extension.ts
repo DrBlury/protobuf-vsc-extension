@@ -50,6 +50,14 @@ function isProtoDocument(document: vscode.TextDocument): boolean {
   return document.languageId === 'proto' || document.languageId === 'textproto';
 }
 
+function isProtoEditor(editor: vscode.TextEditor | undefined): boolean {
+  return !!editor && editor.document.languageId === 'proto';
+}
+
+async function updateOptionInspectorVisibilityContext(editor: vscode.TextEditor | undefined): Promise<void> {
+  await vscode.commands.executeCommand('setContext', 'protobuf.optionInspector.visible', isProtoEditor(editor));
+}
+
 function markSaveInProgress(uri: vscode.Uri): void {
   saveStateTracker.mark(uri.toString());
 }
@@ -146,6 +154,13 @@ export async function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME);
   outputChannel.appendLine('Activating Protobuf extension...');
   const betaFeaturesEnabled = isBetaFeaturesEnabled();
+
+  void updateOptionInspectorVisibilityContext(vscode.window.activeTextEditor);
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(editor => {
+      void updateOptionInspectorVisibilityContext(editor);
+    })
+  );
 
   // Initialize toolchain manager
   const isTestEnv = Boolean(process.env.JEST_WORKER_ID);
@@ -722,7 +737,7 @@ breaking:
 
   // Register Option Inspector Provider
   const optionInspectorProvider = new OptionInspectorProvider(client);
-  vscode.window.registerTreeDataProvider('protobufOptionInspector', optionInspectorProvider);
+  context.subscriptions.push(vscode.window.registerTreeDataProvider('protobufOptionInspector', optionInspectorProvider));
 
   // Register all commands
   const commandDisposables = registerAllCommands(context, client);

@@ -127,6 +127,7 @@ if (wellKnownIncludePath) {
 let globalSettings: Settings = defaultSettings;
 let workspaceFolders: string[] = [];
 let protoSrcsDir: string = '';
+let workspaceIgnorePatterns: string[] = [];
 
 // Cache for parsed files to avoid re-parsing unchanged content
 const parsedFileCache = new ContentHashCache<ProtoFile>();
@@ -214,7 +215,11 @@ connection.onInitialized(async () => {
         globalSettings = { protobuf: config } as Settings;
 
         // Apply settings to all providers
-        const { includePaths: userIncludePaths, protoSrcsDir: newProtoSrcsDir } = updateProvidersWithSettings(
+        const {
+          includePaths: userIncludePaths,
+          protoSrcsDir: newProtoSrcsDir,
+          workspaceIgnorePatterns: newWorkspaceIgnorePatterns,
+        } = updateProvidersWithSettings(
           globalSettings,
           providers.diagnostics,
           providers.formatter,
@@ -231,6 +236,7 @@ connection.onInitialized(async () => {
         );
 
         protoSrcsDir = newProtoSrcsDir;
+        workspaceIgnorePatterns = newWorkspaceIgnorePatterns;
 
         // Update parser preference (Tree-sitter is the default)
         const parserPreference = resolveParserPreference(config);
@@ -250,7 +256,13 @@ connection.onInitialized(async () => {
 
   // Scan workspace for proto files on initialization
   // Note: protoSrcsDir may now be set from initial config fetch above.
-  scanWorkspaceForProtoFiles(workspaceFolders, providers.parser, providers.analyzer, protoSrcsDir);
+  scanWorkspaceForProtoFiles(
+    workspaceFolders,
+    providers.parser,
+    providers.analyzer,
+    protoSrcsDir,
+    workspaceIgnorePatterns
+  );
 });
 
 // Handle Tree-sitter initialization request
@@ -390,7 +402,11 @@ connection.onDidChangeConfiguration(async (change: { settings: unknown }) => {
     }
 
     // Update all providers with new settings using config manager
-    const { includePaths: userIncludePaths, protoSrcsDir: newProtoSrcsDir } = updateProvidersWithSettings(
+    const {
+      includePaths: userIncludePaths,
+      protoSrcsDir: newProtoSrcsDir,
+      workspaceIgnorePatterns: newWorkspaceIgnorePatterns,
+    } = updateProvidersWithSettings(
       globalSettings,
       providers.diagnostics,
       providers.formatter,
@@ -407,6 +423,7 @@ connection.onDidChangeConfiguration(async (change: { settings: unknown }) => {
 
     // Update protoSrcsDir
     protoSrcsDir = newProtoSrcsDir;
+    workspaceIgnorePatterns = newWorkspaceIgnorePatterns;
 
     // Update parser preference (Tree-sitter is the default)
     const config = globalSettings.protobuf;

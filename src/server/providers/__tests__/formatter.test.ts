@@ -6,6 +6,8 @@ import { ProtoFormatter } from '../formatter';
 import { ClangFormatProvider } from '../../services/clangFormat';
 import { BufFormatProvider } from '../../services/bufFormat';
 import { Range } from 'vscode-languageserver/node';
+import * as fs from 'fs';
+import * as path from 'path';
 
 describe('ProtoFormatter', () => {
   let formatter: ProtoFormatter;
@@ -535,6 +537,34 @@ message DemoMessage2 {
       expect(formatted).toMatch(/country\s*=\s*4/);
     });
 
+    it('should not renumber numeric option values inside multi-line bracket options (issue #103)', async () => {
+      formatter.updateSettings({ renumberOnFormat: true });
+      const text = `message ListRequest {
+  uint32 page = 1 [(buf.validate.field).required = true];
+  uint32 size = 2 [
+    (buf.validate.field).uint32.gt = 1,
+    (buf.validate.field).uint32.lte = 50,
+    (buf.validate.field).required = true
+  ];
+  // filters
+  optional Status status = 5;
+  optional string group_id = 6;
+}`;
+
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      // Field numbers should be renumbered sequentially.
+      expect(formatted).toMatch(/page\s*=\s*1/);
+      expect(formatted).toMatch(/size\s*=\s*2/);
+      expect(formatted).toMatch(/status\s*=\s*3/);
+      expect(formatted).toMatch(/group_id\s*=\s*4/);
+
+      // Option values inside [] must remain unchanged.
+      expect(formatted).toContain('(buf.validate.field).uint32.gt = 1');
+      expect(formatted).toContain('(buf.validate.field).uint32.lte = 50');
+    });
+
     it('should renumber oneof fields that have duplicates', async () => {
       formatter.updateSettings({ renumberOnFormat: true });
       const text = `message Test {
@@ -598,6 +628,23 @@ message Test {
       const text = '// comment\n/* block comment */';
       const result = await formatter.formatDocument(text);
       expect(result).toHaveLength(1);
+    });
+
+    it('should format large regression file without pathological slowdown (issue #76)', async () => {
+      const fixturePath = path.resolve(
+        process.cwd(),
+        'examples/regressions/issue-76-large-file-performance/large.proto'
+      );
+      const text = fs.readFileSync(fixturePath, 'utf-8');
+
+      const startTime = Date.now();
+      const result = await formatter.formatDocument(text);
+      const elapsedMs = Date.now() - startTime;
+
+      expect(result).toHaveLength(1);
+      expect(result[0].newText).toContain('message LargeMessage {');
+      expect(result[0].newText).toContain('string field_8000 = 8000;');
+      expect(elapsedMs).toBeLessThan(5000);
     });
 
     it('should handle malformed braces', async () => {
