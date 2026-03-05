@@ -152,7 +152,7 @@ jobs:
         id: grype-scan
         with:
           path: "."
-          fail-build: false
+          fail-build: ${{ github.event_name == 'push' }}
           severity-cutoff: critical
           output-format: sarif
           output-file: grype-results.sarif
@@ -162,17 +162,6 @@ jobs:
         if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
           sarif_file: grype-results.sarif
-
-      - name: Fail on critical vulnerabilities
-        if: steps.grype-scan.outputs.sarif != '' && github.event_name == 'push'
-        run: |
-          # Parse SARIF for critical vulnerabilities and fail if found
-          CRITICAL_COUNT=$(jq '[.runs[].results[] | select(.level == "error")] | length' grype-results.sarif 2>/dev/null || echo "0")
-          if [ "$CRITICAL_COUNT" -gt 0 ]; then
-            echo "::error::Found $CRITICAL_COUNT critical vulnerabilities"
-            exit 1
-          fi
-          echo "No critical vulnerabilities found"
 
       - name: Upload SBOM as artifact
         uses: actions/upload-artifact@v7
