@@ -980,7 +980,8 @@
           "icon": "resources/protobuf-icon.svg",
           "id": "protobufOptionInspector",
           "name": "Proto Options",
-          "when": "protobuf.optionInspector.visible"
+          "when": "protobuf.optionInspector.visible",
+          "visibility": "collapsed"
         }
       ]
     },

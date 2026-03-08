@@ -259,6 +259,15 @@ describe('Extension Activation', () => {
     expect(mockVscode.commands.registerCommand).toHaveBeenCalled();
   });
 
+  it('should register the protobuf explorer without eagerly creating the tree view', async () => {
+    mockVscode.window.createOutputChannel.mockReturnValue(createTestOutputChannel());
+
+    await activate(mockExtensionContext as any);
+
+    expect(mockVscode.window.registerTreeDataProvider).toHaveBeenCalledWith('protobufExplorer', expect.anything());
+    expect(mockVscode.window.createTreeView).not.toHaveBeenCalled();
+  });
+
   it('should initialize option inspector visibility context from active editor', async () => {
     mockVscode.window.createOutputChannel.mockReturnValue(createTestOutputChannel());
     mockVscode.window.activeTextEditor = undefined as any;
@@ -296,6 +305,22 @@ describe('Extension Activation', () => {
       'protobuf.optionInspector.visible',
       true
     );
+  });
+
+  it('should keep the proto options explorer collapsed by default in the manifest', () => {
+    const manifest = require('../package.json') as {
+      contributes: {
+        views: {
+          explorer: Array<{ id: string; when?: string; visibility?: string }>;
+        };
+      };
+    };
+
+    const optionInspectorView = manifest.contributes.views.explorer.find(view => view.id === 'protobufOptionInspector');
+
+    expect(optionInspectorView).toBeDefined();
+    expect(optionInspectorView?.when).toBe('protobuf.optionInspector.visible');
+    expect(optionInspectorView?.visibility).toBe('collapsed');
   });
 
   it('should setup file system watchers', async () => {
