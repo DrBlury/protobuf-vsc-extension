@@ -417,18 +417,13 @@ export function registerProtobufSidebar(
 ): ProtobufSidebarProvider {
   const sidebarProvider = new ProtobufSidebarProvider(context, betaFeaturesEnabled);
 
-  const treeView = vscode.window.createTreeView('protobufExplorer', {
-    treeDataProvider: sidebarProvider,
-    showCollapseAll: true,
-  });
-
   context.subscriptions.push(
+    // Register lazily so VS Code does not need to instantiate the custom view during startup.
+    vscode.window.registerTreeDataProvider('protobufExplorer', sidebarProvider),
     vscode.commands.registerCommand('protobuf.sidebar.refresh', () => {
       sidebarProvider.refresh();
     })
   );
-
-  context.subscriptions.push(treeView);
 
   return sidebarProvider;
 }
