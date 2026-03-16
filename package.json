@@ -1028,7 +1028,7 @@
     "eslint-plugin-prettier": "^5.5.5",
     "jest": "^30.2.0",
     "prettier": "^3.8.1",
-    "tree-sitter-cli": "^0.26.6",
+    "tree-sitter-cli": "^0.26.7",
     "ts-jest": "^29.4.6",
     "typescript": "^5.9.3",
     "vscode-tmgrammar-test": "^0.1.3"
