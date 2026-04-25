@@ -1,6 +1,6 @@
 # Hover Information
 
-Rich hover information provides detailed context about symbols when you hover over them.
+Hover information shows symbol details at the cursor.
 
 ## Overview
 
@@ -153,15 +153,15 @@ has(this.email)
 
 #### Supported CEL Functions
 
-| Category | Functions |
-|----------|-----------|
-| Field Presence | `has` |
-| Size/Length | `size` |
-| String Methods | `startsWith`, `endsWith`, `contains`, `matches`, `toLowerCase`, `toUpperCase`, `trim` |
-| List Macros | `all`, `exists`, `exists_one`, `filter`, `map` |
-| Type Conversions | `int`, `uint`, `double`, `string`, `bytes`, `bool`, `type`, `dyn` |
-| Duration/Timestamp | `duration`, `timestamp`, `getDate`, `getDayOfMonth`, `getDayOfWeek`, `getDayOfYear`, `getFullYear`, `getHours`, `getMinutes`, `getMonth`, `getSeconds`, `getMilliseconds` |
-| protovalidate Extensions | `isEmail`, `isUri`, `isUriRef`, `isHostname`, `isIp`, `isIpPrefix`, `isNan`, `isInf`, `unique` |
+| Category                 | Functions                                                                                                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Field Presence           | `has`                                                                                                                                                                     |
+| Size/Length              | `size`                                                                                                                                                                    |
+| String Methods           | `startsWith`, `endsWith`, `contains`, `matches`, `toLowerCase`, `toUpperCase`, `trim`                                                                                     |
+| List Macros              | `all`, `exists`, `exists_one`, `filter`, `map`                                                                                                                            |
+| Type Conversions         | `int`, `uint`, `double`, `string`, `bytes`, `bool`, `type`, `dyn`                                                                                                         |
+| Duration/Timestamp       | `duration`, `timestamp`, `getDate`, `getDayOfMonth`, `getDayOfWeek`, `getDayOfYear`, `getFullYear`, `getHours`, `getMinutes`, `getMonth`, `getSeconds`, `getMilliseconds` |
+| protovalidate Extensions | `isEmail`, `isUri`, `isUriRef`, `isHostname`, `isIp`, `isIpPrefix`, `isNan`, `isInf`, `unique`                                                                            |
 
 #### CEL Keywords
 
@@ -334,7 +334,7 @@ Hover information can be customized:
 ```jsonc
 {
   "protobuf.hover.showFieldNumbers": true,
-  "protobuf.hover.showDocumentation": true
+  "protobuf.hover.showDocumentation": true,
 }
 ```
 

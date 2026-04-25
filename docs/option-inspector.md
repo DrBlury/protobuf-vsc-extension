@@ -1,6 +1,6 @@
 # Option Inspector
 
-The Option Inspector provides a tree view of all options defined in your Protocol Buffer files, making it easy to browse and navigate to option definitions.
+The Option Inspector shows proto options in a tree view and links each item to its definition.
 
 ## Overview
 

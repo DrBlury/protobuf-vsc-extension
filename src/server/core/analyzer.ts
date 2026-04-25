@@ -8,6 +8,7 @@ import type {
   ProtoFile,
   MessageDefinition,
   EnumDefinition,
+  GroupFieldDefinition,
   ServiceDefinition,
   SymbolInfo,
   Location,
@@ -717,6 +718,10 @@ export class SemanticAnalyzer {
       return undefined;
     }
 
+    // Get the current file to check its imports AND its local definitions (for forward references)
+    const currentFile = this.workspace.files.get(currentUri);
+    const importedUris = this.getImportedFileUris(currentUri);
+
     // Handle absolute type references (starting with .)
     // In protobuf, a leading dot means "absolute path from root"
     // e.g., ".com.example.MyMessage" is the same as "com.example.MyMessage"
@@ -725,7 +730,9 @@ export class SemanticAnalyzer {
     // Try exact match first ONLY for fully qualified names (containing a dot)
     // Simple names like "User" should go through proper scope resolution
     if (normalizedTypeName.includes('.')) {
-      const symbol = this.workspace.symbols.get(normalizedTypeName);
+      const symbol =
+        this.findTypeInAccessibleFilesByFullName(normalizedTypeName, currentUri, importedUris) ||
+        this.workspace.symbols.get(normalizedTypeName);
       if (symbol) {
         return symbol;
       }
@@ -736,13 +743,12 @@ export class SemanticAnalyzer {
       return undefined;
     }
 
-    // Get the current file to check its imports AND its local definitions (for forward references)
-    const currentFile = this.workspace.files.get(currentUri);
-    const importedUris = this.getImportedFileUris(currentUri);
-
     // Try with current package prefix
     if (currentPackage) {
-      const symbol = this.workspace.symbols.get(`${currentPackage}.${typeName}`);
+      const candidateFullName = `${currentPackage}.${typeName}`;
+      const symbol =
+        this.findTypeInAccessibleFilesByFullName(candidateFullName, currentUri, importedUris) ||
+        this.workspace.symbols.get(candidateFullName);
       if (symbol) {
         return symbol;
       }
@@ -752,7 +758,10 @@ export class SemanticAnalyzer {
     const parts = currentPackage?.split('.') || [];
     while (parts.length > 0) {
       const prefix = parts.join('.');
-      const symbol = this.workspace.symbols.get(`${prefix}.${typeName}`);
+      const candidateFullName = `${prefix}.${typeName}`;
+      const symbol =
+        this.findTypeInAccessibleFilesByFullName(candidateFullName, currentUri, importedUris) ||
+        this.workspace.symbols.get(candidateFullName);
       if (symbol) {
         return symbol;
       }
@@ -804,18 +813,17 @@ export class SemanticAnalyzer {
 
         // Try with imported package prefix
         if (importedPackage) {
-          const symbol = this.workspace.symbols.get(`${importedPackage}.${typeName}`);
+          const symbol = this.findTypeInFileByFullName(importedUri, `${importedPackage}.${typeName}`);
           if (symbol) {
             return symbol;
           }
         }
 
         // Try finding symbol in imported file by simple name
-        for (const [fullName, sym] of this.workspace.symbols) {
-          if (sym.location.uri === importedUri && (sym.name === typeName || fullName.endsWith(`.${typeName}`))) {
-            logger.verbose(`resolveType: Found "${typeName}" as "${fullName}" in imported file`);
-            return sym;
-          }
+        const symbol = this.findTypeInFileByName(importedUri, typeName);
+        if (symbol) {
+          logger.verbose(`resolveType: Found "${typeName}" as "${symbol.fullName}" in imported file`);
+          return symbol;
         }
       }
     }
@@ -828,6 +836,280 @@ export class SemanticAnalyzer {
     );
 
     return undefined;
+  }
+
+  private findTypeInAccessibleFilesByFullName(
+    fullName: string,
+    currentUri: string,
+    importedUris: string[]
+  ): SymbolInfo | undefined {
+    const currentFileSymbol = this.findTypeInFileByFullName(currentUri, fullName);
+    if (currentFileSymbol) {
+      return currentFileSymbol;
+    }
+
+    for (const importedUri of importedUris) {
+      const importedFileSymbol = this.findTypeInFileByFullName(importedUri, fullName);
+      if (importedFileSymbol) {
+        return importedFileSymbol;
+      }
+    }
+
+    return undefined;
+  }
+
+  private findTypeInFileByName(uri: string, typeName: string): SymbolInfo | undefined {
+    const file = this.workspace.files.get(uri);
+    if (!file) {
+      return undefined;
+    }
+
+    const packageName = file.package?.name || '';
+
+    for (const message of file.messages) {
+      const symbol = this.findMessageSymbolByName(uri, message, packageName, typeName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    for (const enumDef of file.enums) {
+      const symbol = this.findEnumSymbolByName(uri, enumDef, packageName, typeName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    return undefined;
+  }
+
+  private findTypeInFileByFullName(uri: string, fullName: string): SymbolInfo | undefined {
+    const file = this.workspace.files.get(uri);
+    if (!file) {
+      return undefined;
+    }
+
+    const packageName = file.package?.name || '';
+
+    for (const message of file.messages) {
+      const symbol = this.findMessageSymbolByFullName(uri, message, packageName, fullName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    for (const enumDef of file.enums) {
+      const symbol = this.findEnumSymbolByFullName(uri, enumDef, packageName, fullName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    return undefined;
+  }
+
+  private findMessageSymbolByName(
+    uri: string,
+    message: MessageDefinition,
+    prefix: string,
+    targetName: string
+  ): SymbolInfo | undefined {
+    const fullName = prefix ? `${prefix}.${message.name}` : message.name;
+    if (message.name === targetName || fullName.endsWith(`.${targetName}`)) {
+      return {
+        name: message.name,
+        fullName,
+        kind: SymbolKind.Message,
+        location: { uri, range: message.nameRange },
+        containerName: prefix || undefined,
+      };
+    }
+
+    for (const nested of message.nestedMessages) {
+      const symbol = this.findMessageSymbolByName(uri, nested, fullName, targetName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    for (const nested of message.nestedEnums) {
+      const symbol = this.findEnumSymbolByName(uri, nested, fullName, targetName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    for (const group of message.groups) {
+      const symbol = this.findGroupSymbolByName(uri, group, fullName, targetName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    return undefined;
+  }
+
+  private findMessageSymbolByFullName(
+    uri: string,
+    message: MessageDefinition,
+    prefix: string,
+    targetFullName: string
+  ): SymbolInfo | undefined {
+    const fullName = prefix ? `${prefix}.${message.name}` : message.name;
+    if (fullName === targetFullName) {
+      return {
+        name: message.name,
+        fullName,
+        kind: SymbolKind.Message,
+        location: { uri, range: message.nameRange },
+        containerName: prefix || undefined,
+      };
+    }
+
+    for (const nested of message.nestedMessages) {
+      const symbol = this.findMessageSymbolByFullName(uri, nested, fullName, targetFullName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    for (const nested of message.nestedEnums) {
+      const symbol = this.findEnumSymbolByFullName(uri, nested, fullName, targetFullName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    for (const group of message.groups) {
+      const symbol = this.findGroupSymbolByFullName(uri, group, fullName, targetFullName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    return undefined;
+  }
+
+  private findGroupSymbolByName(
+    uri: string,
+    group: GroupFieldDefinition,
+    prefix: string,
+    targetName: string
+  ): SymbolInfo | undefined {
+    const fullName = prefix ? `${prefix}.${group.name}` : group.name;
+    if (group.name === targetName || fullName.endsWith(`.${targetName}`)) {
+      return {
+        name: group.name,
+        fullName,
+        kind: SymbolKind.Message,
+        location: { uri, range: group.range },
+        containerName: prefix || undefined,
+      };
+    }
+
+    for (const nested of group.nestedMessages) {
+      const symbol = this.findMessageSymbolByName(uri, nested, fullName, targetName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    for (const nested of group.nestedEnums) {
+      const symbol = this.findEnumSymbolByName(uri, nested, fullName, targetName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    for (const nestedGroup of group.groups) {
+      const symbol = this.findGroupSymbolByName(uri, nestedGroup, fullName, targetName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    return undefined;
+  }
+
+  private findGroupSymbolByFullName(
+    uri: string,
+    group: GroupFieldDefinition,
+    prefix: string,
+    targetFullName: string
+  ): SymbolInfo | undefined {
+    const fullName = prefix ? `${prefix}.${group.name}` : group.name;
+    if (fullName === targetFullName) {
+      return {
+        name: group.name,
+        fullName,
+        kind: SymbolKind.Message,
+        location: { uri, range: group.range },
+        containerName: prefix || undefined,
+      };
+    }
+
+    for (const nested of group.nestedMessages) {
+      const symbol = this.findMessageSymbolByFullName(uri, nested, fullName, targetFullName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    for (const nested of group.nestedEnums) {
+      const symbol = this.findEnumSymbolByFullName(uri, nested, fullName, targetFullName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    for (const nestedGroup of group.groups) {
+      const symbol = this.findGroupSymbolByFullName(uri, nestedGroup, fullName, targetFullName);
+      if (symbol) {
+        return symbol;
+      }
+    }
+
+    return undefined;
+  }
+
+  private findEnumSymbolByName(
+    uri: string,
+    enumDef: EnumDefinition,
+    prefix: string,
+    targetName: string
+  ): SymbolInfo | undefined {
+    const fullName = prefix ? `${prefix}.${enumDef.name}` : enumDef.name;
+    if (enumDef.name !== targetName && !fullName.endsWith(`.${targetName}`)) {
+      return undefined;
+    }
+
+    return {
+      name: enumDef.name,
+      fullName,
+      kind: SymbolKind.Enum,
+      location: { uri, range: enumDef.nameRange },
+      containerName: prefix || undefined,
+    };
+  }
+
+  private findEnumSymbolByFullName(
+    uri: string,
+    enumDef: EnumDefinition,
+    prefix: string,
+    targetFullName: string
+  ): SymbolInfo | undefined {
+    const fullName = prefix ? `${prefix}.${enumDef.name}` : enumDef.name;
+    if (fullName !== targetFullName) {
+      return undefined;
+    }
+
+    return {
+      name: enumDef.name,
+      fullName,
+      kind: SymbolKind.Enum,
+      location: { uri, range: enumDef.nameRange },
+      containerName: prefix || undefined,
+    };
   }
 
   /**
@@ -869,6 +1151,80 @@ export class SemanticAnalyzer {
           kind: SymbolKind.Enum,
           location: { uri, range: nested.range },
         };
+      }
+    }
+
+    for (const group of message.groups) {
+      if (group.name === typeName) {
+        const fullName = `${messageFullName}.${group.name}`;
+        return {
+          name: group.name,
+          fullName,
+          kind: SymbolKind.Message,
+          location: { uri, range: group.range },
+        };
+      }
+
+      const nestedGroupSymbol = this.findNestedGroupType(group, typeName, messageFullName, uri);
+      if (nestedGroupSymbol) {
+        return nestedGroupSymbol;
+      }
+    }
+
+    return undefined;
+  }
+
+  private findNestedGroupType(
+    group: GroupFieldDefinition,
+    typeName: string,
+    prefix: string,
+    uri: string
+  ): SymbolInfo | undefined {
+    const groupFullName = prefix ? `${prefix}.${group.name}` : group.name;
+
+    for (const nested of group.nestedMessages) {
+      if (nested.name === typeName) {
+        const fullName = `${groupFullName}.${nested.name}`;
+        return {
+          name: nested.name,
+          fullName,
+          kind: SymbolKind.Message,
+          location: { uri, range: nested.range },
+        };
+      }
+
+      const deeperSymbol = this.findNestedType(nested, typeName, groupFullName, uri);
+      if (deeperSymbol) {
+        return deeperSymbol;
+      }
+    }
+
+    for (const nested of group.nestedEnums) {
+      if (nested.name === typeName) {
+        const fullName = `${groupFullName}.${nested.name}`;
+        return {
+          name: nested.name,
+          fullName,
+          kind: SymbolKind.Enum,
+          location: { uri, range: nested.range },
+        };
+      }
+    }
+
+    for (const nestedGroup of group.groups) {
+      if (nestedGroup.name === typeName) {
+        const fullName = `${groupFullName}.${nestedGroup.name}`;
+        return {
+          name: nestedGroup.name,
+          fullName,
+          kind: SymbolKind.Message,
+          location: { uri, range: nestedGroup.range },
+        };
+      }
+
+      const deeperGroupSymbol = this.findNestedGroupType(nestedGroup, typeName, groupFullName, uri);
+      if (deeperGroupSymbol) {
+        return deeperGroupSymbol;
       }
     }
 

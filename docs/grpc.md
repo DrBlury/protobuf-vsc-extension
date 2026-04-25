@@ -1,8 +1,6 @@
 # gRPC Integration
 
-The Protobuf VSC extension provides comprehensive gRPC support, including service analysis, code generation, and development tools.
-
-> **Note**: For the complete gRPC Client feature specification including planned features like native gRPC client, server reflection, streaming UI, and more, see [GRPC_CLIENT_FEATURE_SPECIFICATION.md](./GRPC_CLIENT_FEATURE_SPECIFICATION.md).
+The gRPC integration indexes service definitions and provides commands for service inspection, code stub generation, and service statistics.
 
 ## Overview
 
@@ -93,7 +91,7 @@ type UserServiceServer struct {
 func (s *UserServiceServer) mustEmbedUnimplementedUserServiceServer() {}
 
 func (s *UserServiceServer) GetUser(ctx context.Context, req *GetUserRequest) (*GetUserResponse, error) {
-  // TODO: Implement GetUser
+  // Replace with service logic.
   return nil, status.Errorf(codes.Unimplemented, "method GetUser not implemented")
 }
 ```
@@ -120,7 +118,7 @@ public class UserServiceImpl extends UserServiceGrpc.UserServiceImplBase {
   public void getUser(
       GetUserRequest request,
       StreamObserver<GetUserResponse> responseObserver) {
-    // TODO: Implement getUser
+    // Replace with service logic.
     responseObserver.onError(
       Status.UNIMPLEMENTED.withDescription("method getUser not implemented").asException()
     );
@@ -147,7 +145,7 @@ class UserServiceClient:
 ```python
 class UserServiceServicer(user_service_pb2_grpc.UserServiceServicer):
   def get_user(self, request, context):
-    # TODO: Implement get_user
+    # Replace with service logic.
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('method get_user not implemented')
     raise NotImplementedError('method get_user not implemented')
@@ -172,7 +170,7 @@ export class UserServiceClient {
 ```typescript
 export class UserServiceService implements UserServiceServiceDefinition {
   getUser(call: ServerUnaryCall<GetUserRequest, GetUserResponse>): Promise<GetUserResponse> {
-    // TODO: Implement getUser
+    // Replace with service logic.
     throw new Error('method getUser not implemented');
   }
 }
@@ -220,13 +218,13 @@ rpc Chat(stream Message) returns (stream Message);
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `Protobuf: List gRPC Services` | List all services in workspace |
-| `Protobuf: Show gRPC Service Details` | Show details for service in current file |
-| `Protobuf: Generate gRPC Client Stub` | Generate client stub code |
-| `Protobuf: Generate gRPC Server Template` | Generate server implementation template |
-| `Protobuf: Show gRPC Service Statistics` | Show statistics for a service |
+| Command                                   | Description                              |
+| ----------------------------------------- | ---------------------------------------- |
+| `Protobuf: List gRPC Services`            | List all services in workspace           |
+| `Protobuf: Show gRPC Service Details`     | Show details for service in current file |
+| `Protobuf: Generate gRPC Client Stub`     | Generate client stub code                |
+| `Protobuf: Generate gRPC Server Template` | Generate server implementation template  |
+| `Protobuf: Show gRPC Service Statistics`  | Show statistics for a service            |
 
 ## Snippets
 
@@ -249,7 +247,7 @@ The extension includes many gRPC-specific snippets:
 - `rpcclientstream` - Client streaming RPC
 - `rpcbidistream` - Bidirectional streaming RPC
 
-See [Snippets](./snippets.md) for complete list.
+See [Snippets](./snippets.md) for gRPC snippet prefixes.
 
 ## Best Practices
 
@@ -388,9 +386,8 @@ Automatic checks for:
 
 ## See Also
 
-- [gRPC Client Feature Specification](./GRPC_CLIENT_FEATURE_SPECIFICATION.md) - Complete feature spec for the full gRPC client
 - [Snippets](./snippets.md) - gRPC code snippets
-- [Completions](./completions.md) - Smart IntelliSense for services
+- [Completions](./completions.md) - IntelliSense for services
 - [Schema Graph](./schema-graph.md) - Visualize service relationships
 - [Templates](./templates.md) - Service templates
 - [Playground](./playground.md) - Interactive request testing

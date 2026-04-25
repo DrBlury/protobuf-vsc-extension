@@ -278,10 +278,7 @@ message User {
 
 ```jsonc
 {
-  "protobuf.includes": [
-    "${workspaceFolder}/protos",
-    "${workspaceFolder}/third_party"
-  ]
+  "protobuf.includes": ["${workspaceFolder}/protos", "${workspaceFolder}/third_party"],
 }
 ```
 
@@ -291,10 +288,7 @@ You can map a virtual import prefix to a local directory by using `virtual=path`
 
 ```jsonc
 {
-  "protobuf.includes": [
-    "example.com/org/my-project=${workspaceFolder}",
-    "example.com/org=${workspaceFolder}/.."
-  ]
+  "protobuf.includes": ["example.com/org/my-project=${workspaceFolder}", "example.com/org=${workspaceFolder}/.."],
 }
 ```
 
@@ -318,7 +312,7 @@ These sources now populate the analyzer automatically, so most projects no longe
 
 ```jsonc
 {
-  "protobuf.protoSrcsDir": "examples/regressions"
+  "protobuf.protoSrcsDir": "examples/regressions",
 }
 ```
 
@@ -332,10 +326,7 @@ These sources now populate the analyzer automatically, so most projects no longe
 
 ```jsonc
 {
-  "protobuf.workspace.ignorePatterns": [
-    "build",
-    "**/generated/**"
-  ]
+  "protobuf.workspace.ignorePatterns": ["build", "**/generated/**"],
 }
 ```
 
@@ -392,11 +383,7 @@ These sources now populate the analyzer automatically, so most projects no longe
   ```json
   {
     "protobuf.codegen.profiles": {
-      "go": [
-        "--go_out=${workspaceFolder}/gen/go",
-        "--go_opt=paths=source_relative",
-        "${file}"
-      ],
+      "go": ["--go_out=${workspaceFolder}/gen/go", "--go_opt=paths=source_relative", "${file}"],
       "typescript": [
         "--plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts",
         "--ts_out=${workspaceFolder}/gen/ts",
@@ -450,8 +437,8 @@ These sources now populate the analyzer automatically, so most projects no longe
   "protobuf.protoc.options": [
     "--proto_path=${workspaceFolder}",
     "--go_out=${workspaceFolder}/gen/go",
-    "--java_out=${workspaceFolder}/gen/java"
-  ]
+    "--java_out=${workspaceFolder}/gen/java",
+  ],
 }
 ```
 
@@ -471,16 +458,11 @@ These sources now populate the analyzer automatically, so most projects no longe
 
 ```jsonc
 {
-  "protobuf.protoc.excludePatterns": [
-    "nanopb",
-    "third_party",
-    "**/test/**",
-    "**/tests/**"
-  ]
+  "protobuf.protoc.excludePatterns": ["nanopb", "third_party", "**/test/**", "**/tests/**"],
 }
 ```
 
-**Note:** For Buf users, exclude patterns should be configured in `buf.yaml` instead. See [Buf Configuration](./buf-config.md#excluding-files-and-directories) for details.
+**Note:** This setting only affects `Compile All Protos`. Buf excludes in `buf.yaml` are parsed for configuration awareness but are not used as editor ignore patterns.
 
 ### Buf CLI Configuration
 
@@ -681,26 +663,16 @@ Settings support VS Code-style variables in path settings (`protobuf.protoc.path
   "protobuf.completion.includeGoogleTypes": true,
 
   // Import paths
-  "protobuf.includes": [
-    "${workspaceFolder}/protos",
-    "${workspaceFolder}/third_party"
-  ],
+  "protobuf.includes": ["${workspaceFolder}/protos", "${workspaceFolder}/third_party"],
 
   // Protoc
   "protobuf.protoc.path": "protoc",
-  "protobuf.protoc.options": [
-    "--proto_path=${workspaceFolder}",
-    "--go_out=${workspaceFolder}/gen/go"
-  ],
-  "protobuf.protoc.excludePatterns": [
-    "nanopb",
-    "third_party",
-    "**/test/**"
-  ],
+  "protobuf.protoc.options": ["--proto_path=${workspaceFolder}", "--go_out=${workspaceFolder}/gen/go"],
+  "protobuf.protoc.excludePatterns": ["nanopb", "third_party", "**/test/**"],
 
   // External linter
   "protobuf.externalLinter.enabled": true,
   "protobuf.externalLinter.linter": "buf",
-  "protobuf.externalLinter.runOnSave": true
+  "protobuf.externalLinter.runOnSave": true,
 }
 ```

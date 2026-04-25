@@ -171,8 +171,116 @@ breaking:
     expect(config?.deps).toBeDefined();
     expect(config?.deps).toContain('buf.build/googleapis/googleapis');
     expect(config?.deps).toContain('buf.build/bufbuild/protovalidate');
+    expect(config?.modules?.[0]?.path).toBe('.');
+    expect(config?.modules?.[0]?.excludes).toContain('.buf-deps');
     // Should NOT contain items from modules section
     expect(config?.deps).not.toContain('path: .');
     expect(config?.deps?.length).toBe(2);
+  });
+
+  it('should ignore nested module metadata lists when parsing buf.yaml v2 modules', () => {
+    const bufYaml = `version: v2
+modules:
+  - path: proto
+    lint:
+      use:
+        - STANDARD
+    breaking:
+      use:
+        - FILE
+deps:
+  - buf.build/googleapis/googleapis
+`;
+
+    const bufYamlPath = path.join(tempDir, 'buf.yaml');
+    fs.writeFileSync(bufYamlPath, bufYaml);
+
+    const config = bufConfigProvider.findBufConfig(bufYamlPath);
+
+    expect(config?.modules).toEqual([{ path: 'proto' }]);
+    expect(config?.deps).toEqual(['buf.build/googleapis/googleapis']);
+  });
+
+  it('should get proto roots from buf.yaml v2 modules', () => {
+    const bufYaml = `version: v2
+modules:
+  - path: ./protos
+    excludes:
+      - protos/grpc
+deps:
+  - buf.build/googleapis/googleapis
+`;
+
+    const bufYamlPath = path.join(tempDir, 'buf.yaml');
+    fs.writeFileSync(bufYamlPath, bufYaml);
+
+    const protoDir = path.join(tempDir, 'protos');
+    fs.mkdirSync(protoDir, { recursive: true });
+
+    const roots = bufConfigProvider.getProtoRoots(bufYamlPath);
+
+    expect(roots).toEqual([path.normalize(protoDir)]);
+    expect(roots).not.toContain(path.normalize(tempDir));
+  });
+
+  it('should resolve v2 module roots relative to buf.yaml when called with a proto file path', () => {
+    const bufYaml = `version: v2
+modules:
+  - path: protos
+`;
+
+    const bufYamlPath = path.join(tempDir, 'buf.yaml');
+    fs.writeFileSync(bufYamlPath, bufYaml);
+
+    const protoDir = path.join(tempDir, 'protos');
+    fs.mkdirSync(path.join(protoDir, 'api', 'v1'), { recursive: true });
+    const protoFilePath = path.join(protoDir, 'api', 'v1', 'service.proto');
+    fs.writeFileSync(protoFilePath, 'syntax = "proto3";');
+
+    const roots = bufConfigProvider.getProtoRoots(protoFilePath);
+
+    expect(roots).toContain(path.normalize(protoDir));
+    expect(roots).not.toContain(path.normalize(path.join(protoDir, 'api', 'v1', 'protos')));
+  });
+
+  it('should return all existing v2 module roots', () => {
+    const bufYaml = `version: v2
+modules:
+  - path: proto/public
+  - path: proto/internal
+  - path: proto/missing
+`;
+
+    const bufYamlPath = path.join(tempDir, 'buf.yaml');
+    fs.writeFileSync(bufYamlPath, bufYaml);
+
+    const publicDir = path.join(tempDir, 'proto', 'public');
+    const internalDir = path.join(tempDir, 'proto', 'internal');
+    fs.mkdirSync(publicDir, { recursive: true });
+    fs.mkdirSync(internalDir, { recursive: true });
+
+    const roots = bufConfigProvider.getProtoRoots(bufYamlPath);
+
+    expect(roots).toEqual([path.normalize(publicDir), path.normalize(internalDir)]);
+  });
+
+  it('should resolve v1 build roots relative to buf.yaml when called with a proto file path', () => {
+    const bufYaml = `version: v1
+build:
+  roots:
+    - proto
+`;
+
+    const bufYamlPath = path.join(tempDir, 'buf.yaml');
+    fs.writeFileSync(bufYamlPath, bufYaml);
+
+    const protoDir = path.join(tempDir, 'proto');
+    fs.mkdirSync(protoDir, { recursive: true });
+    const protoFilePath = path.join(protoDir, 'service.proto');
+    fs.writeFileSync(protoFilePath, 'syntax = "proto3";');
+
+    const roots = bufConfigProvider.getProtoRoots(protoFilePath);
+
+    expect(roots).toEqual([path.normalize(protoDir)]);
   });
 });

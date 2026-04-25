@@ -27,25 +27,30 @@
 ; Type names
 [
   (key_type)
+  (scalar_type)
   (type)
-  (message_name)
-  (enum_name)
-  (service_name)
-  (rpc_name)
 ] @type
+
+[
+  (message name: (identifier))
+  (enum name: (identifier))
+  (service name: (identifier))
+] @type
+
+(rpc name: (identifier)) @function
 
 ; Field names and identifiers
 (field
-  (identifier) @variable)
+  name: (identifier) @variable)
 
 (enum_field
-  (identifier) @constant)
+  name: (identifier) @constant)
 
 (oneof
-  (identifier) @variable)
+  name: (identifier) @variable)
 
 (map_field
-  (identifier) @variable)
+  name: (identifier) @variable)
 
 ; Strings
 (string) @string
@@ -57,10 +62,7 @@
 ] @number
 
 ; Boolean literals
-[
-  (true)
-  (false)
-] @constant.builtin
+(bool_lit) @constant.builtin
 
 ; Comments
 (comment) @comment

@@ -324,6 +324,21 @@ async function findProtoFiles(dir: string): Promise<string[]> {
 // Minimum match rate required for CI to pass (percentage)
 const CI_MINIMUM_MATCH_RATE = 100;
 
+const COMPARISON_SKIP_FIXTURES = new Map<string, string>([
+  [
+    'examples/regressions/issue-68-document-symbol-name/invalid-symbols.proto',
+    'intentionally malformed regression fixture for missing symbol names',
+  ],
+]);
+
+function toRepoRelativePath(filePath: string): string {
+  return path.relative(process.cwd(), filePath).split(path.sep).join('/');
+}
+
+function getComparisonSkipReason(filePath: string): string | undefined {
+  return COMPARISON_SKIP_FIXTURES.get(toRepoRelativePath(filePath));
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const ciMode = args.includes('--ci');
@@ -355,9 +370,17 @@ async function main() {
   if (args.includes('--all') || ciMode) {
     // Find all proto files in examples directory
     const examplesDir = path.join(__dirname, '../examples');
-    files = await findProtoFiles(examplesDir);
+    const allFiles = await findProtoFiles(examplesDir);
+    const skippedFiles = allFiles.filter(file => getComparisonSkipReason(file));
+    files = allFiles.filter(file => !getComparisonSkipReason(file));
     if (!quiet) {
-      console.log(`Found ${files.length} proto files in examples/\n`);
+      console.log(`Found ${files.length} comparable proto files in examples/ (${skippedFiles.length} skipped)\n`);
+      for (const file of skippedFiles) {
+        console.log(`- Skipping ${toRepoRelativePath(file)}: ${getComparisonSkipReason(file)}`);
+      }
+      if (skippedFiles.length > 0) {
+        console.log('');
+      }
     }
   } else if (args.filter(arg => !arg.startsWith('-')).length > 0) {
     files = args.filter(arg => !arg.startsWith('-'));
@@ -384,7 +407,7 @@ async function main() {
 
       if (!quiet) {
         const status = result.match ? '✅' : '❌';
-        const relativePath = path.relative(process.cwd(), file);
+        const relativePath = toRepoRelativePath(file);
         console.log(`${status} ${relativePath}`);
 
         if (!result.match) {
@@ -421,7 +444,7 @@ async function main() {
   if (matching < total) {
     console.log('\nFiles with differences:');
     for (const result of results.filter(r => !r.match)) {
-      console.log(`  - ${path.relative(process.cwd(), result.file)}`);
+      console.log(`  - ${toRepoRelativePath(result.file)}`);
     }
   }
 

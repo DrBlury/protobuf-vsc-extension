@@ -1,37 +1,71 @@
 name: Release
 
 on:
-  workflow_call:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to package, for example v1.2.3'
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    env:
+      OVSX_PAT: ${{ secrets.OPEN_VSX_TOKEN }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-
-      - name: Extract version from tag
-        id: version
-        run: |
-          # Extract version from tag (removes 'v' prefix if present)
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Extracted version: $VERSION"
-
-      - name: Update package.json version
-        run: |
-          npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version --allow-same-version
-          echo "Updated package.json to version ${{ steps.version.outputs.VERSION }}"
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: "npm"
+          cache: 'npm'
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release tags must look like v1.2.3, optionally with semver prerelease/build metadata."
+            echo "Received: $TAG"
+            exit 1
+          fi
+
+          VERSION="${TAG#v}"
+          VSIX_PATH="protobuf-vsc-${VERSION}.vsix"
+
+          {
+            echo "tag=$TAG"
+            echo "version=$VERSION"
+            echo "vsix_path=$VSIX_PATH"
+          } >> "$GITHUB_OUTPUT"
+          echo "Extracted version: $VERSION"
+
+      - name: Update package.json version
+        run: |
+          npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+          npm pkg get version
+          echo "Updated package metadata to version ${{ steps.version.outputs.version }}"
 
       - name: Install dependencies
         run: npm ci
@@ -53,7 +87,7 @@ jobs:
       - name: Run Grype Security Scan
         uses: anchore/scan-action@v7
         with:
-          path: "."
+          path: '.'
           fail-build: false
           severity-cutoff: high
           output-format: sarif
@@ -69,21 +103,41 @@ jobs:
       - name: Dependency Audit
         run: npm audit --omit=dev --audit-level=critical
 
-      - name: Install vsce
-        run: npm install -g @vscode/vsce
-
       - name: Package extension
-        run: vsce package
+        run: npm run package -- --out "${{ steps.version.outputs.vsix_path }}"
 
-      - name: Publish to Open VSX
-        run: npx ovsx publish *.vsix
-        env:
-          OVSX_PAT: ${{ secrets.OPEN_VSX_TOKEN }}
+      - name: Verify packaged extension exists
+        run: test -f "${{ steps.version.outputs.vsix_path }}"
+
+      - name: Write release notes
+        run: |
+          cat > release-notes.md <<'EOF'
+          ## Changes
+
+          - Updates dependencies, CI, and release packaging.
+          - Bundles the extension for Marketplace and Open VSX packaging.
+          - Adds Buf v2 module root support.
+          - Fixes duplicate symbol resolution for imported proto files.
+          - Fixes UTF-8 handling for clang-format output.
+          - Cleans public documentation and issue templates.
+          EOF
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: "*.vsix"
-          generate_release_notes: true
+          tag_name: ${{ steps.version.outputs.tag }}
+          files: |
+            ${{ steps.version.outputs.vsix_path }}
+            release-sbom.json
+          fail_on_unmatched_files: true
+          body_path: release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to Open VSX
+        if: ${{ env.OVSX_PAT != '' }}
+        run: npx --yes ovsx publish "${{ steps.version.outputs.vsix_path }}"
+
+      - name: Skip Open VSX publish
+        if: ${{ env.OVSX_PAT == '' }}
+        run: echo "OPEN_VSX_TOKEN is not configured; skipping Open VSX publish."

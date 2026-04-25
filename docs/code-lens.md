@@ -1,6 +1,6 @@
 # Code Lens
 
-Code Lens displays reference counts and metadata above symbols in your proto files.
+Code Lens displays reference counts and metadata above proto symbols.
 
 ## Overview
 
@@ -87,7 +87,7 @@ Code Lens is enabled by default. To disable:
 
 ```jsonc
 {
-  "editor.codeLens": false  // Disables all Code Lens (VS Code setting)
+  "editor.codeLens": false, // Disables all Code Lens (VS Code setting)
 }
 ```
 

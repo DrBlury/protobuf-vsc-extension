@@ -1,7 +1,7 @@
 {
   "name": "protobuf-vsc",
   "displayName": "Protobuf VSC",
-  "description": "Comprehensive Protocol Buffers support for VS Code with syntax highlighting, IntelliSense, diagnostics, formatting, protoc compilation, breaking change detection, and more. Successor to vscode-proto3. ",
+  "description": "Comprehensive Protocol Buffers support for VS Code with syntax highlighting, IntelliSense, diagnostics, formatting, protoc compilation, breaking change detection, and more. Successor to vscode-proto3.",
   "version": "v0.0.0-dev",
   "publisher": "DrBlury",
   "author": {
@@ -55,7 +55,7 @@
     "rpc",
     "microservices"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -994,7 +994,8 @@
   },
   "scripts": {
     "pretest": "node -e \"require('fs').mkdirSync('.vscode-test',{recursive:true});\"",
-    "vscode:prepublish": "npm run compile && npm run build:tree-sitter",
+    "vscode:prepublish": "npm run build",
+    "build": "npm run compile && npm run build:tree-sitter && npm run bundle",
     "compile": "tsc -b",
     "watch": "tsc -b -w",
     "type-check": "tsc --noEmit",
@@ -1002,35 +1003,37 @@
     "lint:fix": "eslint ./src --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "test": "node ./node_modules/jest/bin/jest.js",
-    "test:watch": "node ./node_modules/jest/bin/jest.js --watch",
-    "test:coverage": "node ./node_modules/jest/bin/jest.js --coverage",
+    "test": "node --no-experimental-webstorage ./node_modules/jest/bin/jest.js",
+    "test:watch": "node --no-experimental-webstorage ./node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --no-experimental-webstorage ./node_modules/jest/bin/jest.js --coverage --runInBand",
     "test:grammar": "npx vscode-tmgrammar-test -g syntaxes/proto.tmLanguage.json 'syntaxes/__tests__/*.proto.test'",
     "test:parsers": "npx ts-node scripts/compare-parsers.ts --ci",
     "test:parsers:all": "npx ts-node scripts/compare-parsers.ts --all",
     "test:all": "npm run test && npm run test:grammar && npm run test:parsers",
     "test:security": "node test-security.js",
     "build:tree-sitter": "cd tree-sitter-proto && npx tree-sitter build --wasm && mkdir -p ../out/tree-sitter && cp tree-sitter-proto.wasm ../out/tree-sitter/",
+    "bundle": "node scripts/bundle.js",
     "test:tree-sitter": "cd tree-sitter-proto && npx tree-sitter test",
-    "package": "npm run compile && npm run build:tree-sitter && npx vsce package",
+    "package": "npx vsce package --no-dependencies",
     "install-local": "npm run package && code --install-extension protobuf-vsc-*.vsix --force && osascript -e 'tell application \"Visual Studio Code\" to activate' -e 'tell application \"System Events\" to keystroke \"r\" using {command down, shift down}'"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.3.3",
-    "@types/vscode": "^1.109.0",
-    "@typescript-eslint/eslint-plugin": "^8.56.1",
-    "@typescript-eslint/parser": "^8.56.0",
-    "@vscode/vsce": "^3.7.1",
-    "eslint": "^10.0.2",
+    "@types/node": "^25.6.0",
+    "@types/vscode": "1.109.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.0",
+    "@typescript-eslint/parser": "^8.59.0",
+    "@vscode/vsce": "^3.9.1",
+    "esbuild": "^0.28.0",
+    "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
-    "jest": "^30.2.0",
-    "prettier": "^3.8.1",
-    "tree-sitter-cli": "^0.26.6",
-    "ts-jest": "^29.4.6",
-    "typescript": "^5.9.3",
+    "jest": "^30.3.0",
+    "prettier": "^3.8.3",
+    "tree-sitter-cli": "^0.26.8",
+    "ts-jest": "^29.4.9",
+    "typescript": "^6.0.3",
     "vscode-tmgrammar-test": "^0.1.3"
   },
   "dependencies": {
@@ -1038,6 +1041,12 @@
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.12",
     "vscode-uri": "^3.1.0",
-    "web-tree-sitter": "^0.26.6"
+    "web-tree-sitter": "^0.26.8"
+  },
+  "overrides": {
+    "@vscode/vsce": {
+      "brace-expansion": "1.1.13"
+    },
+    "baseline-browser-mapping": "2.10.22"
   }
 }

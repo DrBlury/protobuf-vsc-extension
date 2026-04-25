@@ -1,10 +1,10 @@
 # Symbol Search
 
-Fuzzy workspace symbol search helps you quickly find messages, enums, and services across your entire workspace.
+Workspace symbol search finds messages, enums, services, RPCs, and fields across indexed proto files.
 
 ## Overview
 
-The symbol search feature provides intelligent, fuzzy matching to find symbols even when you don't remember the exact name.
+Search supports exact, prefix, substring, and fuzzy matching.
 
 ## How to Use
 
@@ -116,12 +116,12 @@ Results:
 
 ## Comparison with Go to Symbol
 
-| Feature | Go to Symbol (`Cmd/Ctrl+T`) | Go to Definition (`F12`) |
-| --- | --- | --- |
-| Scope | Workspace-wide | Current file context |
-| Matching | Fuzzy, intelligent | Exact match required |
-| Use case | Finding symbols | Navigating to definitions |
-| Speed | Fast | Instant |
+| Feature  | Go to Symbol (`Cmd/Ctrl+T`)     | Go to Definition (`F12`)  |
+| -------- | ------------------------------- | ------------------------- |
+| Scope    | Workspace-wide                  | Current file context      |
+| Matching | Exact, prefix, substring, fuzzy | Exact match required      |
+| Use case | Finding symbols                 | Navigating to definitions |
+| Speed    | Fast                            | Instant                   |
 
 ## Use Cases
 

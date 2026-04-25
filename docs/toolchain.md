@@ -1,12 +1,12 @@
 # Toolchain Management
 
-The Protobuf VSC extension includes a built-in toolchain manager that helps you install, manage, and monitor the protobuf tools (`protoc`, `buf`, and `grpcurl`) required for working with Protocol Buffers.
+The toolchain manager installs, selects, and checks protobuf tools used by the extension: `protoc`, `buf`, and `grpcurl`.
 
 ## Overview
 
 The toolchain manager provides:
 
-- **Automatic tool detection** - Checks if `protoc`, `buf`, and `grpcurl` are installed
+- **Tool detection** - Checks if `protoc`, `buf`, and `grpcurl` are installed
 - **Status bar indicator** - Visual feedback on toolchain health
 - **One-click installation** - Install missing tools directly from VS Code
 - **Version management** - View installed versions and update tools
@@ -15,8 +15,8 @@ The toolchain manager provides:
 
 The extension displays a status indicator in the VS Code status bar:
 
-- ✅ **Green checkmark** - All tools are installed and working
-- ⚠️ **Warning icon** - One or more tools are missing
+- **Green checkmark** - All required tools are installed and working
+- **Warning icon** - One or more required tools are missing
 
 Buf is only treated as a required tool when Buf-powered features are active (Buf formatter preset, Buf linter, or Buf codegen on save). Otherwise the status bar won't warn about Buf being absent.
 
@@ -58,8 +58,8 @@ You can configure which to use in settings:
 
 ```json
 {
-  "protobuf.protoc.path": "protoc",  // Use system protoc
-  "protobuf.buf.path": "/path/to/buf"  // Use specific path
+  "protobuf.protoc.path": "protoc", // Use system protoc
+  "protobuf.buf.path": "/path/to/buf" // Use specific path
 }
 ```
 
@@ -174,7 +174,7 @@ The toolchain manager logs all operations to the "Protobuf" output channel. Open
 2. **Check status regularly** - The status bar indicator shows toolchain health at a glance
 3. **Keep tools updated** - Reinstall tools periodically to get the latest versions
 4. **Configure paths explicitly** - If using system tools, configure paths explicitly in settings
-5. **Use quick switch commands** - Use `Use Managed Toolchain` or `Use System Toolchain` commands for easy switching
+5. **Use quick switch commands** - Use `Use Managed Toolchain` or `Use System Toolchain` commands to change tool sources
 
 ---
 

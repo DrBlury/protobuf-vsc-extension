@@ -66,7 +66,7 @@ describe('client', () => {
       createLanguageClient(context);
 
       const serverOptions = mockLanguageClient.mock.calls[0][2];
-      const expectedPath = path.join('/my/extension/path', 'out', 'server', 'server.js');
+      const expectedPath = path.join('/my/extension/path', 'dist', 'server', 'server.js');
       expect(serverOptions.run.module).toBe(expectedPath);
       expect(serverOptions.debug.module).toBe(expectedPath);
     });

@@ -20,7 +20,7 @@ Breaking change detection compares your current proto files against a baseline (
 {
   "protobuf.breaking.enabled": true,
   "protobuf.breaking.againstStrategy": "git",
-  "protobuf.breaking.againstGitRef": "HEAD~1"
+  "protobuf.breaking.againstGitRef": "HEAD~1",
 }
 ```
 
@@ -34,7 +34,7 @@ Compare against a git reference:
 {
   "protobuf.breaking.enabled": true,
   "protobuf.breaking.againstStrategy": "git",
-  "protobuf.breaking.againstGitRef": "HEAD~1"  // or "main", "origin/main", etc.
+  "protobuf.breaking.againstGitRef": "HEAD~1", // or "main", "origin/main", etc.
 }
 ```
 
@@ -46,7 +46,7 @@ Compare against a specific file:
 {
   "protobuf.breaking.enabled": true,
   "protobuf.breaking.againstStrategy": "file",
-  "protobuf.breaking.againstFilePath": "${workspaceFolder}/baseline.proto"
+  "protobuf.breaking.againstFilePath": "${workspaceFolder}/baseline.proto",
 }
 ```
 

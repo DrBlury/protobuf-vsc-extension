@@ -1,6 +1,6 @@
 # Proto2 to Proto3 Migration
 
-The Migration feature helps you convert Protocol Buffer files from proto2 syntax to proto3 syntax, automatically handling many of the common changes required.
+The migration command converts supported proto2 syntax to proto3 syntax.
 
 ## Overview
 

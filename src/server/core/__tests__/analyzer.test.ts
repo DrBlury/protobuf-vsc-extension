@@ -301,6 +301,206 @@ describe('SemanticAnalyzer', () => {
       expect(symbol!.fullName).toBe('common.v1.Timestamp');
     });
 
+    it('should prefer imported duplicate fully qualified symbols over later non-imported duplicates', () => {
+      const serviceAUri = 'file:///workspace/service_a/types.proto';
+      const serviceBUri = 'file:///workspace/service_b/types.proto';
+      const apiUri = 'file:///workspace/api.proto';
+
+      const serviceAFile = parser.parse(
+        `
+        syntax = "proto3";
+        package com.example.shared;
+        message MyRequest {}
+      `,
+        serviceAUri
+      );
+      const apiFile = parser.parse(
+        `
+        syntax = "proto3";
+        package com.example.api;
+        import "service_a/types.proto";
+        message Api {
+          com.example.shared.MyRequest request = 1;
+        }
+      `,
+        apiUri
+      );
+      const serviceBFile = parser.parse(
+        `
+        syntax = "proto3";
+        package com.example.shared;
+        message MyRequest {}
+      `,
+        serviceBUri
+      );
+
+      analyzer.setWorkspaceRoots(['/workspace']);
+      analyzer.updateFile(serviceAUri, serviceAFile);
+      analyzer.updateFile(apiUri, apiFile);
+      analyzer.updateFile(serviceBUri, serviceBFile);
+
+      const symbol = analyzer.resolveType('com.example.shared.MyRequest', apiUri, 'com.example.api');
+
+      expect(symbol).toBeDefined();
+      expect(symbol!.location.uri).toBe(serviceAUri);
+    });
+
+    it('should prefer imported duplicate fully qualified symbols for leading-dot absolute references', () => {
+      const serviceAUri = 'file:///workspace/service_a/types.proto';
+      const serviceBUri = 'file:///workspace/service_b/types.proto';
+      const apiUri = 'file:///workspace/api.proto';
+
+      analyzer.setWorkspaceRoots(['/workspace']);
+      analyzer.updateFile(
+        serviceAUri,
+        parser.parse(
+          `
+          syntax = "proto3";
+          package com.example.shared;
+          message MyRequest {}
+        `,
+          serviceAUri
+        )
+      );
+      analyzer.updateFile(
+        apiUri,
+        parser.parse(
+          `
+          syntax = "proto3";
+          package com.example.api;
+          import "service_a/types.proto";
+          message Api {
+            .com.example.shared.MyRequest request = 1;
+          }
+        `,
+          apiUri
+        )
+      );
+      analyzer.updateFile(
+        serviceBUri,
+        parser.parse(
+          `
+          syntax = "proto3";
+          package com.example.shared;
+          message MyRequest {}
+        `,
+          serviceBUri
+        )
+      );
+
+      const symbol = analyzer.resolveType('.com.example.shared.MyRequest', apiUri, 'com.example.api');
+
+      expect(symbol).toBeDefined();
+      expect(symbol!.location.uri).toBe(serviceAUri);
+    });
+
+    it('should prefer imported duplicate symbols for simple imported type names', () => {
+      const serviceAUri = 'file:///workspace/service_a/types.proto';
+      const serviceBUri = 'file:///workspace/service_b/types.proto';
+      const apiUri = 'file:///workspace/api.proto';
+
+      analyzer.setWorkspaceRoots(['/workspace']);
+      analyzer.updateFile(
+        serviceAUri,
+        parser.parse(
+          `
+          syntax = "proto3";
+          package com.example.shared;
+          message MyRequest {}
+        `,
+          serviceAUri
+        )
+      );
+      analyzer.updateFile(
+        apiUri,
+        parser.parse(
+          `
+          syntax = "proto3";
+          package com.example.api;
+          import "service_a/types.proto";
+          message Api {
+            MyRequest request = 1;
+          }
+        `,
+          apiUri
+        )
+      );
+      analyzer.updateFile(
+        serviceBUri,
+        parser.parse(
+          `
+          syntax = "proto3";
+          package com.example.shared;
+          message MyRequest {}
+        `,
+          serviceBUri
+        )
+      );
+
+      const symbol = analyzer.resolveType('MyRequest', apiUri, 'com.example.api');
+
+      expect(symbol).toBeDefined();
+      expect(symbol!.location.uri).toBe(serviceAUri);
+    });
+
+    it('should prefer imported duplicate group symbols over later non-imported duplicates', () => {
+      const serviceAUri = 'file:///workspace/service_a/types.proto';
+      const serviceBUri = 'file:///workspace/service_b/types.proto';
+      const apiUri = 'file:///workspace/api.proto';
+
+      analyzer.setWorkspaceRoots(['/workspace']);
+      analyzer.updateFile(
+        serviceAUri,
+        parser.parse(
+          `
+          syntax = "proto2";
+          package com.example.shared;
+          message Envelope {
+            optional group Payload = 1 {
+              optional string id = 2;
+            }
+          }
+        `,
+          serviceAUri
+        )
+      );
+      analyzer.updateFile(
+        apiUri,
+        parser.parse(
+          `
+          syntax = "proto2";
+          package com.example.api;
+          import "service_a/types.proto";
+          message Api {
+            optional com.example.shared.Envelope.Payload payload = 1;
+          }
+        `,
+          apiUri
+        )
+      );
+      analyzer.updateFile(
+        serviceBUri,
+        parser.parse(
+          `
+          syntax = "proto2";
+          package com.example.shared;
+          message Envelope {
+            optional group Payload = 1 {
+              optional string id = 2;
+            }
+          }
+        `,
+          serviceBUri
+        )
+      );
+
+      const symbol = analyzer.resolveType('com.example.shared.Envelope.Payload', apiUri, 'com.example.api');
+
+      expect(symbol).toBeDefined();
+      expect(symbol!.kind).toBe(SymbolKind.Message);
+      expect(symbol!.location.uri).toBe(serviceAUri);
+    });
+
     it('should resolve forward references within the same file', () => {
       const file = parser.parse(
         `

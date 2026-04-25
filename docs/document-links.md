@@ -1,6 +1,6 @@
 # Document Links
 
-Document Links make import paths clickable, enabling quick navigation to imported proto files.
+Document Links make import paths clickable.
 
 ## Overview
 
@@ -17,7 +17,7 @@ Simply **Ctrl/Cmd + Click** (or right-click → Go to Definition) on any import 
 
 ## Features
 
-### Smart Path Resolution
+### Path Resolution
 
 The extension attempts to resolve import paths using:
 
@@ -69,10 +69,7 @@ Import paths are resolved using:
 
 ```jsonc
 {
-  "protobuf.includes": [
-    "${workspaceFolder}/protos",
-    "${workspaceFolder}/third_party"
-  ]
+  "protobuf.includes": ["${workspaceFolder}/protos", "${workspaceFolder}/third_party"],
 }
 ```
 

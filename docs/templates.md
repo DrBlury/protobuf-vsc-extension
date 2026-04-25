@@ -1,10 +1,10 @@
 # Templates
 
-Pre-built templates help you quickly create common proto file structures.
+Templates create common proto file structures.
 
 ## Overview
 
-Templates provide ready-to-use proto file structures for common patterns, saving time and ensuring best practices.
+Templates are inserted from the Command Palette and opened as editable proto content.
 
 ## Available Templates
 

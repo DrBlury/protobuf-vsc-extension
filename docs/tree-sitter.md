@@ -27,11 +27,11 @@ Tree-sitter is enabled by default. To use the legacy built-in parser instead:
 {
   "protobuf.parser": "legacy"
 }
-
 ```
 
 The parser can be changed dynamically without restarting VS Code.
-```
+
+````
 
 ## Benefits
 
@@ -62,7 +62,7 @@ The Tree-sitter grammar is located at `tree-sitter-proto/grammar.js`.
 ```bash
 cd tree-sitter-proto
 npm run build
-```
+````
 
 This compiles the grammar to WebAssembly (`tree-sitter-proto.wasm`) for use in the VS Code extension.
 
@@ -82,11 +82,11 @@ npx ts-node scripts/compare-parsers.ts --ci
 
 ### Files
 
-| File | Description |
-|------|-------------|
-| `tree-sitter-proto/grammar.js` | Grammar definition |
-| `tree-sitter-proto/src/parser.c` | Generated C parser |
-| `tree-sitter-proto/tree-sitter-proto.wasm` | Compiled WASM |
-| `src/server/core/treeSitterParser.ts` | AST adapter |
-| `src/server/core/parserFactory.ts` | Parser switcher |
-| `scripts/compare-parsers.ts` | Parser comparison tool |
+| File                                       | Description            |
+| ------------------------------------------ | ---------------------- |
+| `tree-sitter-proto/grammar.js`             | Grammar definition     |
+| `tree-sitter-proto/src/parser.c`           | Generated C parser     |
+| `tree-sitter-proto/tree-sitter-proto.wasm` | Compiled WASM          |
+| `src/server/core/treeSitterParser.ts`      | AST adapter            |
+| `src/server/core/parserFactory.ts`         | Parser switcher        |
+| `scripts/compare-parsers.ts`               | Parser comparison tool |

@@ -1,17 +1,17 @@
-# Protobuf VSC Extension Documentation
+# Protobuf VSC Documentation
 
-Welcome to the comprehensive documentation for the Protobuf VSC extension. This documentation covers all features, how to use them, and configuration options.
+This directory contains user documentation for Protobuf VSC features, commands, and settings.
 
-## 📚 Documentation Index
+## Documentation Index
 
 ### Core Features
 
-- [Diagnostics](./diagnostics.md) - Comprehensive validation and error checking
+- [Diagnostics](./diagnostics.md) - Validation and error checking
 - [Code Lens](./code-lens.md) - Reference counts and metadata display
 - [Document Links](./document-links.md) - Clickable import paths
-- [Hover Information](./hover.md) - Rich symbol information on hover
+- [Hover Information](./hover.md) - Symbol information on hover
 - [Code Actions](./code-actions.md) - Quick fixes and refactoring
-- [Completions](./completions.md) - Smart IntelliSense suggestions (including CEL/protovalidate)
+- [Completions](./completions.md) - IntelliSense suggestions, including CEL and protovalidate
 - [Symbol Search](./symbol-search.md) - Fuzzy workspace symbol search
 - [Snippets](./snippets.md) - Code snippets library
 
@@ -42,7 +42,7 @@ Welcome to the comprehensive documentation for the Protobuf VSC extension. This 
 
 ### Reference
 
-- [Complete Features List](./FEATURES.md) - Comprehensive list of all features
+- [Feature Reference](./FEATURES.md) - Supported feature list
 
 ---
 

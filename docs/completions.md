@@ -1,10 +1,10 @@
 # Completions
 
-Smart IntelliSense completions help you write proto files faster and with fewer errors.
+Completions provide IntelliSense suggestions for proto syntax, symbols, imports, and options.
 
 ## Overview
 
-The extension provides intelligent completions for:
+The extension provides completions for:
 
 - Types (built-in and custom)
 - Field names
@@ -71,7 +71,7 @@ message User {
 
 **What it suggests:**
 
-- Next available field number (smart suggestion)
+- Next available field number
 - Common field numbers (1, 2, 3, 4, 5, 10, 100)
 
 **Example:**
@@ -83,7 +83,7 @@ message User {
 }
 ```
 
-**Smart numbering:**
+**Numbering behavior:**
 
 - Considers existing field numbers
 - Skips reserved ranges
@@ -119,7 +119,7 @@ message User {
 
 - Google well-known types
 - Workspace proto files
-- Smart import paths (based on buf.yaml)
+- Import paths based on Buf configuration
 
 **Example:**
 
@@ -127,9 +127,9 @@ message User {
 import "|  // Suggests: google/protobuf/timestamp.proto, etc.
 ```
 
-**Smart suggestions:**
+**Suggestion behavior:**
 
-- Recommends optimal import paths
+- Recommends import paths based on workspace and Buf configuration
 - Suggests both full paths and simple filenames
 - Prioritizes recommended paths
 
@@ -172,7 +172,7 @@ message User {
 
 **When it appears:** Inside CEL validation expressions using `buf.validate`
 
-The extension provides intelligent completions for [CEL (Common Expression Language)](https://cel.dev/) expressions used with [protovalidate](https://github.com/bufbuild/protovalidate) validation rules.
+The extension provides completions for [CEL (Common Expression Language)](https://cel.dev/) expressions used with [protovalidate](https://github.com/bufbuild/protovalidate) validation rules.
 
 #### CEL Option Field Completions
 
@@ -376,7 +376,7 @@ message Address {
 
 ### 9. Google API Completions
 
-The extension provides comprehensive completions for Google API annotations commonly used in gRPC and Cloud API development.
+The extension provides completions for Google API annotations commonly used in gRPC and Cloud API development.
 
 #### HTTP Annotations (`google.api.http`)
 
@@ -570,7 +570,7 @@ Automatically add imports when completing types:
 
 ```jsonc
 {
-  "protobuf.completion.autoImport": true
+  "protobuf.completion.autoImport": true,
 }
 ```
 
@@ -580,7 +580,7 @@ Include Google well-known types in completions:
 
 ```jsonc
 {
-  "protobuf.completion.includeGoogleTypes": true
+  "protobuf.completion.includeGoogleTypes": true,
 }
 ```
 
@@ -599,14 +599,14 @@ Completions are triggered by:
 1. **Use Tab to accept** - Faster than Enter
 2. **Type partial names** - Completions filter as you type
 3. **Use field name suggestions** - They follow common patterns
-4. **Trust smart numbering** - Field number suggestions are context-aware
+4. **Use field number suggestions** - Suggestions account for existing field numbers
 5. **Explore completions** - Hover to see details about suggestions
 
 ## Best Practices
 
 1. **Use completions** - They reduce typos and errors
 2. **Follow suggestions** - Field name suggestions follow conventions
-3. **Use smart numbering** - Let the extension suggest field numbers
+3. **Use field number suggestions** - Let the extension suggest field numbers
 4. **Enable auto-import** - Automatically add required imports
 5. **Review completions** - Always review before accepting
 

@@ -20,11 +20,11 @@ The extension automatically:
 3. Extracts proto roots
 4. Uses them for import resolution
 
-**No configuration needed!** It just works if you have Buf configuration files.
+No VS Code setting is required when a supported Buf configuration file is present.
 
 ## Buf.yaml Detection
 
-### Single Module (buf.yaml)
+### Single Module (buf.yaml v1)
 
 The extension detects `buf.yaml` files and extracts:
 
@@ -40,6 +40,22 @@ build:
 **What the extension uses:**
 
 - `build.roots` - Proto root directories for import resolution
+
+### Modules (buf.yaml v2)
+
+The extension also supports `buf.yaml` v2 module paths:
+
+```yaml
+version: v2
+modules:
+  - path: proto
+  - path: third_party
+```
+
+**What the extension uses:**
+
+- `modules[].path` - Proto root directories for import resolution
+- `modules[].excludes` - Parsed from configuration and kept separate from dependencies
 
 ### Workspace (buf.work.yaml)
 
@@ -161,7 +177,8 @@ If imports don't resolve with Buf config:
    - Or in a parent directory
 
 2. **Verify roots configuration**
-   - Check `build.roots` in `buf.yaml`
+   - Check `build.roots` in `buf.yaml` v1
+   - Check `modules[].path` in `buf.yaml` v2
    - Check `directories` in `buf.work.yaml`
 
 3. **Restart VS Code**
@@ -181,9 +198,7 @@ You can still manually configure import paths:
 
 ```jsonc
 {
-  "protobuf.includes": [
-    "${workspaceFolder}/custom/path"
-  ]
+  "protobuf.includes": ["${workspaceFolder}/custom/path"],
 }
 ```
 
@@ -191,23 +206,22 @@ Manual paths are used in addition to Buf-detected paths.
 
 ## Best Practices
 
-1. **Use Buf configuration** - Let the extension auto-detect
-2. **Keep buf.yaml in root** - Easier for the extension to find
-3. **Use consistent roots** - Match your Buf setup
-4. **Document your structure** - Help team members understand
+1. **Use Buf configuration** - Keep import roots in `buf.yaml` or `buf.work.yaml`.
+2. **Keep configuration near proto sources** - The extension searches parent directories from the active file.
+3. **Use consistent roots** - Match Buf CLI behavior for import paths.
 
 ## Integration with Buf CLI
 
-The extension's understanding of your Buf configuration:
+The extension uses Buf configuration for import resolution:
 
-- **Matches Buf CLI behavior** - Same import resolution
-- **Works with buf build** - Consistent paths
-- **Supports buf lint** - Can use same config
-- **Compatible with buf breaking** - Same baseline understanding
+- `build.roots` from `buf.yaml` v1
+- `modules[].path` from `buf.yaml` v2
+- `directories` from `buf.work.yaml`
+- `.yml` variants of the same files
 
 ## Excluding Files and Directories
 
-When using Buf, you can exclude directories directly in your `buf.yaml` configuration file. This is the recommended approach for Buf users as it keeps your exclusion rules alongside your other Buf configuration.
+Buf supports excluding directories directly in your `buf.yaml` configuration file. The extension parses these values for configuration awareness, but it currently uses `build.roots` and `modules[].path` for import resolution and does not apply Buf excludes as editor ignore patterns.
 
 ### Using buf.yaml excludes
 
@@ -235,17 +249,12 @@ modules:
     excludes:
       - nanopb
       - vendor
-      - "**/testdata/**"
+      - '**/testdata/**'
 ```
 
-### Benefits of buf.yaml excludes
+### Extension Behavior
 
-Using `buf.yaml` for exclusions has several advantages:
-
-1. **Shared configuration** - All team members use the same excludes
-2. **Version controlled** - Exclusion rules are tracked with your code
-3. **Consistent tooling** - Same excludes apply to `buf build`, `buf lint`, and the extension
-4. **No VS Code dependency** - Works with CI/CD and other Buf integrations
+Buf excludes are parsed but are not applied as editor ignore patterns. Use `protobuf.workspace.ignorePatterns` to exclude directories from workspace indexing and `protobuf.protoc.excludePatterns` to exclude files from `Compile All Protos`.
 
 ### Protoc Users
 

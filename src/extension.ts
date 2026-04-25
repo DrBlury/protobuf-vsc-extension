@@ -623,7 +623,7 @@ breaking:
   );
 
   // Server module path
-  const serverModule = context.asAbsolutePath(path.join('out', 'server', 'server.js'));
+  const serverModule = context.asAbsolutePath(path.join('dist', 'server', 'server.js'));
   outputChannel.appendLine(`Server module: ${serverModule}`);
 
   // Server options
@@ -719,7 +719,7 @@ breaking:
 
     // Initialize Tree-sitter parser (if enabled)
     try {
-      const wasmPath = path.join(context.extensionPath, 'out', 'tree-sitter', 'tree-sitter-proto.wasm');
+      const wasmPath = path.join(context.extensionPath, 'dist', 'tree-sitter', 'tree-sitter-proto.wasm');
       // Send initialization request to server
       await client.sendRequest('protobuf/initTreeSitter', { wasmPath });
       outputChannel.appendLine('Tree-sitter parser initialized');

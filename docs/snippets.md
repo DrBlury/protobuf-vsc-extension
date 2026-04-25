@@ -1,6 +1,6 @@
 # Snippets Library
 
-The Protobuf VSC extension includes an extensive library of code snippets to help you write Protocol Buffers files faster and follow best practices.
+Snippets insert common Protocol Buffers declarations and Google API patterns.
 
 ## Overview
 
@@ -417,6 +417,6 @@ message User {
 
 ## See Also
 
-- [Completions](./completions.md) - Smart IntelliSense suggestions
+- [Completions](./completions.md) - IntelliSense suggestions
 - [Templates](./templates.md) - File-level templates
 - [gRPC Integration](./grpc.md) - gRPC-specific features

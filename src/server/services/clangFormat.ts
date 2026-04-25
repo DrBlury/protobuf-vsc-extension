@@ -254,18 +254,21 @@ export class ClangFormatProvider {
       const start = Date.now();
       const proc = spawn(this.settings.path, args, spawnOptions);
 
-      let stdout = '';
-      let stderrOutput = '';
+      const stdoutChunks: Buffer[] = [];
+      const stderrChunks: Buffer[] = [];
 
       proc.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString('utf8');
+        stdoutChunks.push(Buffer.isBuffer(data) ? data : Buffer.from(data));
       });
 
       proc.stderr?.on('data', (data: Buffer) => {
-        stderrOutput += data.toString('utf8');
+        stderrChunks.push(Buffer.isBuffer(data) ? data : Buffer.from(data));
       });
 
       proc.on('close', code => {
+        const stdout = Buffer.concat(stdoutChunks).toString('utf8');
+        const stderrOutput = Buffer.concat(stderrChunks).toString('utf8');
+
         if (code === 0) {
           logger.verboseWithContext('clang-format completed successfully', {
             operation: 'clang-format',

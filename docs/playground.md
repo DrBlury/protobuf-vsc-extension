@@ -1,19 +1,19 @@
 # Protobuf Playground
 
-The Protobuf Playground is an interactive webview that allows you to test gRPC services directly from VS Code. You can send requests to gRPC servers and see responses without leaving your editor.
+The Protobuf Playground is a beta webview for sending JSON requests to gRPC services from VS Code.
 
 > **Note:** The Playground is a beta feature. Enable `protobuf.enableBetaFeatures` in your VS Code settings (reload required) to access it.
 
 ## Overview
 
-The Playground provides:
+The Playground supports:
 
-- **gRPC request testing** - Send requests to gRPC services
-- **Service discovery** - Automatically lists available services (via proto files or server reflection)
-- **JSON request bodies** - Easy-to-use JSON input
-- **Response viewing** - See responses in real-time
-- **File context** - Works with your current `.proto` file
-- **Server Reflection** - Discover services from running servers without proto files
+- Sending unary requests through `grpcurl`
+- Listing services from the active proto file
+- Listing services through server reflection
+- JSON request bodies
+- Response output in the webview
+- Import paths from `protobuf.includes`
 
 ## Prerequisites
 
@@ -25,24 +25,21 @@ The Playground requires:
 
 ### Protobuf Editions Limitation
 
-> ⚠️ **Important**: `grpcurl` does not currently support Protobuf Editions syntax (`edition = "2023"`). If your proto files use Editions, you must use **Server Reflection mode** instead. This requires your gRPC server to have reflection enabled.
+> **Important:** `grpcurl` does not currently support Protobuf Editions syntax (`edition = "2023"`). If your proto files use Editions, use **Server Reflection mode** instead. This requires reflection to be enabled on the gRPC server.
 
 To enable server reflection in your server:
+
 - **Go**: Import `google.golang.org/grpc/reflection` and call `reflection.Register(server)`
 - **Python**: Use `grpc_reflection.v1alpha.reflection.enable_server_reflection()`
 - **Java**: Add `ProtoReflectionService` to your server
 
-### Installing grpcurl
+### Installing `grpcurl`
 
-#### Using the Toolchain Manager (Recommended)
+#### Toolchain Manager
 
-The easiest way to install grpcurl is through the built-in toolchain manager:
-
-1. Open Command Palette (`Cmd/Ctrl+Shift+P`)
-2. Run: `Protobuf: Manage Toolchain`
+1. Open the Command Palette (`Cmd/Ctrl+Shift+P`).
+2. Run `Protobuf: Manage Toolchain`.
 3. Select `Install grpcurl`
-
-The extension will automatically download and install the correct version for your platform.
 
 #### Manual Installation
 
@@ -80,13 +77,9 @@ If grpcurl is installed in a non-standard location, configure the path in your s
 
 ### Opening the Playground
 
-1. **From Command Palette**:
-   - Press `Cmd/Ctrl+Shift+P`
-   - Run: `Protobuf: Open Playground`
-
-2. **Prerequisites**:
-   - Open a `.proto` file with service definitions
-   - Have `grpcurl` installed (via toolchain manager or manually)
+1. Open a `.proto` file with service definitions, or use reflection mode with a running server.
+2. Press `Cmd/Ctrl+Shift+P`.
+3. Run `Protobuf: Open Playground`.
 
 ### Playground Interface
 
@@ -165,10 +158,7 @@ The playground uses your configured import paths:
 
 ```json
 {
-  "protobuf.includes": [
-    "./proto",
-    "./vendor"
-  ]
+  "protobuf.includes": ["./proto", "./vendor"]
 }
 ```
 
@@ -176,7 +166,7 @@ These paths are passed to `grpcurl` as `-import-path` flags.
 
 ### Server Settings
 
-Currently, the playground uses plaintext connections by default. For production servers, you may need to configure TLS settings (future enhancement).
+The Playground currently passes `-plaintext` to `grpcurl`. It is intended for plaintext local or development servers.
 
 ## Integration
 
@@ -230,26 +220,15 @@ If imports fail:
 
 ## Limitations
 
-- **Plaintext only** - Currently supports plaintext connections (TLS support coming)
+- **Plaintext only** - Uses `grpcurl -plaintext`; TLS is not currently exposed in the Playground UI
 - **Single file** - Works with one proto file at a time
 - **grpcurl required** - Requires `grpcurl` to be installed
 
-## Best Practices
+## Usage Notes
 
-1. **Test locally first** - Use the playground for local development
-2. **Validate requests** - Ensure JSON matches your proto definitions
-3. **Check responses** - Review responses for errors and data
-4. **Use for debugging** - Great for testing and debugging gRPC services
-
-## Future Enhancements
-
-Planned improvements:
-
-- TLS/SSL support
-- Authentication (API keys, tokens)
-- Request history
-- Multiple server profiles
-- Response formatting options
+- Use the Playground for local development and plaintext test servers.
+- Ensure the JSON request body matches the selected RPC request type.
+- Enable server reflection on the target server when using reflection mode.
 
 ---
 

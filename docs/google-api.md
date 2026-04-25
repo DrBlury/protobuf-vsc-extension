@@ -1,6 +1,6 @@
 # Google API Support
 
-This extension provides comprehensive support for Google API annotations and patterns commonly used in gRPC and Cloud API development.
+Google API support adds completions, snippets, hover text, and highlighting for common Google API annotations.
 
 ## Features
 
@@ -40,20 +40,20 @@ service UserService {
 
 #### Snippets
 
-| Prefix | Description |
-|--------|-------------|
-| `httpget` | HTTP GET mapping for RPC method |
-| `httppost` | HTTP POST mapping with request body |
-| `httpput` | HTTP PUT mapping for full resource update |
-| `httpdelete` | HTTP DELETE mapping |
-| `httppatch` | HTTP PATCH mapping for partial updates |
-| `httpcustom` | Custom HTTP method mapping |
-| `httpbindings` | HTTP mapping with additional bindings |
-| `rpcget` | Complete RPC with HTTP GET mapping |
-| `rpcpost` | Complete RPC with HTTP POST mapping |
-| `rpcdelete` | Complete RPC with HTTP DELETE mapping |
-| `rpcpatch` | Complete RPC with HTTP PATCH mapping |
-| `rpclist` | Complete RPC with HTTP List mapping |
+| Prefix         | Description                               |
+| -------------- | ----------------------------------------- |
+| `httpget`      | HTTP GET mapping for RPC method           |
+| `httppost`     | HTTP POST mapping with request body       |
+| `httpput`      | HTTP PUT mapping for full resource update |
+| `httpdelete`   | HTTP DELETE mapping                       |
+| `httppatch`    | HTTP PATCH mapping for partial updates    |
+| `httpcustom`   | Custom HTTP method mapping                |
+| `httpbindings` | HTTP mapping with additional bindings     |
+| `rpcget`       | Complete RPC with HTTP GET mapping        |
+| `rpcpost`      | Complete RPC with HTTP POST mapping       |
+| `rpcdelete`    | Complete RPC with HTTP DELETE mapping     |
+| `rpcpatch`     | Complete RPC with HTTP PATCH mapping      |
+| `rpclist`      | Complete RPC with HTTP List mapping       |
 
 ---
 
@@ -94,12 +94,12 @@ message User {
 
 #### Snippets
 
-| Prefix | Description |
-|--------|-------------|
-| `frequiredbehavior` | Field with REQUIRED behavior |
-| `foutputonly` | Field with OUTPUT_ONLY behavior |
-| `finputonly` | Field with INPUT_ONLY behavior |
-| `fimmutable` | Field with IMMUTABLE behavior |
+| Prefix              | Description                     |
+| ------------------- | ------------------------------- |
+| `frequiredbehavior` | Field with REQUIRED behavior    |
+| `foutputonly`       | Field with OUTPUT_ONLY behavior |
+| `finputonly`        | Field with INPUT_ONLY behavior  |
+| `fimmutable`        | Field with IMMUTABLE behavior   |
 
 ---
 
@@ -139,12 +139,12 @@ message User {
 
 #### Snippets
 
-| Prefix | Description |
-|--------|-------------|
-| `resource` | Resource descriptor with type and pattern |
-| `resourcenested` | Resource with nested parent pattern |
-| `fresourceref` | Field with resource reference |
-| `msgresource` | Complete message with resource annotation |
+| Prefix           | Description                               |
+| ---------------- | ----------------------------------------- |
+| `resource`       | Resource descriptor with type and pattern |
+| `resourcenested` | Resource with nested parent pattern       |
+| `fresourceref`   | Field with resource reference             |
+| `msgresource`    | Complete message with resource annotation |
 
 ---
 
@@ -185,10 +185,10 @@ When using `google.protobuf.FieldMask` as a field type, the extension suggests a
 
 #### Snippets
 
-| Prefix | Description |
-|--------|-------------|
-| `fupdatemask` | FieldMask field for partial updates |
-| `msgupdate` | Complete update request message with FieldMask |
+| Prefix        | Description                                    |
+| ------------- | ---------------------------------------------- |
+| `fupdatemask` | FieldMask field for partial updates            |
+| `msgupdate`   | Complete update request message with FieldMask |
 
 #### Example Usage
 

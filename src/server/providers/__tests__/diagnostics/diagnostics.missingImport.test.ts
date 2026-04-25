@@ -205,6 +205,50 @@ message Order {
     expect(wrongSuggestion).toBeUndefined();
   });
 
+  it('should not report missing import when an imported file shares fully qualified symbols with a non-imported file', async () => {
+    const localProviders = new ProviderRegistry();
+    localProviders.analyzer.setWorkspaceRoots(['/workspace']);
+
+    const serviceAUri = 'file:///workspace/service_a/types.proto';
+    const serviceAContent = `syntax = "proto3";
+package com.example.shared;
+
+message MyRequest {
+  string id = 1;
+}`;
+    const serviceAFile = localProviders.parser.parse(serviceAContent, serviceAUri);
+    localProviders.analyzer.updateFile(serviceAUri, serviceAFile);
+
+    const apiUri = 'file:///workspace/api.proto';
+    const apiContent = `syntax = "proto3";
+package com.example.api;
+
+import "service_a/types.proto";
+
+message Api {
+  com.example.shared.MyRequest request = 1;
+}`;
+    const apiFile = localProviders.parser.parse(apiContent, apiUri);
+    localProviders.analyzer.updateFile(apiUri, apiFile);
+
+    const serviceBUri = 'file:///workspace/service_b/types.proto';
+    const serviceBContent = `syntax = "proto3";
+package com.example.shared;
+
+message MyRequest {
+  string other_id = 1;
+}`;
+    const serviceBFile = localProviders.parser.parse(serviceBContent, serviceBUri);
+    localProviders.analyzer.updateFile(serviceBUri, serviceBFile);
+
+    const diags = await localProviders.diagnostics.validate(apiUri, apiFile, localProviders);
+    const missingImport = diags.find(d => d.message.includes('not imported'));
+    const wrongSuggestion = diags.find(d => d.message.includes('service_b/types.proto'));
+
+    expect(missingImport).toBeUndefined();
+    expect(wrongSuggestion).toBeUndefined();
+  });
+
   it('should prefer same-file type over non-imported type with same name', async () => {
     // When UserProfile uses "User" (defined in same file), it should NOT suggest
     // importing example.proto which also has a User type

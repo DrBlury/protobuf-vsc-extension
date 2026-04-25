@@ -53,7 +53,7 @@ describe('HashManager Extended Coverage', () => {
   const testCacheDir = '/tmp/test-hash-cache-ext';
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     mockFs.existsSync.mockReturnValue(false);
     mockFs.mkdirSync.mockImplementation(() => undefined);
     mockFs.readFileSync.mockImplementation(() => {

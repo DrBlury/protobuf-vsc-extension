@@ -1,6 +1,6 @@
 # Diagnostics
 
-The extension provides comprehensive real-time validation and error checking for Protocol Buffers files.
+Diagnostics validate Protocol Buffers files while editing.
 
 ## Overview
 
@@ -12,7 +12,8 @@ Diagnostics automatically check your proto files for:
 - Naming convention violations
 - Field tag problems
 - Duplicate definitions
-- And much more...
+- Documentation comment checks
+- Breaking-change checks, when enabled
 
 ## Diagnostic Categories
 
@@ -51,7 +52,7 @@ message User {
 ```jsonc
 {
   "protobuf.diagnostics.namingConventions": true,
-  "protobuf.diagnostics.severity.namingConventions": "warning"
+  "protobuf.diagnostics.severity.namingConventions": "warning",
 }
 ```
 
@@ -111,7 +112,7 @@ message User {
 ```jsonc
 {
   "protobuf.diagnostics.importChecks": true,
-  "protobuf.diagnostics.circularDependencies": true
+  "protobuf.diagnostics.circularDependencies": true,
 }
 ```
 
@@ -139,7 +140,7 @@ message Profile {
 
 ```jsonc
 {
-  "protobuf.diagnostics.deprecatedUsage": true
+  "protobuf.diagnostics.deprecatedUsage": true,
 }
 ```
 
@@ -157,7 +158,7 @@ message Profile {
 
 ```jsonc
 {
-  "protobuf.diagnostics.unusedSymbols": true
+  "protobuf.diagnostics.unusedSymbols": true,
 }
 ```
 
@@ -225,7 +226,7 @@ service UserService {
 
 ```jsonc
 {
-  "protobuf.diagnostics.documentationComments": true
+  "protobuf.diagnostics.documentationComments": true,
 }
 ```
 
@@ -244,14 +245,14 @@ Detects source-incompatible changes compared to a configured baseline so you can
 
 **Prerequisites:**
 
-- Enable breaking change detection and choose a baseline strategy. See the detailed guide in [docs/breaking-changes.md](docs/breaking-changes.md).
+- Enable breaking change detection and choose a baseline strategy. See [Breaking Changes Detection](./breaking-changes.md).
 
 ```jsonc
 {
   "protobuf.breaking.enabled": true,
   // Compare against a git ref (default strategy)
   "protobuf.breaking.againstStrategy": "git",
-  "protobuf.breaking.againstGitRef": "main" // e.g., "HEAD~1", "origin/main"
+  "protobuf.breaking.againstGitRef": "main", // e.g., "HEAD~1", "origin/main"
 }
 ```
 
@@ -261,7 +262,7 @@ Alternatively, compare against a file:
 {
   "protobuf.breaking.enabled": true,
   "protobuf.breaking.againstStrategy": "file",
-  "protobuf.breaking.againstFilePath": "${workspaceFolder}/baseline.proto"
+  "protobuf.breaking.againstFilePath": "${workspaceFolder}/baseline.proto",
 }
 ```
 
@@ -290,7 +291,7 @@ message User {
   // Enable/disable surfacing of breaking changes as diagnostics
   "protobuf.diagnostics.breakingChanges": true,
   // Optional: control diagnostic severity
-  "protobuf.diagnostics.severity.breakingChanges": "error"
+  "protobuf.diagnostics.severity.breakingChanges": "error",
 }
 ```
 
@@ -305,7 +306,7 @@ You can configure the severity of different diagnostic categories:
   "protobuf.diagnostics.severity.fieldTagIssues": "error",
   "protobuf.diagnostics.severity.discouragedConstructs": "warning",
   "protobuf.diagnostics.severity.nonCanonicalImportPath": "warning",
-  "protobuf.diagnostics.severity.breakingChanges": "warning"
+  "protobuf.diagnostics.severity.breakingChanges": "warning",
 }
 ```
 
@@ -338,7 +339,7 @@ To disable all diagnostics:
 
 ```jsonc
 {
-  "protobuf.diagnostics.enabled": false
+  "protobuf.diagnostics.enabled": false,
 }
 ```
 
@@ -346,11 +347,12 @@ To disable only built-in AST diagnostics (while keeping external linter diagnost
 
 ```jsonc
 {
-  "protobuf.diagnostics.useBuiltIn": false
+  "protobuf.diagnostics.useBuiltIn": false,
 }
 ```
 
 This is useful when:
+
 - Testing parser changes
 - Preferring external tools like `buf lint` or `protolint` for validation
 - Avoiding duplicate diagnostics from both built-in and external linters
@@ -360,7 +362,7 @@ To disable specific checks:
 ```jsonc
 {
   "protobuf.diagnostics.namingConventions": false,
-  "protobuf.diagnostics.unusedSymbols": false
+  "protobuf.diagnostics.unusedSymbols": false,
 }
 ```
 

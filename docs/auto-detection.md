@@ -2,7 +2,7 @@
 
 ## Overview
 
-The extension automatically detects installed protobuf tools and suggests configurations, as well as helping manage external dependencies in your buf.yaml.
+The extension detects installed protobuf tools and can suggest configuration for unresolved external dependencies.
 
 ## Tool Auto-Detection
 
@@ -38,9 +38,9 @@ Protobuf tools detected: buf (1.28.1), protolint (0.45.0), api-linter (1.67.0). 
 
 Selecting "Configure Now" opens a quick pick with options:
 
-- ✓ **Enable Buf Linting** - Set up buf lint integration
-- ✓ **Enable Protolint** - Set up protolint integration
-- ✓ **Enable Google API Linter** - Set up api-linter for AIP compliance
+- **Enable Buf Linting** - Set up buf lint integration
+- **Enable Protolint** - Set up protolint integration
+- **Enable Google API Linter** - Set up api-linter for AIP compliance
 - $(symbol-color) **Enable clang-format** - Use clang-format for formatting
 - $(gear) **Set buf path** - Configure explicit path to buf
 - $(gear) **Set protoc path** - Configure explicit path to protoc
@@ -60,26 +60,26 @@ When you import an external proto file that cannot be resolved, the extension re
 
 ### Supported External Dependencies
 
-| Import Pattern | BSR Module | Description |
-|---------------|------------|-------------|
-| `google/api/*` | buf.build/googleapis/googleapis | Google API definitions |
-| `google/type/*` | buf.build/googleapis/googleapis | Google common types |
-| `google/rpc/*` | buf.build/googleapis/googleapis | Google RPC definitions |
-| `buf/validate/*` | buf.build/bufbuild/protovalidate | Buf validation rules |
-| `validate/validate.proto` | buf.build/envoyproxy/protoc-gen-validate | Legacy PGV |
-| `grpc/*` | buf.build/grpc/grpc | gRPC definitions |
-| `envoy/*` | buf.build/envoyproxy/envoy | Envoy Proxy APIs |
-| `xds/*` | buf.build/cncf/xds | xDS APIs |
-| `opentelemetry/*` | buf.build/opentelemetry/opentelemetry | OpenTelemetry protocol |
-| `cosmos/*` | buf.build/cosmos/cosmos-sdk | Cosmos SDK |
-| `connectrpc/*` | buf.build/connectrpc/connect | Connect RPC |
+| Import Pattern            | BSR Module                               | Description            |
+| ------------------------- | ---------------------------------------- | ---------------------- |
+| `google/api/*`            | buf.build/googleapis/googleapis          | Google API definitions |
+| `google/type/*`           | buf.build/googleapis/googleapis          | Google common types    |
+| `google/rpc/*`            | buf.build/googleapis/googleapis          | Google RPC definitions |
+| `buf/validate/*`          | buf.build/bufbuild/protovalidate         | Buf validation rules   |
+| `validate/validate.proto` | buf.build/envoyproxy/protoc-gen-validate | Legacy PGV             |
+| `grpc/*`                  | buf.build/grpc/grpc                      | gRPC definitions       |
+| `envoy/*`                 | buf.build/envoyproxy/envoy               | Envoy Proxy APIs       |
+| `xds/*`                   | buf.build/cncf/xds                       | xDS APIs               |
+| `opentelemetry/*`         | buf.build/opentelemetry/opentelemetry    | OpenTelemetry protocol |
+| `cosmos/*`                | buf.build/cosmos/cosmos-sdk              | Cosmos SDK             |
+| `connectrpc/*`            | buf.build/connectrpc/connect             | Connect RPC            |
 
 ### Quick Fix Actions
 
 When an unresolved import is detected, a code action (lightbulb) appears:
 
 ```proto
-import "google/api/annotations.proto"; // ⚠️ Import cannot be resolved
+import "google/api/annotations.proto"; // Import cannot be resolved
 ```
 
 Available actions:
@@ -144,11 +144,11 @@ buf.yaml not found. Create one with dependency 'buf.build/googleapis/googleapis'
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `Protobuf: Detect and Configure Tools` | Manually trigger tool detection |
-| `Protobuf: Add Buf Dependency` | Interactively add a BSR module |
-| `Protobuf: Export Buf Dependencies` | Export dependencies for import resolution |
+| Command                                | Description                               |
+| -------------------------------------- | ----------------------------------------- |
+| `Protobuf: Detect and Configure Tools` | Manually trigger tool detection           |
+| `Protobuf: Add Buf Dependency`         | Interactively add a BSR module            |
+| `Protobuf: Export Buf Dependencies`    | Export dependencies for import resolution |
 
 ## Best Practices
 

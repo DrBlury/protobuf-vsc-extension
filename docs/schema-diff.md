@@ -1,6 +1,6 @@
 # Schema Diff
 
-The Schema Diff feature allows you to compare your current Protocol Buffer files against previous versions in Git, making it easy to see what has changed and review schema evolution.
+Schema Diff compares proto files against Git revisions.
 
 ## Overview
 

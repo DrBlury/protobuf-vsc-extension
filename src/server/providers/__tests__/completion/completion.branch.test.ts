@@ -1,10 +1,5 @@
 /**
- * Tests for completion provider branch coverage
- *
- * TODO: This test file is temporarily skipped in jest.config.js because it causes
- * Jest to hang indefinitely when run with other tests. Individual tests pass fine
- * when run in isolation. The issue appears to be resource contention or open handles
- * when running in parallel with other test suites.
+ * Tests for completion provider branch coverage.
  */
 
 import { CompletionProvider } from '../../completion';

@@ -11,7 +11,7 @@ let client: LanguageClient;
 
 export function createLanguageClient(context: { extensionPath: string }): LanguageClient {
   // Server module path
-  const serverModule = path.join(context.extensionPath, 'out', 'server', 'server.js');
+  const serverModule = path.join(context.extensionPath, 'dist', 'server', 'server.js');
 
   // Server options
   const serverOptions: ServerOptions = {

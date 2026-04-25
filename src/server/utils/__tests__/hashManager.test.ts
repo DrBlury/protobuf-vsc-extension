@@ -55,7 +55,7 @@ describe('HashManager', () => {
   const testCacheDir = '/tmp/test-hash-cache';
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     mockFs.existsSync.mockReturnValue(false);
     mockFs.mkdirSync.mockImplementation(() => undefined);
     mockFs.readFileSync.mockImplementation(() => {
@@ -108,10 +108,13 @@ describe('HashManager', () => {
     it('should handle corrupted cache file gracefully', () => {
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue('invalid json{{{');
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
       // Should not throw
       const managerWithBadCache = new HashManager({ cacheDir: testCacheDir });
       expect(managerWithBadCache).toBeDefined();
+
+      warnSpy.mockRestore();
     });
   });
 
@@ -679,6 +682,7 @@ describe('HashManager', () => {
     it('should write cache to disk when caching is enabled', () => {
       // Directly test the cache saving mechanism
       mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue('{}');
       mockFs.writeFileSync.mockImplementation(() => {});
 
       const testManager = new HashManager({

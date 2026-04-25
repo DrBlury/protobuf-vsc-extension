@@ -257,6 +257,43 @@ describe('ClangFormatProvider', () => {
       const result = await resultPromise;
       expect(result).toEqual([]);
     });
+
+    it('should decode split UTF-8 stdout chunks without replacement characters', async () => {
+      provider.updateSettings({ enabled: true });
+      const text = 'message X { string id = 1; }\n';
+      const formatted = '// 场景ID\nmessage X {\n  string id = 1;\n}\n';
+      const formattedBytes = Buffer.from(formatted, 'utf8');
+      const splitAt = Buffer.byteLength('// ', 'utf8') + 1;
+      const mockProcess = {
+        stdout: {
+          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              setTimeout(() => callback(formattedBytes.subarray(0, splitAt)), 0);
+              setTimeout(() => callback(formattedBytes.subarray(splitAt)), 1);
+            }
+            return mockProcess.stdout;
+          }),
+        },
+        stderr: { on: jest.fn() },
+        stdin: { write: jest.fn(), end: jest.fn() },
+        on: jest.fn((event: string, callback: (code: number) => void) => {
+          if (event === 'close') {
+            setTimeout(() => callback(0), 10);
+          }
+          return mockProcess;
+        }),
+      } as any;
+
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const resultPromise = provider.formatDocument(text);
+      await flushPromisesAndTimers();
+      const result = await resultPromise;
+
+      expect(result).toHaveLength(1);
+      expect(result[0].newText).toContain('场景ID');
+      expect(result[0].newText).not.toContain('�');
+    });
   });
 
   describe('formatRange', () => {

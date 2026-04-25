@@ -28,14 +28,11 @@ import public "public.proto";
       (identifier)
       (identifier)))
   (import
-    path: (string))
+    path: (string
+      (string_literal)))
   (import
-    modifier: (identifier)
-    path: (string)))
-  (import
-    path: (string))
-  (import
-    path: (string)))
+    path: (string
+      (string_literal))))
 
 ================================================================================
 Simple message
@@ -86,19 +83,16 @@ message Test {
     name: (identifier)
     body: (message_body
       (field
-        modifier: (identifier)
         type: (type
           (scalar_type))
         name: (identifier)
         number: (int_lit))
       (field
-        modifier: (identifier)
         type: (type
           (scalar_type))
         name: (identifier)
         number: (int_lit))
       (field
-        modifier: (identifier)
         type: (type
           (scalar_type))
         name: (identifier)
@@ -247,5 +241,7 @@ message ReservedTest {
             (int_lit))))
       (reserved
         (field_names
-          (string)
-          (string))))))
+          (string
+            (string_literal))
+          (string
+            (string_literal)))))))

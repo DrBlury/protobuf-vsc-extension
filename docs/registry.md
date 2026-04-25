@@ -1,15 +1,15 @@
 # Buf Registry Management
 
-The Registry Management feature helps you add dependencies from the Buf Schema Registry directly to your `buf.yaml` configuration file.
+Registry management adds Buf Schema Registry dependencies to `buf.yaml`.
 
 ## Overview
 
-Registry Management provides:
+Registry management supports:
 
-- **Easy dependency addition** - Add Buf modules with a simple command
-- **Automatic buf.yaml updates** - Updates your configuration automatically
+- **Dependency addition** - Add Buf modules with a command
+- **buf.yaml updates** - Updates your configuration automatically
 - **Buf module support** - Works with modules from buf.build
-- **Automatic updates** - Runs `buf dep update` after adding dependencies
+- **Dependency lock updates** - Runs `buf dep update` after adding dependencies
 
 ## Prerequisites
 

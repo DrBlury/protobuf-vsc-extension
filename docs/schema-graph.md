@@ -1,10 +1,10 @@
 # Schema Graph
 
-Visualize the relationships between messages, enums, and services in your Protocol Buffers schema with powerful interactive features.
+Visualize relationships between messages, enums, and services in a Protocol Buffers schema.
 
 ## Overview
 
-The Schema Graph provides an interactive visual representation of your proto schema, showing how messages, enums, and services relate to each other. Navigate complex schemas with search, filtering, path highlighting, and export capabilities.
+The Schema Graph opens an interactive view of proto symbols and their relationships. It supports search, filtering, path highlighting, package grouping, and export.
 
 ## How to Open
 
@@ -128,7 +128,7 @@ See how messages depend on each other:
 
 ```text
 User → Address
-User → Phone  
+User → Phone
 Profile → User
 ```
 

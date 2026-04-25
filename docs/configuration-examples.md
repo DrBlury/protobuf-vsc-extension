@@ -9,7 +9,7 @@ Common configuration patterns for different use cases.
 ```jsonc
 {
   "protobuf.diagnostics.enabled": true,
-  "protobuf.formatter.enabled": true
+  "protobuf.formatter.enabled": true,
 }
 ```
 
@@ -21,7 +21,7 @@ Common configuration patterns for different use cases.
 {
   "protobuf.formatOnSave": true,
   "protobuf.formatter.enabled": true,
-  "editor.formatOnSave": true
+  "editor.formatOnSave": true,
 }
 ```
 
@@ -31,8 +31,8 @@ Common configuration patterns for different use cases.
 {
   "editor.codeActionsOnSave": {
     "source.organizeImports": true,
-    "source.fixAll": true
-  }
+    "source.fixAll": true,
+  },
 }
 ```
 
@@ -45,7 +45,7 @@ Common configuration patterns for different use cases.
   "protobuf.diagnostics.enabled": true,
   "protobuf.externalLinter.enabled": true,
   "protobuf.externalLinter.linter": "buf",
-  "protobuf.externalLinter.runOnSave": true
+  "protobuf.externalLinter.runOnSave": true,
 }
 ```
 
@@ -61,8 +61,8 @@ The extension automatically detects `buf.yaml` files - no additional configurati
   "protobuf.protoc.options": [
     "--proto_path=${workspaceFolder}",
     "--go_out=${workspaceFolder}/gen/go",
-    "--java_out=${workspaceFolder}/gen/java"
-  ]
+    "--java_out=${workspaceFolder}/gen/java",
+  ],
 }
 ```
 
@@ -74,8 +74,8 @@ The extension automatically detects `buf.yaml` files - no additional configurati
   "protobuf.protoc.options": [
     "--proto_path=${workspaceFolder}",
     "--js_out=import_style=commonjs,binary:${workspaceFolder}/gen/js",
-    "--ts_out=${workspaceFolder}/gen/ts"
-  ]
+    "--ts_out=${workspaceFolder}/gen/ts",
+  ],
 }
 ```
 
@@ -101,7 +101,7 @@ The extension automatically detects `buf.yaml` files - no additional configurati
   "protobuf.diagnostics.severity.namingConventions": "error",
   "protobuf.diagnostics.severity.referenceErrors": "error",
   "protobuf.diagnostics.severity.fieldTagIssues": "error",
-  "protobuf.diagnostics.severity.breakingChanges": "error"
+  "protobuf.diagnostics.severity.breakingChanges": "error",
 }
 ```
 
@@ -115,7 +115,7 @@ The extension automatically detects `buf.yaml` files - no additional configurati
   "protobuf.diagnostics.namingConventions": false,
   "protobuf.diagnostics.discouragedConstructs": false,
   "protobuf.diagnostics.unusedSymbols": false,
-  "protobuf.diagnostics.severity.namingConventions": "hint"
+  "protobuf.diagnostics.severity.namingConventions": "hint",
 }
 ```
 
@@ -126,7 +126,7 @@ The extension automatically detects `buf.yaml` files - no additional configurati
 ```jsonc
 {
   "protobuf.diagnostics.namingConventions": true,
-  "protobuf.diagnostics.severity.namingConventions": "error"
+  "protobuf.diagnostics.severity.namingConventions": "error",
 }
 ```
 
@@ -150,7 +150,7 @@ The extension automatically detects `buf.yaml` files - no additional configurati
   "protobuf.breaking.againstGitRef": "origin/main",
   "protobuf.externalLinter.enabled": true,
   "protobuf.externalLinter.linter": "buf",
-  "protobuf.externalLinter.runOnSave": false
+  "protobuf.externalLinter.runOnSave": false,
 }
 ```
 
@@ -163,8 +163,8 @@ The extension automatically detects `buf.yaml` files - no additional configurati
   "protobuf.includes": [
     "${workspaceFolder}/protos",
     "${workspaceFolder}/third_party/protos",
-    "${workspaceFolder}/vendor/protos"
-  ]
+    "${workspaceFolder}/vendor/protos",
+  ],
 }
 ```
 
@@ -177,7 +177,7 @@ The extension automatically detects `buf.yaml` files - no additional configurati
   "protobuf.clangFormat.enabled": true,
   "protobuf.clangFormat.path": "clang-format",
   "protobuf.clangFormat.style": "Google",
-  "protobuf.formatter.enabled": false
+  "protobuf.formatter.enabled": false,
 }
 ```
 
@@ -215,17 +215,11 @@ The extension automatically detects `buf.yaml` files - no additional configurati
   "protobuf.completion.includeGoogleTypes": true,
 
   // Import paths
-  "protobuf.includes": [
-    "${workspaceFolder}/protos",
-    "${workspaceFolder}/third_party"
-  ],
+  "protobuf.includes": ["${workspaceFolder}/protos", "${workspaceFolder}/third_party"],
 
   // Protoc
   "protobuf.protoc.path": "protoc",
-  "protobuf.protoc.options": [
-    "--proto_path=${workspaceFolder}",
-    "--go_out=${workspaceFolder}/gen/go"
-  ],
+  "protobuf.protoc.options": ["--proto_path=${workspaceFolder}", "--go_out=${workspaceFolder}/gen/go"],
 
   // External linter
   "protobuf.externalLinter.enabled": true,
@@ -240,7 +234,7 @@ The extension automatically detects `buf.yaml` files - no additional configurati
   // Code actions on save
   "editor.codeActionsOnSave": {
     "source.organizeImports": true,
-    "source.fixAll": true
-  }
+    "source.fixAll": true,
+  },
 }
 ```

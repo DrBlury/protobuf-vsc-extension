@@ -1,6 +1,6 @@
 # Code Generation
 
-The Protobuf VSC extension provides a flexible code generation system that allows you to configure and run `protoc` code generation profiles directly from VS Code.
+Code generation profiles run `protoc` or `buf generate` commands from VS Code.
 
 ## Overview
 
@@ -20,20 +20,13 @@ Configure codegen profiles in your VS Code settings:
 ```json
 {
   "protobuf.codegen.profiles": {
-    "go": [
-      "--go_out=${workspaceFolder}/gen/go",
-      "--go_opt=paths=source_relative",
-      "${file}"
-    ],
+    "go": ["--go_out=${workspaceFolder}/gen/go", "--go_opt=paths=source_relative", "${file}"],
     "typescript": [
       "--plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts",
       "--ts_out=${workspaceFolder}/gen/ts",
       "${file}"
     ],
-    "python": [
-      "--python_out=${workspaceFolder}/gen/python",
-      "${file}"
-    ],
+    "python": ["--python_out=${workspaceFolder}/gen/python", "${file}"],
     "all": [
       "--go_out=${workspaceFolder}/gen/go",
       "--go_opt=paths=source_relative",
@@ -123,10 +116,7 @@ When you run code generation, you'll see a quick pick menu with all configured p
 ```json
 {
   "protobuf.codegen.profiles": {
-    "python": [
-      "--python_out=${workspaceFolder}/gen/python",
-      "${file}"
-    ]
+    "python": ["--python_out=${workspaceFolder}/gen/python", "${file}"]
   }
 }
 ```
@@ -185,7 +175,7 @@ The codegen feature uses your configured `protoc` path:
 
 ```json
 {
-  "protobuf.protoc.path": "protoc"  // Uses system protoc or managed tool
+  "protobuf.protoc.path": "protoc" // Uses system protoc or managed tool
 }
 ```
 
@@ -238,10 +228,7 @@ You can define different profiles per workspace:
 // .vscode/settings.json
 {
   "protobuf.codegen.profiles": {
-    "local": [
-      "--go_out=./local-gen",
-      "${file}"
-    ]
+    "local": ["--go_out=./local-gen", "${file}"]
   }
 }
 ```

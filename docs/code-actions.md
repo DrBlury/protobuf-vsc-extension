@@ -1,6 +1,6 @@
 # Code Actions
 
-Code Actions provide quick fixes and refactoring capabilities for common issues.
+Code actions provide quick fixes and refactorings for proto files.
 
 ## Overview
 
@@ -72,8 +72,8 @@ message User {
 ```jsonc
 {
   "editor.codeActionsOnSave": {
-    "source.fixAll": "explicit"
-  }
+    "source.fixAll": "explicit",
+  },
 }
 ```
 
@@ -304,16 +304,16 @@ Code Actions are enabled by default. You can configure:
 {
   // Organize imports on save
   "editor.codeActionsOnSave": {
-    "source.organizeImports": "explicit"  // Organize imports on save
+    "source.organizeImports": "explicit", // Organize imports on save
   },
 
   // Protobuf-specific settings
-  "protobuf.organizeImports.groupByCategory": true  // Group imports by category (default: true)
+  "protobuf.organizeImports.groupByCategory": true, // Group imports by category (default: true)
 }
 ```
 
 ### Organize Imports Settings
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `protobuf.organizeImports.groupByCategory` | `true` | Group imports by category: Google well-known protos first, third-party libraries second, local imports last. Groups are separated by blank lines. |
+| Setting                                    | Default | Description                                                                                                                                       |
+| ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `protobuf.organizeImports.groupByCategory` | `true`  | Group imports by category: Google well-known protos first, third-party libraries second, local imports last. Groups are separated by blank lines. |
