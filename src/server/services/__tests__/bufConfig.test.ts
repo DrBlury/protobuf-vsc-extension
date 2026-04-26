@@ -6,6 +6,7 @@ import { BufConfigProvider } from '../bufConfig';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { URI } from 'vscode-uri';
 
 describe('BufConfigProvider', () => {
   let bufConfigProvider: BufConfigProvider;
@@ -282,5 +283,196 @@ build:
     const roots = bufConfigProvider.getProtoRoots(protoFilePath);
 
     expect(roots).toEqual([path.normalize(protoDir)]);
+  });
+
+  it('should accept file URIs when looking up config and roots', () => {
+    const bufYaml = `version: v2
+modules:
+  - path: proto
+`;
+
+    const bufYamlPath = path.join(tempDir, 'buf.yaml');
+    fs.writeFileSync(bufYamlPath, bufYaml);
+
+    const protoDir = path.join(tempDir, 'proto');
+    fs.mkdirSync(protoDir, { recursive: true });
+    const protoFilePath = path.join(protoDir, 'service.proto');
+    fs.writeFileSync(protoFilePath, 'syntax = "proto3";');
+
+    const protoUri = URI.file(protoFilePath).toString();
+    const config = bufConfigProvider.findBufConfig(protoUri);
+    const roots = bufConfigProvider.getProtoRoots(protoUri);
+
+    expect(config?.version).toBe('v2');
+    expect(roots).toEqual([path.normalize(protoDir)]);
+  });
+
+  it('should parse inline deps, build roots, and module excludes', () => {
+    const bufYaml = `version: "v2"
+name: 'buf.build/acme/weather'
+modules:
+  - path: proto
+    excludes: [proto/internal, "proto/private"]
+deps: [buf.build/googleapis/googleapis, 'buf.build/acme/common']
+build:
+  roots: [legacy, "third_party"]
+  excludes: generated
+`;
+
+    const bufYamlPath = path.join(tempDir, 'buf.yml');
+    fs.writeFileSync(bufYamlPath, bufYaml);
+
+    const config = bufConfigProvider.findBufConfig(bufYamlPath);
+
+    expect(config).toMatchObject({
+      version: 'v2',
+      name: 'buf.build/acme/weather',
+      deps: ['buf.build/googleapis/googleapis', 'buf.build/acme/common'],
+      modules: [{ path: 'proto', excludes: ['proto/internal', 'proto/private'] }],
+      build: { roots: ['legacy', 'third_party'], excludes: ['generated'] },
+    });
+  });
+
+  it('should fall back to build roots when configured modules do not exist', () => {
+    const bufYaml = `version: v2
+modules:
+  - path: missing-module
+build:
+  roots:
+    - legacy
+`;
+
+    const bufYamlPath = path.join(tempDir, 'buf.yaml');
+    fs.writeFileSync(bufYamlPath, bufYaml);
+
+    const legacyDir = path.join(tempDir, 'legacy');
+    fs.mkdirSync(legacyDir, { recursive: true });
+
+    const roots = bufConfigProvider.getProtoRoots(bufYamlPath);
+
+    expect(roots).toEqual([path.normalize(legacyDir)]);
+  });
+
+  it('should use the buf config directory when no configured roots exist', () => {
+    const bufYamlPath = path.join(tempDir, 'buf.yaml');
+    fs.writeFileSync(bufYamlPath, 'version: v1\nbuild:\n  roots:\n    - missing\n');
+
+    const roots = bufConfigProvider.getProtoRoots(bufYamlPath);
+
+    expect(roots).toEqual([path.normalize(tempDir)]);
+  });
+
+  it('should ignore missing buf.work.yaml directories and support .yml files', () => {
+    const bufWorkYaml = `version: v1
+directories:
+  - existing
+  - missing
+lint:
+  use:
+    - STANDARD
+`;
+
+    const bufWorkYamlPath = path.join(tempDir, 'buf.work.yml');
+    fs.writeFileSync(bufWorkYamlPath, bufWorkYaml);
+    const existingDir = path.join(tempDir, 'existing');
+    fs.mkdirSync(existingDir);
+
+    const dirs = bufConfigProvider.getWorkDirectories(bufWorkYamlPath);
+
+    expect(dirs).toEqual([existingDir]);
+  });
+
+  it('should cache missing configurations and clear cached misses', () => {
+    const protoPath = path.join(tempDir, 'service.proto');
+
+    expect(bufConfigProvider.findBufConfig(protoPath)).toBeNull();
+
+    fs.writeFileSync(path.join(tempDir, 'buf.yaml'), 'version: v2\n');
+    expect(bufConfigProvider.findBufConfig(protoPath)).toBeNull();
+
+    bufConfigProvider.clearCache();
+    expect(bufConfigProvider.findBufConfig(protoPath)?.version).toBe('v2');
+  });
+
+  it('should report the directory that owns a buf config', () => {
+    const protoDir = path.join(tempDir, 'proto');
+    fs.mkdirSync(protoDir);
+    fs.writeFileSync(path.join(tempDir, 'buf.yaml'), 'version: v2\n');
+
+    expect(bufConfigProvider.getBufConfigDir(path.join(protoDir, 'service.proto'))).toBe(tempDir);
+    expect(bufConfigProvider.getBufConfigDir(path.join(os.tmpdir(), 'missing-buf-config.proto'))).toBeNull();
+  });
+
+  it('should support module shorthand, empty module paths, and module-level exclude lists', () => {
+    const bufYaml = `version: v2
+modules:
+  - api
+  - path:
+  - excludes: [generated]
+  -
+    path: protos
+    excludes:
+      - protos/private
+      - "protos/internal"
+`;
+
+    const bufYamlPath = path.join(tempDir, 'buf.yaml');
+    fs.writeFileSync(bufYamlPath, bufYaml);
+    fs.mkdirSync(path.join(tempDir, 'api'));
+    fs.mkdirSync(path.join(tempDir, 'protos'));
+
+    const config = bufConfigProvider.findBufConfig(bufYamlPath);
+    const roots = bufConfigProvider.getProtoRoots(bufYamlPath);
+
+    expect(config?.modules).toEqual([
+      { path: 'api' },
+      { path: '' },
+      { path: '', excludes: ['generated'] },
+      { path: 'protos', excludes: ['protos/private', 'protos/internal'] },
+    ]);
+    expect(roots).toEqual([
+      path.normalize(path.join(tempDir, 'api')),
+      path.normalize(tempDir),
+      path.normalize(path.join(tempDir, 'protos')),
+    ]);
+  });
+
+  it('should parse build list items and ignore unknown build keys', () => {
+    const bufYaml = `version: v1
+build:
+  unknown: ignored
+  roots:
+    - api
+    - "types"
+  excludes:
+    - generated
+    - 'vendor'
+`;
+
+    const bufYamlPath = path.join(tempDir, 'buf.yaml');
+    fs.writeFileSync(bufYamlPath, bufYaml);
+
+    const config = bufConfigProvider.findBufConfig(bufYamlPath);
+
+    expect(config?.build?.roots).toEqual(['api', 'types']);
+    expect(config?.build?.excludes).toEqual(['generated', 'vendor']);
+    expect(config?.build).not.toHaveProperty('unknown');
+  });
+
+  it('should stop reading workspace directories when a new section starts', () => {
+    const bufWorkYaml = `# workspace config
+version: v1
+directories:
+  - api
+lint:
+  - not-a-directory
+`;
+
+    const bufWorkYamlPath = path.join(tempDir, 'buf.work.yaml');
+    fs.writeFileSync(bufWorkYamlPath, bufWorkYaml);
+
+    const config = bufConfigProvider.findBufWorkConfig(bufWorkYamlPath);
+
+    expect(config?.directories).toEqual(['api']);
   });
 });
