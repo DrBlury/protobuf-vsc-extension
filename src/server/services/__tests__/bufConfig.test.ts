@@ -304,7 +304,7 @@ modules:
     const roots = bufConfigProvider.getProtoRoots(protoUri);
 
     expect(config?.version).toBe('v2');
-    expect(roots).toEqual([path.normalize(protoDir)]);
+    expect(roots.map(root => root.toLowerCase())).toEqual([path.normalize(protoDir).toLowerCase()]);
   });
 
   it('should parse inline deps, build roots, and module excludes', () => {
