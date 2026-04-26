@@ -294,8 +294,8 @@
         },
         "protobuf.diagnostics.namingConventions": {
           "type": "boolean",
-          "default": true,
-          "description": "Check naming conventions (PascalCase for messages/enums, snake_case for fields)"
+          "default": false,
+          "description": "Check Protobuf style-guide naming conventions (PascalCase for messages/enums, snake_case for fields)"
         },
         "protobuf.diagnostics.referenceChecks": {
           "type": "boolean",
@@ -319,12 +319,12 @@
         },
         "protobuf.diagnostics.discouragedConstructs": {
           "type": "boolean",
-          "default": true,
-          "description": "Warn about discouraged patterns"
+          "default": false,
+          "description": "Warn about valid but discouraged patterns"
         },
         "protobuf.diagnostics.deprecatedUsage": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Warn when deprecated fields or enum values are used"
         },
         "protobuf.diagnostics.unusedSymbols": {
@@ -339,7 +339,7 @@
         },
         "protobuf.diagnostics.documentationComments": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Detect undocumented APIs"
         },
         "protobuf.diagnostics.editionFeatures": {
@@ -409,7 +409,7 @@
             "hint",
             "none"
           ],
-          "default": "warning",
+          "default": "none",
           "description": "Severity level for reporting of a non-canonical import path. Set to 'none' to suppress this warning."
         },
         "protobuf.diagnostics.severity.breakingChanges": {

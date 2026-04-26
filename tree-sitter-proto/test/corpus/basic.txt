@@ -156,6 +156,56 @@ service Greeter {
           (identifier))))))
 
 ================================================================================
+Unnamed declarations recover at block boundary
+================================================================================
+
+message {
+  string id = 1;
+}
+
+enum {
+  VALUE_UNSPECIFIED = 0;
+}
+
+service {
+  rpc Ping (PingRequest) returns (PingResponse);
+}
+
+message PingRequest {}
+message PingResponse {}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (message
+    body: (message_body
+      (field
+        type: (type
+          (scalar_type))
+        name: (identifier)
+        number: (int_lit))))
+  (enum
+    body: (enum_body
+      (enum_field
+        name: (identifier)
+        number: (int_lit))))
+  (service
+    (rpc
+      name: (identifier)
+      request_type: (message_type
+        (full_ident
+          (identifier)))
+      response_type: (message_type
+        (full_ident
+          (identifier)))))
+  (message
+    name: (identifier)
+    body: (message_body))
+  (message
+    name: (identifier)
+    body: (message_body)))
+
+================================================================================
 Map field
 ================================================================================
 

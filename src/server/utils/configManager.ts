@@ -201,10 +201,10 @@ export function updateProvidersWithSettings(
     fieldTagChecks: diag.fieldTagChecks,
     duplicateFieldChecks: diag.duplicateFieldChecks,
     discouragedConstructs: diag.discouragedConstructs,
-    deprecatedUsage: diag.deprecatedUsage ?? true,
+    deprecatedUsage: diag.deprecatedUsage ?? false,
     unusedSymbols: diag.unusedSymbols ?? false,
     circularDependencies: diag.circularDependencies ?? true,
-    documentationComments: diag.documentationComments ?? true,
+    documentationComments: diag.documentationComments ?? false,
     editionFeatures: diag.editionFeatures ?? true,
     breakingChanges: diag.breakingChanges ?? false,
     severity: {

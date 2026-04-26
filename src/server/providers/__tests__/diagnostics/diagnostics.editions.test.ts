@@ -32,7 +32,6 @@ message Person {
 
       expect(optionalDiag).toBeDefined();
       expect(optionalDiag?.message).toContain("'optional' label is not allowed in editions");
-      expect(optionalDiag?.message).toContain('features.field_presence = EXPLICIT');
     });
 
     it('should report error for optional field in edition 2024', async () => {
@@ -118,7 +117,6 @@ message Person {
       const requiredDiag = diagnostics.find(d => d.message.includes("'required' label is not allowed in editions"));
 
       expect(requiredDiag).toBeDefined();
-      expect(requiredDiag?.message).toContain('features.field_presence = LEGACY_REQUIRED');
     });
   });
 

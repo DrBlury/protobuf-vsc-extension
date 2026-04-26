@@ -647,6 +647,34 @@ message Test {
       expect(elapsedMs).toBeLessThan(5000);
     });
 
+    it('should preserve intentional field number gaps during normal formatting (issue #88)', async () => {
+      formatter.updateSettings({ preset: 'minimal', renumberOnFormat: false });
+      const text = `syntax = "proto3";
+
+package issue88;
+
+message ExampleMessage {
+    SubsSubscriptionShippingChargesType shippingCharges = 24; // Exists only in GRPC on purpose.
+    RRequestingAccountDetailsType requestingAccountDetails = 26; // Exists only in GRPC on purpose.
+}
+
+message SubsSubscriptionShippingChargesType {
+  string placeholder = 1;
+}
+
+message RRequestingAccountDetailsType {
+  string placeholder = 1;
+}`;
+
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      expect(formatted).toMatch(/shippingCharges\s*=\s*24;/);
+      expect(formatted).toMatch(/requestingAccountDetails\s*=\s*26;/);
+      expect(formatted).not.toMatch(/shippingCharges\s*=\s*1;/);
+      expect(formatted).not.toMatch(/requestingAccountDetails\s*=\s*2;/);
+    });
+
     it('should handle malformed braces', async () => {
       const text = 'message Test {string name = 1;';
       const result = await formatter.formatDocument(text);

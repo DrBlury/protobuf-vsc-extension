@@ -73,10 +73,13 @@ module.exports = grammar({
 
     // Message definition
     message: ($) =>
-      seq(
-        "message",
-        field("name", $.identifier),
-        field("body", $.message_body)
+      choice(
+        seq(
+          "message",
+          field("name", $.identifier),
+          field("body", $.message_body)
+        ),
+        seq("message", field("body", $.message_body))
       ),
 
     message_body: ($) =>
@@ -161,7 +164,10 @@ module.exports = grammar({
 
     // Enum definition
     enum: ($) =>
-      seq("enum", field("name", $.identifier), field("body", $.enum_body)),
+      choice(
+        seq("enum", field("name", $.identifier), field("body", $.enum_body)),
+        seq("enum", field("body", $.enum_body))
+      ),
 
     enum_body: ($) =>
       seq(
@@ -181,12 +187,20 @@ module.exports = grammar({
 
     // Service definition
     service: ($) =>
-      seq(
-        "service",
-        field("name", $.identifier),
-        "{",
-        repeat(choice($.rpc, $.option, $.empty_statement)),
-        "}"
+      choice(
+        seq(
+          "service",
+          field("name", $.identifier),
+          "{",
+          repeat(choice($.rpc, $.option, $.empty_statement)),
+          "}"
+        ),
+        seq(
+          "service",
+          "{",
+          repeat(choice($.rpc, $.option, $.empty_statement)),
+          "}"
+        )
       ),
 
     // RPC method

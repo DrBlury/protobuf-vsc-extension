@@ -32,6 +32,7 @@ default.clang-format
 jest.config.js
 jest.setup.js
 package-lock.json
+security-coverage-report.json
 test-security.js
 test-*.proto
 tsconfig.json

@@ -29,6 +29,11 @@ interface Node {
   parent: Node | null;
 }
 
+interface DeclarationName {
+  name: string;
+  range: Range;
+}
+
 import type {
   ProtoFile,
   SyntaxStatement,
@@ -426,6 +431,7 @@ export class TreeSitterProtoParser {
     };
 
     this.collectSyntaxErrors(root, file);
+    this.collectDeclarationNameErrors(root, file);
 
     for (let i = 0; i < root.childCount; i++) {
       const child = root.child(i);
@@ -451,13 +457,13 @@ export class TreeSitterProtoParser {
             file.options.push(this.parseOption(child));
             break;
           case 'message':
-            file.messages.push(this.parseMessage(child));
+            this.pushIfNamed(file.messages, this.parseMessage(child));
             break;
           case 'enum':
-            file.enums.push(this.parseEnum(child));
+            this.pushIfNamed(file.enums, this.parseEnum(child));
             break;
           case 'service':
-            file.services.push(this.parseService(child));
+            this.pushIfNamed(file.services, this.parseService(child));
             break;
           case 'extend':
             file.extends.push(this.parseExtend(child));
@@ -504,6 +510,66 @@ export class TreeSitterProtoParser {
         });
       }
     }
+  }
+
+  private collectDeclarationNameErrors(root: Node, file: ProtoFile): void {
+    const visit = (node: Node): void => {
+      if ((node.type === 'message' || node.type === 'enum' || node.type === 'service') && node.childCount > 0) {
+        if (!this.getDeclarationName(node, node.type)) {
+          file.syntaxErrors?.push({
+            range: this.rangeFromOffsets(node, getText(node), 0, node.type.length),
+            message: `Syntax error: missing ${node.type} name`,
+          });
+        }
+      }
+
+      for (let i = 0; i < node.childCount; i++) {
+        const child = node.child(i);
+        if (child) {
+          visit(child);
+        }
+      }
+    };
+
+    visit(root);
+  }
+
+  private pushIfNamed<T extends { name: string }>(collection: T[], node: T): void {
+    if (node.name) {
+      collection.push(node);
+    }
+  }
+
+  private getDeclarationName(node: Node, keyword: 'message' | 'enum' | 'service'): DeclarationName | null {
+    const text = getText(node);
+    const bodyStart = text.indexOf('{');
+    const header = bodyStart >= 0 ? text.slice(0, bodyStart) : text;
+    const headerWithoutComments = this.stripDeclarationComments(header);
+    const match = headerWithoutComments.match(new RegExp(`^\\s*${keyword}\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*$`));
+    const name = match?.[1];
+
+    if (!name) {
+      return null;
+    }
+
+    const nameNode = getField(node, 'name');
+    if (nameNode && getText(nameNode) === name) {
+      return {
+        name,
+        range: nodeToRange(nameNode),
+      };
+    }
+
+    const keywordOffset = text.indexOf(keyword);
+    const nameOffset = text.indexOf(name, keywordOffset >= 0 ? keywordOffset + keyword.length : 0);
+    return {
+      name,
+      range: nameOffset >= 0 ? this.rangeFromOffsets(node, text, nameOffset, name.length) : nodeToRange(node),
+    };
+  }
+
+  private stripDeclarationComments(text: string): string {
+    return text.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\r\n]*/g, ' ');
   }
 
   private parseSyntax(node: Node): SyntaxStatement {
@@ -606,14 +672,14 @@ export class TreeSitterProtoParser {
   }
 
   private parseMessage(node: Node): MessageDefinition {
-    const nameNode = getField(node, 'name');
-    const name = nameNode ? getText(nameNode) : '';
+    const declarationName = this.getDeclarationName(node, 'message');
+    const name = declarationName?.name ?? '';
     const bodyNode = getField(node, 'body');
 
     const message: MessageDefinition = {
       type: 'message',
       name,
-      nameRange: nameNode ? nodeToRange(nameNode) : nodeToRange(node),
+      nameRange: declarationName?.range ?? nodeToRange(node),
       range: nodeToRange(node),
       fields: [],
       nestedMessages: [],
@@ -655,10 +721,10 @@ export class TreeSitterProtoParser {
               message.extensions.push(this.parseExtensions(child));
               break;
             case 'message':
-              message.nestedMessages.push(this.parseMessage(child));
+              this.pushIfNamed(message.nestedMessages, this.parseMessage(child));
               break;
             case 'enum':
-              message.nestedEnums.push(this.parseEnum(child));
+              this.pushIfNamed(message.nestedEnums, this.parseEnum(child));
               break;
             case 'group':
               message.groups.push(this.parseGroup(child));
@@ -1295,14 +1361,14 @@ export class TreeSitterProtoParser {
   }
 
   private parseEnum(node: Node): EnumDefinition {
-    const nameNode = getField(node, 'name');
-    const name = nameNode ? getText(nameNode) : '';
+    const declarationName = this.getDeclarationName(node, 'enum');
+    const name = declarationName?.name ?? '';
     const bodyNode = getField(node, 'body');
 
     const enumDef: EnumDefinition = {
       type: 'enum',
       name,
-      nameRange: nameNode ? nodeToRange(nameNode) : nodeToRange(node),
+      nameRange: declarationName?.range ?? nodeToRange(node),
       values: [],
       options: [],
       reserved: [],
@@ -1392,13 +1458,13 @@ export class TreeSitterProtoParser {
   }
 
   private parseService(node: Node): ServiceDefinition {
-    const nameNode = getField(node, 'name');
-    const name = nameNode ? getText(nameNode) : '';
+    const declarationName = this.getDeclarationName(node, 'service');
+    const name = declarationName?.name ?? '';
 
     const service: ServiceDefinition = {
       type: 'service',
       name,
-      nameRange: nameNode ? nodeToRange(nameNode) : nodeToRange(node),
+      nameRange: declarationName?.range ?? nodeToRange(node),
       rpcs: [],
       options: [],
       range: nodeToRange(node),

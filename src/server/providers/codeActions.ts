@@ -974,7 +974,14 @@ export class CodeActionsProvider {
     // Missing import (detected by diagnostics provider)
     if (message.includes('not imported')) {
       const importMatch = diagnostic.message.match(/import "([^"]+)"/i);
-      const importPath = importMatch?.[1];
+      const dataImportPath =
+        typeof diagnostic.data === 'object' &&
+        diagnostic.data !== null &&
+        'importPath' in diagnostic.data &&
+        typeof diagnostic.data.importPath === 'string'
+          ? diagnostic.data.importPath
+          : undefined;
+      const importPath = dataImportPath ?? importMatch?.[1];
 
       if (importPath && !documentText.includes(`"${importPath}"`)) {
         const insertPosition = this.findImportInsertPosition(documentText);
@@ -1617,8 +1624,15 @@ export class CodeActionsProvider {
         continue;
       }
       const match = diagnostic.message.match(/import "([^"]+)"/i);
-      if (match?.[1]) {
-        const path = match[1];
+      const dataImportPath =
+        typeof diagnostic.data === 'object' &&
+        diagnostic.data !== null &&
+        'importPath' in diagnostic.data &&
+        typeof diagnostic.data.importPath === 'string'
+          ? diagnostic.data.importPath
+          : undefined;
+      const path = dataImportPath ?? match?.[1];
+      if (path) {
         if (!documentText.includes(`"${path}"`)) {
           imports.add(path);
         }

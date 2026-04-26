@@ -5,6 +5,7 @@
     }
   ],
   "settings": {
-    "protobuf.formatOnSave": true
+    "protobuf.formatOnSave": true,
+    "protobuf.renumber.onFormat": false
   }
 }

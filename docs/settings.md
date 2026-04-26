@@ -28,8 +28,8 @@ Settings can be configured in:
 #### `protobuf.diagnostics.namingConventions`
 
 - **Type**: `boolean`
-- **Default**: `true`
-- **Description**: Check naming conventions (PascalCase for messages/enums, snake_case for fields)
+- **Default**: `false`
+- **Description**: Check Protobuf style-guide naming conventions (PascalCase for messages/enums, snake_case for fields)
 
 #### `protobuf.diagnostics.referenceChecks`
 
@@ -58,20 +58,20 @@ Settings can be configured in:
 #### `protobuf.diagnostics.discouragedConstructs`
 
 - **Type**: `boolean`
-- **Default**: `true`
-- **Description**: Warn about discouraged patterns
+- **Default**: `false`
+- **Description**: Warn about valid but discouraged patterns
 
 #### `protobuf.diagnostics.deprecatedUsage`
 
 - **Type**: `boolean`
-- **Default**: `true`
+- **Default**: `false`
 - **Description**: Warn when deprecated fields or enum values are used
 
 #### `protobuf.diagnostics.unusedSymbols`
 
 - **Type**: `boolean`
 - **Default**: `false`
-- **Description**: Warn about unused messages, enums, and services
+- **Description**: Warn about unused imports, messages, enums, and services
 
 #### `protobuf.diagnostics.circularDependencies`
 
@@ -82,7 +82,7 @@ Settings can be configured in:
 #### `protobuf.diagnostics.documentationComments`
 
 - **Type**: `boolean`
-- **Default**: `true`
+- **Default**: `false`
 - **Description**: Detect undocumented APIs
 
 #### Severity Settings
@@ -114,7 +114,7 @@ Settings can be configured in:
 ##### `protobuf.diagnostics.severity.nonCanonicalImportPath`
 
 - **Type**: `"error" | "warning" | "information" | "hint" | "none"`
-- **Default**: `"warning"`
+- **Default**: `"none"`
 - **Description**: Severity for non-canonical import path warnings. Use `"none"` to suppress this warning.
 
 ##### `protobuf.diagnostics.severity.breakingChanges`
@@ -648,10 +648,10 @@ Settings support VS Code-style variables in path settings (`protobuf.protoc.path
 {
   // Diagnostics
   "protobuf.diagnostics.enabled": true,
-  "protobuf.diagnostics.namingConventions": true,
-  "protobuf.diagnostics.deprecatedUsage": true,
+  "protobuf.diagnostics.namingConventions": false,
+  "protobuf.diagnostics.deprecatedUsage": false,
   "protobuf.diagnostics.circularDependencies": true,
-  "protobuf.diagnostics.documentationComments": true,
+  "protobuf.diagnostics.documentationComments": false,
 
   // Formatter
   "protobuf.formatter.enabled": true,

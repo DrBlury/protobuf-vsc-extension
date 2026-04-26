@@ -25,8 +25,8 @@ export const DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS: DiagnosticsSeveritySettings 
   referenceErrors: 'error',
   fieldTagIssues: 'error',
   discouragedConstructs: 'warning',
-  nonCanonicalImportPath: 'warning',
-  breakingChanges: 'warning',
+  nonCanonicalImportPath: 'none',
+  breakingChanges: 'error',
 };
 
 /**
@@ -49,19 +49,19 @@ export interface DiagnosticsSettings {
 }
 
 /**
- * Default settings - all checks enabled except unusedSymbols (can be noisy)
+ * Default settings - correctness checks enabled, style/advisory checks opt-in.
  */
 export const DEFAULT_DIAGNOSTICS_SETTINGS: DiagnosticsSettings = {
-  namingConventions: true,
+  namingConventions: false,
   referenceChecks: true,
   importChecks: true,
   fieldTagChecks: true,
   duplicateFieldChecks: true,
-  discouragedConstructs: true,
-  deprecatedUsage: true,
+  discouragedConstructs: false,
+  deprecatedUsage: false,
   unusedSymbols: false,
   circularDependencies: true,
-  documentationComments: true,
+  documentationComments: false,
   editionFeatures: true,
   breakingChanges: false,
   severity: DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS,

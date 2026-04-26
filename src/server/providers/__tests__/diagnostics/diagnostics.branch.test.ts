@@ -454,7 +454,7 @@ enum Status {
       const file = providers.parser.parse(text, uri);
       providers.analyzer.updateFile(uri, file);
       const diagnostics = await providers.diagnostics.validate(uri, file, providers, text);
-      const zeroDiags = diagnostics.filter(d => d.message.includes('should be 0'));
+      const zeroDiags = diagnostics.filter(d => d.message.includes('must be 0'));
       expect(zeroDiags.length).toBeGreaterThan(0);
     });
 

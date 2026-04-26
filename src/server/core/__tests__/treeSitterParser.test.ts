@@ -24,7 +24,7 @@ interface MockNode {
   fieldChildren: Record<string, MockNode>;
   child(index: number): MockNode | null;
   childForFieldName(name: string): MockNode | null;
-  isMissing(): boolean;
+  isMissing: boolean;
   parent: MockNode | null;
 }
 
@@ -48,7 +48,7 @@ function createMockNode(
     fieldChildren,
     child: (index: number) => children[index] || null,
     childForFieldName: (name: string) => fieldChildren[name] || null,
-    isMissing: () => false,
+    isMissing: false,
     parent: null,
   };
   return node;
@@ -352,6 +352,70 @@ describe('treeSitterParser', () => {
 
         expect(result.messages).toHaveLength(1);
         expect(result.messages[0].name).toBe('TestMessage');
+      });
+
+      it('should not promote identifiers from unnamed declarations to symbols', async () => {
+        const invalidMessageName = createMockNode('identifier', 'id');
+        const invalidMessageBody = createMockNode('message_body', '{ string id = 1; }', [
+          createMockNode('field', 'string id = 1;'),
+        ]);
+        const invalidMessage = createMockNode('message', 'message { string id = 1; }', [invalidMessageBody], {
+          name: invalidMessageName,
+          body: invalidMessageBody,
+        });
+
+        const invalidEnumName = createMockNode('identifier', 'VALUE_UNSPECIFIED');
+        const invalidEnumBody = createMockNode('enum_body', '{ VALUE_UNSPECIFIED = 0; }', [
+          createMockNode('enum_field', 'VALUE_UNSPECIFIED = 0;'),
+        ]);
+        const invalidEnum = createMockNode('enum', 'enum { VALUE_UNSPECIFIED = 0; }', [invalidEnumBody], {
+          name: invalidEnumName,
+          body: invalidEnumBody,
+        });
+
+        const invalidServiceName = createMockNode('identifier', 'Ping');
+        const invalidService = createMockNode(
+          'service',
+          'service { rpc Ping (PingRequest) returns (PingResponse); }',
+          [createMockNode('rpc', 'rpc Ping (PingRequest) returns (PingResponse);')],
+          { name: invalidServiceName }
+        );
+
+        const requestName = createMockNode('identifier', 'PingRequest');
+        const requestBody = createMockNode('message_body', '{}', []);
+        const requestMessage = createMockNode('message', 'message PingRequest {}', [], {
+          name: requestName,
+          body: requestBody,
+        });
+        const responseName = createMockNode('identifier', 'PingResponse');
+        const responseBody = createMockNode('message_body', '{}', []);
+        const responseMessage = createMockNode('message', 'message PingResponse {}', [], {
+          name: responseName,
+          body: responseBody,
+        });
+
+        const root = createMockNode('source_file', '', [
+          invalidMessage,
+          invalidEnum,
+          invalidService,
+          requestMessage,
+          responseMessage,
+        ]);
+        mockParse.mockReturnValue({ rootNode: root });
+
+        const { treeSitterParser } = require('../treeSitterParser');
+        const result = treeSitterParser.parse('', 'test.proto');
+
+        expect(result.messages.map((message: any) => message.name)).toEqual(['PingRequest', 'PingResponse']);
+        expect(result.enums).toHaveLength(0);
+        expect(result.services).toHaveLength(0);
+        expect(result.syntaxErrors.map((error: any) => error.message)).toEqual(
+          expect.arrayContaining([
+            'Syntax error: missing message name',
+            'Syntax error: missing enum name',
+            'Syntax error: missing service name',
+          ])
+        );
       });
 
       it('should parse message with field', async () => {
@@ -1353,7 +1417,7 @@ describe('treeSitterParser', () => {
         const messageNode = createMockNode(
           'message',
           'message {}',
-          [],
+          [bodyNode],
           { body: bodyNode } // No name
         );
         const root = createMockNode('source_file', 'message {}', [messageNode]);
@@ -1362,7 +1426,8 @@ describe('treeSitterParser', () => {
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('message {}', 'test.proto');
 
-        expect(result.messages[0].name).toBe('');
+        expect(result.messages).toHaveLength(0);
+        expect(result.syntaxErrors.map((error: any) => error.message)).toContain('Syntax error: missing message name');
       });
 
       it('should parse enum without name node', async () => {
@@ -1370,7 +1435,7 @@ describe('treeSitterParser', () => {
         const enumNode = createMockNode(
           'enum',
           'enum {}',
-          [],
+          [enumBodyNode],
           { body: enumBodyNode } // No name
         );
         const root = createMockNode('source_file', 'enum {}', [enumNode]);
@@ -1379,14 +1444,15 @@ describe('treeSitterParser', () => {
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('enum {}', 'test.proto');
 
-        expect(result.enums[0].name).toBe('');
+        expect(result.enums).toHaveLength(0);
+        expect(result.syntaxErrors.map((error: any) => error.message)).toContain('Syntax error: missing enum name');
       });
 
       it('should parse service without name node', async () => {
         const serviceNode = createMockNode(
           'service',
           'service {}',
-          [],
+          [createMockNode('service_body', '{}')],
           {} // No name
         );
         const root = createMockNode('source_file', 'service {}', [serviceNode]);
@@ -1395,7 +1461,8 @@ describe('treeSitterParser', () => {
         const { treeSitterParser } = require('../treeSitterParser');
         const result = treeSitterParser.parse('service {}', 'test.proto');
 
-        expect(result.services[0].name).toBe('');
+        expect(result.services).toHaveLength(0);
+        expect(result.syntaxErrors.map((error: any) => error.message)).toContain('Syntax error: missing service name');
       });
 
       it('should parse map field with hex number', async () => {
@@ -1432,7 +1499,7 @@ describe('treeSitterParser', () => {
           fieldChildren: {},
           child: () => null, // Always returns null
           childForFieldName: () => null,
-          isMissing: () => false,
+          isMissing: false,
           parent: null,
         };
         mockParse.mockReturnValue({ rootNode: rootWithNullChild });

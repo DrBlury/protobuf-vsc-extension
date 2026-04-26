@@ -438,7 +438,7 @@ message TestMessage {
       const diags = await providers.diagnostics.validate(uri, file, providers, content);
 
       const missingDocDiag = diags.find(
-        d => d.message.includes('Consider adding documentation comment') && d.message.includes('TestMessage')
+        d => d.message.includes('Missing documentation comment') && d.message.includes('TestMessage')
       );
       expect(missingDocDiag).toBeUndefined();
     });
@@ -462,7 +462,7 @@ message TestMessage {
       const diags = await providers.diagnostics.validate(uri, file, providers, content);
 
       const missingDocDiag = diags.find(
-        d => d.message.includes('Consider adding documentation comment') && d.message.includes('TestMessage')
+        d => d.message.includes('Missing documentation comment') && d.message.includes('TestMessage')
       );
       expect(missingDocDiag).toBeUndefined();
     });
@@ -486,7 +486,7 @@ message TestMessage {
       const diags = await providers.diagnostics.validate(uri, file, providers, content);
 
       const missingDocDiag = diags.find(
-        d => d.message.includes('Consider adding documentation comment') && d.message.includes('TestMessage')
+        d => d.message.includes('Missing documentation comment') && d.message.includes('TestMessage')
       );
       expect(missingDocDiag).toBeUndefined();
     });
@@ -507,12 +507,12 @@ message TestMessage {
       const diags = await providers.diagnostics.validate(uri, file, providers, content);
 
       const missingDocDiag = diags.find(
-        d => d.message.includes('Consider adding documentation comment') && d.message.includes('TestMessage')
+        d => d.message.includes('Missing documentation comment') && d.message.includes('TestMessage')
       );
       expect(missingDocDiag).toBeUndefined();
     });
 
-    it('should suggest documentation for undocumented message', async () => {
+    it('should report missing documentation for undocumented message', async () => {
       const content = `syntax = "proto3";
 package test.v1;
 
@@ -527,7 +527,7 @@ message TestMessage {
       const diags = await providers.diagnostics.validate(uri, file, providers, content);
 
       const missingDocDiag = diags.find(
-        d => d.message.includes('Consider adding documentation comment') && d.message.includes('TestMessage')
+        d => d.message.includes('Missing documentation comment') && d.message.includes('TestMessage')
       );
       expect(missingDocDiag).toBeDefined();
     });

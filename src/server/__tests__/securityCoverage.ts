@@ -54,8 +54,8 @@ export class SecurityCoverageReporter {
     const totalTests = this.testResults.length;
     const passedTests = this.testResults.filter(r => r.passed).length;
     const failedTests = totalTests - passedTests;
-    const criticalTests = this.testResults.filter(r => r.severity === 'critical').length;
-    const highSeverityTests = this.testResults.filter(r => r.severity === 'high').length;
+    const criticalTests = this.testResults.filter(r => !r.passed && r.severity === 'critical').length;
+    const highSeverityTests = this.testResults.filter(r => !r.passed && r.severity === 'high').length;
 
     const coveragePercentage = (passedTests / totalTests) * 100;
 

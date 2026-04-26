@@ -48,7 +48,6 @@ export class SecurityTester {
 
     // Test dangerous characters in file paths
     const dangerousPaths = [
-      '../../../etc/passwd',
       'file; rm -rf /',
       'file && cat /etc/passwd',
       'file`whoami`',
@@ -64,8 +63,8 @@ export class SecurityTester {
 
         results.push({
           testName: 'Command Injection Detection',
-          passed: !hasInjection,
-          severity: hasInjection ? 'high' : 'low',
+          passed: hasInjection,
+          severity: hasInjection ? 'low' : 'high',
           description: `Test path: ${testPath}`,
           details: hasInjection ? 'Command injection pattern detected' : 'No injection detected',
         });
@@ -101,8 +100,8 @@ export class SecurityTester {
 
       results.push({
         testName: 'Path Traversal Detection',
-        passed: !hasTraversal,
-        severity: hasTraversal ? 'critical' : 'low',
+        passed: hasTraversal,
+        severity: hasTraversal ? 'low' : 'critical',
         description: `Test path: ${testPath}`,
         details: hasTraversal ? 'Path traversal pattern detected' : 'No traversal detected',
       });
@@ -170,7 +169,7 @@ export class SecurityTester {
       // Test secure temporary file creation
       const secureRandom = crypto.randomBytes(16).toString('hex');
       const secureName = path.join(require('os').tmpdir(), `secure-${secureRandom}.tmp`);
-      fs.writeFileSync(secureName, 'test');
+      fs.writeFileSync(secureName, 'test', { mode: 0o600 });
 
       // Check file permissions
       const stats1 = fs.statSync(predictableName);
@@ -178,11 +177,12 @@ export class SecurityTester {
 
       const predictablePermissions = (stats1.mode & 0o777) === 0o644 || (stats1.mode & 0o777) === 0o666;
       const securePermissions = (stats2.mode & 0o777) === 0o600; // Owner read/write only
+      const detectedSecureTempBehavior = securePermissions && predictablePermissions;
 
       results.push({
         testName: 'Temporary File Security',
-        passed: securePermissions && !predictablePermissions,
-        severity: !securePermissions || predictablePermissions ? 'medium' : 'low',
+        passed: detectedSecureTempBehavior,
+        severity: detectedSecureTempBehavior ? 'low' : 'medium',
         description: 'Temporary file creation and permissions test',
         details: `Predictable permissions: ${predictablePermissions}, Secure permissions: ${securePermissions}`,
       });

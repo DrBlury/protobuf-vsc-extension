@@ -60,7 +60,7 @@ If you use Go-style module imports, you can map a virtual prefix to a local dire
 ## What You Get
 
 - **Navigation and IntelliSense**: definitions, references, workspace symbols, import completion, auto-imports, fuzzy search
-- **Diagnostics**: validation for syntax, imports, naming, duplicates, reserved ranges, undefined types, deprecated usage, and circular dependencies
+- **Diagnostics**: validation for syntax, imports, duplicate names/tags, reserved ranges, undefined types, edition rules, and circular dependencies; optional style and cleanup checks
 - **Code Lens**: Reference counts and metadata above symbols
 - **Document Links**: Clickable import paths for quick navigation
 - **Hover Information**: symbol details, definitions, documentation, and reference counts

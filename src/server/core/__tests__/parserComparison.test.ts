@@ -185,6 +185,48 @@ option optimize_for = SPEED;
     });
   });
 
+  describe('Error Recovery Regressions', () => {
+    it('should not promote identifiers from unnamed declarations to symbols (issue #68)', () => {
+      if (!treeSitterParser) {
+        logger.warn('[issue #68] Tree-sitter not available, skipping comparison');
+        return;
+      }
+
+      const proto = `syntax = "proto3";
+
+package issue68;
+
+message {
+  string id = 1;
+}
+
+enum {
+  VALUE_UNSPECIFIED = 0;
+}
+
+service {
+  rpc Ping (PingRequest) returns (PingResponse);
+}
+
+message PingRequest {}
+message PingResponse {}
+`;
+
+      const parsed = treeSitterParser.parse(proto, 'file:///issue68.proto');
+
+      expect(parsed.messages.map(message => message.name)).toEqual(['PingRequest', 'PingResponse']);
+      expect(parsed.enums).toHaveLength(0);
+      expect(parsed.services).toHaveLength(0);
+      expect(parsed.syntaxErrors?.map(error => error.message)).toEqual(
+        expect.arrayContaining([
+          'Syntax error: missing message name',
+          'Syntax error: missing enum name',
+          'Syntax error: missing service name',
+        ])
+      );
+    });
+  });
+
   describe('Message Definitions', () => {
     it('should parse simple message identically', () => {
       const proto = `

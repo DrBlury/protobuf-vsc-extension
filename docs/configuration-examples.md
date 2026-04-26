@@ -107,15 +107,17 @@ The extension automatically detects `buf.yaml` files - no additional configurati
 
 ## Relaxed Validation
 
-### Minimal Diagnostics
+### Default-Like Diagnostics
 
 ```jsonc
 {
   "protobuf.diagnostics.enabled": true,
   "protobuf.diagnostics.namingConventions": false,
   "protobuf.diagnostics.discouragedConstructs": false,
+  "protobuf.diagnostics.deprecatedUsage": false,
   "protobuf.diagnostics.unusedSymbols": false,
-  "protobuf.diagnostics.severity.namingConventions": "hint",
+  "protobuf.diagnostics.documentationComments": false,
+  "protobuf.diagnostics.severity.nonCanonicalImportPath": "none",
 }
 ```
 
@@ -194,14 +196,15 @@ The extension automatically detects `buf.yaml` files - no additional configurati
   "protobuf.diagnostics.importChecks": true,
   "protobuf.diagnostics.fieldTagChecks": true,
   "protobuf.diagnostics.duplicateFieldChecks": true,
-  "protobuf.diagnostics.discouragedConstructs": true,
-  "protobuf.diagnostics.deprecatedUsage": true,
+  "protobuf.diagnostics.discouragedConstructs": false,
+  "protobuf.diagnostics.deprecatedUsage": false,
   "protobuf.diagnostics.circularDependencies": true,
-  "protobuf.diagnostics.documentationComments": true,
+  "protobuf.diagnostics.documentationComments": false,
   "protobuf.diagnostics.breakingChanges": true,
   "protobuf.diagnostics.severity.namingConventions": "warning",
   "protobuf.diagnostics.severity.referenceErrors": "error",
   "protobuf.diagnostics.severity.fieldTagIssues": "error",
+  "protobuf.diagnostics.severity.nonCanonicalImportPath": "none",
   "protobuf.diagnostics.severity.breakingChanges": "warning",
 
   // Formatter

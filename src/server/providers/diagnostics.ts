@@ -156,7 +156,9 @@ export class DiagnosticsProvider {
 
     this.validateSyntaxOrEdition(uri, file, diagnostics);
 
-    this.validatePackagePathConsistency(uri, file, diagnostics);
+    if (this.settings.namingConventions) {
+      this.validatePackagePathConsistency(uri, file, diagnostics);
+    }
 
     // Collect type usages for downstream checks (imports, unused imports, numbering continuity helpers)
     const usedTypeUris = this.collectUsedTypeUris(file, uri);
@@ -232,11 +234,11 @@ export class DiagnosticsProvider {
     const hasSyntax = !!file.syntax;
     const hasEdition = !!file.edition;
 
-    if (!hasSyntax && !hasEdition) {
+    if (this.settings.discouragedConstructs && !hasSyntax && !hasEdition) {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
         range: this.toRange(file.range),
-        message: 'Missing syntax or edition declaration (e.g., syntax = "proto3";)',
+        message: 'Missing syntax or edition declaration',
         source: DIAGNOSTIC_SOURCE,
         code: ERROR_CODES.MISSING_SYNTAX,
       });
@@ -249,7 +251,7 @@ export class DiagnosticsProvider {
         diagnostics.push({
           severity: DiagnosticSeverity.Warning,
           range: this.toRange(opt.range),
-          message: `Edition feature '${opt.name}' requires an edition declaration. Add "edition = "2023";" at the top of the file.`,
+          message: `Edition feature '${opt.name}' requires an edition declaration`,
           code: ERROR_CODES.FEATURES_WITHOUT_EDITION,
           source: DIAGNOSTIC_SOURCE,
         });
@@ -605,7 +607,9 @@ export class DiagnosticsProvider {
     }
 
     // Check numbering continuity (gaps/out-of-order) including oneof fields
-    this.checkFieldNumberContinuity(message, diagnostics, isNumberReserved);
+    if (this.settings.discouragedConstructs) {
+      this.checkFieldNumberContinuity(message, diagnostics, isNumberReserved);
+    }
 
     // Check for overlapping reserved ranges
     this.checkReservedOverlap(message, diagnostics);
@@ -733,12 +737,11 @@ export class DiagnosticsProvider {
 
     // Check for discouraged constructs
     if (this.settings.discouragedConstructs) {
-      // 'required' is only invalid/discouraged in proto3, it's valid in proto2
-      if (field.modifier === 'required' && this.currentFile?.syntax?.version === 'proto3') {
+      if (field.modifier === 'required' && this.currentFile?.syntax?.version === 'proto2') {
         diagnostics.push({
           severity: Severity[this.settings.severity.discouragedConstructs],
           range: this.toRange(field.range),
-          message: `'required' is not supported in proto3. Consider using 'optional' or no modifier`,
+          message: `'required' fields are deprecated`,
           source: DIAGNOSTIC_SOURCE,
           code: ERROR_CODES.DISCOURAGED_CONSTRUCT,
         });
@@ -922,37 +925,27 @@ export class DiagnosticsProvider {
       }
     }
 
-    // Warn that groups are deprecated in proto2 or invalid in proto3/editions
-    if (this.settings.discouragedConstructs) {
-      const isProto3 = this.currentFile?.syntax?.version === 'proto3';
-      const isEdition = !!this.currentFile?.edition;
+    // Groups are invalid in proto3/editions and deprecated in proto2.
+    const isProto3 = this.currentFile?.syntax?.version === 'proto3';
+    const isEdition = !!this.currentFile?.edition;
 
-      if (isProto3) {
-        diagnostics.push({
-          severity: Severity[this.settings.severity.discouragedConstructs],
-          range: this.toRange(group.range),
-          message: 'Groups are not supported in proto3. Use nested messages instead.',
-          source: DIAGNOSTIC_SOURCE,
-          code: ERROR_CODES.DISCOURAGED_CONSTRUCT,
-        });
-      } else if (isEdition) {
-        diagnostics.push({
-          severity: Severity[this.settings.severity.discouragedConstructs],
-          range: this.toRange(group.range),
-          message: 'Groups are not supported in editions. Use nested messages with DELIMITED encoding instead.',
-          source: DIAGNOSTIC_SOURCE,
-          code: ERROR_CODES.DISCOURAGED_CONSTRUCT,
-        });
-      } else {
-        // Proto2: valid but deprecated
-        diagnostics.push({
-          severity: Severity[this.settings.severity.discouragedConstructs],
-          range: this.toRange(group.range),
-          message: 'Groups are deprecated. Consider using nested messages instead.',
-          source: DIAGNOSTIC_SOURCE,
-          code: ERROR_CODES.DISCOURAGED_CONSTRUCT,
-        });
-      }
+    if (isProto3 || isEdition) {
+      diagnostics.push({
+        severity: DiagnosticSeverity.Error,
+        range: this.toRange(group.range),
+        message: isProto3 ? 'Groups are not supported in proto3' : 'Groups are not supported in editions',
+        source: DIAGNOSTIC_SOURCE,
+        code: ERROR_CODES.DISCOURAGED_CONSTRUCT,
+      });
+    } else if (this.settings.discouragedConstructs) {
+      // Proto2: valid but deprecated
+      diagnostics.push({
+        severity: Severity[this.settings.severity.discouragedConstructs],
+        range: this.toRange(group.range),
+        message: 'Groups are deprecated',
+        source: DIAGNOSTIC_SOURCE,
+        code: ERROR_CODES.DISCOURAGED_CONSTRUCT,
+      });
     }
 
     // Validate fields within the group recursively
@@ -1031,11 +1024,11 @@ export class DiagnosticsProvider {
     }
 
     // Check for first value being 0 (required for proto3 only)
-    if (this.settings.discouragedConstructs && this.isProto3() && !hasZeroValue && enumDef.values.length > 0) {
+    if (this.isProto3() && !hasZeroValue && enumDef.values.length > 0) {
       diagnostics.push({
-        severity: Severity[this.settings.severity.discouragedConstructs],
+        severity: DiagnosticSeverity.Error,
         range: this.toRange(enumDef.values[0]!.range),
-        message: `First enum value should be 0 in proto3`,
+        message: `First enum value must be 0 in proto3`,
         source: DIAGNOSTIC_SOURCE,
         code: ERROR_CODES.DISCOURAGED_CONSTRUCT,
       });
@@ -1049,7 +1042,7 @@ export class DiagnosticsProvider {
           diagnostics.push({
             severity: DiagnosticSeverity.Error,
             range: this.toRange(enumDef.range),
-            message: `Duplicate enum value ${number} for ${names.join(', ')}. Use option allow_alias = true; to allow aliases`,
+            message: `Duplicate enum value ${number} for ${names.join(', ')}`,
             source: DIAGNOSTIC_SOURCE,
           });
         }
@@ -1255,16 +1248,13 @@ export class DiagnosticsProvider {
         const rangeInfo = importByPath.get(imp.importPath);
         // Check if this looks like a buf registry dependency
         const isBufDep = this.isBufRegistryImport(imp.importPath);
-        const hint = isBufDep
-          ? `. This looks like a Buf registry dependency. Run 'buf export' or use the quick fix to export dependencies.`
-          : '';
         const severity = isBufDep ? DiagnosticSeverity.Warning : DiagnosticSeverity.Error;
         diagnostics.push({
           severity,
           range: rangeInfo
             ? this.toRange(rangeInfo.range)
             : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
-          message: `Import '${imp.importPath}' cannot be resolved${hint}`,
+          message: `Import '${imp.importPath}' cannot be resolved`,
           source: DIAGNOSTIC_SOURCE,
         });
       }
@@ -1274,7 +1264,7 @@ export class DiagnosticsProvider {
     // This warns users when they've exported deps locally but haven't added them to buf.yaml
     // Only check if there's actually a buf.yaml file - if not, user is not using buf CLI
     const bufConfig = bufConfigProvider.findBufConfig(uri);
-    if (bufConfig) {
+    if (this.settings.discouragedConstructs && bufConfig) {
       const bufDeps = bufConfig.deps || [];
 
       for (const imp of importsWithResolutions) {
@@ -1287,7 +1277,7 @@ export class DiagnosticsProvider {
               range: rangeInfo
                 ? this.toRange(rangeInfo.range)
                 : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
-              message: `Import '${imp.importPath}' resolves but '${suggestedModule}' is not in buf.yaml dependencies. Add it to ensure consistent builds.`,
+              message: `Import '${imp.importPath}' resolves but '${suggestedModule}' is not in buf.yaml dependencies`,
               source: DIAGNOSTIC_SOURCE,
               code: ERROR_CODES.MISSING_BUF_DEPENDENCY,
             });
@@ -1297,24 +1287,26 @@ export class DiagnosticsProvider {
     }
 
     // Unused imports (resolved, not public, not referenced)
-    for (const imp of importsWithResolutions) {
-      if (!imp.resolvedUri) {
-        continue;
-      }
-      const rangeInfo = importByPath.get(imp.importPath);
-      const modifier = rangeInfo?.modifier;
-      if (modifier === 'public') {
-        continue; // public imports are re-exported; skip
-      }
-      if (!usedTypeUris.has(imp.resolvedUri)) {
-        diagnostics.push({
-          severity: DiagnosticSeverity.Hint,
-          range: rangeInfo
-            ? this.toRange(rangeInfo.range)
-            : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
-          message: `Unused import '${imp.importPath}'`,
-          source: DIAGNOSTIC_SOURCE,
-        });
+    if (this.settings.unusedSymbols) {
+      for (const imp of importsWithResolutions) {
+        if (!imp.resolvedUri) {
+          continue;
+        }
+        const rangeInfo = importByPath.get(imp.importPath);
+        const modifier = rangeInfo?.modifier;
+        if (modifier === 'public') {
+          continue; // public imports are re-exported; skip
+        }
+        if (!usedTypeUris.has(imp.resolvedUri)) {
+          diagnostics.push({
+            severity: DiagnosticSeverity.Hint,
+            range: rangeInfo
+              ? this.toRange(rangeInfo.range)
+              : { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+            message: `Unused import '${imp.importPath}'`,
+            source: DIAGNOSTIC_SOURCE,
+          });
+        }
       }
     }
   }
@@ -1323,11 +1315,11 @@ export class DiagnosticsProvider {
     const numbers = new Map<number, FieldDefinition[]>();
 
     for (const field of oneof.fields) {
-      if (field.modifier && field.modifier !== 'optional') {
+      if (field.modifier) {
         diagnostics.push({
-          severity: DiagnosticSeverity.Warning,
+          severity: DiagnosticSeverity.Error,
           range: this.toRange(field.range),
-          message: `Field '${field.name}' in oneof '${oneof.name}' should not use modifier '${field.modifier}'`,
+          message: `Field '${field.name}' in oneof '${oneof.name}' cannot use modifier '${field.modifier}'`,
           source: DIAGNOSTIC_SOURCE,
         });
       }
@@ -1397,13 +1389,15 @@ export class DiagnosticsProvider {
       return;
     }
 
-    const suggestionText = suggestedImport ? ` Add: import "${suggestedImport}";` : '';
-
     diagnostics.push({
       severity: DiagnosticSeverity.Error,
       range,
-      message: `Type '${typeName}' is not imported.${suggestionText}`.trim(),
+      message: `Type '${typeName}' is not imported`,
       source: 'protobuf',
+      data: {
+        typeName,
+        importPath: suggestedImport,
+      },
     });
   }
 
@@ -1786,7 +1780,7 @@ export class DiagnosticsProvider {
         diagnostics.push({
           severity: DiagnosticSeverity.Warning,
           range: this.toRange(sorted[i]!.range),
-          message: `Field number ${current} is not strictly increasing (previous ${prev}). Consider renumbering`,
+          message: `Field number ${current} is not strictly increasing (previous ${prev})`,
           source: DIAGNOSTIC_SOURCE,
         });
       }
@@ -1807,7 +1801,7 @@ export class DiagnosticsProvider {
           diagnostics.push({
             severity: DiagnosticSeverity.Hint,
             range: this.toRange(sorted[i]!.range),
-            message: `Gap in field numbers between ${prev} and ${current}. Run renumber to close gaps`,
+            message: `Gap in field numbers between ${prev} and ${current}`,
             source: DIAGNOSTIC_SOURCE,
           });
         }
@@ -2246,7 +2240,7 @@ export class DiagnosticsProvider {
           diagnostics.push({
             severity: DiagnosticSeverity.Error,
             range: this.toRange(field.range),
-            message: `'optional' label is not allowed in editions. Use 'features.field_presence = EXPLICIT' option instead.`,
+            message: `'optional' label is not allowed in editions`,
             source: DIAGNOSTIC_SOURCE,
             code: ERROR_CODES.EDITIONS_OPTIONAL_NOT_ALLOWED,
           });
@@ -2254,7 +2248,7 @@ export class DiagnosticsProvider {
           diagnostics.push({
             severity: DiagnosticSeverity.Error,
             range: this.toRange(field.range),
-            message: `'required' label is not allowed in editions. Use 'features.field_presence = LEGACY_REQUIRED' option instead.`,
+            message: `'required' label is not allowed in editions`,
             source: DIAGNOSTIC_SOURCE,
             code: ERROR_CODES.INVALID_FIELD_MODIFIER,
           });
@@ -2265,7 +2259,7 @@ export class DiagnosticsProvider {
           diagnostics.push({
             severity: DiagnosticSeverity.Error,
             range: this.toRange(field.range),
-            message: `'required' fields are not allowed in proto3. Use 'optional' for explicit presence tracking.`,
+            message: `'required' fields are not allowed in proto3`,
             source: DIAGNOSTIC_SOURCE,
             code: 'proto3-required',
           });
@@ -2295,7 +2289,7 @@ export class DiagnosticsProvider {
         diagnostics.push({
           severity: DiagnosticSeverity.Hint,
           range: this.toRange(message.nameRange),
-          message: `Consider adding documentation comment for message '${message.name}'`,
+          message: `Missing documentation comment for message '${message.name}'`,
           source: DIAGNOSTIC_SOURCE,
           code: 'missing-documentation',
         });
@@ -2308,7 +2302,7 @@ export class DiagnosticsProvider {
         diagnostics.push({
           severity: DiagnosticSeverity.Hint,
           range: this.toRange(enumDef.nameRange),
-          message: `Consider adding documentation comment for enum '${enumDef.name}'`,
+          message: `Missing documentation comment for enum '${enumDef.name}'`,
           source: DIAGNOSTIC_SOURCE,
           code: 'missing-documentation',
         });
@@ -2321,7 +2315,7 @@ export class DiagnosticsProvider {
         diagnostics.push({
           severity: DiagnosticSeverity.Warning,
           range: this.toRange(service.nameRange),
-          message: `Service '${service.name}' should have documentation`,
+          message: `Missing documentation comment for service '${service.name}'`,
           source: DIAGNOSTIC_SOURCE,
           code: 'missing-documentation',
         });
@@ -2333,7 +2327,7 @@ export class DiagnosticsProvider {
           diagnostics.push({
             severity: DiagnosticSeverity.Warning,
             range: this.toRange(rpc.nameRange),
-            message: `RPC '${rpc.name}' should have documentation`,
+            message: `Missing documentation comment for RPC '${rpc.name}'`,
             source: DIAGNOSTIC_SOURCE,
             code: 'missing-documentation',
           });

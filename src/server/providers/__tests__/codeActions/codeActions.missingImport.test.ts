@@ -1,6 +1,7 @@
 import { GOOGLE_WELL_KNOWN_PROTOS } from '../../../utils/googleWellKnown';
 import { CodeActionKind } from 'vscode-languageserver/node';
 import { ProviderRegistry } from '../../../utils';
+import { DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS } from '../../diagnostics/types';
 
 describe('CodeActionsProvider missing import quickfix', () => {
   const providers = new ProviderRegistry();
@@ -66,6 +67,12 @@ message Example {
     const uri = 'file:///example_wrong_import.proto';
     const doc = providers.parser.parse(content, uri);
     providers.analyzer.updateFile(uri, doc);
+    providers.diagnostics.updateSettings({
+      severity: {
+        ...DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS,
+        nonCanonicalImportPath: 'warning',
+      },
+    });
 
     const diags = await providers.diagnostics.validate(uri, doc, providers);
     const wrong = diags.find(d => d.message.includes('should be imported via'));

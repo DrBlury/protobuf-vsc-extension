@@ -1,53 +1,36 @@
 # Diagnostics
 
-Diagnostics validate Protocol Buffers files while editing.
+Diagnostics validate `.proto` files while editing. The default profile focuses on invalid schemas and import problems. Style, cleanup, deprecation, documentation, and migration checks are available as opt-in settings.
 
-## Overview
+## Default Checks
 
-Diagnostics automatically check your proto files for:
+These checks are enabled by default:
 
-- Syntax errors
-- Type reference errors
-- Import resolution issues
-- Naming convention violations
-- Field tag problems
-- Duplicate definitions
-- Documentation comment checks
-- Breaking-change checks, when enabled
+- Syntax errors reported by the parser
+- Missing semicolons on field-like declarations
+- Undefined type references
+- Missing imports for referenced types
+- Unresolved imports and empty import paths
+- Duplicate field numbers and duplicate field names
+- Field numbers outside the valid range `1` to `536870911`
+- Use of the reserved field-number range `19000` to `19999`
+- Use of reserved field names or field numbers
+- Duplicate enum values without `option allow_alias = true`
+- Invalid map key types
+- Invalid `required` fields in proto3
+- Invalid `optional` or `required` labels in editions files
+- Invalid groups in proto3 or editions files
+- Proto3 enums whose first value is not `0`
+- Invalid edition feature usage
+- Circular import dependencies
 
-## Diagnostic Categories
+Default diagnostic messages do not include style advice or suggested rewrites. Code actions can still provide fixes where enough information is available.
 
-### 1. Syntax and Edition Validation
+## Optional Checks
 
-**What it checks:**
+### Naming Conventions
 
-- Missing `syntax` or `edition` declaration
-- Invalid syntax version
-- Package path consistency with directory structure
-
-**Example:**
-
-```proto
-// Missing syntax declaration
-package example.v1;
-
-message User {
-  string name = 1;
-}
-```
-
-**Fix:** Add `syntax = "proto3";` at the top of the file.
-
-### 2. Naming Conventions
-
-**What it checks:**
-
-- Messages and enums: PascalCase (e.g., `UserMessage`)
-- Fields: snake_case (e.g., `user_name`)
-- Enum values: SCREAMING_SNAKE_CASE (e.g., `STATUS_ACTIVE`)
-- Services and RPCs: PascalCase
-
-**Configuration:**
+Disabled by default.
 
 ```jsonc
 {
@@ -56,87 +39,29 @@ message User {
 }
 ```
 
-### 3. Reference Checks
+Checks Protobuf style-guide naming:
 
-**What it checks:**
+- Messages, enums, services, and RPCs use PascalCase
+- Fields, maps, oneofs, and packages use snake_case
+- Enum values use SCREAMING_SNAKE_CASE
+- Package names match the file path
 
-- Undefined type references
-- Missing imports for types
-- Incorrect import paths
+### Discouraged Constructs
 
-**Example:**
-
-```proto
-message User {
-  Timestamp created_at = 1;  // Error: Timestamp not imported
-}
-```
-
-**Fix:** Use code action to add missing import or manually add:
-
-```proto
-import "google/protobuf/timestamp.proto";
-```
-
-### 4. Field Tag Validation
-
-**What it checks:**
-
-- Duplicate field numbers
-- Field numbers out of range (1-536870911)
-- Reserved field number usage
-- Reserved range violations (19000-19999)
-- Field number continuity (gaps)
-
-**Example:**
-
-```proto
-message User {
-  string name = 1;
-  string email = 1;  // Error: Duplicate field number
-  int32 age = 2000000000;  // Error: Out of range
-}
-```
-
-### 5. Import Validation
-
-**What it checks:**
-
-- Unresolved imports
-- Unused imports
-- Circular import dependencies
-- Empty import paths
-
-**Configuration:**
+Disabled by default.
 
 ```jsonc
 {
-  "protobuf.diagnostics.importChecks": true,
-  "protobuf.diagnostics.circularDependencies": true,
+  "protobuf.diagnostics.discouragedConstructs": true,
+  "protobuf.diagnostics.severity.discouragedConstructs": "warning",
 }
 ```
 
-### 6. Deprecated Usage Detection
+Reports valid constructs that are usually avoided, including proto2 `required` fields, proto2 groups, missing `syntax` or `edition` declarations, field-number gaps, non-increasing field numbers, and Buf dependency hygiene checks.
 
-**What it checks:**
+### Deprecated Usage
 
-- Usage of deprecated fields
-- Usage of deprecated enum values
-
-**Example:**
-
-```proto
-message User {
-  string old_field = 1 [deprecated = true];
-}
-
-message Profile {
-  User user = 1;
-  // Warning when accessing user.old_field
-}
-```
-
-**Configuration:**
+Disabled by default.
 
 ```jsonc
 {
@@ -144,17 +69,11 @@ message Profile {
 }
 ```
 
-### 7. Unused Symbols Detection
+Reports usage of fields or enum values marked with `[deprecated = true]`.
 
-**What it checks:**
+### Unused Symbols And Imports
 
-- Unused messages
-- Unused enums
-- Unused services
-
-**Note:** This is off by default as it can be noisy. Enable when needed.
-
-**Configuration:**
+Disabled by default.
 
 ```jsonc
 {
@@ -162,67 +81,11 @@ message Profile {
 }
 ```
 
-### 8. Extension Range Validation
+Reports unused imports, messages, enums, and services.
 
-**What it checks:**
+### Documentation Comments
 
-- Extension range validity
-- Overlap with reserved ranges
-- Overlap with field numbers
-
-**Example:**
-
-```proto
-message User {
-  extensions 100 to 199;
-  reserved 150 to 160;  // Warning: Overlaps with extensions
-}
-```
-
-### 9. Proto3 Field Presence Validation
-
-**What it checks:**
-
-- Use of `required` in proto3 (not allowed)
-- Implicit presence semantics
-
-**Example:**
-
-```proto
-syntax = "proto3";
-
-message User {
-  required string name = 1;  // Error: required not allowed in proto3
-}
-```
-
-### 10. Documentation Comment Validation
-
-**What it checks:**
-
-- Missing documentation on public APIs
-- Services and RPCs should have documentation
-
-**Example:**
-
-```proto
-// Missing documentation
-service UserService {
-  rpc GetUser(GetUserRequest) returns (User);
-}
-```
-
-**Fix:** Add documentation comments:
-
-```proto
-// UserService provides user management operations
-service UserService {
-  // GetUser retrieves a user by ID
-  rpc GetUser(GetUserRequest) returns (User);
-}
-```
-
-**Configuration:**
+Disabled by default.
 
 ```jsonc
 {
@@ -230,74 +93,37 @@ service UserService {
 }
 ```
 
-### 11. Breaking Changes
+Reports top-level messages, enums, services, and RPCs without documentation comments.
 
-Detects source-incompatible changes compared to a configured baseline so you can maintain backward compatibility.
+### Non-Canonical Import Paths
 
-**What it checks:**
+Disabled by default through severity `none`.
 
-- Deleted messages, enums, services, or RPCs
-- Deleted fields without reserving their numbers
-- Field type changes or field number changes
-- Proto2 presence changes (e.g., making a field required)
-- Enum value deletions or renames
-- RPC request/response type changes
+```jsonc
+{
+  "protobuf.diagnostics.severity.nonCanonicalImportPath": "warning",
+}
+```
 
-**Prerequisites:**
+Reports imports that resolve to the correct file but use a different path than the analyzer's canonical path.
 
-- Enable breaking change detection and choose a baseline strategy. See [Breaking Changes Detection](./breaking-changes.md).
+### Breaking Changes
+
+Disabled by default. Enable this only after configuring a baseline.
 
 ```jsonc
 {
   "protobuf.breaking.enabled": true,
-  // Compare against a git ref (default strategy)
   "protobuf.breaking.againstStrategy": "git",
-  "protobuf.breaking.againstGitRef": "main", // e.g., "HEAD~1", "origin/main"
-}
-```
-
-Alternatively, compare against a file:
-
-```jsonc
-{
-  "protobuf.breaking.enabled": true,
-  "protobuf.breaking.againstStrategy": "file",
-  "protobuf.breaking.againstFilePath": "${workspaceFolder}/baseline.proto",
-}
-```
-
-**Example:**
-
-```proto
-message User {
-  string name = 1;
-  // Previously had: int32 age = 2;  // Deleted without reserving 2 -> breaking change
-}
-```
-
-**Fix:** Reserve removed field numbers or avoid incompatible changes:
-
-```proto
-message User {
-  string name = 1;
-  reserved 2; // Reserve previously used field number
-}
-```
-
-**Configuration:**
-
-```jsonc
-{
-  // Enable/disable surfacing of breaking changes as diagnostics
+  "protobuf.breaking.againstGitRef": "main",
   "protobuf.diagnostics.breakingChanges": true,
-  // Optional: control diagnostic severity
   "protobuf.diagnostics.severity.breakingChanges": "error",
 }
 ```
 
-## Severity Levels
+Checks for source-incompatible changes such as deleted declarations, deleted fields without reserved numbers, field type or number changes, proto2 presence changes, enum value deletions or renames, and RPC request or response type changes.
 
-You can configure the severity of different diagnostic categories:
+## Severity Settings
 
 ```jsonc
 {
@@ -305,37 +131,24 @@ You can configure the severity of different diagnostic categories:
   "protobuf.diagnostics.severity.referenceErrors": "error",
   "protobuf.diagnostics.severity.fieldTagIssues": "error",
   "protobuf.diagnostics.severity.discouragedConstructs": "warning",
-  "protobuf.diagnostics.severity.nonCanonicalImportPath": "warning",
-  "protobuf.diagnostics.severity.breakingChanges": "warning",
+  "protobuf.diagnostics.severity.nonCanonicalImportPath": "none",
+  "protobuf.diagnostics.severity.breakingChanges": "error",
 }
 ```
 
-Available severity levels:
+Supported values:
 
-- `error` - Red squiggles
-- `warning` - Yellow squiggles
-- `information` - Blue squiggles
-- `hint` - Gray squiggles
+- `error`
+- `warning`
+- `information`
+- `hint`
+- `none`
 
-## Quick Fixes
-
-Many diagnostics provide quick fixes via code actions:
-
-1. **Add missing imports** - Automatically adds required import statements
-2. **Fix naming conventions** - Converts names to proper case
-3. **Add semicolons** - Adds missing semicolons
-4. **Fix field numbers** - Suggests next available field number
-5. **Remove unused imports** - Removes unused import statements
-
-To use quick fixes:
-
-1. Hover over the diagnostic
-2. Click the lightbulb icon
-3. Select the desired fix
+Setting a category severity to `none` disables that category.
 
 ## Disabling Diagnostics
 
-To disable all diagnostics:
+Disable all diagnostics:
 
 ```jsonc
 {
@@ -343,7 +156,7 @@ To disable all diagnostics:
 }
 ```
 
-To disable only built-in AST diagnostics (while keeping external linter diagnostics):
+Disable only built-in diagnostics while keeping external linter diagnostics:
 
 ```jsonc
 {
@@ -351,25 +164,31 @@ To disable only built-in AST diagnostics (while keeping external linter diagnost
 }
 ```
 
-This is useful when:
-
-- Testing parser changes
-- Preferring external tools like `buf lint` or `protolint` for validation
-- Avoiding duplicate diagnostics from both built-in and external linters
-
-To disable specific checks:
+Disable individual built-in checks:
 
 ```jsonc
 {
-  "protobuf.diagnostics.namingConventions": false,
-  "protobuf.diagnostics.unusedSymbols": false,
+  "protobuf.diagnostics.referenceChecks": false,
+  "protobuf.diagnostics.importChecks": false,
+  "protobuf.diagnostics.fieldTagChecks": false,
+  "protobuf.diagnostics.duplicateFieldChecks": false,
+  "protobuf.diagnostics.circularDependencies": false,
+  "protobuf.diagnostics.editionFeatures": false,
 }
 ```
 
-## Best Practices
+## Strict Profile
 
-1. **Keep diagnostics enabled** - They help catch errors early
-2. **Fix warnings** - They often indicate potential issues
-3. **Use quick fixes** - They save time and reduce errors
-4. **Configure severity** - Adjust to match your team's standards
-5. **Enable unused symbols** - Periodically check for cleanup opportunities
+Use this profile when a workspace wants style, cleanup, and migration diagnostics in addition to validity checks.
+
+```jsonc
+{
+  "protobuf.diagnostics.namingConventions": true,
+  "protobuf.diagnostics.discouragedConstructs": true,
+  "protobuf.diagnostics.deprecatedUsage": true,
+  "protobuf.diagnostics.unusedSymbols": true,
+  "protobuf.diagnostics.documentationComments": true,
+  "protobuf.diagnostics.breakingChanges": true,
+  "protobuf.diagnostics.severity.nonCanonicalImportPath": "warning",
+}
+```

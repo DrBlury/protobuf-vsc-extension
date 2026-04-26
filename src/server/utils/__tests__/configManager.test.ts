@@ -113,10 +113,10 @@ describe('ConfigManager', () => {
       editionFeatures: settings.protobuf.diagnostics.editionFeatures,
       breakingChanges: settings.protobuf.diagnostics.breakingChanges,
       discouragedConstructs: settings.protobuf.diagnostics.discouragedConstructs,
-      deprecatedUsage: true,
+      deprecatedUsage: false,
       unusedSymbols: false,
       circularDependencies: true,
-      documentationComments: true,
+      documentationComments: false,
       severity: {
         discouragedConstructs: settings.protobuf.diagnostics.severity.discouragedConstructs,
         fieldTagIssues: settings.protobuf.diagnostics.severity.fieldTagIssues,
@@ -669,10 +669,10 @@ describe('ConfigManager', () => {
 
     expect(diagnosticsProvider.updateSettings).toHaveBeenCalledWith(
       expect.objectContaining({
-        deprecatedUsage: true,
+        deprecatedUsage: false,
         unusedSymbols: false,
         circularDependencies: true,
-        documentationComments: true,
+        documentationComments: false,
       })
     );
   });

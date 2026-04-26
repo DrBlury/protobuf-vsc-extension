@@ -6,6 +6,7 @@
   ],
   "settings": {
     "protobuf.formatOnSave": true,
-    "protobuf.formatter.preset": "minimal"
+    "protobuf.formatter.preset": "minimal",
+    "protobuf.renumber.onFormat": false
   }
 }

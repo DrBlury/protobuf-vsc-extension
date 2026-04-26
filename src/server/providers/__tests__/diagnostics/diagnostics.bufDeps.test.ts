@@ -97,10 +97,7 @@ message Sample {}`;
 
       const diags = await providers.diagnostics.validate(uri, file, providers);
 
-      // Should show BSR-specific hint for unresolved google/api import
-      const unresolvedError = diags.find(
-        d => d.message.includes('cannot be resolved') && d.message.includes('Buf registry dependency')
-      );
+      const unresolvedError = diags.find(d => d.message === "Import 'google/api/annotations.proto' cannot be resolved");
       expect(unresolvedError).toBeDefined();
     });
 
@@ -114,9 +111,7 @@ message Sample {}`;
 
       const diags = await providers.diagnostics.validate(uri, file, providers);
 
-      const unresolvedError = diags.find(
-        d => d.message.includes('cannot be resolved') && d.message.includes('Buf registry dependency')
-      );
+      const unresolvedError = diags.find(d => d.message === "Import 'buf/validate/validate.proto' cannot be resolved");
       expect(unresolvedError).toBeDefined();
     });
 
@@ -130,7 +125,6 @@ message Sample {}`;
 
       const diags = await providers.diagnostics.validate(uri, file, providers);
 
-      // google/protobuf is well-known types, not BSR - should not have BSR hint
       const bsrHint = diags.find(d => d.message.includes('Buf registry dependency'));
       expect(bsrHint).toBeUndefined();
     });

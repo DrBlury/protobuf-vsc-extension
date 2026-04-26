@@ -5,6 +5,7 @@ out/
 .vscode-test/
 .DS_Store
 coverage/
+security-coverage-report.json
 tsconfig.tsbuildinfo
 *.tsbuildinfo
 tree-sitter-proto/build/

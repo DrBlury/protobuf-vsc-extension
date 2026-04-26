@@ -1,6 +1,7 @@
 import { ProviderRegistry } from '../../../utils';
 import { GOOGLE_WELL_KNOWN_PROTOS } from '../../../utils/googleWellKnown';
 import { DiagnosticSeverity } from 'vscode-languageserver/node';
+import { DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS } from '../../diagnostics/types';
 
 describe('DiagnosticsProvider missing imports', () => {
   let providers: ProviderRegistry;
@@ -28,7 +29,12 @@ message Sample {
 
     expect(missingImport).toBeDefined();
     expect(missingImport?.severity).toBe(DiagnosticSeverity.Error);
-    expect(missingImport?.message).toContain('google/type/date.proto');
+    expect(missingImport?.message).toBe("Type 'google.type.Date' is not imported");
+    expect(missingImport?.data).toEqual(
+      expect.objectContaining({
+        importPath: 'google/type/date.proto',
+      })
+    );
   });
 
   it('does not report missing import when import exists', async () => {
@@ -58,6 +64,12 @@ message Sample {
     const uri = 'file:///sample_wrong_import.proto';
     const file = providers.parser.parse(content, uri);
     providers.analyzer.updateFile(uri, file);
+    providers.diagnostics.updateSettings({
+      severity: {
+        ...DEFAULT_DIAGNOSTICS_SEVERITY_SETTINGS,
+        nonCanonicalImportPath: 'warning',
+      },
+    });
 
     const diags = await providers.diagnostics.validate(uri, file, providers);
     const wrongImport = diags.find(d => d.message.includes('should be imported via'));

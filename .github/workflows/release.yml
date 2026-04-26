@@ -114,12 +114,12 @@ jobs:
           cat > release-notes.md <<'EOF'
           ## Changes
 
-          - Updates dependencies, CI, and release packaging.
-          - Bundles the extension for Marketplace and Open VSX packaging.
-          - Adds Buf v2 module root support.
-          - Fixes duplicate symbol resolution for imported proto files.
-          - Fixes UTF-8 handling for clang-format output.
-          - Cleans public documentation and issue templates.
+          - Improves parser recovery for unnamed message, enum, and service declarations while keeping the syntax errors visible.
+          - Prevents format-on-save from renumbering fields unless renumber-on-format is enabled.
+          - Makes built-in diagnostics quieter by default, focusing on invalid schema and import issues.
+          - Keeps style, deprecated-usage, documentation, cleanup, and non-canonical import checks available as opt-in diagnostics.
+          - Keeps missing-import quick fixes available without adding suggested edits to diagnostic messages.
+          - Updates diagnostics documentation and regression coverage.
           EOF
 
       - name: Create GitHub Release
