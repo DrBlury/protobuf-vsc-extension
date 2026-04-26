@@ -25,4 +25,23 @@ extend google.protobuf.FieldOptions;
     expect(syntaxError).toBeDefined();
     expect(syntaxError?.severity).toBe(DiagnosticSeverity.Error);
   });
+
+  it('should not report missing semicolon for extend header with brace on next line', async () => {
+    const content = `syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.FieldOptions
+{
+  string extra = 50001;
+}
+`;
+    const uri = 'file:///test.proto';
+    const file = providers.parser.parse(content, uri);
+    providers.analyzer.updateFile(uri, file);
+
+    const diags = await providers.diagnostics.validate(uri, file, providers, content);
+
+    expect(diags.find(d => d.message === 'Missing semicolon')).toBeUndefined();
+  });
 });

@@ -321,7 +321,7 @@ export class CodeActionsProvider {
       }
 
       if (
-        /^(message|enum|service|oneof)\b/.test(trimmed) ||
+        /^(message|enum|service|oneof|extend)\b/.test(trimmed) ||
         trimmed.startsWith('option') ||
         trimmed.startsWith('import') ||
         trimmed.startsWith('syntax') ||
@@ -333,17 +333,17 @@ export class CodeActionsProvider {
         continue;
       }
 
-      if (trimmed.endsWith(';') || trimmed.endsWith('{') || trimmed.endsWith('}')) {
+      // Allow inline comments after a semicolon or block delimiter.
+      // For example: `string name = 1; // comment` is already complete.
+      const withoutLineComment = trimmed.replace(/\/\/.*$/, '').trim();
+      const withoutBlockComment = withoutLineComment.replace(/\/\*.*\*\/$/, '').trim();
+      if (withoutBlockComment.endsWith(';') || withoutBlockComment.endsWith('{') || withoutBlockComment.endsWith('}')) {
         continue;
       }
 
       // Skip lines that end with '=' (with or without comment) - these are multi-line field declarations
       // e.g., "float value =" or "bool valid = // comment" where the field number is on the next line
-      const trimmedWithoutComment = trimmed
-        .replace(/\/\/.*$/, '')
-        .replace(/\/\*.*?\*\/$/, '')
-        .trim();
-      if (trimmedWithoutComment.endsWith('=')) {
+      if (withoutBlockComment.endsWith('=')) {
         continue;
       }
 

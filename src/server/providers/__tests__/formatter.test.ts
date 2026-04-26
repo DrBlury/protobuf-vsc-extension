@@ -694,6 +694,23 @@ message RRequestingAccountDetailsType {
       expect(result[0].newText).toContain('string name = 1');
     });
 
+    it('should preserve extend header without adding semicolon', async () => {
+      formatter.updateSettings({ renumberOnFormat: false, alignFields: false });
+      const text = `syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.FieldOptions
+{
+  string extra = 50001;
+}`;
+      const result = await formatter.formatDocument(text);
+      const formatted = result[0].newText;
+
+      expect(formatted).toContain('extend google.protobuf.FieldOptions\n{');
+      expect(formatted).not.toContain('extend google.protobuf.FieldOptions;');
+    });
+
     it('should join multi-line field declarations', async () => {
       formatter.updateSettings({ renumberOnFormat: false, alignFields: false });
       const text = `syntax = "proto3";

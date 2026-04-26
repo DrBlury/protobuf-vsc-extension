@@ -79,6 +79,9 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Run regression fixture checks
+        run: npm run test:regressions
+
       - name: Generate SBOM for Release
         run: |
           npm install -g @cyclonedx/cyclonedx-npm
@@ -114,12 +117,9 @@ jobs:
           cat > release-notes.md <<'EOF'
           ## Changes
 
-          - Improves parser recovery for unnamed message, enum, and service declarations while keeping the syntax errors visible.
-          - Prevents format-on-save from renumbering fields unless renumber-on-format is enabled.
-          - Makes built-in diagnostics quieter by default, focusing on invalid schema and import issues.
-          - Keeps style, deprecated-usage, documentation, cleanup, and non-canonical import checks available as opt-in diagnostics.
-          - Keeps missing-import quick fixes available without adding suggested edits to diagnostic messages.
-          - Updates diagnostics documentation and regression coverage.
+          - Prevents semicolon quick fixes from modifying valid `extend` block headers.
+          - Prevents missing-semicolon fix-all from touching lines that already end with semicolons before comments.
+          - Adds release-blocking regression fixture checks for formatter and semicolon-fix behavior.
           EOF
 
       - name: Create GitHub Release

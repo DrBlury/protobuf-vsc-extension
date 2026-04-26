@@ -339,7 +339,7 @@ export class DiagnosticsProvider {
       }
 
       if (
-        /^(message|enum|service|oneof)\b/.test(trimmed) ||
+        /^(message|enum|service|oneof|extend)\b/.test(trimmed) ||
         trimmed.startsWith('option') ||
         trimmed.startsWith('import') ||
         trimmed.startsWith('syntax') ||

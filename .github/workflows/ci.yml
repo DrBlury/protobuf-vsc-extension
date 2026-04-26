@@ -85,6 +85,9 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Run regression fixture checks
+        run: npm run test:regressions
+
   coverage:
     runs-on: ubuntu-latest
     needs: lint-and-compile
