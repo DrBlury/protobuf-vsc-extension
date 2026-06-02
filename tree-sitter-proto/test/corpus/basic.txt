@@ -18,6 +18,7 @@ package example.foo;
 
 import "other.proto";
 import public "public.proto";
+import option "patch/go.proto";
 
 --------------------------------------------------------------------------------
 
@@ -27,6 +28,9 @@ import public "public.proto";
     name: (full_ident
       (identifier)
       (identifier)))
+  (import
+    path: (string
+      (string_literal)))
   (import
     path: (string
       (string_literal)))

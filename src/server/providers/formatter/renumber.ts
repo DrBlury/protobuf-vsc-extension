@@ -481,12 +481,11 @@ export function renumberFields(text: string, settings: FormatterSettings): strin
             const comment = cleanedRest.slice(commentIdx);
 
             // Clean up multiple semicolons and ensure exactly one before comment
-            const cleanedBefore = beforeComment.replace(/;+$/, '').trimEnd();
+            const cleanedBefore = beforeComment.trimEnd().replace(/;+$/, '').trimEnd();
             finalRest = `${cleanedBefore}; ${comment}`;
           } else {
             // No comment: clean up multiple semicolons and add one if needed
-            const cleanedNoComment = finalRest.replace(/;+$/, '');
-            const withoutTrailingWhitespace = cleanedNoComment.replace(/\s+$/, '');
+            const withoutTrailingWhitespace = finalRest.trimEnd().replace(/;+$/, '').trimEnd();
             finalRest = `${withoutTrailingWhitespace};`;
           }
 

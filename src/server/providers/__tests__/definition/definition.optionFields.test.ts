@@ -111,7 +111,7 @@ message CreateDemoRequest {}
     return demoProto;
   }
 
-  it('should resolve post to google.api.HttpRule.post', () => {
+  it('should resolve post to google.api.HttpRule.post (issue #98)', () => {
     const demoProto = loadWorkspaceFiles();
     const lineText = '      post: "/v1/demos"';
     const position = { line: 9, character: 8 };
@@ -123,7 +123,7 @@ message CreateDemoRequest {}
     expect(definition.range.start.line).toBe(6);
   });
 
-  it('should resolve body to google.api.HttpRule.body', () => {
+  it('should resolve body to google.api.HttpRule.body (issue #98)', () => {
     const demoProto = loadWorkspaceFiles();
     const lineText = '      body: "demo"';
     const position = { line: 10, character: 8 };

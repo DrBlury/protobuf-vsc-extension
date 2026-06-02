@@ -1485,7 +1485,7 @@ export class TreeSitterProtoParser {
   private parseRpc(node: Node): RpcDefinition {
     const text = getText(node);
     const match = text.match(
-      /rpc\s+(\w+)\s*\(\s*(stream\s+)?(\w+(?:\.\w+)*)\s*\)\s*returns\s*\(\s*(stream\s+)?(\w+(?:\.\w+)*)\s*\)/
+      /rpc\s+([A-Za-z_]\w*)\s*\(\s*(stream\s+)?(\.?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*\)\s*returns\s*\(\s*(stream\s+)?(\.?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*\)/
     );
 
     if (!match) {
@@ -1509,26 +1509,45 @@ export class TreeSitterProtoParser {
     const requestType = match[3] ?? '';
     const responseStreaming = !!match[4];
     const responseType = match[5] ?? '';
+    const matchText = match[0] ?? '';
+    const matchOffset = match.index ?? 0;
+    const nameOffset = matchText.indexOf(name);
+    const requestStartSearch = matchText.indexOf('(') + 1;
+    const requestTypeOffset = matchText.indexOf(requestType, requestStartSearch);
+    const returnsOffset = matchText.indexOf('returns');
+    const responseStartSearch = returnsOffset >= 0 ? matchText.indexOf('(', returnsOffset) + 1 : 0;
+    const responseTypeOffset = matchText.indexOf(responseType, responseStartSearch);
+    const nodeRange = nodeToRange(node);
+    const nameRange =
+      nameOffset >= 0 ? this.rangeFromOffsets(node, text, matchOffset + nameOffset, name.length) : nodeRange;
+    const requestTypeRange =
+      requestTypeOffset >= 0
+        ? this.rangeFromOffsets(node, text, matchOffset + requestTypeOffset, requestType.length)
+        : nodeRange;
+    const responseTypeRange =
+      responseTypeOffset >= 0
+        ? this.rangeFromOffsets(node, text, matchOffset + responseTypeOffset, responseType.length)
+        : nodeRange;
 
     return {
       type: 'rpc',
       name,
-      nameRange: nodeToRange(node),
+      nameRange,
       requestType,
-      requestTypeRange: nodeToRange(node),
+      requestTypeRange,
       responseType,
-      responseTypeRange: nodeToRange(node),
+      responseTypeRange,
       requestStreaming,
       responseStreaming,
       options: [],
       // Backward compatibility
       inputType: requestType,
-      inputTypeRange: nodeToRange(node),
+      inputTypeRange: requestTypeRange,
       outputType: responseType,
-      outputTypeRange: nodeToRange(node),
+      outputTypeRange: responseTypeRange,
       inputStream: requestStreaming,
       outputStream: responseStreaming,
-      range: nodeToRange(node),
+      range: nodeRange,
     };
   }
 

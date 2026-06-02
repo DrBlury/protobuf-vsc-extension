@@ -60,6 +60,21 @@ describe('ProtoParser', () => {
       expect(file.imports[2].modifier).toBe('weak');
     });
 
+    it('should parse editions import option statements without syntax errors (issue #129)', () => {
+      const file = parser.parse(
+        `
+        edition = "2024";
+        import option "patch/go.proto";
+      `,
+        'file:///test.proto'
+      );
+
+      expect(file.imports).toHaveLength(1);
+      expect(file.imports[0].path).toBe('patch/go.proto');
+      expect(file.imports[0].modifier).toBeUndefined();
+      expect(file.syntaxErrors).toEqual([]);
+    });
+
     it('should parse option statements', () => {
       const file = parser.parse(
         `

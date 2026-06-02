@@ -621,6 +621,37 @@ describe('treeSitterParser', () => {
         expect(result.services[0].rpcs[0].responseType).toBe('Response');
       });
 
+      it('should parse precise RPC request and response type ranges for rename edits (issue #137)', async () => {
+        const rpcText = 'rpc Rpc(Request2) returns (Response);';
+        const rpcNode = createMockNode('rpc', rpcText, [], {}, 4, 2, 4, 2 + rpcText.length);
+        const serviceNameNode = createMockNode('identifier', 'Service');
+        const serviceNode = createMockNode(
+          'service',
+          `service Service { ${rpcText} }`,
+          [rpcNode],
+          { name: serviceNameNode },
+          3,
+          0,
+          5,
+          1
+        );
+        const root = createMockNode('source_file', `service Service { ${rpcText} }`, [serviceNode]);
+        mockParse.mockReturnValue({ rootNode: root });
+
+        const { treeSitterParser } = require('../treeSitterParser');
+        const result = treeSitterParser.parse(`service Service { ${rpcText} }`, 'test.proto');
+        const rpc = result.services[0].rpcs[0];
+
+        expect(rpc.requestTypeRange).toEqual({
+          start: { line: 4, character: 10 },
+          end: { line: 4, character: 18 },
+        });
+        expect(rpc.responseTypeRange).toEqual({
+          start: { line: 4, character: 29 },
+          end: { line: 4, character: 37 },
+        });
+      });
+
       it('should parse streaming RPC', async () => {
         const rpcNode = createMockNode('rpc', 'rpc StreamData(stream Request) returns (stream Response);');
         const serviceNameNode = createMockNode('identifier', 'MyService');

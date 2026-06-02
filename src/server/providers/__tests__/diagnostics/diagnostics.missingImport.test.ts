@@ -8,10 +8,12 @@ describe('DiagnosticsProvider missing imports', () => {
 
   beforeAll(() => {
     providers = new ProviderRegistry();
-    // Preload minimal google.type.Date stub
-    const dateContent = GOOGLE_WELL_KNOWN_PROTOS['google/type/date.proto'];
-    const dateUri = 'builtin:///google/type/date.proto';
-    providers.analyzer.updateFile(dateUri, providers.parser.parse(dateContent, dateUri));
+    // Preload minimal google.type stubs
+    for (const importPath of ['google/type/date.proto', 'google/type/money.proto']) {
+      const content = GOOGLE_WELL_KNOWN_PROTOS[importPath];
+      const uri = `builtin:///${importPath}`;
+      providers.analyzer.updateFile(uri, providers.parser.parse(content, uri));
+    }
   });
 
   it('reports missing import for google.type.Date usage', async () => {
@@ -52,6 +54,31 @@ message Sample {
     const missingImport = diags.find(d => d.message.includes('not imported'));
 
     expect(missingImport).toBeUndefined();
+  });
+
+  it('resolves imported googleapis common types Date and Money (issue #132)', async () => {
+    const content = `syntax = "proto3";
+import "google/type/date.proto";
+import "google/type/money.proto";
+
+message Sample {
+  google.type.Date date = 1;
+  google.type.Money price = 2;
+}`;
+    const uri = 'file:///sample_googleapis_types.proto';
+    const file = providers.parser.parse(content, uri);
+    providers.analyzer.updateFile(uri, file);
+
+    const diags = await providers.diagnostics.validate(uri, file, providers);
+    const importDiag = diags.find(
+      d =>
+        d.message.includes('google/type/date.proto') ||
+        d.message.includes('google/type/money.proto') ||
+        d.message.includes('google.type.Date') ||
+        d.message.includes('google.type.Money')
+    );
+
+    expect(importDiag).toBeUndefined();
   });
 
   it('reports incorrect import path when using non-canonical name', async () => {

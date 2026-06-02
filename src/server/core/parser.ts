@@ -566,6 +566,12 @@ export class ProtoParser {
       modifier = this.advance()!.value as 'weak' | 'public';
     }
 
+    // Editions support `import option "path";`. It is not an import modifier
+    // like weak/public, so keep the import path and otherwise ignore it.
+    if (this.match('identifier', 'option')) {
+      this.advance();
+    }
+
     const pathToken = this.expect('string');
     this.expect('punctuation', ';');
 

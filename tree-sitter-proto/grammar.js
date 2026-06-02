@@ -54,6 +54,7 @@ module.exports = grammar({
       seq(
         "import",
         optional(field("modifier", choice("weak", "public"))),
+        optional("option"),
         field("path", $.string),
         ";"
       ),

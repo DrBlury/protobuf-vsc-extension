@@ -168,6 +168,19 @@ message Response {
       expect(result).toContain('// default value');
     });
 
+    it('should not append repeated semicolons before inline enum comments (issue #133)', () => {
+      const text = `enum ProjectUpdatedType {
+  PROJECT_UPDATED_TYPE_UNSPECIFIED = 0; // unspecified
+}`;
+
+      const once = renumberFields(text, defaultSettings);
+      const twice = renumberFields(once, defaultSettings);
+
+      expect(once).toContain('PROJECT_UPDATED_TYPE_UNSPECIFIED = 0; // unspecified');
+      expect(twice).toBe(once);
+      expect(twice).not.toContain('= 0;;');
+    });
+
     it('should handle enum value with block comment', () => {
       const text = `enum Status {
   UNKNOWN = 0; /* default */
