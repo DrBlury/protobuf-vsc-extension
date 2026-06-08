@@ -246,8 +246,8 @@ export class SemanticAnalyzer {
   private doesFileMatchImport(normalizedUri: string, importPath: string): boolean {
     const normalizedImport = importPath.replace(/\\/g, '/');
 
-    // Direct suffix match (most common case)
-    if (normalizedUri.endsWith('/' + normalizedImport) || normalizedUri.endsWith(normalizedImport)) {
+    // Match imports that include a relative path, like "foo/bar.proto"
+    if (normalizedImport.includes('/') && normalizedUri.endsWith(`/${normalizedImport}`)) {
       return true;
     }
 
