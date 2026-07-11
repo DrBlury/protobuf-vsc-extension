@@ -81,6 +81,36 @@ message Sample {
     expect(importDiag).toBeUndefined();
   });
 
+  it('resolves preloaded googleapis imports after import resolution cache is cleared (issue #132)', async () => {
+    const localProviders = new ProviderRegistry();
+    for (const importPath of ['google/type/date.proto', 'google/type/money.proto']) {
+      const content = GOOGLE_WELL_KNOWN_PROTOS[importPath];
+      const uri = `builtin:///${importPath}`;
+      localProviders.analyzer.updateFile(uri, localProviders.parser.parse(content, uri));
+    }
+
+    const content = `syntax = "proto3";
+import "google/type/date.proto";
+import "google/type/money.proto";
+
+message Sample {
+  google.type.Date date = 1;
+  google.type.Money price = 2;
+}`;
+    const uri = 'file:///sample_googleapis_after_cache_clear.proto';
+    const file = localProviders.parser.parse(content, uri);
+    localProviders.analyzer.updateFile(uri, file);
+
+    localProviders.analyzer.clearImportResolutionCache();
+
+    const diags = await localProviders.diagnostics.validate(uri, file, localProviders);
+    const unresolvedImport = diags.find(d => d.message.includes('cannot be resolved'));
+    const typeDiag = diags.find(d => d.message.includes('google.type.Date') || d.message.includes('google.type.Money'));
+
+    expect(unresolvedImport).toBeUndefined();
+    expect(typeDiag).toBeUndefined();
+  });
+
   it('reports incorrect import path when using non-canonical name', async () => {
     const content = `syntax = "proto3";
 import "date.proto";

@@ -94,6 +94,7 @@ export function createMockVscode() {
       onDidSaveTextDocument: jest.fn(() => ({ dispose: jest.fn() })),
       onDidChangeTextDocument: jest.fn(() => ({ dispose: jest.fn() })),
       onDidChangeConfiguration: jest.fn(() => ({ dispose: jest.fn() })),
+      onDidChangeWorkspaceFolders: jest.fn(() => ({ dispose: jest.fn() })),
       onDidCloseTextDocument: jest.fn(() => ({ dispose: jest.fn() })),
       getWorkspaceFolder: jest.fn(),
       findFiles: jest.fn().mockResolvedValue([]),
@@ -136,6 +137,14 @@ export function createMockVscode() {
         fsPath: [base.fsPath, ...segments].join('/'),
         toString: () => `file://${[base.fsPath, ...segments].join('/')}`,
       })),
+    },
+    RelativePattern: class MockRelativePattern {
+      base: unknown;
+      pattern: string;
+      constructor(base: unknown, pattern: string) {
+        this.base = base;
+        this.pattern = pattern;
+      }
     },
     Range: class MockRange {
       start: { line: number; character: number };

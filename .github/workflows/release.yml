@@ -117,9 +117,11 @@ jobs:
           cat > release-notes.md <<'EOF'
           ## Changes
 
-          - Prevents semicolon quick fixes from modifying valid `extend` block headers.
-          - Prevents missing-semicolon fix-all from touching lines that already end with semicolons before comments.
-          - Adds release-blocking regression fixture checks for formatter and semicolon-fix behavior.
+          - Honors repository `.gitignore` files and configured ignore patterns during workspace proto discovery.
+          - Scopes proto file watching and sidebar refreshes to configured proto source directories where possible.
+          - Fixes stale workspace analyzer entries after discovery settings or ignore files change.
+          - Fixes preloaded googleapis imports after the import-resolution cache is cleared.
+          - Prevents option field go-to-definition from jumping to unrelated same-name fields when an option extension is unresolved.
           EOF
 
       - name: Create GitHub Release

@@ -64,10 +64,15 @@ export class DefinitionProvider {
       return this.resolveImportLocation(uri, importPath);
     }
 
-    // Resolve map-style option keys using option extension type context
-    const optionFieldDefinition = this.resolveOptionFieldDefinition(uri, position, lineText, wordInfo, documentText);
-    if (optionFieldDefinition) {
-      return optionFieldDefinition;
+    // Resolve map-style option keys using option extension type context. If
+    // the option context is present but unresolved, do not fall through to a
+    // generic symbol search because that can jump to unrelated same-name fields.
+    if (
+      documentText &&
+      this.isOptionKeyAtPosition(lineText, wordInfo) &&
+      this.findEnclosingAggregateOptionName(documentText, position)
+    ) {
+      return this.resolveOptionFieldDefinition(uri, position, lineText, wordInfo, documentText);
     }
 
     // Get the file and current package context
@@ -541,20 +546,9 @@ export class DefinitionProvider {
     for (const [fileUri] of this.analyzer.getAllFiles()) {
       const normalizedUri = fileUri.replace(/\\/g, '/');
 
-      // Strategy 1: Direct suffix match
-      if (normalizedUri.endsWith('/' + normalizedImport) || normalizedUri.endsWith(normalizedImport)) {
-        return {
-          uri: fileUri,
-          range: {
-            start: { line: 0, character: 0 },
-            end: { line: 0, character: 0 },
-          },
-        };
-      }
-
-      // Strategy 2: Check if URI contains the import path at a directory boundary
-      const uriPath = normalizedUri.replace('file://', '');
-      if (uriPath.includes('/' + normalizedImport)) {
+      // Strategy 1: Match only at a path boundary. A raw suffix match would
+      // incorrectly treat "foo_common.proto" as an import of "common.proto".
+      if (normalizedUri.endsWith('/' + normalizedImport)) {
         return {
           uri: fileUri,
           range: {
@@ -565,7 +559,7 @@ export class DefinitionProvider {
       }
     }
 
-    // Strategy 3: Try relative path resolution from current file
+    // Strategy 2: Try relative path resolution from current file
     const currentPath = currentUri.replace('file://', '').replace(/\\/g, '/');
     const currentDir = path.dirname(currentPath);
     const resolvedPath = path.resolve(currentDir, normalizedImport).replace(/\\/g, '/');

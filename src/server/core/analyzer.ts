@@ -246,8 +246,9 @@ export class SemanticAnalyzer {
   private doesFileMatchImport(normalizedUri: string, importPath: string): boolean {
     const normalizedImport = importPath.replace(/\\/g, '/');
 
-    // Direct suffix match (most common case)
-    if (normalizedUri.endsWith('/' + normalizedImport) || normalizedUri.endsWith(normalizedImport)) {
+    // Path-based imports must match at a directory boundary. Filename-only
+    // imports are handled by the exact basename comparison below.
+    if (normalizedImport.includes('/') && normalizedUri.endsWith('/' + normalizedImport)) {
       return true;
     }
 
@@ -364,9 +365,10 @@ export class SemanticAnalyzer {
       const normalizedUri = this.normalizeUri(fileUri);
       const uriPath = normalizedUri.replace('file://', '');
 
-      // Check if the file path contains the import path at a directory boundary
+      // Match the complete import path at a directory boundary. A substring
+      // match would accept names such as "common.proto.generated.proto".
       const importPathWithSlash = '/' + normalizedImport;
-      if (uriPath.includes(importPathWithSlash)) {
+      if (uriPath.endsWith(importPathWithSlash)) {
         this.workspace.importResolutions.set(cacheKey, fileUri);
         return fileUri;
       }
@@ -599,7 +601,7 @@ export class SemanticAnalyzer {
     const imports = this.workspace.imports.get(uri) || [];
     return imports.map(importPath => {
       const cacheKey = this.getImportCacheKey(uri, importPath);
-      const resolvedUri = this.workspace.importResolutions.get(cacheKey);
+      const resolvedUri = this.workspace.importResolutions.get(cacheKey) ?? this.resolveImportPath(uri, importPath);
       return { importPath, resolvedUri, isResolved: !!resolvedUri };
     });
   }
@@ -651,7 +653,7 @@ export class SemanticAnalyzer {
 
     for (const importPath of imports) {
       const cacheKey = this.getImportCacheKey(uri, importPath);
-      const resolvedUri = this.workspace.importResolutions.get(cacheKey);
+      const resolvedUri = this.workspace.importResolutions.get(cacheKey) ?? this.resolveImportPath(uri, importPath);
       if (resolvedUri) {
         resolvedUris.push(resolvedUri);
       } else {

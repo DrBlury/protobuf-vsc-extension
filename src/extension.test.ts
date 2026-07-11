@@ -147,6 +147,7 @@ const mockChildProcess = {
 // Mock fs
 const mockFs = {
   existsSync: jest.fn(),
+  lstatSync: jest.fn().mockReturnValue({ isSymbolicLink: () => false }),
   readFileSync: jest.fn(),
   writeFileSync: jest.fn(),
   mkdirSync: jest.fn(),
@@ -162,6 +163,7 @@ const mockLanguageClient = {
   stop: jest.fn().mockResolvedValue(undefined),
   sendRequest: jest.fn(),
 };
+let capturedLanguageClientOptions: any;
 
 const mockExtensionContext = {
   subscriptions: [],
@@ -205,7 +207,10 @@ jest.doMock('vscode', () => mockVscode, { virtual: true });
 jest.doMock(
   'vscode-languageclient/node',
   () => ({
-    LanguageClient: jest.fn().mockImplementation(() => mockLanguageClient),
+    LanguageClient: jest.fn().mockImplementation((_id, _name, _serverOptions, clientOptions) => {
+      capturedLanguageClientOptions = clientOptions;
+      return mockLanguageClient;
+    }),
     TransportKind: {},
     Trace: {},
     RevealOutputChannelOn: {},
@@ -225,6 +230,8 @@ describe('Extension Activation', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
+    mockVscode.workspace.getConfiguration.mockReturnValue(mockConfiguration);
+    mockVscode.workspace.getWorkspaceFolder.mockReturnValue(undefined);
     mockFsUtils = jest.requireMock('./client/utils/fsUtils') as jest.Mocked<typeof fsUtils>;
     mockFsUtils.fileExists.mockResolvedValue(false);
     mockFsUtils.readFile.mockResolvedValue('');
@@ -306,6 +313,53 @@ describe('Extension Activation', () => {
     await activate(mockExtensionContext as any);
 
     expect(mockVscode.workspace.createFileSystemWatcher).toHaveBeenCalled();
+  });
+
+  it('should scope the language-client proto watcher to protoSrcsDir', async () => {
+    mockVscode.window.createOutputChannel.mockReturnValue(createTestOutputChannel());
+    mockVscode.workspace.getConfiguration.mockReturnValue(
+      createTestConfiguration((key, defaultValue) => (key === 'protoSrcsDir' ? 'protos' : defaultValue))
+    );
+
+    await activate(mockExtensionContext as any);
+
+    const watcherCalls = mockVscode.workspace.createFileSystemWatcher.mock.calls as unknown as Array<[any]>;
+    const scopedCall = watcherCalls.find(([pattern]) => pattern?.pattern === '**/*.{proto,textproto,pbtxt,prototxt}');
+    expect(scopedCall).toBeDefined();
+    expect(scopedCall?.[0].base.fsPath).toBe('/mock/workspace/protos');
+  });
+
+  it('should filter ignored watched files before notifying the language server', async () => {
+    mockVscode.window.createOutputChannel.mockReturnValue(createTestOutputChannel());
+    mockVscode.workspace.getWorkspaceFolder.mockReturnValue({
+      uri: { fsPath: '/workspace' },
+      name: 'workspace',
+      index: 0,
+    });
+    mockVscode.workspace.getConfiguration.mockReturnValue(
+      createTestConfiguration((key, defaultValue) => {
+        if (key === 'workspace.ignorePatterns') {
+          return ['generated'];
+        }
+        return defaultValue;
+      })
+    );
+
+    await activate(mockExtensionContext as any);
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    await capturedLanguageClientOptions.middleware.workspace.didChangeWatchedFile(
+      { uri: 'file:///workspace/generated/example.proto', type: 2 },
+      next
+    );
+
+    expect(next).not.toHaveBeenCalled();
+
+    await capturedLanguageClientOptions.middleware.workspace.didChangeWatchedFile(
+      { uri: 'file:///workspace/.gitignore', type: 2 },
+      next
+    );
+    expect(next).toHaveBeenCalledWith({ uri: 'file:///workspace/.gitignore', type: 2 });
   });
 
   it('should setup save handlers for format on save', async () => {

@@ -2,7 +2,7 @@
  * Tests for workspace utilities
  */
 
-import { findProtoFiles, scanWorkspaceForProtoFiles, scanImportPaths } from '../workspace';
+import { findProtoFiles, scanWorkspaceForProtoFiles, scanImportPaths, reconcileWorkspaceFiles } from '../workspace';
 import { ProtoParser } from '../../core/parser';
 import { SemanticAnalyzer } from '../../core/analyzer';
 import { logger } from '../logger';
@@ -22,6 +22,7 @@ const mockFs = fs as jest.Mocked<typeof fs>;
 describe('Workspace utilities', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFs.lstatSync.mockReturnValue({ isSymbolicLink: () => false } as fs.Stats);
   });
 
   describe('findProtoFiles', () => {
@@ -204,7 +205,7 @@ describe('Workspace utilities', () => {
       expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Workspace scan complete'));
     });
 
-    it('should scan full workspace and register protoSrcsDir as proto root when specified', () => {
+    it('should scope discovery to protoSrcsDir and register it as a proto root', () => {
       const protoContent = 'syntax = "proto3"; message Test {}';
       mockFs.readdirSync.mockReturnValue([{ name: 'test.proto', isDirectory: () => false, isFile: () => true }] as any);
       mockFs.readFileSync.mockReturnValue(protoContent);
@@ -217,27 +218,24 @@ describe('Workspace utilities', () => {
 
       scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer, 'protos');
 
-      // Should scan the full workspace (starting from /workspace, not /workspace/protos)
       expect(updateFileSpy).toHaveBeenCalled();
-      // Should register protoSrcsDir as a proto root
       expect(addProtoRootSpy).toHaveBeenCalledWith(expectedProtoDir);
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Registered proto root'));
+      expect(mockFs.readdirSync).toHaveBeenCalledWith(expectedProtoDir, { withFileTypes: true });
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Scoped workspace discovery'));
     });
 
-    it('should log when protoSrcsDir does not exist but still scan workspace', () => {
-      const protoContent = 'syntax = "proto3"; message Test {}';
-      // First call to existsSync (for protoSrcsDir) returns false
-      // But the workspace scan should still proceed
+    it('should not fall back to a full workspace scan when protoSrcsDir does not exist', () => {
       mockFs.existsSync.mockReturnValue(false);
       mockFs.readdirSync.mockReturnValue([{ name: 'test.proto', isDirectory: () => false, isFile: () => true }] as any);
-      mockFs.readFileSync.mockReturnValue(protoContent);
 
       const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
+      const addProtoRootSpy = jest.spyOn(analyzer, 'addProtoRoot');
 
       scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer, 'protos');
 
-      // Should still scan workspace even if protoSrcsDir doesn't exist
-      expect(updateFileSpy).toHaveBeenCalled();
+      expect(updateFileSpy).not.toHaveBeenCalled();
+      expect(mockFs.readdirSync).not.toHaveBeenCalled();
+      expect(addProtoRootSpy).toHaveBeenCalledWith(path.resolve('/workspace', 'protos'));
       expect(logger.verbose).toHaveBeenCalledWith(expect.stringContaining('does not exist'));
     });
 
@@ -420,6 +418,26 @@ describe('Workspace utilities', () => {
       expect(detectProtoRootsSpy).not.toHaveBeenCalled();
       // Completion message should not be logged when totalFiles is 0
       expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('Import path scan complete'));
+    });
+  });
+
+  describe('reconcileWorkspaceFiles', () => {
+    it('removes files that are no longer discoverable while preserving configured import roots', () => {
+      const analyzer = new SemanticAnalyzer();
+      const parser = new ProtoParser();
+      const keptUri = 'file:///workspace/protos/kept.proto';
+      const staleUri = 'file:///workspace/generated/stale.proto';
+      const importedUri = 'file:///workspace/vendor/imported.proto';
+      analyzer.updateFile(keptUri, parser.parse('syntax = "proto3";', keptUri));
+      analyzer.updateFile(staleUri, parser.parse('syntax = "proto3";', staleUri));
+      analyzer.updateFile(importedUri, parser.parse('syntax = "proto3";', importedUri));
+
+      const removed = reconcileWorkspaceFiles(['/workspace'], new Set([keptUri]), analyzer, ['/workspace/vendor']);
+
+      expect(removed).toEqual([staleUri]);
+      expect(analyzer.getAllFiles().has(keptUri)).toBe(true);
+      expect(analyzer.getAllFiles().has(importedUri)).toBe(true);
+      expect(analyzer.getAllFiles().has(staleUri)).toBe(false);
     });
   });
 });

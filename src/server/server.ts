@@ -59,7 +59,7 @@ import { REQUEST_METHODS, DIAGNOSTIC_SOURCE, ERROR_CODES, TIMING, DEFAULT_POSITI
 import { normalizePath, getErrorMessage } from './utils/utils';
 import type { Settings } from './utils/types';
 import { defaultSettings } from './utils/types';
-import { scanWorkspaceForProtoFiles, scanImportPaths } from './utils/workspace';
+import { scanWorkspaceForProtoFiles, scanImportPaths, reconcileWorkspaceFiles } from './utils/workspace';
 import { updateProvidersWithSettings } from './utils/configManager';
 import { debounce } from './utils/debounce';
 import { ContentHashCache, simpleHash } from './utils/cache';
@@ -153,6 +153,27 @@ function resolveParserPreference(config: Settings['protobuf']): ParserPreference
   }
 
   return 'tree-sitter';
+}
+
+function rescanWorkspaceFiles(): void {
+  const discoveredUris = scanWorkspaceForProtoFiles(
+    workspaceFolders,
+    providers.parser,
+    providers.analyzer,
+    protoSrcsDir,
+    workspaceIgnorePatterns
+  );
+  const removedUris = reconcileWorkspaceFiles(
+    workspaceFolders,
+    discoveredUris,
+    providers.analyzer,
+    providers.analyzer.getImportPaths()
+  );
+  for (const uri of removedUris) {
+    parsedFileCache.delete(uri);
+  }
+
+  logger.info(`Workspace reconciliation complete: ${discoveredUris.size} discovered, ${removedUris.length} removed`);
 }
 
 connection.onInitialize((params: InitializeParams): InitializeResult => {
@@ -256,13 +277,7 @@ connection.onInitialized(async () => {
 
   // Scan workspace for proto files on initialization
   // Note: protoSrcsDir may now be set from initial config fetch above.
-  scanWorkspaceForProtoFiles(
-    workspaceFolders,
-    providers.parser,
-    providers.analyzer,
-    protoSrcsDir,
-    workspaceIgnorePatterns
-  );
+  rescanWorkspaceFiles();
 });
 
 // Handle Tree-sitter initialization request
@@ -287,9 +302,16 @@ connection.onDidChangeWatchedFiles(async (params: DidChangeWatchedFilesParams) =
   let needsRevalidation = false;
   let hasFileRenameOrDelete = false;
   let hasBufConfigChange = false;
+  let hasWorkspaceDiscoveryChange = false;
 
   for (const change of params.changes) {
     const uri = change.uri;
+
+    if (uri.endsWith('/.gitignore') || uri.endsWith('\\.gitignore')) {
+      hasWorkspaceDiscoveryChange = true;
+      needsRevalidation = true;
+      logger.verboseWithContext('Git ignore file changed', { uri, type: change.type });
+    }
 
     // Check if this is a buf config file change
     if (
@@ -358,6 +380,10 @@ connection.onDidChangeWatchedFiles(async (params: DidChangeWatchedFilesParams) =
     }
   }
 
+  if (hasWorkspaceDiscoveryChange) {
+    rescanWorkspaceFiles();
+  }
+
   // Clear import resolution cache on file renames/deletes to force re-resolution
   if (hasFileRenameOrDelete) {
     providers.analyzer.clearImportResolutionCache();
@@ -378,6 +404,8 @@ connection.onDidChangeWatchedFiles(async (params: DidChangeWatchedFilesParams) =
 
 connection.onDidChangeConfiguration(async (change: { settings: unknown }) => {
   if (hasConfigurationCapability) {
+    const previousProtoSrcsDir = protoSrcsDir;
+    const previousIgnorePatterns = workspaceIgnorePatterns;
     // Fetch configuration directly from the client to ensure we get the latest values
     // This is more reliable than using change.settings which may have caching issues
     try {
@@ -435,6 +463,13 @@ connection.onDidChangeConfiguration(async (change: { settings: unknown }) => {
     // Scan user-configured import paths for proto files (e.g., .buf-deps)
     if (userIncludePaths.length > 0) {
       scanImportPaths(userIncludePaths, providers.parser, providers.analyzer);
+    }
+
+    const discoveryConfigurationChanged =
+      previousProtoSrcsDir !== protoSrcsDir ||
+      JSON.stringify(previousIgnorePatterns) !== JSON.stringify(workspaceIgnorePatterns);
+    if (discoveryConfigurationChanged) {
+      rescanWorkspaceFiles();
     }
   }
 

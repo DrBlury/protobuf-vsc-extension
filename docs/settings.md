@@ -306,7 +306,7 @@ These sources now populate the analyzer automatically, so most projects no longe
 
 - **Type**: `string`
 - **Default**: `""`
-- **Description**: Optional subdirectory (relative to the workspace root) to limit proto discovery. When set, the server only scans `${workspaceFolder}/${protoSrcsDir}/**/*.proto`. This is helpful when the repository contains large non-proto trees or when you only want to index a regression sample directory.
+- **Description**: Optional subdirectory (relative to the workspace root) to limit proto discovery and file watching. When set, the extension only scans `${workspaceFolder}/${protoSrcsDir}/**/*.proto`. This is helpful when the repository contains large non-proto trees or when you only want to index a regression sample directory.
 
 **Example:**
 
@@ -320,7 +320,7 @@ These sources now populate the analyzer automatically, so most projects no longe
 
 - **Type**: `string[]`
 - **Default**: `[]`
-- **Description**: Exclude folders or glob patterns from workspace proto discovery (indexing for diagnostics/symbols/go-to-definition). Use this to ignore generated directories such as `build/` or `dist/`.
+- **Description**: Add folders or gitignore-style patterns to the exclusions used by workspace proto discovery (indexing for diagnostics/symbols/go-to-definition). Repository `.gitignore` files are honored automatically; use this setting for generated paths that are not already ignored by Git.
 
 **Example:**
 
@@ -329,6 +329,8 @@ These sources now populate the analyzer automatically, so most projects no longe
   "protobuf.workspace.ignorePatterns": ["build", "**/generated/**"],
 }
 ```
+
+Ignored file events are discarded before they reach the language server or trigger a sidebar refresh. In an unscoped workspace, VS Code still owns the underlying recursive watcher; use `files.watcherExclude` when a build directory must also be excluded at the editor watcher level. Setting `protobuf.protoSrcsDir` scopes the underlying proto watcher itself.
 
 ### Renumbering
 

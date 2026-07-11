@@ -8,6 +8,7 @@ import * as path from 'path';
 import { URI } from 'vscode-uri';
 import type { IProtoParser } from '../core/parserFactory';
 import type { SemanticAnalyzer } from '../core/analyzer';
+import { discoverWorkspaceFilesSync, type WorkspaceFileDiscoveryOptions } from '../../shared/workspaceFileDiscovery';
 import { logger } from './logger';
 import { getErrorMessage } from './utils';
 
@@ -19,62 +20,41 @@ function toWorkspaceRelative(filePath: string, workspaceFolder: string): string 
   return relative.split(path.sep).join('/');
 }
 
-interface FileDiscoveryOptions {
-  rootDir?: string;
-  ignorePatterns?: string[];
+function isPathWithin(root: string, candidate: string): boolean {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return relative === '' || (!path.isAbsolute(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`));
 }
 
-function matchGlobPattern(pathValue: string, pattern: string): boolean {
-  let regexPattern = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*\*/g, '{{GLOBSTAR}}')
-    .replace(/\*/g, '[^/]*')
-    .replace(/\?/g, '.')
-    .replace(/\{\{GLOBSTAR\}\}/g, '.*');
+export function reconcileWorkspaceFiles(
+  workspaceFolders: string[],
+  discoveredUris: ReadonlySet<string>,
+  analyzer: SemanticAnalyzer,
+  preservedRoots: string[] = []
+): string[] {
+  const removedUris: string[] = [];
 
-  try {
-    const regex = new RegExp(`^${regexPattern}$`);
-    return regex.test(pathValue);
-  } catch {
-    return false;
-  }
-}
-
-function isIgnoredPath(fullPath: string, name: string, rootDir: string, ignorePatterns: string[]): boolean {
-  if (ignorePatterns.length === 0) {
-    return false;
-  }
-
-  const relativePath = path.relative(rootDir, fullPath).split(path.sep).join('/');
-
-  for (const pattern of ignorePatterns) {
-    if (pattern === name) {
-      return true;
-    }
-
-    const segments = relativePath.split('/');
-    if (segments.includes(pattern)) {
-      return true;
-    }
-
-    if (pattern.includes('/') && !pattern.includes('*')) {
-      const normalizedPattern = pattern.split(/[/\\]/).join('/');
-      if (
-        relativePath.startsWith(normalizedPattern + '/') ||
-        relativePath === normalizedPattern ||
-        relativePath.includes('/' + normalizedPattern + '/') ||
-        relativePath.includes('/' + normalizedPattern)
-      ) {
-        return true;
+  for (const [uri] of analyzer.getAllFiles()) {
+    let filePath: string;
+    try {
+      const parsedUri = URI.parse(uri);
+      if (parsedUri.scheme !== 'file') {
+        continue;
       }
+      filePath = parsedUri.fsPath;
+    } catch {
+      continue;
     }
 
-    if (matchGlobPattern(relativePath, pattern)) {
-      return true;
+    const belongsToWorkspace = workspaceFolders.some(folder => isPathWithin(folder, filePath));
+    const belongsToPreservedRoot = preservedRoots.some(root => isPathWithin(root, filePath));
+    if (belongsToWorkspace && !belongsToPreservedRoot && !discoveredUris.has(uri)) {
+      analyzer.removeFile(uri);
+      removedUris.push(uri);
     }
   }
 
-  return false;
+  analyzer.clearImportResolutionCache();
+  return removedUris;
 }
 
 /**
@@ -88,32 +68,23 @@ export function findProtoFiles(
   dir: string,
   files: string[] = [],
   includeHidden: boolean = false,
-  options: FileDiscoveryOptions = { rootDir: dir, ignorePatterns: [] }
-): string[] {
-  const rootDir = options.rootDir || dir;
-  const ignorePatterns = options.ignorePatterns || [];
-
-  try {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        // Skip node_modules, and optionally skip hidden directories
-        const skipHidden = !includeHidden && entry.name.startsWith('.');
-        const skipIgnored = isIgnoredPath(fullPath, entry.name, rootDir, ignorePatterns);
-        if (!skipHidden && entry.name !== 'node_modules' && !skipIgnored) {
-          findProtoFiles(fullPath, files, includeHidden, { rootDir, ignorePatterns });
-        }
-      } else if (entry.isFile() && entry.name.endsWith('.proto')) {
-        if (!isIgnoredPath(fullPath, entry.name, rootDir, ignorePatterns)) {
-          files.push(fullPath);
-        }
-      }
-    }
-  } catch (error) {
-    // Ignore permission errors, but log in verbose mode
-    logger.verbose(`Failed to read directory during workspace scan: ${dir}`, getErrorMessage(error));
+  options: Pick<WorkspaceFileDiscoveryOptions, 'rootDir' | 'ignorePatterns' | 'useIgnoreFiles'> = {
+    rootDir: dir,
+    ignorePatterns: [],
+    useIgnoreFiles: true,
   }
+): string[] {
+  const discovered = discoverWorkspaceFilesSync(dir, {
+    rootDir: options.rootDir ?? dir,
+    ignorePatterns: options.ignorePatterns ?? [],
+    includeHidden,
+    useIgnoreFiles: options.useIgnoreFiles ?? true,
+    fileExtensions: ['.proto'],
+    onError: (directory, error) => {
+      logger.verbose(`Failed to read directory during workspace scan: ${directory}`, getErrorMessage(error));
+    },
+  });
+  files.push(...discovered);
   return files;
 }
 
@@ -122,9 +93,7 @@ export function findProtoFiles(
  * @param workspaceFolders - Array of workspace folder paths
  * @param parser - Proto parser instance
  * @param analyzer - Semantic analyzer instance
- * @param protoSrcsDir - Optional subdirectory to prioritize for proto file search (e.g., 'protos')
- *                       Note: The full workspace is always scanned to discover all proto files,
- *                       but protoSrcsDir is registered as a proto root for import path resolution.
+ * @param protoSrcsDir - Optional subdirectory that scopes proto discovery (e.g., 'protos')
  * @param ignorePatterns - Optional glob/path patterns to exclude from workspace discovery
  */
 export function scanWorkspaceForProtoFiles(
@@ -133,7 +102,7 @@ export function scanWorkspaceForProtoFiles(
   analyzer: SemanticAnalyzer,
   protoSrcsDir?: string,
   ignorePatterns: string[] = []
-): void {
+): Set<string> {
   logger.info(`Scanning ${workspaceFolders.length} workspace folder(s) for proto files`);
   if (ignorePatterns.length > 0) {
     logger.info(`Workspace discovery ignore patterns: ${ignorePatterns.join(', ')}`);
@@ -141,14 +110,45 @@ export function scanWorkspaceForProtoFiles(
 
   let totalFiles = 0;
   let parsedFiles = 0;
+  const discoveredUris = new Set<string>();
 
   for (const folder of workspaceFolders) {
-    // Always scan the full workspace to discover all proto files
-    // This ensures types in any directory can be found and suggested for import
-    const protoFiles = findProtoFiles(folder, [], false, { rootDir: folder, ignorePatterns });
+    let scanRoot = folder;
+    let scanRootExists = true;
+
+    if (protoSrcsDir) {
+      const candidatePath = path.isAbsolute(protoSrcsDir) ? protoSrcsDir : path.join(folder, protoSrcsDir);
+      const resolvedCandidatePath = path.resolve(candidatePath);
+      const resolvedFolder = path.resolve(folder);
+      const relativePath = path.relative(resolvedFolder, resolvedCandidatePath);
+      const isInsideWorkspace =
+        relativePath === '' ||
+        (!path.isAbsolute(relativePath) && relativePath !== '..' && !relativePath.startsWith(`..${path.sep}`));
+
+      if (isInsideWorkspace) {
+        scanRoot = resolvedCandidatePath;
+        analyzer.addProtoRoot(resolvedCandidatePath);
+        scanRootExists = fs.existsSync(resolvedCandidatePath);
+        if (scanRootExists) {
+          logger.info(`Scoped workspace discovery to protoSrcsDir: ${resolvedCandidatePath}`);
+        } else {
+          logger.verbose(`Proto sources directory does not exist: ${candidatePath}`);
+        }
+      } else {
+        logger.verbose(`Proto sources directory is outside workspace: ${candidatePath}`);
+      }
+    }
+
+    const protoFiles = scanRootExists
+      ? findProtoFiles(scanRoot, [], false, {
+          rootDir: folder,
+          ignorePatterns,
+          useIgnoreFiles: true,
+        })
+      : [];
     totalFiles += protoFiles.length;
 
-    logger.verbose(`Found ${protoFiles.length} proto file(s) in workspace folder: ${folder}`);
+    logger.verbose(`Found ${protoFiles.length} proto file(s) in workspace scan root: ${scanRoot}`);
     const relativePaths = protoFiles
       .map(filePath => toWorkspaceRelative(filePath, folder))
       .sort((a, b) => a.localeCompare(b));
@@ -164,9 +164,10 @@ export function scanWorkspaceForProtoFiles(
     }
 
     for (const filePath of protoFiles) {
+      const uri = URI.file(filePath).toString();
+      discoveredUris.add(uri);
       try {
         const content = fs.readFileSync(filePath, 'utf-8');
-        const uri = URI.file(filePath).toString();
         const file = parser.parse(content, uri);
         analyzer.updateFile(uri, file);
         parsedFiles++;
@@ -175,35 +176,13 @@ export function scanWorkspaceForProtoFiles(
         logger.verbose(`Failed to parse file during initial scan: ${filePath}`, getErrorMessage(error));
       }
     }
-
-    // If protoSrcsDir is specified, register it as a proto root for import path resolution
-    if (protoSrcsDir) {
-      const candidatePath = path.join(folder, protoSrcsDir);
-      const resolvedCandidatePath = path.resolve(candidatePath);
-      const resolvedFolder = path.resolve(folder);
-
-      // Use path.relative to detect path traversal attempts
-      const relativePath = path.relative(resolvedFolder, resolvedCandidatePath);
-      const normalizedRelative = relativePath.split(path.sep).join('/').split('\\').join('/');
-
-      // Only register if path is valid (not outside workspace) and exists
-      if (!(normalizedRelative === '..' || normalizedRelative.startsWith('../'))) {
-        if (fs.existsSync(resolvedCandidatePath)) {
-          analyzer.addProtoRoot(resolvedCandidatePath);
-          logger.info(`Registered proto root from protoSrcsDir: ${resolvedCandidatePath}`);
-        } else {
-          logger.verbose(`Proto sources directory does not exist: ${candidatePath}`);
-        }
-      } else {
-        logger.verbose(`Proto sources directory is outside workspace: ${candidatePath}`);
-      }
-    }
   }
 
   logger.info(`Workspace scan complete: ${parsedFiles}/${totalFiles} proto file(s) parsed successfully`);
 
   // Refresh proto root hints after full scan
   analyzer.detectProtoRoots();
+  return discoveredUris;
 }
 
 /**
@@ -230,7 +209,7 @@ export function scanImportPaths(importPaths: string[], parser: IProtoParser, ana
       }
 
       // Include hidden directories for import paths (e.g., .buf-deps)
-      const protoFiles = findProtoFiles(importPath, [], true);
+      const protoFiles = findProtoFiles(importPath, [], true, { useIgnoreFiles: false });
       totalFiles += protoFiles.length;
 
       logger.verbose(`Found ${protoFiles.length} proto file(s) in import path: ${importPath}`);

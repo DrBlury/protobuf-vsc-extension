@@ -25,6 +25,7 @@ import { SaveStateTracker } from './client/formatting/saveState';
 import { BinaryDecoderProvider } from './client/binary-decoder/binaryDecoder';
 import { fileExists, readFile, writeFile } from './client/utils/fsUtils';
 import { registerProtobufSidebar } from './client/sidebar/protobufSidebarProvider';
+import { hasSymlinkedPathComponentSync, WorkspacePathFilter } from './shared/workspaceFileDiscovery';
 
 let client: LanguageClient;
 let outputChannel: vscode.OutputChannel;
@@ -37,10 +38,178 @@ let playgroundManager: PlaygroundManager | undefined;
 let protovalidatePlaygroundManager: ProtovalidatePlaygroundManager | undefined;
 let registryManager: RegistryManager;
 
+const workspacePathFilters = new Map<string, { signature: string; filter: WorkspacePathFilter }>();
+
 // Debounce map for dependency suggestions to avoid multiple prompts
 const dependencySuggestionDebounce = new Map<string, boolean>();
 const saveStateTracker = new SaveStateTracker();
 let modificationsModeWarningShown = false;
+
+function clearWorkspacePathFilters(): void {
+  workspacePathFilters.clear();
+}
+
+function isPathWithin(root: string, candidate: string): boolean {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return relative === '' || (!path.isAbsolute(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`));
+}
+
+function shouldForwardWorkspaceFileEvent(uriValue: string): boolean {
+  const uri = vscode.Uri.parse(uriValue);
+  if (path.basename(uri.fsPath) === '.gitignore') {
+    clearWorkspacePathFilters();
+    return true;
+  }
+
+  const folder = vscode.workspace.getWorkspaceFolder(uri);
+  if (!folder) {
+    return true;
+  }
+
+  const rootDir = folder.uri.fsPath;
+  const config = vscode.workspace.getConfiguration('protobuf', uri);
+  const configuredIgnorePatterns = config.get<unknown>('workspace.ignorePatterns', []);
+  const ignorePatterns = (Array.isArray(configuredIgnorePatterns) ? configuredIgnorePatterns : [])
+    .filter((pattern): pattern is string => typeof pattern === 'string')
+    .map(pattern => pattern.replace(/\$\{workspaceFolder\}/g, rootDir).trim())
+    .filter(Boolean);
+  const configuredProtoRootValue = config.get<unknown>('protoSrcsDir', '');
+  const configuredProtoRoot =
+    typeof configuredProtoRootValue === 'string'
+      ? configuredProtoRootValue.trim().replace(/\$\{workspaceFolder\}/g, rootDir)
+      : '';
+
+  if (/\.(?:proto|textproto|pbtxt|prototxt)$/.test(uri.fsPath) && configuredProtoRoot) {
+    const protoRoot = path.resolve(
+      path.isAbsolute(configuredProtoRoot) ? configuredProtoRoot : path.join(rootDir, configuredProtoRoot)
+    );
+    if (isPathWithin(rootDir, protoRoot) && !isPathWithin(protoRoot, uri.fsPath)) {
+      return false;
+    }
+  }
+
+  const signature = JSON.stringify(ignorePatterns);
+  const cached = workspacePathFilters.get(rootDir);
+  let filter: WorkspacePathFilter;
+  if (!cached || cached.signature !== signature) {
+    filter = new WorkspacePathFilter(rootDir, { ignorePatterns });
+    workspacePathFilters.set(rootDir, { signature, filter });
+  } else {
+    filter = cached.filter;
+  }
+
+  return !filter.isIgnored(uri.fsPath, false);
+}
+
+class ReconfigurableProtoWatcher implements vscode.FileSystemWatcher {
+  readonly ignoreCreateEvents = false;
+  readonly ignoreChangeEvents = false;
+  readonly ignoreDeleteEvents = false;
+
+  private readonly createEmitter = new vscode.EventEmitter<vscode.Uri>();
+  private readonly changeEmitter = new vscode.EventEmitter<vscode.Uri>();
+  private readonly deleteEmitter = new vscode.EventEmitter<vscode.Uri>();
+  readonly onDidCreate = this.createEmitter.event;
+  readonly onDidChange = this.changeEmitter.event;
+  readonly onDidDelete = this.deleteEmitter.event;
+
+  private readonly rawWatchers: vscode.FileSystemWatcher[] = [];
+  private readonly configurationListener: vscode.Disposable;
+  private readonly workspaceFoldersListener: vscode.Disposable;
+
+  constructor() {
+    this.rebuild();
+    this.configurationListener = vscode.workspace.onDidChangeConfiguration(event => {
+      if (event.affectsConfiguration('protobuf.protoSrcsDir')) {
+        this.rebuild();
+      }
+    });
+    this.workspaceFoldersListener = vscode.workspace.onDidChangeWorkspaceFolders(() => this.rebuild());
+  }
+
+  dispose(): void {
+    this.disposeRawWatchers();
+    this.configurationListener.dispose();
+    this.workspaceFoldersListener.dispose();
+    this.createEmitter.dispose();
+    this.changeEmitter.dispose();
+    this.deleteEmitter.dispose();
+  }
+
+  private rebuild(): void {
+    this.disposeRawWatchers();
+    for (const pattern of this.getPatterns()) {
+      const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+      watcher.onDidCreate(uri => {
+        if (shouldForwardWorkspaceFileEvent(uri.toString())) {
+          this.createEmitter.fire(uri);
+        }
+      });
+      watcher.onDidChange(uri => {
+        if (shouldForwardWorkspaceFileEvent(uri.toString())) {
+          this.changeEmitter.fire(uri);
+        }
+      });
+      watcher.onDidDelete(uri => {
+        if (shouldForwardWorkspaceFileEvent(uri.toString())) {
+          this.deleteEmitter.fire(uri);
+        }
+      });
+      this.rawWatchers.push(watcher);
+    }
+  }
+
+  private disposeRawWatchers(): void {
+    for (const watcher of this.rawWatchers.splice(0)) {
+      watcher.dispose();
+    }
+  }
+
+  private getPatterns(): vscode.GlobPattern[] {
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    if (folders.length === 0) {
+      return ['**/*.{proto,textproto,pbtxt,prototxt}'];
+    }
+
+    const roots = folders.map(folder => {
+      const config = vscode.workspace.getConfiguration('protobuf', folder.uri);
+      const configuredValue = config.get<unknown>('protoSrcsDir', '');
+      const configured =
+        typeof configuredValue === 'string'
+          ? configuredValue.trim().replace(/\$\{workspaceFolder\}/g, folder.uri.fsPath)
+          : '';
+      if (!configured) {
+        return { folder, root: undefined, skip: false };
+      }
+
+      const candidate = path.resolve(
+        path.isAbsolute(configured) ? configured : path.join(folder.uri.fsPath, configured)
+      );
+      if (!isPathWithin(folder.uri.fsPath, candidate)) {
+        return { folder, root: undefined, skip: false };
+      }
+
+      if (hasSymlinkedPathComponentSync(folder.uri.fsPath, candidate)) {
+        return { folder, root: candidate, skip: true };
+      }
+      return { folder, root: candidate, skip: false };
+    });
+
+    if (roots.every(({ root, skip }) => !root && !skip)) {
+      // Reuse VS Code's workspace watcher so files.watcherExclude is applied.
+      return ['**/*.{proto,textproto,pbtxt,prototxt}'];
+    }
+
+    return roots.flatMap(({ folder, root, skip }) => {
+      if (skip) {
+        return [];
+      }
+      return [
+        new vscode.RelativePattern(vscode.Uri.file(root ?? folder.uri.fsPath), '**/*.{proto,textproto,pbtxt,prototxt}'),
+      ];
+    });
+  }
+}
 
 function isBetaFeaturesEnabled(): boolean {
   return vscode.workspace.getConfiguration('protobuf').get<boolean>('enableBetaFeatures', false);
@@ -154,6 +323,17 @@ export async function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME);
   outputChannel.appendLine('Activating Protobuf extension...');
   const betaFeaturesEnabled = isBetaFeaturesEnabled();
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(event => {
+      if (
+        event.affectsConfiguration('protobuf.protoSrcsDir') ||
+        event.affectsConfiguration('protobuf.workspace.ignorePatterns')
+      ) {
+        clearWorkspacePathFilters();
+      }
+    })
+  );
 
   void updateOptionInspectorVisibilityContext(vscode.window.activeTextEditor);
   context.subscriptions.push(
@@ -641,6 +821,13 @@ breaking:
     },
   };
 
+  const protoFileWatcher = new ReconfigurableProtoWatcher();
+  const bufConfigWatcher = vscode.workspace.createFileSystemWatcher(
+    '**/{buf.yaml,buf.yml,buf.work.yaml,buf.work.yml,buf.lock}'
+  );
+  const gitIgnoreWatcher = vscode.workspace.createFileSystemWatcher('**/.gitignore');
+  context.subscriptions.push(protoFileWatcher, bufConfigWatcher, gitIgnoreWatcher);
+
   // Client options
   const clientOptions: LanguageClientOptions = {
     documentSelector: [
@@ -652,16 +839,16 @@ breaking:
     },
     synchronize: {
       configurationSection: 'protobuf',
-      fileEvents: [
-        vscode.workspace.createFileSystemWatcher('**/*.{proto,textproto,pbtxt,prototxt}'),
-        vscode.workspace.createFileSystemWatcher('**/buf.yaml'),
-        vscode.workspace.createFileSystemWatcher('**/buf.yml'),
-        vscode.workspace.createFileSystemWatcher('**/buf.work.yaml'),
-        vscode.workspace.createFileSystemWatcher('**/buf.work.yml'),
-        vscode.workspace.createFileSystemWatcher('**/buf.lock'),
-      ],
+      fileEvents: [protoFileWatcher, bufConfigWatcher, gitIgnoreWatcher],
     },
     middleware: {
+      workspace: {
+        didChangeWatchedFile: async (event, next) => {
+          if (shouldForwardWorkspaceFileEvent(event.uri)) {
+            await next(event);
+          }
+        },
+      },
       provideDocumentFormattingEdits: (document, options, token, next) => {
         if (shouldSkipFormatRequest(document)) {
           return [];

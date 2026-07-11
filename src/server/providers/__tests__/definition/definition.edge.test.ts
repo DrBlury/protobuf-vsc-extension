@@ -64,6 +64,23 @@ message Test {
 
       expect(definition).toBeDefined();
     });
+
+    it('should not navigate a filename-only import to a file with a matching suffix', () => {
+      const uri = 'file:///workspace/foo_common.proto';
+      const text = `syntax = "proto3";
+import "common.proto";
+message FooCommon {}`;
+      analyzer.updateFile(uri, parser.parse(text, uri));
+      const suffixDecoyUri = 'file:///workspace/common.proto.generated.proto';
+      analyzer.updateFile(
+        suffixDecoyUri,
+        parser.parse('syntax = "proto3"; message GeneratedCommon {}', suffixDecoyUri)
+      );
+
+      const definition = provider.getDefinition(uri, { line: 1, character: 9 }, 'import "common.proto";');
+
+      expect(definition).toBeNull();
+    });
   });
 
   describe('nested type navigation', () => {

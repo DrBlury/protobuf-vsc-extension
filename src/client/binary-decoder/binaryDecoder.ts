@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import { spawn } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
+import { discoverWorkspaceFiles } from '../../shared/workspaceFileDiscovery';
 
 /**
  * Result of binary decoding operation
@@ -231,7 +232,36 @@ export class BinaryDecoderProvider implements vscode.CustomReadonlyEditorProvide
   private async getMessageTypes(): Promise<MessageTypeInfo[]> {
     const types: Map<string, vscode.Uri> = new Map();
     try {
-      const files = await vscode.workspace.findFiles('**/*.proto', '**/node_modules/**');
+      const files: vscode.Uri[] = [];
+      for (const folder of vscode.workspace.workspaceFolders ?? []) {
+        const rootDir = folder.uri.fsPath;
+        const config = vscode.workspace.getConfiguration('protobuf', folder.uri);
+        const protoSrcsDirValue = config.get<unknown>('protoSrcsDir', '');
+        const protoSrcsDir =
+          typeof protoSrcsDirValue === 'string'
+            ? protoSrcsDirValue.trim().replace(/\$\{workspaceFolder\}/g, rootDir)
+            : '';
+        const candidate = protoSrcsDir
+          ? path.resolve(path.isAbsolute(protoSrcsDir) ? protoSrcsDir : path.join(rootDir, protoSrcsDir))
+          : rootDir;
+        const relative = path.relative(path.resolve(rootDir), candidate);
+        const isInsideWorkspace =
+          relative === '' || (!path.isAbsolute(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`));
+        const scanRoot = isInsideWorkspace ? candidate : rootDir;
+        const ignorePatternsValue = config.get<unknown>('workspace.ignorePatterns', []);
+        const ignorePatterns = (Array.isArray(ignorePatternsValue) ? ignorePatternsValue : [])
+          .filter((pattern): pattern is string => typeof pattern === 'string')
+          .map(pattern => pattern.replace(/\$\{workspaceFolder\}/g, rootDir).trim())
+          .filter(Boolean);
+
+        const discovered = await discoverWorkspaceFiles(scanRoot, {
+          rootDir,
+          ignorePatterns,
+          fileExtensions: ['.proto'],
+        });
+        files.push(...discovered.map(filePath => vscode.Uri.file(filePath)));
+      }
+
       for (const file of files) {
         try {
           const content = await vscode.workspace.fs.readFile(file);

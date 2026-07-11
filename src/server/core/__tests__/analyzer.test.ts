@@ -808,6 +808,43 @@ describe('SemanticAnalyzer', () => {
     });
   });
 
+  describe('import resolution', () => {
+    it('should not resolve a filename-only import to a file with a matching suffix', () => {
+      const importerUri = 'file:///workspace/foo_common.proto';
+      const importedUri = 'file:///workspace/common.proto';
+      const suffixDecoyUri = 'file:///workspace/common.proto.generated.proto';
+      const importer = parser.parse(
+        `
+        syntax = "proto3";
+        package example;
+        import "common.proto";
+        message FooCommon {}
+      `,
+        importerUri
+      );
+
+      analyzer.updateFile(importerUri, importer);
+      analyzer.updateFile(
+        suffixDecoyUri,
+        parser.parse('syntax = "proto3"; message GeneratedCommon {}', suffixDecoyUri)
+      );
+
+      expect(analyzer.resolveImportToUri(importerUri, 'common.proto')).toBeUndefined();
+
+      const imported = parser.parse(
+        `
+        syntax = "proto3";
+        package example;
+        message Common {}
+      `,
+        importedUri
+      );
+      analyzer.updateFile(importedUri, imported);
+
+      expect(analyzer.resolveImportToUri(importerUri, 'common.proto')).toBe(importedUri);
+    });
+  });
+
   describe('setImportPaths', () => {
     it('should clear import resolution cache when paths change', () => {
       // This test ensures that when import paths are updated (e.g., via settings change),

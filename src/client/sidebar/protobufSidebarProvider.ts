@@ -1,4 +1,12 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import {
+  discoverWorkspaceFiles,
+  hasSymlinkedPathComponentSync,
+  WorkspacePathFilter,
+} from '../../shared/workspaceFileDiscovery';
+
+const WORKSPACE_SCAN_DEBOUNCE_MS = 300;
 
 /**
  * Section IDs for the sidebar
@@ -80,55 +88,268 @@ export class ProtobufSidebarProvider implements vscode.TreeDataProvider<TreeItem
   private serviceCount = 0;
   private hasBufConfig = false;
   private readonly betaFeaturesEnabled: boolean;
+  private readonly watcherDisposables: vscode.Disposable[] = [];
+  private readonly pathFilters = new Map<string, { signature: string; filter: WorkspacePathFilter }>();
+  private scanTimer: ReturnType<typeof setTimeout> | undefined;
+  private scanInProgress = false;
+  private rescanRequested = false;
 
   constructor(extensionContext: vscode.ExtensionContext, betaFeaturesEnabled: boolean) {
     this.betaFeaturesEnabled = betaFeaturesEnabled;
-    this.scanWorkspace();
+    this.rebuildWatchers();
+    this.scheduleScan(0);
 
-    // Watch for file changes
-    const protoWatcher = vscode.workspace.createFileSystemWatcher('**/*.proto');
-    protoWatcher.onDidCreate(() => this.scanWorkspace());
-    protoWatcher.onDidDelete(() => this.scanWorkspace());
-    protoWatcher.onDidChange(() => this.scanWorkspace());
-    extensionContext.subscriptions.push(protoWatcher);
-
-    // Watch for buf.yaml changes
-    const bufWatcher = vscode.workspace.createFileSystemWatcher('**/buf.yaml');
-    bufWatcher.onDidCreate(() => this.scanWorkspace());
-    bufWatcher.onDidDelete(() => this.scanWorkspace());
-    extensionContext.subscriptions.push(bufWatcher);
+    extensionContext.subscriptions.push(
+      vscode.workspace.onDidChangeConfiguration(event => {
+        if (event.affectsConfiguration('protobuf.protoSrcsDir')) {
+          this.rebuildWatchers();
+        }
+        if (
+          event.affectsConfiguration('protobuf.protoSrcsDir') ||
+          event.affectsConfiguration('protobuf.workspace.ignorePatterns') ||
+          event.affectsConfiguration('files.watcherExclude')
+        ) {
+          this.pathFilters.clear();
+          this.scheduleScan();
+        }
+      }),
+      vscode.workspace.onDidChangeWorkspaceFolders(() => {
+        this.pathFilters.clear();
+        this.rebuildWatchers();
+        this.scheduleScan();
+      }),
+      {
+        dispose: () => {
+          if (this.scanTimer) {
+            clearTimeout(this.scanTimer);
+          }
+          this.disposeWatchers();
+        },
+      }
+    );
   }
 
   refresh(): void {
-    this.scanWorkspace();
+    this.scheduleScan(0);
+  }
+
+  private scheduleScan(delay = WORKSPACE_SCAN_DEBOUNCE_MS): void {
+    if (this.scanTimer) {
+      clearTimeout(this.scanTimer);
+    }
+    this.scanTimer = setTimeout(() => {
+      this.scanTimer = undefined;
+      void this.scanWorkspace();
+    }, delay);
+  }
+
+  private rebuildWatchers(): void {
+    this.disposeWatchers();
+
+    for (const pattern of this.getProtoWatcherPatterns()) {
+      const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+      watcher.onDidCreate(uri => this.scheduleScanForUri(uri));
+      watcher.onDidDelete(uri => this.scheduleScanForUri(uri));
+      watcher.onDidChange(uri => this.scheduleScanForUri(uri));
+      this.watcherDisposables.push(watcher);
+    }
+
+    const bufWatcher = vscode.workspace.createFileSystemWatcher('**/buf.yaml');
+    bufWatcher.onDidCreate(uri => this.scheduleScanForUri(uri));
+    bufWatcher.onDidDelete(uri => this.scheduleScanForUri(uri));
+    bufWatcher.onDidChange(uri => this.scheduleScanForUri(uri));
+    this.watcherDisposables.push(bufWatcher);
+
+    const gitIgnoreWatcher = vscode.workspace.createFileSystemWatcher('**/.gitignore');
+    gitIgnoreWatcher.onDidCreate(uri => this.scheduleScanForUri(uri));
+    gitIgnoreWatcher.onDidDelete(uri => this.scheduleScanForUri(uri));
+    gitIgnoreWatcher.onDidChange(uri => this.scheduleScanForUri(uri));
+    this.watcherDisposables.push(gitIgnoreWatcher);
+  }
+
+  private disposeWatchers(): void {
+    for (const watcher of this.watcherDisposables.splice(0)) {
+      watcher.dispose();
+    }
+  }
+
+  private scheduleScanForUri(uri: vscode.Uri): void {
+    if (path.basename(uri.fsPath) === '.gitignore') {
+      this.pathFilters.clear();
+      this.scheduleScan();
+      return;
+    }
+
+    const folder = vscode.workspace.getWorkspaceFolder(uri);
+    if (!folder) {
+      this.scheduleScan();
+      return;
+    }
+
+    const rootDir = folder.uri.fsPath;
+    const scanRoot = this.getProtoScanRoot(folder);
+    if (uri.fsPath.endsWith('.proto')) {
+      const relativeToScanRoot = path.relative(path.resolve(scanRoot), path.resolve(uri.fsPath));
+      const isInScanRoot =
+        relativeToScanRoot === '' ||
+        (!path.isAbsolute(relativeToScanRoot) &&
+          relativeToScanRoot !== '..' &&
+          !relativeToScanRoot.startsWith(`..${path.sep}`));
+      if (!isInScanRoot) {
+        return;
+      }
+    }
+
+    const ignorePatterns = this.getIgnorePatterns(folder);
+    const signature = JSON.stringify(ignorePatterns);
+    const cached = this.pathFilters.get(rootDir);
+    let filter: WorkspacePathFilter;
+    if (!cached || cached.signature !== signature) {
+      filter = new WorkspacePathFilter(rootDir, { ignorePatterns });
+      this.pathFilters.set(rootDir, { signature, filter });
+    } else {
+      filter = cached.filter;
+    }
+
+    if (!filter.isIgnored(uri.fsPath, false)) {
+      this.scheduleScan();
+    }
+  }
+
+  private getProtoWatcherPatterns(): vscode.GlobPattern[] {
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    if (folders.length === 0) {
+      return ['**/*.proto'];
+    }
+
+    const scopedRoots = folders.map(folder => {
+      const scanRoot = this.getProtoScanRoot(folder);
+      const isScoped = path.resolve(scanRoot) !== path.resolve(folder.uri.fsPath);
+      const isSymlink = isScoped && hasSymlinkedPathComponentSync(folder.uri.fsPath, scanRoot);
+      return { folder, scanRoot, isScoped, isSymlink };
+    });
+    if (scopedRoots.every(({ isScoped }) => !isScoped)) {
+      // String patterns inherit the user's files.watcherExclude configuration.
+      return ['**/*.proto'];
+    }
+
+    return scopedRoots.flatMap(({ folder, scanRoot, isScoped, isSymlink }) => {
+      if (isSymlink) {
+        return [];
+      }
+      const base = isScoped ? vscode.Uri.file(scanRoot) : folder;
+      return [new vscode.RelativePattern(base, '**/*.proto')];
+    });
+  }
+
+  private getProtoScanRoot(folder: vscode.WorkspaceFolder): string {
+    const config = vscode.workspace.getConfiguration('protobuf', folder.uri);
+    const configuredValue = config.get<unknown>('protoSrcsDir', '');
+    const configured = typeof configuredValue === 'string' ? configuredValue.trim() : '';
+    if (!configured) {
+      return folder.uri.fsPath;
+    }
+
+    const expanded = configured.replace(/\$\{workspaceFolder\}/g, folder.uri.fsPath);
+    const candidate = path.resolve(path.isAbsolute(expanded) ? expanded : path.join(folder.uri.fsPath, expanded));
+    const relative = path.relative(path.resolve(folder.uri.fsPath), candidate);
+    const isInsideWorkspace =
+      relative === '' || (!path.isAbsolute(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`));
+
+    return isInsideWorkspace ? candidate : folder.uri.fsPath;
+  }
+
+  private getIgnorePatterns(folder: vscode.WorkspaceFolder): string[] {
+    const config = vscode.workspace.getConfiguration('protobuf', folder.uri);
+    const configured = config.get<unknown>('workspace.ignorePatterns', []);
+    if (!Array.isArray(configured)) {
+      return [];
+    }
+
+    return configured
+      .filter((pattern): pattern is string => typeof pattern === 'string')
+      .map(pattern => pattern.replace(/\$\{workspaceFolder\}/g, folder.uri.fsPath).trim())
+      .filter(Boolean);
   }
 
   private async scanWorkspace(): Promise<void> {
-    const protoFiles = await vscode.workspace.findFiles('**/*.proto', '**/node_modules/**');
-    this.protoFileCount = protoFiles.length;
+    if (this.scanInProgress) {
+      this.rescanRequested = true;
+      return;
+    }
 
-    // Count services
-    let services = 0;
-    for (const file of protoFiles.slice(0, 50)) {
-      // Limit for performance
-      try {
-        const doc = await vscode.workspace.openTextDocument(file);
-        const text = doc.getText();
-        const matches = text.match(/\bservice\s+\w+/g);
-        if (matches) {
-          services += matches.length;
+    this.scanInProgress = true;
+    try {
+      const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
+      const protoPaths: string[] = [];
+      let hasBufConfig = false;
+
+      for (const folder of workspaceFolders) {
+        const rootDir = folder.uri.fsPath;
+        const ignorePatterns = this.getIgnorePatterns(folder);
+        const scanRoot = this.getProtoScanRoot(folder);
+
+        if (path.resolve(scanRoot) === path.resolve(rootDir)) {
+          const discovered = await discoverWorkspaceFiles(rootDir, {
+            rootDir,
+            ignorePatterns,
+            fileExtensions: ['.proto'],
+            fileNames: ['buf.yaml'],
+          });
+          protoPaths.push(...discovered.filter(filePath => filePath.endsWith('.proto')));
+          hasBufConfig ||= discovered.some(filePath => path.basename(filePath) === 'buf.yaml');
+          continue;
         }
-      } catch {
-        // Skip files that can't be read
+
+        protoPaths.push(
+          ...(await discoverWorkspaceFiles(scanRoot, {
+            rootDir,
+            ignorePatterns,
+            fileExtensions: ['.proto'],
+          }))
+        );
+
+        if (!hasBufConfig) {
+          const bufConfigs = await discoverWorkspaceFiles(rootDir, {
+            rootDir,
+            ignorePatterns,
+            fileExtensions: [],
+            fileNames: ['buf.yaml'],
+            maxResults: 1,
+          });
+          hasBufConfig = bufConfigs.length > 0;
+        }
+      }
+
+      const protoFiles = protoPaths.map(filePath => vscode.Uri.file(filePath));
+      this.protoFileCount = protoFiles.length;
+
+      // Count services
+      let services = 0;
+      for (const file of protoFiles.slice(0, 50)) {
+        // Limit for performance
+        try {
+          const doc = await vscode.workspace.openTextDocument(file);
+          const text = doc.getText();
+          const matches = text.match(/\bservice\s+\w+/g);
+          if (matches) {
+            services += matches.length;
+          }
+        } catch {
+          // Skip files that can't be read
+        }
+      }
+      this.serviceCount = services;
+      this.hasBufConfig = hasBufConfig;
+
+      this._onDidChangeTreeData.fire();
+    } finally {
+      this.scanInProgress = false;
+      if (this.rescanRequested) {
+        this.rescanRequested = false;
+        this.scheduleScan();
       }
     }
-    this.serviceCount = services;
-
-    // Check for buf.yaml
-    const bufConfigs = await vscode.workspace.findFiles('**/buf.yaml', '**/node_modules/**', 1);
-    this.hasBufConfig = bufConfigs.length > 0;
-
-    this._onDidChangeTreeData.fire();
   }
 
   getTreeItem(element: TreeItemType): vscode.TreeItem {

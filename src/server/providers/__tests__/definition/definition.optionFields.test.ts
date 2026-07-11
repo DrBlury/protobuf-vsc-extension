@@ -134,4 +134,57 @@ message CreateDemoRequest {}
     expect(definition.uri).toBe('file:///third_party/google/api/http.proto');
     expect(definition.range.start.line).toBe(8);
   });
+
+  it('should not fall through to unrelated fields when option extension is unresolved (issue #98)', () => {
+    const openapiProto = `syntax = "proto3";
+package openapi.v3;
+
+message PathItem {
+  string post = 8;
+}
+`;
+
+    const openapiAnnotationsProto = `syntax = "proto3";
+package openapi.v3;
+
+import "openapi/v3/openapi.proto";
+`;
+
+    const demoProto = `syntax = "proto3";
+package api.demo;
+
+import "google/api/annotations.proto";
+import "openapi/v3/annotations.proto";
+
+service DemoService {
+  rpc CreateDemo(CreateDemoRequest) returns (Demo) {
+    option (google.api.http) = {
+      post : "/v1/demos"
+    };
+  }
+}
+
+message Demo {}
+message CreateDemoRequest {}
+`;
+
+    analyzer.updateFile(
+      'file:///third_party/openapi/v3/openapi.proto',
+      parser.parse(openapiProto, 'file:///third_party/openapi/v3/openapi.proto')
+    );
+    analyzer.updateFile(
+      'file:///third_party/openapi/v3/annotations.proto',
+      parser.parse(openapiAnnotationsProto, 'file:///third_party/openapi/v3/annotations.proto')
+    );
+    analyzer.updateFile('file:///api/demo.proto', parser.parse(demoProto, 'file:///api/demo.proto'));
+
+    const definition = provider.getDefinition(
+      'file:///api/demo.proto',
+      { line: 9, character: 8 },
+      '      post : "/v1/demos"',
+      demoProto
+    );
+
+    expect(definition).toBeNull();
+  });
 });
