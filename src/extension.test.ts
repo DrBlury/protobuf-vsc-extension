@@ -47,6 +47,7 @@ const mockConfiguration = {
   has: jest.fn().mockReturnValue(false),
   inspect: jest.fn().mockReturnValue(undefined),
 };
+const normalizeTestPath = (filePath: string): string => filePath.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '');
 
 const createTestOutputChannel = () => ({
   appendLine: jest.fn(),
@@ -326,7 +327,7 @@ describe('Extension Activation', () => {
     const watcherCalls = mockVscode.workspace.createFileSystemWatcher.mock.calls as unknown as Array<[any]>;
     const scopedCall = watcherCalls.find(([pattern]) => pattern?.pattern === '**/*.{proto,textproto,pbtxt,prototxt}');
     expect(scopedCall).toBeDefined();
-    expect(scopedCall?.[0].base.fsPath).toBe('/mock/workspace/protos');
+    expect(normalizeTestPath(scopedCall?.[0].base.fsPath ?? '')).toBe('/mock/workspace/protos');
   });
 
   it('should filter ignored watched files before notifying the language server', async () => {

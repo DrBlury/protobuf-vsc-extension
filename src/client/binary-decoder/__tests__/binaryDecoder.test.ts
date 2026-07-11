@@ -8,6 +8,7 @@ jest.mock('../../../shared/workspaceFileDiscovery', () => ({
 
 const mockedVscode = vscode as jest.Mocked<typeof vscode>;
 const mockedDiscoverWorkspaceFiles = discoverWorkspaceFiles as jest.MockedFunction<typeof discoverWorkspaceFiles>;
+const normalizeTestPath = (filePath: string): string => filePath.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '');
 
 describe('BinaryDecoderProvider schema discovery', () => {
   beforeEach(() => {
@@ -48,7 +49,9 @@ describe('BinaryDecoderProvider schema discovery', () => {
       provider as unknown as { getMessageTypes(): Promise<Array<{ name: string }>> }
     ).getMessageTypes();
 
-    expect(mockedDiscoverWorkspaceFiles).toHaveBeenCalledWith('/workspace/protos', {
+    const [scanRoot, discoveryOptions] = mockedDiscoverWorkspaceFiles.mock.calls[0]!;
+    expect(normalizeTestPath(scanRoot)).toBe('/workspace/protos');
+    expect(discoveryOptions).toEqual({
       rootDir: '/workspace',
       ignorePatterns: ['generated'],
       fileExtensions: ['.proto'],

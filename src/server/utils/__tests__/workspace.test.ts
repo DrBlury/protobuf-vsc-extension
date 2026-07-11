@@ -18,6 +18,7 @@ jest.mock('../logger', () => ({
 }));
 
 const mockFs = fs as jest.Mocked<typeof fs>;
+const normalizeTestPath = (filePath: string): string => filePath.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '');
 
 describe('Workspace utilities', () => {
   beforeEach(() => {
@@ -103,7 +104,7 @@ describe('Workspace utilities', () => {
 
     it('should skip files under ignored directories', () => {
       mockFs.readdirSync.mockImplementation((dirPath: any) => {
-        const dir = String(dirPath).replace(/\\/g, '/');
+        const dir = normalizeTestPath(String(dirPath));
         if (dir === '/test') {
           return [
             { name: 'build', isDirectory: () => true, isFile: () => false },
@@ -272,7 +273,7 @@ describe('Workspace utilities', () => {
       const protoContent = 'syntax = "proto3"; message Test {}';
       mockFs.readFileSync.mockReturnValue(protoContent);
       mockFs.readdirSync.mockImplementation((dirPath: any) => {
-        const dir = String(dirPath).replace(/\\/g, '/');
+        const dir = normalizeTestPath(String(dirPath));
         if (dir === '/workspace') {
           return [
             { name: 'build', isDirectory: () => true, isFile: () => false },
@@ -293,7 +294,7 @@ describe('Workspace utilities', () => {
       scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer, undefined, ['build']);
 
       expect(updateFileSpy).toHaveBeenCalledTimes(1);
-      expect(updateFileSpy.mock.calls[0]?.[0]).toContain('/workspace/proto/message.proto');
+      expect(normalizeTestPath(updateFileSpy.mock.calls[0]?.[0] ?? '')).toContain('/workspace/proto/message.proto');
     });
   });
 
