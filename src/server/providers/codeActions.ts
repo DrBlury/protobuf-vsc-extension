@@ -825,8 +825,7 @@ export class CodeActionsProvider {
         // Check if this also requires an import (new case for types found in workspace but not imported)
         const requiresImport = message.includes('and requires import');
         const diagnosticData = diagnostic.data as
-          | { typeName?: string; fullName?: string; symbolUri?: string }
-          | undefined;
+          { typeName?: string; fullName?: string; symbolUri?: string } | undefined;
 
         if (requiresImport && diagnosticData?.symbolUri) {
           // Get the import path for the symbol's file
