@@ -7,14 +7,7 @@ export interface DocumentationRequest {
 }
 
 export type DocumentationElementKind =
-  | 'message'
-  | 'enum'
-  | 'service'
-  | 'rpc'
-  | 'field'
-  | 'enumValue'
-  | 'oneof'
-  | 'file';
+  'message' | 'enum' | 'service' | 'rpc' | 'field' | 'enumValue' | 'oneof' | 'file';
 
 export interface DocumentationField {
   name: string;

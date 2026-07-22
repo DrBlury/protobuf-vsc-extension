@@ -25,13 +25,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: 'npm'
@@ -104,7 +104,7 @@ jobs:
           retention-days: 90
 
       - name: Dependency Audit
-        run: npm audit --omit=dev --audit-level=critical
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Package extension
         run: npm run package -- --out "${{ steps.version.outputs.vsix_path }}"
@@ -117,15 +117,14 @@ jobs:
           cat > release-notes.md <<'EOF'
           ## Changes
 
-          - Honors repository `.gitignore` files and configured ignore patterns during workspace proto discovery.
-          - Scopes proto file watching and sidebar refreshes to configured proto source directories where possible.
-          - Fixes stale workspace analyzer entries after discovery settings or ignore files change.
-          - Fixes preloaded googleapis imports after the import-resolution cache is cleared.
-          - Prevents option field go-to-definition from jumping to unrelated same-name fields when an option extension is unresolved.
+          - Updates direct and transitive dependencies to their latest compatible security-patched versions.
+          - Removes the remaining high-severity production dependency advisory from extension packaging.
+          - Updates pinned GitHub Actions and makes high-severity dependency findings block CI and releases.
+          - Includes a CycloneDX software bill of materials alongside the downloadable VSIX.
           EOF
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           files: |
