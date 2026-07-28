@@ -78,7 +78,7 @@
       "patterns": [
         {
           "comment": "Google API HTTP option with aggregate value",
-          "begin": "\\b(option)\\s+(\\(google\\.api\\.http\\))\\s*=\\s*\\{",
+          "begin": "\\b(option)\\s*(\\(google\\.api\\.http\\))\\s*=\\s*\\{",
           "end": "\\}\\s*;",
           "beginCaptures": {
             "1": { "name": "keyword.control.option.proto" },
@@ -88,7 +88,7 @@
         },
         {
           "comment": "Google API resource option with aggregate value",
-          "begin": "\\b(option)\\s+(\\(google\\.api\\.resource\\))\\s*=\\s*\\{",
+          "begin": "\\b(option)\\s*(\\(google\\.api\\.resource\\))\\s*=\\s*\\{",
           "end": "\\}\\s*;",
           "beginCaptures": {
             "1": { "name": "keyword.control.option.proto" },
@@ -98,7 +98,7 @@
         },
         {
           "comment": "CEL validation option with aggregate value",
-          "begin": "\\b(option)\\s+(\\([\\w.]+\\)(?:\\.[\\w]+)*)\\s*=\\s*\\{",
+          "begin": "\\b(option)\\s*(\\([\\w.]+\\)(?:\\.[\\w]+)*)\\s*=\\s*\\{",
           "end": "\\}\\s*;",
           "beginCaptures": {
             "1": { "name": "keyword.control.option.proto" },
