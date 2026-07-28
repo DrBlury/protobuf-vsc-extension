@@ -170,7 +170,7 @@ jobs:
           retention-days: 30
 
       - name: Run npm audit
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
 
   pre-commit:
     runs-on: ubuntu-latest

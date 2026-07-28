@@ -28,7 +28,7 @@ import { registerProtobufSidebar } from './client/sidebar/protobufSidebarProvide
 import { hasSymlinkedPathComponentSync, WorkspacePathFilter } from './shared/workspaceFileDiscovery';
 
 let client: LanguageClient;
-let outputChannel: vscode.OutputChannel;
+let outputChannel: vscode.LogOutputChannel;
 let toolchainManager: ToolchainManager;
 let autoDetector: AutoDetector;
 let dependencySuggestionProvider: DependencySuggestionProvider;
@@ -320,7 +320,7 @@ async function formatDocumentIfNeeded(document: vscode.TextDocument): Promise<vo
 }
 
 export async function activate(context: vscode.ExtensionContext) {
-  outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME);
+  outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME, { log: true });
   outputChannel.appendLine('Activating Protobuf extension...');
   const betaFeaturesEnabled = isBetaFeaturesEnabled();
 
