@@ -85,7 +85,7 @@ jobs:
       - name: Generate SBOM for Release
         run: |
           npm install -g @cyclonedx/cyclonedx-npm
-          cyclonedx-npm --output-file release-sbom.json --output-format json
+          cyclonedx-npm --output-file release-sbom.json --output-format json --omit dev
 
       - name: Run Grype Security Scan
         uses: anchore/scan-action@v7
@@ -112,15 +112,22 @@ jobs:
       - name: Verify packaged extension exists
         run: test -f "${{ steps.version.outputs.vsix_path }}"
 
+      - name: Generate and verify release checksums
+        run: |
+          sha256sum \
+            "${{ steps.version.outputs.vsix_path }}" \
+            release-sbom.json \
+            > SHA256SUMS.txt
+          sha256sum --check SHA256SUMS.txt
+
       - name: Write release notes
         run: |
           cat > release-notes.md <<'EOF'
           ## Changes
 
           - Updates direct and transitive dependencies to their latest compatible security-patched versions.
-          - Removes the remaining high-severity production dependency advisory from extension packaging.
-          - Updates pinned GitHub Actions and makes high-severity dependency findings block CI and releases.
-          - Includes a CycloneDX software bill of materials alongside the downloadable VSIX.
+          - Keeps high-severity production dependency findings blocking CI and releases.
+          - Includes a production CycloneDX software bill of materials and verified SHA-256 checksums alongside the downloadable VSIX.
           EOF
 
       - name: Create GitHub Release
@@ -130,6 +137,7 @@ jobs:
           files: |
             ${{ steps.version.outputs.vsix_path }}
             release-sbom.json
+            SHA256SUMS.txt
           fail_on_unmatched_files: true
           body_path: release-notes.md
         env:

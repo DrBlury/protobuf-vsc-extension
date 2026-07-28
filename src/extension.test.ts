@@ -254,7 +254,7 @@ describe('Extension Activation', () => {
 
     await activate(mockExtensionContext as any);
 
-    expect(mockVscode.window.createOutputChannel).toHaveBeenCalledWith('Protobuf VSC');
+    expect(mockVscode.window.createOutputChannel).toHaveBeenCalledWith('Protobuf VSC', { log: true });
     expect(mockExtensionContext.subscriptions.length).toBeGreaterThan(0);
   });
 
