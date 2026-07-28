@@ -14,12 +14,32 @@ service MyService {
 //         ^^^^^^^^^^^^^^^^^^^^^ string.quoted.double.proto
     };
   }
+
+  // No space between "option" and "(...)" is valid proto3 syntax and must
+  // not corrupt the tokenizer state for the rest of the file.
+  rpc GetOtherResource(GetRequest) returns (GetResponse) {
+    option(google.api.http) = {
+//  ^^^^^^ keyword.control.option.proto
+//        ^^^^^^^^^^^^^^^^^ variable.other.option.googleapi.proto
+      get: "/v1/other-resources/{name}"
+//    ^^^ keyword.control.http.method.proto
+//         ^^^^^^^^^^^^^^^^^^^^^^^^^^^ string.quoted.double.proto
+    };
+  }
 }
 
 message GetRequest {
+// <--- keyword.control.message.proto
+//      ^^^^^^^^^^ entity.name.type.message.proto
   string name = 1;
+//^^^^^^ storage.type.proto
+//       ^^^^ variable.other.field.proto
 }
 
 message GetResponse {
+// <--- keyword.control.message.proto
+//      ^^^^^^^^^^^ entity.name.type.message.proto
   string data = 1;
+//^^^^^^ storage.type.proto
+//       ^^^^ variable.other.field.proto
 }
