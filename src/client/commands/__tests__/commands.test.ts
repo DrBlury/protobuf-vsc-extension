@@ -49,6 +49,8 @@ const mockVscode = vscode as unknown as {
   workspace: {
     workspaceFolders: unknown;
     applyEdit: jest.Mock;
+    getConfiguration: jest.Mock;
+    onDidSaveTextDocument: jest.Mock;
     openTextDocument: jest.Mock;
   };
   env: {
@@ -408,7 +410,7 @@ describe('Client Commands', () => {
     it('should register linter commands', () => {
       const disposables = registerLinterCommands(mockContext, mockClient);
 
-      expect(disposables).toHaveLength(3);
+      expect(disposables).toHaveLength(4);
       expect(mockVscode.languages.createDiagnosticCollection).toHaveBeenCalledWith('protobuf-linter');
       expect(mockVscode.commands.registerCommand).toHaveBeenCalledWith(
         'protobuf.runExternalLinter',
@@ -478,6 +480,32 @@ describe('Client Commands', () => {
       await runLinterHandler();
 
       expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(SUCCESS_MESSAGES.LINTER_PASSED);
+    });
+
+    it('should run the configured external linter when a proto document is saved', async () => {
+      const document = {
+        languageId: 'proto',
+        uri: { toString: () => 'vscode-remote://ssh-remote+host/workspace/test.proto' },
+      };
+      mockVscode.workspace.getConfiguration.mockReturnValue({
+        get: jest.fn((key: string, defaultValue: unknown) => {
+          if (key === 'enabled' || key === 'runOnSave') {
+            return true;
+          }
+          return defaultValue;
+        }),
+      });
+      mockClient.sendRequest.mockResolvedValue({ success: true, issueCount: 0, diagnostics: [] });
+
+      registerLinterCommands(mockContext, mockClient);
+      const saveHandler = mockVscode.workspace.onDidSaveTextDocument.mock.calls.at(-1)?.[0];
+
+      expect(saveHandler).toEqual(expect.any(Function));
+      await saveHandler(document);
+      expect(mockVscode.workspace.getConfiguration).toHaveBeenCalledWith('protobuf.externalLinter', document.uri);
+      expect(mockClient.sendRequest).toHaveBeenCalledWith(REQUEST_METHODS.RUN_EXTERNAL_LINTER, {
+        uri: 'vscode-remote://ssh-remote+host/workspace/test.proto',
+      });
     });
 
     it('should surface linter issues with diagnostics and navigation options', async () => {

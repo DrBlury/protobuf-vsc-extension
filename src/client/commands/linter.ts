@@ -40,6 +40,7 @@ interface LinterAvailabilityResult {
 export function registerLinterCommands(context: vscode.ExtensionContext, client: LanguageClient): vscode.Disposable[] {
   return [
     getLinterDiagnostics(),
+    registerRunExternalLinterOnSave(client),
     registerRunExternalLinterCommand(context, client),
     registerShowAvailableLintRulesCommand(context, client),
   ];
@@ -157,6 +158,45 @@ async function revealFirstDiagnostic(fileUri: vscode.Uri, diagnostic: vscode.Dia
   const document = await vscode.workspace.openTextDocument(fileUri);
   const editor = await vscode.window.showTextDocument(document, { selection: diagnostic.range });
   editor.revealRange(diagnostic.range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+}
+
+function registerRunExternalLinterOnSave(client: LanguageClient): vscode.Disposable {
+  return vscode.workspace.onDidSaveTextDocument(async document => {
+    if (document.languageId !== 'proto') {
+      return;
+    }
+
+    const config = vscode.workspace.getConfiguration('protobuf.externalLinter', document.uri);
+    if (!config.get<boolean>('enabled', false) || !config.get<boolean>('runOnSave', true)) {
+      return;
+    }
+
+    try {
+      const result = (await client.sendRequest<LinterResult>(REQUEST_METHODS.RUN_EXTERNAL_LINTER, {
+        uri: document.uri.toString(),
+      })) as LinterResult;
+
+      if (!result.success) {
+        getLinterOutputChannel().appendLine(
+          `External linter failed for ${document.uri.fsPath}: ${result.errorInfo?.message || result.error || ERROR_MESSAGES.UNKNOWN_ERROR}`
+        );
+        return;
+      }
+
+      const diagnostics = convertDiagnostics(result.diagnostics);
+      const collection = getLinterDiagnostics();
+      if (diagnostics.length === 0) {
+        collection.delete(document.uri);
+      } else {
+        collection.set(document.uri, diagnostics);
+        logLintDiagnostics(document.uri, diagnostics);
+      }
+    } catch (error) {
+      getLinterOutputChannel().appendLine(
+        `External linter failed for ${document.uri.fsPath}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
 }
 
 /**
