@@ -1033,7 +1033,7 @@
     "jest": "^29.7.0",
     "jest-util": "^29.7.0",
     "prettier": "^3.8.3",
-    "tree-sitter-cli": "^0.26.8",
+    "tree-sitter-cli": "^0.26.12",
     "ts-jest": "^29.4.9",
     "typescript": "^6.0.3",
     "vscode-tmgrammar-test": "^0.1.3"
