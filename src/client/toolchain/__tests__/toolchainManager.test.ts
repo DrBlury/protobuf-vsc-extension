@@ -479,6 +479,35 @@ describe('ToolchainManager', () => {
   });
 
   describe('Tool Installation', () => {
+    it('downloads grpcurl 1.9.4 only through the integrity verifier', async () => {
+      mockFileExists.mockResolvedValue(true);
+
+      const { ToolchainManager } = await import('../toolchainManager');
+      const manager = new ToolchainManager(mockContext as any, mockOutputChannel as any, {
+        autoInitialize: false,
+      });
+      const privateManager = manager as unknown as {
+        installGrpcurl(progress: { report: jest.Mock }): Promise<void>;
+        downloadFile(url: string, dest: string): Promise<void>;
+        downloadFileWithIntegrity(url: string, dest: string, expectedSha256: string): Promise<void>;
+        extractTarGz(archivePath: string, destDir: string): Promise<void>;
+        extractZip(archivePath: string, destDir: string): Promise<void>;
+      };
+      const integritySpy = jest.spyOn(privateManager, 'downloadFileWithIntegrity').mockResolvedValue(undefined);
+      const unverifiedSpy = jest.spyOn(privateManager, 'downloadFile').mockResolvedValue(undefined);
+      jest.spyOn(privateManager, 'extractTarGz').mockResolvedValue(undefined);
+      jest.spyOn(privateManager, 'extractZip').mockResolvedValue(undefined);
+
+      await privateManager.installGrpcurl({ report: jest.fn() });
+
+      expect(integritySpy).toHaveBeenCalledWith(
+        expect.stringContaining('/v1.9.4/'),
+        expect.any(String),
+        expect.stringMatching(/^[0-9a-f]{64}$/)
+      );
+      expect(unverifiedSpy).not.toHaveBeenCalled();
+    });
+
     it('should install tool and update settings', async () => {
       const _vscode = await import('vscode');
       const https = await import('https');
