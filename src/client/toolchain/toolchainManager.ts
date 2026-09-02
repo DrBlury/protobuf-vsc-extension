@@ -751,7 +751,7 @@ export class ToolchainManager {
   }
 
   private async installGrpcurl(progress: vscode.Progress<{ message?: string; increment?: number }>): Promise<void> {
-    const version = '1.9.1';
+    const version = '1.9.4';
     const platform = os.platform();
     const arch = os.arch();
 
@@ -768,15 +768,24 @@ export class ToolchainManager {
     const url = `https://github.com/fullstorydev/grpcurl/releases/download/v${version}/${assetName}`;
     const archivePath = path.join(this.globalStoragePath, assetName);
 
-    // TODO: Add SHA256 integrity verification once real checksums are obtained from:
-    // https://github.com/fullstorydev/grpcurl/releases/download/v${version}/grpcurl_${version}_checksums.txt
+    // SHA256 values from the official release checksum manifest (update when version changes).
+    const grpcurlHashes: Record<string, string> = {
+      'grpcurl_1.9.4_windows_arm64.zip': 'f42f6646bc259989cc8e8b7ecb3b987456ea24dd103361bcabb61534f2c77189',
+      'grpcurl_1.9.4_windows_x86_64.zip': '412dbe98dc6f3fddfbdc15db061768495d3b4c6ee24de998c83c36f79857680d',
+      'grpcurl_1.9.4_osx_arm64.tar.gz': 'e0df111350acf8ee38f453f4e97e0474cfe1a987ee0c368ebe5383e6a4bccf25',
+      'grpcurl_1.9.4_osx_x86_64.tar.gz': '0c1b24a82097862027af6abe88f362db73e4846859a3ceda2dd466e4dc971a06',
+      'grpcurl_1.9.4_linux_arm64.tar.gz': 'ad66227d90631da5428b4a5ccf28d63846f0f15649d8b2367df044a59edbb617',
+      'grpcurl_1.9.4_linux_x86_64.tar.gz': '97e13d58d2733a0e62cd2571d1d5f0c02823f0d25282f08bddedf1ad9c5d1736',
+    };
+    const expectedHash = grpcurlHashes[assetName];
+    if (!expectedHash) {
+      throw new Error(`No integrity hash available for ${assetName}`);
+    }
 
     this.outputChannel.appendLine(`Downloading grpcurl from: ${url}`);
     progress.report({ message: 'Downloading...', increment: 0 });
 
-    // For now, download without integrity verification
-    this.outputChannel.appendLine(`⚠️  Downloading grpcurl (hash verification not yet implemented for this release)`);
-    await this.downloadFile(url, archivePath);
+    await this.downloadFileWithIntegrity(url, archivePath, expectedHash);
 
     this.outputChannel.appendLine(`Extracting to: ${this.binPath}`);
     progress.report({ message: 'Extracting...', increment: 50 });
