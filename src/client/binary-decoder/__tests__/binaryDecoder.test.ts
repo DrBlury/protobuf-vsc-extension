@@ -59,4 +59,24 @@ describe('BinaryDecoderProvider schema discovery', () => {
     expect(mockedVscode.workspace.findFiles).not.toHaveBeenCalled();
     expect(types.map(type => type.name)).toEqual(['example.Request']);
   });
+
+  it('indexes nested message names and ignores commented declarations', async () => {
+    (mockedVscode.workspace.fs.readFile as jest.Mock).mockResolvedValue(
+      Buffer.from(`
+      syntax = "proto3";
+      // package wrong; message Ghost {}
+      package actual;
+      message Outer { message Inner { message Leaf {} } }
+      /* message Ignored {} */
+    `)
+    );
+    const provider = new BinaryDecoderProvider(
+      {} as vscode.ExtensionContext,
+      { appendLine: jest.fn() } as unknown as vscode.OutputChannel
+    );
+    const types = await (
+      provider as unknown as { getMessageTypes(): Promise<Array<{ name: string }>> }
+    ).getMessageTypes();
+    expect(types.map(type => type.name)).toEqual(['actual.Outer', 'actual.Outer.Inner', 'actual.Outer.Inner.Leaf']);
+  });
 });

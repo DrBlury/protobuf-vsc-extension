@@ -175,7 +175,7 @@ package user.v1;
 import "common.proto";
 
 message User {
-  Timestamp created_at = 1;
+  common.v1.Timestamp created_at = 1;
 }`;
 
       const commonFile = parser.parse(commonContent, 'file:///common.proto');

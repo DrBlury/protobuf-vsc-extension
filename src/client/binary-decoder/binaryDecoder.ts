@@ -4,7 +4,10 @@ import * as vscode from 'vscode';
 import { spawn } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
+import { pipeline } from 'stream';
 import { discoverWorkspaceFiles } from '../../shared/workspaceFileDiscovery';
+import { ProtoParser } from '../../server/core/parser';
+import type { MessageDefinition, GroupFieldDefinition } from '../../server/core/ast';
 
 /**
  * Result of binary decoding operation
@@ -267,16 +270,16 @@ export class BinaryDecoderProvider implements vscode.CustomReadonlyEditorProvide
           const content = await vscode.workspace.fs.readFile(file);
           const text = new globalThis.TextDecoder().decode(content);
 
-          const packageMatch = text.match(/package\s+([\w.]+);/);
-          const pkg = packageMatch ? packageMatch[1] + '.' : '';
-
-          const matches = text.matchAll(/message\s+(\w+)/g);
-          for (const match of matches) {
-            const name = pkg + match[1];
+          const parsed = new ProtoParser().parse(text, file.toString());
+          const indexMessage = (message: MessageDefinition | GroupFieldDefinition, prefix: string): void => {
+            const name = prefix ? `${prefix}.${message.name}` : message.name;
             if (!types.has(name)) {
               types.set(name, file);
             }
-          }
+            message.nestedMessages.forEach(nested => indexMessage(nested, name));
+            message.groups.forEach(group => indexMessage(group, name));
+          };
+          parsed.messages.forEach(message => indexMessage(message, parsed.package?.name || ''));
         } catch {
           /* ignore parsing errors */
         }
@@ -340,10 +343,14 @@ export class BinaryDecoderProvider implements vscode.CustomReadonlyEditorProvide
   }
 
   private async decodeBinary(uri: vscode.Uri, messageType?: string): Promise<DecodeResult> {
-    const config = vscode.workspace.getConfiguration('protobuf');
+    const selectedType = messageType?.trim();
+    const schemaUri = selectedType ? this.messageTypeIndex.get(selectedType) : undefined;
+    const configurationUri = schemaUri ?? uri;
+    const config = vscode.workspace.getConfiguration('protobuf', configurationUri);
     const protocPath = config.get<string>('protoc.path') || 'protoc';
     const includes = config.get<string[]>('includes') || [];
     const cwd = path.dirname(uri.fsPath);
+    const workspaceRoot = vscode.workspace.getWorkspaceFolder(configurationUri)?.uri.fsPath;
 
     let hexDump = '';
     try {
@@ -358,7 +365,6 @@ export class BinaryDecoderProvider implements vscode.CustomReadonlyEditorProvide
         this.outputChannel.appendLine(`Exec: ${protocPath} ${args.join(' ')}`);
         const proc = spawn(protocPath, args, { cwd });
         const fileStream = fs.createReadStream(uri.fsPath);
-        fileStream.pipe(proc.stdin);
 
         let stdout = '';
         let stderr = '';
@@ -367,6 +373,7 @@ export class BinaryDecoderProvider implements vscode.CustomReadonlyEditorProvide
         proc.stderr.on('data', d => (stderr += d.toString()));
 
         proc.on('close', code => {
+          fileStream.destroy();
           if (code === 0) {
             resolve(stdout);
           } else {
@@ -374,38 +381,56 @@ export class BinaryDecoderProvider implements vscode.CustomReadonlyEditorProvide
           }
         });
 
-        proc.on('error', err => reject(err));
+        proc.on('error', err => {
+          fileStream.destroy();
+          reject(err);
+        });
+        proc.stdin.on('error', err => {
+          fileStream.destroy();
+          proc.kill();
+          reject(err);
+        });
+        pipeline(fileStream, proc.stdin, err => {
+          if (err) {
+            proc.kill();
+            reject(err);
+          }
+        });
       });
     };
 
-    if (messageType && messageType.trim().length > 0) {
-      const args = [];
-      // Add import paths
-      args.push(`-I.`);
-      if (vscode.workspace.workspaceFolders) {
-        args.push(`-I${vscode.workspace.workspaceFolders[0]!.uri.fsPath}`);
+    if (selectedType) {
+      const importPaths = new Set([cwd]);
+      if (workspaceRoot) {
+        importPaths.add(workspaceRoot);
       }
       includes.forEach(inc => {
-        const resolved = inc.replace('${workspaceFolder}', vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '');
+        const resolved = inc.replace(/\$\{workspaceFolder\}/g, workspaceRoot || cwd);
         if (resolved) {
-          args.push(`-I${resolved}`);
+          importPaths.add(path.resolve(workspaceRoot || cwd, resolved));
         }
       });
+      if (schemaUri) {
+        importPaths.add(path.dirname(schemaUri.fsPath));
+      }
+      const args = [...importPaths].map(importPath => `-I${importPath}`);
 
-      args.push(`--decode=${messageType}`);
+      args.push(`--decode=${selectedType}`);
 
-      try {
-        const protoFiles = fs.readdirSync(cwd).filter(f => f.endsWith('.proto'));
-        if (protoFiles.length > 0) {
+      if (schemaUri) {
+        args.push(schemaUri.fsPath);
+      } else {
+        try {
+          const protoFiles = fs.readdirSync(cwd).filter(f => f.endsWith('.proto'));
           args.push(...protoFiles);
+        } catch {
+          /* ignore directory read errors */
         }
-      } catch {
-        /* ignore directory read errors */
       }
 
       try {
         const decoded = await runProtoc(args);
-        return { rawDecode: decoded, hexDump, isNamed: true, decodedAs: messageType.trim() };
+        return { rawDecode: decoded, hexDump, isNamed: true, decodedAs: selectedType };
       } catch (e) {
         const errorMsg = e instanceof Error ? e.message : String(e);
         this.outputChannel.appendLine(`Named decode failed: ${errorMsg}. Falling back to raw.`);

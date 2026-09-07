@@ -68,7 +68,7 @@ describe('ProtovalidatePlaygroundManager', () => {
       expect(mockWebviewPanel.reveal).toHaveBeenCalledWith(mockVscode.ViewColumn.Two);
     });
 
-    it('should send rule to webview if provided', () => {
+    it('should send the initial rule after the webview signals readiness', async () => {
       jest.useFakeTimers();
       const rule: ProtovalidateRule = {
         fieldName: 'email',
@@ -80,7 +80,8 @@ describe('ProtovalidatePlaygroundManager', () => {
       };
 
       manager.openPlayground(rule);
-      jest.advanceTimersByTime(150);
+      expect(mockWebviewPanel.webview.postMessage).not.toHaveBeenCalled();
+      await (mockWebviewPanel.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0]({ command: 'ready' });
 
       expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith({
         command: 'setRule',
@@ -89,8 +90,9 @@ describe('ProtovalidatePlaygroundManager', () => {
       jest.useRealTimers();
     });
 
-    it('should send rule when opening existing panel', () => {
+    it('should send rule when opening existing panel', async () => {
       manager.openPlayground();
+      await (mockWebviewPanel.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0]({ command: 'ready' });
       jest.clearAllMocks();
 
       const rule: ProtovalidateRule = {
@@ -118,6 +120,27 @@ describe('ProtovalidatePlaygroundManager', () => {
       manager.openPlayground();
       const calls = (mockWebviewPanel.webview.onDidReceiveMessage as jest.Mock).mock.calls;
       messageHandler = calls[0]?.[0];
+    });
+
+    it.each([
+      ['ABC', true],
+      ['abc', false],
+    ])('preserves case-sensitive pattern rules for %s', async (value, valid) => {
+      const rule: ProtovalidateRule = {
+        fieldName: 'code',
+        messageName: 'Request',
+        ruleType: 'string',
+        ruleText: '(buf.validate.field).string.pattern = "^[A-Z]+$"',
+        lineNumber: 1,
+        filePath: 'test.proto',
+      };
+
+      await messageHandler?.({ command: 'validateData', data: { rule, jsonValue: JSON.stringify(value) } });
+
+      expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith({
+        command: 'validationResult',
+        result: expect.objectContaining({ valid }),
+      });
     });
 
     describe('openDocs command', () => {

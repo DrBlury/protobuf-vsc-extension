@@ -1,5 +1,7 @@
 import * as path from 'path';
 import * as fsUtils from '../../utils/fsUtils';
+import { mkdtemp } from 'fs/promises';
+import { EventEmitter } from 'events';
 import { createMockVscode, createMockTextEditor, createMockChildProcess } from '../../__tests__/testUtils';
 
 const mockVscode = createMockVscode();
@@ -16,6 +18,10 @@ const mockReadFile = mockFsUtils.readFile;
 const mockTmpdir = jest.fn(() => '/tmp');
 jest.mock('os', () => ({
   tmpdir: mockTmpdir,
+}));
+
+jest.mock('fs/promises', () => ({
+  mkdtemp: jest.fn(),
 }));
 
 const mockSpawn = jest.fn();
@@ -62,6 +68,7 @@ describe('SchemaDiffManager', () => {
     mockFileExists.mockResolvedValue(true);
     mockReadFile.mockResolvedValue('');
     mockSpawn.mockClear();
+    (mkdtemp as jest.Mock).mockResolvedValue('/tmp/protobuf-diff-unique');
     mockOutputChannel = mockVscode.window.createOutputChannel();
     mockVscode.window.activeTextEditor = undefined;
     mockVscode.workspace.getWorkspaceFolder = jest.fn();
@@ -78,6 +85,54 @@ describe('SchemaDiffManager', () => {
   });
 
   describe('diffSchema', () => {
+    it('reports a git launch error instead of leaving the diff request pending', async () => {
+      const uri = mockVscode.Uri.file('/test/project/schema.proto') as never;
+      mockVscode.window.showInputBox.mockResolvedValue('HEAD');
+      mockSpawn.mockImplementation((_command: string, args: string[]) => {
+        if (args[0] === 'rev-parse') {
+          return createMockChildProcess('/test/project');
+        }
+        const proc = Object.assign(new EventEmitter(), {
+          stdout: new EventEmitter(),
+          stderr: new EventEmitter(),
+        });
+        setImmediate(() => proc.emit('error', new Error('spawn git ENOENT')));
+        return proc;
+      });
+
+      await manager.diffSchema(uri);
+
+      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith('Failed to diff schema: spawn git ENOENT');
+      expect(mockWriteFile).not.toHaveBeenCalled();
+    });
+
+    it('keeps separate diffs for identically named schemas in separate temporary directories', async () => {
+      mockVscode.window.showInputBox.mockResolvedValue('HEAD');
+      setupGitMock();
+      (mkdtemp as jest.Mock)
+        .mockResolvedValueOnce('/tmp/protobuf-diff-first')
+        .mockResolvedValueOnce('/tmp/protobuf-diff-second');
+
+      await manager.diffSchema(mockVscode.Uri.file('/test/project/a/schema.proto') as never);
+      await manager.diffSchema(mockVscode.Uri.file('/test/project/b/schema.proto') as never);
+
+      expect(mockWriteFile).toHaveBeenNthCalledWith(1, '/tmp/protobuf-diff-first/schema.proto', 'content');
+      expect(mockWriteFile).toHaveBeenNthCalledWith(2, '/tmp/protobuf-diff-second/schema.proto', 'content');
+    });
+
+    it('uses the repository containing the file when it is nested inside the workspace repository', async () => {
+      mockVscode.window.showInputBox.mockResolvedValue('HEAD');
+      mockVscode.workspace.getWorkspaceFolder.mockReturnValue({ uri: { fsPath: '/test/project' } });
+      setupGitMock({ root: '/test/project/nested' });
+
+      await manager.diffSchema(mockVscode.Uri.file('/test/project/nested/schema.proto') as never);
+
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], { cwd: '/test/project/nested' });
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', '--end-of-options', 'HEAD:schema.proto'], {
+        cwd: '/test/project/nested',
+      });
+    });
+
     it('should show error when no proto file is open and no URI provided', async () => {
       mockVscode.window.activeTextEditor = undefined;
 
@@ -139,7 +194,9 @@ describe('SchemaDiffManager', () => {
       await manager.diffSchema(uri);
 
       expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], { cwd: '/test/project' });
-      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD~1:schema.proto'], { cwd: '/test/project' });
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', '--end-of-options', 'HEAD~1:schema.proto'], {
+        cwd: '/test/project',
+      });
     });
 
     it('should write temp file and open diff view on success', async () => {
@@ -159,7 +216,7 @@ describe('SchemaDiffManager', () => {
 
       await manager.diffSchema(uri);
 
-      const expectedTmpPath = path.join('/tmp', 'schema.proto.main.proto');
+      const expectedTmpPath = path.join('/tmp/protobuf-diff-unique', 'schema.proto');
       expect(mockWriteFile).toHaveBeenCalledWith(expectedTmpPath, oldContent);
 
       expect(mockVscode.commands.executeCommand).toHaveBeenCalledWith(
@@ -170,7 +227,7 @@ describe('SchemaDiffManager', () => {
       );
     });
 
-    it('should sanitize git ref with slashes in temp filename', async () => {
+    it('should keep git refs out of the temporary filename', async () => {
       const uri = mockVscode.Uri.file('/test/project/schema.proto') as never;
       mockVscode.window.showInputBox.mockResolvedValue('origin/main');
       mockVscode.workspace.getWorkspaceFolder.mockReturnValue({
@@ -186,11 +243,11 @@ describe('SchemaDiffManager', () => {
 
       await manager.diffSchema(uri);
 
-      const expectedTmpPath = path.join('/tmp', 'schema.proto.origin_main.proto');
+      const expectedTmpPath = path.join('/tmp/protobuf-diff-unique', 'schema.proto');
       expect(mockWriteFile).toHaveBeenCalledWith(expectedTmpPath, 'content');
     });
 
-    it('should show error when git returns no content', async () => {
+    it('should open a diff for an empty historical file', async () => {
       const uri = mockVscode.Uri.file('/test/project/schema.proto') as never;
       mockVscode.window.showInputBox.mockResolvedValue('HEAD~1');
       mockVscode.workspace.getWorkspaceFolder.mockReturnValue({
@@ -201,7 +258,14 @@ describe('SchemaDiffManager', () => {
 
       await manager.diffSchema(uri);
 
-      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith('Could not find file at HEAD~1');
+      expect(mockWriteFile).toHaveBeenCalledWith('/tmp/protobuf-diff-unique/schema.proto', '');
+      expect(mockVscode.commands.executeCommand).toHaveBeenCalledWith(
+        'vscode.diff',
+        expect.anything(),
+        uri,
+        expect.any(String)
+      );
+      expect(mockVscode.window.showErrorMessage).not.toHaveBeenCalled();
     });
 
     it('should show error when git command fails', async () => {
@@ -236,7 +300,9 @@ describe('SchemaDiffManager', () => {
       await manager.diffSchema();
 
       expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], { cwd: '/test/project' });
-      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD:active.proto'], { cwd: '/test/project' });
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', '--end-of-options', 'HEAD:active.proto'], {
+        cwd: '/test/project',
+      });
     });
 
     it('should use file directory when no workspace folder', async () => {
@@ -249,7 +315,9 @@ describe('SchemaDiffManager', () => {
       await manager.diffSchema(uri);
 
       expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], { cwd: '/standalone/dir' });
-      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD~1:schema.proto'], { cwd: '/standalone/dir' });
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', '--end-of-options', 'HEAD~1:schema.proto'], {
+        cwd: '/standalone/dir',
+      });
     });
 
     it('should handle nested file paths relative to workspace', async () => {
@@ -263,8 +331,10 @@ describe('SchemaDiffManager', () => {
 
       await manager.diffSchema(uri);
 
-      expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], { cwd: '/test/project' });
-      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD~1:protos/api/v1/schema.proto'], {
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], {
+        cwd: '/test/project/protos/api/v1',
+      });
+      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', '--end-of-options', 'HEAD~1:protos/api/v1/schema.proto'], {
         cwd: '/test/project',
       });
     });
@@ -283,9 +353,13 @@ describe('SchemaDiffManager', () => {
       expect(mockSpawn).toHaveBeenCalledWith('git', ['rev-parse', '--show-toplevel'], {
         cwd: '/test/monorepo/packages/service',
       });
-      expect(mockSpawn).toHaveBeenCalledWith('git', ['show', 'HEAD:packages/service/schema.proto'], {
-        cwd: '/test/monorepo',
-      });
+      expect(mockSpawn).toHaveBeenCalledWith(
+        'git',
+        ['show', '--end-of-options', 'HEAD:packages/service/schema.proto'],
+        {
+          cwd: '/test/monorepo',
+        }
+      );
     });
 
     it('should handle git command failure with non-zero exit code', async () => {

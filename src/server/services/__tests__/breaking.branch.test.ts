@@ -60,7 +60,7 @@ describe('BreakingChangeDetector Branch Coverage', () => {
       // Verify spawn was called with default ref HEAD~1
       expect(mockSpawn).toHaveBeenCalledWith(
         'git',
-        ['show', 'HEAD~1:test.proto'],
+        ['show', 'HEAD~1:./test.proto', '--'],
         expect.objectContaining({ cwd: '/workspace' })
       );
     });

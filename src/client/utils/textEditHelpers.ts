@@ -6,6 +6,15 @@
 import * as vscode from 'vscode';
 import type { TextEdit } from 'vscode-languageserver/node';
 
+/** Guard custom LSP commands whose edits do not carry a document version. */
+export function isDocumentUnchanged(document: vscode.TextDocument, version: number): boolean {
+  if (document.isClosed || document.version !== version) {
+    vscode.window.showWarningMessage('The document changed while preparing edits. Run the command again.');
+    return false;
+  }
+  return true;
+}
+
 /**
  * Converts a LSP TextEdit to a VS Code Range
  */

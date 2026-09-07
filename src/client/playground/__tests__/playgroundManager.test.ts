@@ -132,7 +132,7 @@ describe('PlaygroundManager', () => {
       expect(mockWebviewPanel.reveal).toHaveBeenCalledWith(mockVscode.ViewColumn.Two);
     });
 
-    it('should send file to webview if active editor has proto file', () => {
+    it('sends the initial file only after the webview is ready', async () => {
       const mockEditor = createMockTextEditor({
         languageId: 'proto',
         uri: 'file:///test/project/api.proto',
@@ -143,6 +143,8 @@ describe('PlaygroundManager', () => {
       mockSpawn.mockReturnValue(mockProc);
 
       manager.openPlayground();
+      expect(mockWebviewPanel.webview.postMessage).not.toHaveBeenCalled();
+      await (mockWebviewPanel.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0]({ command: 'ready' });
 
       expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith(
         expect.objectContaining({ command: 'setFile' })
@@ -174,6 +176,7 @@ describe('PlaygroundManager', () => {
       mockSpawn.mockReturnValue(mockProc);
 
       manager.openPlayground();
+      await (mockWebviewPanel.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0]({ command: 'ready' });
 
       await flushPromisesAndTimers();
 
@@ -188,6 +191,75 @@ describe('PlaygroundManager', () => {
 
   describe('message handling', () => {
     let messageHandler: ((message: unknown) => Promise<void>) | undefined;
+
+    it('discards an earlier response after another request has completed', async () => {
+      manager.openPlayground();
+      const handler = (mockWebviewPanel.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0];
+      let completeFirst!: (value: string) => void;
+      jest
+        .spyOn(manager as unknown as { runGrpcurl(): Promise<string> }, 'runGrpcurl')
+        .mockImplementationOnce(
+          () =>
+            new Promise(resolve => {
+              completeFirst = resolve;
+            })
+        )
+        .mockResolvedValueOnce('latest response');
+      const data = { address: 'localhost:50051', service: 'test.Service', method: 'Call', jsonBody: '{}' };
+      const first = handler({ command: 'runRequestViaReflection', data });
+      await flushPromisesAndTimers();
+      await handler({ command: 'runRequestViaReflection', data });
+      completeFirst('outdated response');
+      await first;
+      expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith({
+        command: 'response',
+        output: 'latest response',
+      });
+      expect(mockWebviewPanel.webview.postMessage).not.toHaveBeenCalledWith({
+        command: 'response',
+        output: 'outdated response',
+      });
+    });
+
+    it('rejects file-indirection and invalid JSON bodies before starting grpcurl', async () => {
+      manager.openPlayground();
+      const handler = (mockWebviewPanel.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0];
+      await handler({
+        command: 'runRequestViaReflection',
+        data: { address: 'localhost:50051', service: 'test.Service', method: 'Call', jsonBody: '@/private/data.json' },
+      });
+      expect(mockSpawn).not.toHaveBeenCalled();
+      expect(mockWebviewPanel.webview.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ command: 'responseError' })
+      );
+    });
+
+    it('expands resource-scoped executable and import paths in a multi-root workspace', async () => {
+      mockVscode.workspace.getWorkspaceFolder.mockReturnValue({ uri: { fsPath: '/second' } });
+      mockVscode.workspace.getConfiguration = jest.fn(() => ({
+        get: jest.fn((key: string) =>
+          key === 'path'
+            ? '${workspaceFolder}/tools/grpcurl-custom'
+            : key === 'includes'
+              ? ['${workspaceFolder}/imports', 'relative']
+              : undefined
+        ),
+        update: jest.fn(),
+        has: jest.fn(() => false),
+        inspect: jest.fn(),
+      }));
+      mockFileExists.mockResolvedValue(false);
+      mockSpawn.mockImplementation(() => createMockChildProcess('service.Test', '', 0));
+      manager.openPlayground();
+      const handler = (mockWebviewPanel.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0];
+      await handler({ command: 'listServices', file: '/second/protos/test.proto' });
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        '/second/tools/grpcurl-custom',
+        expect.arrayContaining(['-import-path', '/second/imports', '/second/relative', '/second']),
+        { cwd: '/second/protos' }
+      );
+    });
 
     beforeEach(() => {
       manager.openPlayground();

@@ -78,12 +78,11 @@ export function formatLine(
     return `${indent}map<${keyType}, ${valueType}> ${name} = ${number}${rest}`;
   }
 
-  // Format enum values - strip any duplicate = N patterns
+  // Format enum values while preserving all options and trailing comments
   const enumValueMatch = line.match(/^(\w+)\s*=\s*(-?\d+)(.*)$/);
   if (enumValueMatch && !line.match(/^(option|syntax|edition)\s/)) {
     const [, name, value, rest] = enumValueMatch;
-    const cleanedRest = rest!.replace(/\s*=\s*-?\d+/g, '');
-    return `${indent}${name} = ${value}${cleanedRest}`;
+    return `${indent}${name} = ${value}${rest}`;
   }
 
   // Format declarations (message, enum, service, etc.)
@@ -190,9 +189,8 @@ export function formatLineWithAlignment(
   const enumValueMatch = line.match(/^(\w+)\s*=\s*(-?\d+)(.*)$/);
   if (enumValueMatch && !line.match(/^(option|syntax|edition)\s/)) {
     const [, name, value, rest] = enumValueMatch;
-    const cleanedRest = rest!.replace(/\s*=\s*-?\d+/g, '');
     const namePadding = ' '.repeat(Math.max(0, maxFieldNameLength - name!.length));
-    return `${indent}${name}${namePadding} = ${value}${cleanedRest}`;
+    return `${indent}${name}${namePadding} = ${value}${rest}`;
   }
 
   // For other lines, use standard formatting

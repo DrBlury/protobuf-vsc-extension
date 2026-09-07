@@ -148,7 +148,7 @@ export class HoverProvider {
     }
 
     // Add reference count
-    const references = this.analyzer.findReferences(symbol.fullName);
+    const references = this.analyzer.findReferences(symbol.name, symbol.fullName, symbol.location.uri);
     if (references.length > 0) {
       const externalRefs = references.filter(r => r.uri !== symbol.location.uri);
       lines.push(`References: ${references.length} (${externalRefs.length} external)`);
@@ -172,14 +172,14 @@ export class HoverProvider {
 
     // Add rich detail for messages and enums
     if (symbol.kind === SymbolKind.Message) {
-      const message = this.analyzer.getMessageDefinition(symbol.fullName);
+      const message = this.analyzer.getMessageDefinition(symbol.fullName, symbol.location.uri);
       if (message) {
         lines.push('', '```proto');
         lines.push(...this.formatMessage(message));
         lines.push('```');
       }
     } else if (symbol.kind === SymbolKind.Enum) {
-      const enumDef = this.analyzer.getEnumDefinition(symbol.fullName);
+      const enumDef = this.analyzer.getEnumDefinition(symbol.fullName, symbol.location.uri);
       if (enumDef) {
         lines.push('', '```proto');
         lines.push(...this.formatEnum(enumDef));

@@ -55,8 +55,8 @@ describe('ProviderRegistry', () => {
 
     registry.setWorkspaceRoots([]);
 
-    expect(setWorkspaceRootSpy).not.toHaveBeenCalled();
-    expect(setAnalyzerRootsSpy).not.toHaveBeenCalled();
+    expect(setWorkspaceRootSpy).toHaveBeenCalledWith('');
+    expect(setAnalyzerRootsSpy).toHaveBeenCalledWith([]);
   });
 
   it('should use first workspace root', () => {

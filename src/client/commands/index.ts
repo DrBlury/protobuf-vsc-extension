@@ -17,6 +17,7 @@ import { registerBreakingCommands } from './breaking';
 import { registerLinterCommands } from './linter';
 import { registerGrpcCommands } from './grpc';
 import { registerDocumentationCommand } from './documentation';
+import { isDocumentUnchanged } from '../utils/textEditHelpers';
 
 /**
  * Registers all commands for the Protobuf extension
@@ -48,9 +49,10 @@ export function registerAllCommands(context: vscode.ExtensionContext, client: La
   disposables.push(
     vscode.commands.registerCommand('protobuf.migrateToProto3', async () => {
       const editor = vscode.window.activeTextEditor;
-      if (!editor) {
+      if (!editor || editor.document.languageId !== 'proto') {
         return;
       }
+      const version = editor.document.version;
 
       interface TextEdit {
         range: { start: { line: number; character: number }; end: { line: number; character: number } };
@@ -59,6 +61,9 @@ export function registerAllCommands(context: vscode.ExtensionContext, client: La
       const edits = await client.sendRequest<TextEdit[]>('protobuf/migrateToProto3', {
         uri: editor.document.uri.toString(),
       });
+      if (!isDocumentUnchanged(editor.document, version)) {
+        return;
+      }
       if (edits && edits.length > 0) {
         const workspaceEdit = new vscode.WorkspaceEdit();
         workspaceEdit.set(

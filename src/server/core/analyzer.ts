@@ -15,6 +15,7 @@ import type {
 } from '../core/ast';
 import { SymbolKind, BUILTIN_TYPES } from '../core/ast';
 import * as path from 'path';
+import { URI } from 'vscode-uri';
 import { bufConfigProvider } from '../services/bufConfig';
 import { logger } from '../utils/logger';
 
@@ -37,6 +38,11 @@ export class SemanticAnalyzer {
     importResolutions: new Map(),
   };
 
+  private readonly fileSymbols = new Map<string, Map<string, SymbolInfo>>();
+  private readonly missingImportResolutions = new Set<string>();
+  private readonly visibleFileUrisCache = new Map<string, string[]>();
+  private readonly normalizedUris = new Map<string, string>();
+
   // Configured import paths to search for proto files (e.g., from protobuf.includes setting)
   private importPaths: string[] = [];
   // Virtual path mappings (e.g., example.com/org=./) for Go-style imports
@@ -47,15 +53,12 @@ export class SemanticAnalyzer {
 
   // Detected proto roots (directories containing buf.yaml, buf.work.yaml, or being common ancestors)
   private protoRoots: Set<string> = new Set();
+  private explicitProtoRoots = new Set<string>();
+  private fileProtoRoots = new Map<string, string[]>();
 
   setImportPaths(paths: string[]): void {
     this.importPaths = paths;
-    // Import paths (from --proto_path, buf includes, etc.) should also be proto roots
-    // for import path calculation purposes
-    for (const importPath of paths) {
-      const normalized = importPath.replace(/\\/g, '/');
-      this.protoRoots.add(normalized);
-    }
+    this.detectProtoRoots();
     // Clear import resolution cache when paths change to force re-resolution
     // This ensures diagnostics are updated when protobuf.includes or --proto_path changes
     this.clearImportResolutionCache();
@@ -74,24 +77,21 @@ export class SemanticAnalyzer {
     this.clearImportResolutionCache();
   }
 
-  /**
-   * Generate a cache key for import resolution.
-   * Simple filename imports (without '/') need per-file resolution
-   * because different files in different directories might import different files
-   * with the same simple name.
-   * Path-based imports (with '/') can be cached globally.
-   */
+  /** Import resolution always depends on the importing file and its roots. */
   private getImportCacheKey(sourceUri: string, importPath: string): string {
-    // Simple filename imports need per-file resolution
-    if (!importPath.includes('/')) {
-      return `${sourceUri}|||${importPath}`;
-    }
-    // Path-based imports can be resolved globally
-    return importPath;
+    return `${sourceUri}|||${importPath}`;
   }
 
   setWorkspaceRoots(roots: string[]): void {
     this.workspaceRoots = roots.map(r => r.replace(/\\/g, '/'));
+    this.resetProtoRoots();
+  }
+
+  /** Discard root hints after workspace changes; retain current file/include roots. */
+  resetProtoRoots(): void {
+    this.explicitProtoRoots.clear();
+    this.detectProtoRoots();
+    this.clearImportResolutionCache();
   }
 
   /**
@@ -121,11 +121,17 @@ export class SemanticAnalyzer {
    */
   addProtoRoot(root: string): void {
     const normalizedRoot = root.replace(/\\/g, '/');
-    this.protoRoots.add(normalizedRoot);
+    this.explicitProtoRoots.add(normalizedRoot);
+    if (!this.protoRoots.has(normalizedRoot)) {
+      this.protoRoots.add(normalizedRoot);
+      this.clearImportResolutionCache();
+    }
     logger.verbose(`Added proto root: ${normalizedRoot}`);
   }
 
   updateFile(uri: string, file: ProtoFile): void {
+    this.clearImportResolutionCache();
+    this.fileProtoRoots.delete(uri);
     // Remove old symbols for this file
     this.removeFileSymbols(uri);
 
@@ -138,15 +144,10 @@ export class SemanticAnalyzer {
 
     // Update proto roots from buf.yaml if available
     try {
-      const filePath = uri.replace('file://', '');
+      const filePath = this.normalizeUri(uri).replace('file://', '');
       const bufRoots = bufConfigProvider.getProtoRoots(filePath);
-      for (const root of bufRoots) {
-        this.protoRoots.add(root);
-      }
       const workDirs = bufConfigProvider.getWorkDirectories(filePath);
-      for (const dir of workDirs) {
-        this.protoRoots.add(dir);
-      }
+      this.fileProtoRoots.set(uri, [...bufRoots, ...workDirs]);
     } catch {
       // Ignore errors
     }
@@ -155,9 +156,6 @@ export class SemanticAnalyzer {
     for (const importPath of importPaths) {
       this.resolveImportPath(uri, importPath);
     }
-
-    // Re-resolve any unresolved imports from other files that might now match this new file
-    this.resolveUnresolvedImports(uri);
 
     // Extract symbols
     const packageName = file.package?.name || '';
@@ -179,39 +177,18 @@ export class SemanticAnalyzer {
   }
 
   /**
-   * When a new file is added, check if it resolves any pending imports from other files
-   */
-  private resolveUnresolvedImports(newFileUri: string): void {
-    const normalizedNewUri = this.normalizeUri(newFileUri);
-
-    // Check all files' imports to see if any can now be resolved to this new file
-    for (const [fileUri, importPaths] of this.workspace.imports) {
-      if (fileUri === newFileUri) {
-        continue;
-      }
-
-      for (const importPath of importPaths) {
-        // Use composite cache key for per-file resolution of simple imports
-        const cacheKey = this.getImportCacheKey(fileUri, importPath);
-
-        // Skip if already resolved
-        if (this.workspace.importResolutions.has(cacheKey)) {
-          continue;
-        }
-
-        // Try to match this import to the new file
-        if (this.doesFileMatchImport(normalizedNewUri, importPath)) {
-          this.workspace.importResolutions.set(cacheKey, newFileUri);
-        }
-      }
-    }
-  }
-
-  /**
    * Normalize a URI for consistent comparison
    */
   private normalizeUri(uri: string): string {
-    return uri.replace(/\\/g, '/');
+    const cached = this.normalizedUris.get(uri);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const normalized = uri.startsWith('file://')
+      ? `file://${URI.parse(uri).fsPath.replace(/\\/g, '/')}`
+      : uri.replace(/\\/g, '/');
+    this.normalizedUris.set(uri, normalized);
+    return normalized;
   }
 
   /**
@@ -237,32 +214,6 @@ export class SemanticAnalyzer {
   }
 
   /**
-   * Check if a file URI matches an import path
-   * Supports multiple import styles:
-   * - Relative: "date.proto", "../common/date.proto"
-   * - Absolute from proto root: "domain/v1/date.proto" (buf style)
-   * - Google well-known types: "google/protobuf/timestamp.proto"
-   */
-  private doesFileMatchImport(normalizedUri: string, importPath: string): boolean {
-    const normalizedImport = importPath.replace(/\\/g, '/');
-
-    // Path-based imports must match at a directory boundary. Filename-only
-    // imports are handled by the exact basename comparison below.
-    if (normalizedImport.includes('/') && normalizedUri.endsWith('/' + normalizedImport)) {
-      return true;
-    }
-
-    // Filename-only match for simple imports like "date.proto"
-    const importFileName = path.basename(normalizedImport);
-    const uriFileName = path.basename(normalizedUri);
-    if (importFileName === uriFileName && !normalizedImport.includes('/')) {
-      return true;
-    }
-
-    return false;
-  }
-
-  /**
    * Resolve an import path to a workspace file URI
    * Handles multiple import conventions:
    * 1. Relative imports: "./file.proto", "../dir/file.proto"
@@ -277,18 +228,11 @@ export class SemanticAnalyzer {
     if (existing) {
       return existing;
     }
+    if (this.missingImportResolutions.has(cacheKey)) {
+      return undefined;
+    }
 
     const normalizedImport = importPath.replace(/\\/g, '/');
-
-    // Strategy 1: Direct path matching (works for buf-style and absolute imports)
-    for (const [fileUri] of this.workspace.files) {
-      const normalizedUri = this.normalizeUri(fileUri);
-
-      if (this.doesFileMatchImport(normalizedUri, importPath)) {
-        this.workspace.importResolutions.set(cacheKey, fileUri);
-        return fileUri;
-      }
-    }
 
     // Strategy 1.5: Virtual path mappings (e.g., module path -> local directory)
     const mappedPath = this.applyPathMappings(normalizedImport);
@@ -304,7 +248,7 @@ export class SemanticAnalyzer {
     }
 
     // Strategy 2: Relative path from current file
-    const currentPath = currentUri.replace('file://', '').replace(/\\/g, '/');
+    const currentPath = this.normalizeUri(currentUri).replace('file://', '');
     const currentDir = path.dirname(currentPath);
     const resolvedPath = path.resolve(currentDir, normalizedImport).replace(/\\/g, '/');
     const resolvedUri = 'file://' + resolvedPath;
@@ -332,7 +276,12 @@ export class SemanticAnalyzer {
     }
 
     // Strategy 4: Search in workspace roots (for buf-style imports like "domain/v1/file.proto")
-    for (const workspaceRoot of this.workspaceRoots) {
+    const workspaceRoots = [...this.workspaceRoots].sort((left, right) => {
+      const containsCurrent = (root: string) =>
+        currentPath === root || currentPath.startsWith(`${root.replace(/\/$/, '')}/`);
+      return Number(containsCurrent(right)) - Number(containsCurrent(left));
+    });
+    for (const workspaceRoot of workspaceRoots) {
       const searchPath = path.join(workspaceRoot, normalizedImport).replace(/\\/g, '/');
       const searchUri = 'file://' + searchPath;
 
@@ -374,6 +323,7 @@ export class SemanticAnalyzer {
       }
     }
 
+    this.missingImportResolutions.add(cacheKey);
     return undefined;
   }
 
@@ -382,10 +332,16 @@ export class SemanticAnalyzer {
    * Proto roots are directories that serve as the base for absolute imports
    */
   detectProtoRoots(): void {
+    const previousRoots = this.protoRoots;
+    this.protoRoots = new Set([
+      ...this.importPaths,
+      ...this.explicitProtoRoots,
+      ...Array.from(this.fileProtoRoots.values()).flat(),
+    ]);
     // Find common parent directories that could be proto roots
     const allPaths: string[] = [];
     for (const [fileUri] of this.workspace.files) {
-      const filePath = fileUri.replace('file://', '').replace(/\\/g, '/');
+      const filePath = this.normalizeUri(fileUri).replace('file://', '');
       allPaths.push(path.dirname(filePath));
     }
 
@@ -401,19 +357,19 @@ export class SemanticAnalyzer {
         current = path.dirname(current);
       }
     }
+    if (previousRoots.size !== this.protoRoots.size || [...previousRoots].some(root => !this.protoRoots.has(root))) {
+      this.clearImportResolutionCache();
+    }
   }
 
   removeFile(uri: string): void {
     this.removeFileSymbols(uri);
     this.workspace.files.delete(uri);
     this.workspace.imports.delete(uri);
-
-    // Clean up import resolutions that pointed to this file
-    for (const [importPath, resolvedUri] of this.workspace.importResolutions) {
-      if (resolvedUri === uri) {
-        this.workspace.importResolutions.delete(importPath);
-      }
-    }
+    this.fileProtoRoots.delete(uri);
+    this.normalizedUris.delete(uri);
+    this.clearImportResolutionCache();
+    this.detectProtoRoots();
   }
 
   /**
@@ -422,12 +378,40 @@ export class SemanticAnalyzer {
    */
   clearImportResolutionCache(): void {
     this.workspace.importResolutions.clear();
+    this.missingImportResolutions.clear();
+    this.visibleFileUrisCache.clear();
+  }
+
+  private registerSymbol(key: string, symbol: SymbolInfo): void {
+    this.workspace.symbols.set(key, symbol);
+    let symbols = this.fileSymbols.get(symbol.location.uri);
+    if (!symbols) {
+      symbols = new Map();
+      this.fileSymbols.set(symbol.location.uri, symbols);
+    }
+    symbols.set(symbol.fullName, symbol);
   }
 
   private removeFileSymbols(uri: string): void {
+    this.fileSymbols.delete(uri);
     for (const [name, symbol] of this.workspace.symbols) {
       if (symbol.location.uri === uri) {
         this.workspace.symbols.delete(name);
+      }
+    }
+    // Removing an indexed copy must reveal any remaining declaration with the
+    // same name instead of making that other file disappear from the workspace.
+    for (const symbols of this.fileSymbols.values()) {
+      for (const symbol of symbols.values()) {
+        if (!this.workspace.symbols.has(symbol.fullName)) {
+          this.workspace.symbols.set(symbol.fullName, symbol);
+        }
+        if (
+          (symbol.kind === SymbolKind.Message || symbol.kind === SymbolKind.Enum) &&
+          !this.workspace.symbols.has(symbol.name)
+        ) {
+          this.workspace.symbols.set(symbol.name, symbol);
+        }
       }
     }
   }
@@ -435,7 +419,7 @@ export class SemanticAnalyzer {
   private extractMessageSymbols(uri: string, message: MessageDefinition, prefix: string): void {
     const fullName = prefix ? `${prefix}.${message.name}` : message.name;
 
-    this.workspace.symbols.set(fullName, {
+    this.registerSymbol(fullName, {
       name: message.name,
       fullName,
       kind: SymbolKind.Message,
@@ -445,7 +429,7 @@ export class SemanticAnalyzer {
 
     // Also register by simple name for easier lookup
     if (!this.workspace.symbols.has(message.name)) {
-      this.workspace.symbols.set(message.name, {
+      this.registerSymbol(message.name, {
         name: message.name,
         fullName,
         kind: SymbolKind.Message,
@@ -456,7 +440,7 @@ export class SemanticAnalyzer {
 
     // Extract fields
     for (const field of message.fields) {
-      this.workspace.symbols.set(`${fullName}.${field.name}`, {
+      this.registerSymbol(`${fullName}.${field.name}`, {
         name: field.name,
         fullName: `${fullName}.${field.name}`,
         kind: SymbolKind.Field,
@@ -467,7 +451,7 @@ export class SemanticAnalyzer {
 
     // Extract oneofs
     for (const oneof of message.oneofs) {
-      this.workspace.symbols.set(`${fullName}.${oneof.name}`, {
+      this.registerSymbol(`${fullName}.${oneof.name}`, {
         name: oneof.name,
         fullName: `${fullName}.${oneof.name}`,
         kind: SymbolKind.Oneof,
@@ -476,7 +460,7 @@ export class SemanticAnalyzer {
       });
 
       for (const field of oneof.fields) {
-        this.workspace.symbols.set(`${fullName}.${field.name}`, {
+        this.registerSymbol(`${fullName}.${field.name}`, {
           name: field.name,
           fullName: `${fullName}.${field.name}`,
           kind: SymbolKind.Field,
@@ -502,11 +486,11 @@ export class SemanticAnalyzer {
       const groupFullName = fullName ? `${fullName}.${group.name}` : group.name;
 
       // Add group as a symbol (groups act as both a field and a message type)
-      this.workspace.symbols.set(groupFullName, {
+      this.registerSymbol(groupFullName, {
         name: group.name,
         fullName: groupFullName,
         kind: SymbolKind.Message,
-        location: { uri, range: group.range },
+        location: { uri, range: group.nameRange },
         containerName: fullName,
       });
 
@@ -524,7 +508,7 @@ export class SemanticAnalyzer {
   private extractEnumSymbols(uri: string, enumDef: EnumDefinition, prefix: string): void {
     const fullName = prefix ? `${prefix}.${enumDef.name}` : enumDef.name;
 
-    this.workspace.symbols.set(fullName, {
+    this.registerSymbol(fullName, {
       name: enumDef.name,
       fullName,
       kind: SymbolKind.Enum,
@@ -534,7 +518,7 @@ export class SemanticAnalyzer {
 
     // Also register by simple name for easier lookup
     if (!this.workspace.symbols.has(enumDef.name)) {
-      this.workspace.symbols.set(enumDef.name, {
+      this.registerSymbol(enumDef.name, {
         name: enumDef.name,
         fullName,
         kind: SymbolKind.Enum,
@@ -545,7 +529,7 @@ export class SemanticAnalyzer {
 
     // Extract enum values
     for (const value of enumDef.values) {
-      this.workspace.symbols.set(`${fullName}.${value.name}`, {
+      this.registerSymbol(`${fullName}.${value.name}`, {
         name: value.name,
         fullName: `${fullName}.${value.name}`,
         kind: SymbolKind.EnumValue,
@@ -558,7 +542,7 @@ export class SemanticAnalyzer {
   private extractServiceSymbols(uri: string, service: ServiceDefinition, prefix: string): void {
     const fullName = prefix ? `${prefix}.${service.name}` : service.name;
 
-    this.workspace.symbols.set(fullName, {
+    this.registerSymbol(fullName, {
       name: service.name,
       fullName,
       kind: SymbolKind.Service,
@@ -568,7 +552,7 @@ export class SemanticAnalyzer {
 
     // Extract RPCs
     for (const rpc of service.rpcs) {
-      this.workspace.symbols.set(`${fullName}.${rpc.name}`, {
+      this.registerSymbol(`${fullName}.${rpc.name}`, {
         name: rpc.name,
         fullName: `${fullName}.${rpc.name}`,
         kind: SymbolKind.Rpc,
@@ -591,7 +575,7 @@ export class SemanticAnalyzer {
   }
 
   getAllSymbols(): SymbolInfo[] {
-    return Array.from(this.workspace.symbols.values());
+    return Array.from(this.fileSymbols.values()).flatMap(symbols => Array.from(symbols.values()));
   }
 
   /**
@@ -609,8 +593,11 @@ export class SemanticAnalyzer {
   /**
    * Get the MessageDefinition for a fully qualified symbol name (package + nested names)
    */
-  getMessageDefinition(fullName: string): MessageDefinition | undefined {
-    for (const [, file] of this.workspace.files) {
+  getMessageDefinition(fullName: string, uri?: string): MessageDefinition | undefined {
+    for (const [fileUri, file] of this.workspace.files) {
+      if (uri && fileUri !== uri) {
+        continue;
+      }
       const pkg = file.package?.name || '';
       const found = this.findMessageDefinition(file.messages, pkg, fullName);
       if (found) {
@@ -623,8 +610,11 @@ export class SemanticAnalyzer {
   /**
    * Get the EnumDefinition for a fully qualified symbol name (package + nested names)
    */
-  getEnumDefinition(fullName: string): EnumDefinition | undefined {
-    for (const [, file] of this.workspace.files) {
+  getEnumDefinition(fullName: string, uri?: string): EnumDefinition | undefined {
+    for (const [fileUri, file] of this.workspace.files) {
+      if (uri && fileUri !== uri) {
+        continue;
+      }
       const pkg = file.package?.name || '';
       const foundTop = this.findEnumDefinition(file.enums, pkg, fullName);
       if (foundTop) {
@@ -641,7 +631,7 @@ export class SemanticAnalyzer {
   }
 
   getSymbolsInFile(uri: string): SymbolInfo[] {
-    return Array.from(this.workspace.symbols.values()).filter(s => s.location.uri === uri);
+    return Array.from(this.fileSymbols.get(uri)?.values() ?? []);
   }
 
   /**
@@ -671,173 +661,80 @@ export class SemanticAnalyzer {
    * Get symbols accessible from a file (including imports)
    */
   getAccessibleSymbols(uri: string): SymbolInfo[] {
-    const accessible: SymbolInfo[] = [];
-    const visitedUris = new Set<string>();
-
-    this.collectAccessibleSymbols(uri, accessible, visitedUris);
-
-    return accessible;
+    return this.getVisibleFileUris(uri).flatMap(visibleUri => this.getSymbolsInFile(visibleUri));
   }
 
-  private collectAccessibleSymbols(uri: string, symbols: SymbolInfo[], visitedUris: Set<string>): void {
-    if (visitedUris.has(uri)) {
-      return;
+  /** Files visible through direct imports and chains of public re-exports. */
+  getVisibleFileUris(uri: string, includePrivateDirectImports = true): string[] {
+    const cacheKey = `${includePrivateDirectImports ? 'all' : 'public'}|||${uri}`;
+    const cached = this.visibleFileUrisCache.get(cacheKey);
+    if (cached) {
+      return [...cached];
     }
-    visitedUris.add(uri);
-
-    // Add symbols from this file
-    for (const symbol of this.workspace.symbols.values()) {
-      if (symbol.location.uri === uri) {
-        symbols.push(symbol);
+    const visible = new Set<string>([uri]);
+    const visit = (importedUri: string): void => {
+      if (visible.has(importedUri)) {
+        return;
+      }
+      visible.add(importedUri);
+      const file = this.workspace.files.get(importedUri);
+      for (const statement of file?.imports ?? []) {
+        if (statement.modifier === 'public') {
+          const reexported = this.resolveImportToUri(importedUri, statement.path);
+          if (reexported) {
+            visit(reexported);
+          }
+        }
+      }
+    };
+    for (const statement of this.workspace.files.get(uri)?.imports ?? []) {
+      if (includePrivateDirectImports || statement.modifier === 'public') {
+        const importedUri = this.resolveImportToUri(uri, statement.path);
+        if (importedUri) {
+          visit(importedUri);
+        }
       }
     }
-
-    // Recursively add symbols from imported files
-    const importedUris = this.getImportedFileUris(uri);
-    for (const importedUri of importedUris) {
-      this.collectAccessibleSymbols(importedUri, symbols, visitedUris);
-    }
+    const result = Array.from(visible);
+    this.visibleFileUrisCache.set(cacheKey, result);
+    return [...result];
   }
 
-  /**
-   * Resolve a type reference to its symbol
-   * Supports forward references within the same file (proto3 feature)
-   *
-   * Resolution priority:
-   * 1. Exact match (fully qualified name - must contain a dot)
-   * 2. Current package prefix
-   * 3. Parent scopes (nested types)
-   * 4. Same file symbols (for forward references)
-   * 5. Imported files' packages
-   * 6. Imported files' symbols by simple name
-   *
-   * Note: We intentionally do NOT fall back to searching all workspace files
-   * by simple name, as this would incorrectly resolve types from non-imported files.
-   */
+  /** Resolve types from the innermost lexical scope through the root scope. */
   resolveType(typeName: string, currentUri: string, currentPackage?: string): SymbolInfo | undefined {
-    // Check if it's a builtin type
     if (BUILTIN_TYPES.includes(typeName)) {
       return undefined;
     }
-
-    // Get the current file to check its imports AND its local definitions (for forward references)
-    const currentFile = this.workspace.files.get(currentUri);
-    const importedUris = this.getImportedFileUris(currentUri);
-
-    // Handle absolute type references (starting with .)
-    // In protobuf, a leading dot means "absolute path from root"
-    // e.g., ".com.example.MyMessage" is the same as "com.example.MyMessage"
-    const normalizedTypeName = typeName.startsWith('.') ? typeName.slice(1) : typeName;
-
-    // Try exact match first ONLY for fully qualified names (containing a dot)
-    // Simple names like "User" should go through proper scope resolution
-    if (normalizedTypeName.includes('.')) {
-      const symbol =
-        this.findTypeInAccessibleFilesByFullName(normalizedTypeName, currentUri, importedUris) ||
-        this.workspace.symbols.get(normalizedTypeName);
-      if (symbol) {
-        return symbol;
-      }
-    }
-
-    // If it was an absolute reference, don't do relative resolution
+    const visibleUris = this.getVisibleFileUris(currentUri);
+    const importedUris = visibleUris.filter(uri => uri !== currentUri);
     if (typeName.startsWith('.')) {
-      return undefined;
+      return this.findTypeInAccessibleFilesByFullName(typeName.slice(1), currentUri, importedUris);
     }
 
-    // Try with current package prefix
-    if (currentPackage) {
-      const candidateFullName = `${currentPackage}.${typeName}`;
-      const symbol =
-        this.findTypeInAccessibleFilesByFullName(candidateFullName, currentUri, importedUris) ||
-        this.workspace.symbols.get(candidateFullName);
+    let scope = currentPackage ?? this.workspace.files.get(currentUri)?.package?.name ?? '';
+    const firstPart = typeName.split('.')[0]!;
+    const accessibleSymbols = visibleUris.flatMap(uri => this.getSymbolsInFile(uri));
+    while (true) {
+      const candidate = scope ? `${scope}.${typeName}` : typeName;
+      const symbol = this.findTypeInAccessibleFilesByFullName(candidate, currentUri, importedUris);
       if (symbol) {
         return symbol;
       }
-    }
-
-    // Try searching in parent scopes (for nested types)
-    const parts = currentPackage?.split('.') || [];
-    while (parts.length > 0) {
-      const prefix = parts.join('.');
-      const candidateFullName = `${prefix}.${typeName}`;
-      const symbol =
-        this.findTypeInAccessibleFilesByFullName(candidateFullName, currentUri, importedUris) ||
-        this.workspace.symbols.get(candidateFullName);
-      if (symbol) {
-        return symbol;
+      // Once the first component resolves, protobuf does not retry a compound
+      // name in an outer scope when its remaining components are absent.
+      const firstCandidate = scope ? `${scope}.${firstPart}` : firstPart;
+      if (
+        accessibleSymbols.some(
+          symbol => symbol.fullName === firstCandidate || symbol.fullName.startsWith(`${firstCandidate}.`)
+        )
+      ) {
+        return undefined;
       }
-      parts.pop();
-    }
-
-    // IMPORTANT: Check same-file symbols BEFORE searching imported files
-    // This handles forward references and types defined in the same file
-    if (currentFile) {
-      const currentFilePackage = currentFile.package?.name || '';
-
-      // Check messages in current file
-      for (const message of currentFile.messages) {
-        if (message.name === typeName) {
-          const fullName = currentFilePackage ? `${currentFilePackage}.${message.name}` : message.name;
-          return {
-            name: message.name,
-            fullName,
-            kind: SymbolKind.Message,
-            location: { uri: currentUri, range: message.range },
-          };
-        }
-        // Check nested messages
-        const nestedSymbol = this.findNestedType(message, typeName, currentFilePackage, currentUri);
-        if (nestedSymbol) {
-          return nestedSymbol;
-        }
+      if (!scope) {
+        return undefined;
       }
-
-      // Check enums in current file
-      for (const enumDef of currentFile.enums) {
-        if (enumDef.name === typeName) {
-          const fullName = currentFilePackage ? `${currentFilePackage}.${enumDef.name}` : enumDef.name;
-          return {
-            name: enumDef.name,
-            fullName,
-            kind: SymbolKind.Enum,
-            location: { uri: currentUri, range: enumDef.range },
-          };
-        }
-      }
+      scope = scope.includes('.') ? scope.slice(0, scope.lastIndexOf('.')) : '';
     }
-
-    // Search in imported files' packages
-    for (const importedUri of importedUris) {
-      const importedFile = this.workspace.files.get(importedUri);
-      if (importedFile) {
-        const importedPackage = importedFile.package?.name || '';
-
-        // Try with imported package prefix
-        if (importedPackage) {
-          const symbol = this.findTypeInFileByFullName(importedUri, `${importedPackage}.${typeName}`);
-          if (symbol) {
-            return symbol;
-          }
-        }
-
-        // Try finding symbol in imported file by simple name
-        const symbol = this.findTypeInFileByName(importedUri, typeName);
-        if (symbol) {
-          logger.verbose(`resolveType: Found "${typeName}" as "${symbol.fullName}" in imported file`);
-          return symbol;
-        }
-      }
-    }
-
-    // Note: We do NOT fall back to searching all workspace files by simple name.
-    // Types from non-imported files should not be resolved - they need an import.
-    // The diagnostics will flag unresolved types, and the user can add the import.
-    logger.verbose(
-      `resolveType: Could not resolve "${typeName}" from ${currentUri} (importedUris: ${importedUris.length})`
-    );
-
-    return undefined;
   }
 
   private findTypeInAccessibleFilesByFullName(
@@ -854,31 +751,6 @@ export class SemanticAnalyzer {
       const importedFileSymbol = this.findTypeInFileByFullName(importedUri, fullName);
       if (importedFileSymbol) {
         return importedFileSymbol;
-      }
-    }
-
-    return undefined;
-  }
-
-  private findTypeInFileByName(uri: string, typeName: string): SymbolInfo | undefined {
-    const file = this.workspace.files.get(uri);
-    if (!file) {
-      return undefined;
-    }
-
-    const packageName = file.package?.name || '';
-
-    for (const message of file.messages) {
-      const symbol = this.findMessageSymbolByName(uri, message, packageName, typeName);
-      if (symbol) {
-        return symbol;
-      }
-    }
-
-    for (const enumDef of file.enums) {
-      const symbol = this.findEnumSymbolByName(uri, enumDef, packageName, typeName);
-      if (symbol) {
-        return symbol;
       }
     }
 
@@ -902,47 +774,6 @@ export class SemanticAnalyzer {
 
     for (const enumDef of file.enums) {
       const symbol = this.findEnumSymbolByFullName(uri, enumDef, packageName, fullName);
-      if (symbol) {
-        return symbol;
-      }
-    }
-
-    return undefined;
-  }
-
-  private findMessageSymbolByName(
-    uri: string,
-    message: MessageDefinition,
-    prefix: string,
-    targetName: string
-  ): SymbolInfo | undefined {
-    const fullName = prefix ? `${prefix}.${message.name}` : message.name;
-    if (message.name === targetName || fullName.endsWith(`.${targetName}`)) {
-      return {
-        name: message.name,
-        fullName,
-        kind: SymbolKind.Message,
-        location: { uri, range: message.nameRange },
-        containerName: prefix || undefined,
-      };
-    }
-
-    for (const nested of message.nestedMessages) {
-      const symbol = this.findMessageSymbolByName(uri, nested, fullName, targetName);
-      if (symbol) {
-        return symbol;
-      }
-    }
-
-    for (const nested of message.nestedEnums) {
-      const symbol = this.findEnumSymbolByName(uri, nested, fullName, targetName);
-      if (symbol) {
-        return symbol;
-      }
-    }
-
-    for (const group of message.groups) {
-      const symbol = this.findGroupSymbolByName(uri, group, fullName, targetName);
       if (symbol) {
         return symbol;
       }
@@ -992,47 +823,6 @@ export class SemanticAnalyzer {
     return undefined;
   }
 
-  private findGroupSymbolByName(
-    uri: string,
-    group: GroupFieldDefinition,
-    prefix: string,
-    targetName: string
-  ): SymbolInfo | undefined {
-    const fullName = prefix ? `${prefix}.${group.name}` : group.name;
-    if (group.name === targetName || fullName.endsWith(`.${targetName}`)) {
-      return {
-        name: group.name,
-        fullName,
-        kind: SymbolKind.Message,
-        location: { uri, range: group.range },
-        containerName: prefix || undefined,
-      };
-    }
-
-    for (const nested of group.nestedMessages) {
-      const symbol = this.findMessageSymbolByName(uri, nested, fullName, targetName);
-      if (symbol) {
-        return symbol;
-      }
-    }
-
-    for (const nested of group.nestedEnums) {
-      const symbol = this.findEnumSymbolByName(uri, nested, fullName, targetName);
-      if (symbol) {
-        return symbol;
-      }
-    }
-
-    for (const nestedGroup of group.groups) {
-      const symbol = this.findGroupSymbolByName(uri, nestedGroup, fullName, targetName);
-      if (symbol) {
-        return symbol;
-      }
-    }
-
-    return undefined;
-  }
-
   private findGroupSymbolByFullName(
     uri: string,
     group: GroupFieldDefinition,
@@ -1045,7 +835,7 @@ export class SemanticAnalyzer {
         name: group.name,
         fullName,
         kind: SymbolKind.Message,
-        location: { uri, range: group.range },
+        location: { uri, range: group.nameRange },
         containerName: prefix || undefined,
       };
     }
@@ -1074,26 +864,6 @@ export class SemanticAnalyzer {
     return undefined;
   }
 
-  private findEnumSymbolByName(
-    uri: string,
-    enumDef: EnumDefinition,
-    prefix: string,
-    targetName: string
-  ): SymbolInfo | undefined {
-    const fullName = prefix ? `${prefix}.${enumDef.name}` : enumDef.name;
-    if (enumDef.name !== targetName && !fullName.endsWith(`.${targetName}`)) {
-      return undefined;
-    }
-
-    return {
-      name: enumDef.name,
-      fullName,
-      kind: SymbolKind.Enum,
-      location: { uri, range: enumDef.nameRange },
-      containerName: prefix || undefined,
-    };
-  }
-
   private findEnumSymbolByFullName(
     uri: string,
     enumDef: EnumDefinition,
@@ -1117,126 +887,11 @@ export class SemanticAnalyzer {
   /**
    * Helper to find a nested type within a message definition
    */
-  private findNestedType(
-    message: MessageDefinition,
-    typeName: string,
-    prefix: string,
-    uri: string
-  ): SymbolInfo | undefined {
-    const messageFullName = prefix ? `${prefix}.${message.name}` : message.name;
-
-    // Check nested messages
-    for (const nested of message.nestedMessages) {
-      if (nested.name === typeName) {
-        const fullName = `${messageFullName}.${nested.name}`;
-        return {
-          name: nested.name,
-          fullName,
-          kind: SymbolKind.Message,
-          location: { uri, range: nested.range },
-        };
-      }
-      // Recursively check deeper nesting
-      const deeperSymbol = this.findNestedType(nested, typeName, messageFullName, uri);
-      if (deeperSymbol) {
-        return deeperSymbol;
-      }
-    }
-
-    // Check nested enums
-    for (const nested of message.nestedEnums) {
-      if (nested.name === typeName) {
-        const fullName = `${messageFullName}.${nested.name}`;
-        return {
-          name: nested.name,
-          fullName,
-          kind: SymbolKind.Enum,
-          location: { uri, range: nested.range },
-        };
-      }
-    }
-
-    for (const group of message.groups) {
-      if (group.name === typeName) {
-        const fullName = `${messageFullName}.${group.name}`;
-        return {
-          name: group.name,
-          fullName,
-          kind: SymbolKind.Message,
-          location: { uri, range: group.range },
-        };
-      }
-
-      const nestedGroupSymbol = this.findNestedGroupType(group, typeName, messageFullName, uri);
-      if (nestedGroupSymbol) {
-        return nestedGroupSymbol;
-      }
-    }
-
-    return undefined;
-  }
-
-  private findNestedGroupType(
-    group: GroupFieldDefinition,
-    typeName: string,
-    prefix: string,
-    uri: string
-  ): SymbolInfo | undefined {
-    const groupFullName = prefix ? `${prefix}.${group.name}` : group.name;
-
-    for (const nested of group.nestedMessages) {
-      if (nested.name === typeName) {
-        const fullName = `${groupFullName}.${nested.name}`;
-        return {
-          name: nested.name,
-          fullName,
-          kind: SymbolKind.Message,
-          location: { uri, range: nested.range },
-        };
-      }
-
-      const deeperSymbol = this.findNestedType(nested, typeName, groupFullName, uri);
-      if (deeperSymbol) {
-        return deeperSymbol;
-      }
-    }
-
-    for (const nested of group.nestedEnums) {
-      if (nested.name === typeName) {
-        const fullName = `${groupFullName}.${nested.name}`;
-        return {
-          name: nested.name,
-          fullName,
-          kind: SymbolKind.Enum,
-          location: { uri, range: nested.range },
-        };
-      }
-    }
-
-    for (const nestedGroup of group.groups) {
-      if (nestedGroup.name === typeName) {
-        const fullName = `${groupFullName}.${nestedGroup.name}`;
-        return {
-          name: nestedGroup.name,
-          fullName,
-          kind: SymbolKind.Message,
-          location: { uri, range: nestedGroup.range },
-        };
-      }
-
-      const deeperGroupSymbol = this.findNestedGroupType(nestedGroup, typeName, groupFullName, uri);
-      if (deeperGroupSymbol) {
-        return deeperGroupSymbol;
-      }
-    }
-
-    return undefined;
-  }
 
   /**
    * Find all references to a symbol
    */
-  findReferences(symbolName: string, fullyQualifiedName?: string): Location[] {
+  findReferences(symbolName: string, fullyQualifiedName?: string, definitionUri?: string): Location[] {
     const references: Location[] = [];
 
     for (const [uri, file] of this.workspace.files) {
@@ -1244,12 +899,20 @@ export class SemanticAnalyzer {
 
       // Search in messages
       for (const message of file.messages) {
-        this.findReferencesInMessage(uri, message, symbolName, packageName, references, fullyQualifiedName);
+        this.findReferencesInMessage(
+          uri,
+          message,
+          symbolName,
+          packageName,
+          references,
+          fullyQualifiedName,
+          definitionUri
+        );
       }
 
       // Search in services
       for (const service of file.services) {
-        this.findReferencesInService(uri, service, symbolName, references, fullyQualifiedName);
+        this.findReferencesInService(uri, service, symbolName, references, fullyQualifiedName, definitionUri);
       }
 
       // Search in extends
@@ -1259,14 +922,23 @@ export class SemanticAnalyzer {
 
         if (
           extendTypeName &&
-          this.matchesSymbolInContext(extendTypeName, symbolName, fullyQualifiedName, uri, packageName)
+          this.matchesSymbolInContext(extendTypeName, symbolName, fullyQualifiedName, uri, packageName, definitionUri)
         ) {
           if (extendTypeRange) {
             references.push({ uri, range: extendTypeRange });
           }
         }
         for (const field of extend.fields) {
-          if (this.matchesSymbolInContext(field.fieldType, symbolName, fullyQualifiedName, uri, packageName)) {
+          if (
+            this.matchesSymbolInContext(
+              field.fieldType,
+              symbolName,
+              fullyQualifiedName,
+              uri,
+              packageName,
+              definitionUri
+            )
+          ) {
             references.push({ uri, range: field.fieldTypeRange });
           }
         }
@@ -1282,20 +954,23 @@ export class SemanticAnalyzer {
     symbolName: string,
     prefix: string,
     references: Location[],
-    fullyQualifiedName?: string
+    fullyQualifiedName?: string,
+    definitionUri?: string
   ): void {
     const fullName = prefix ? `${prefix}.${message.name}` : message.name;
 
     // Check fields
     for (const field of message.fields) {
-      if (this.matchesSymbolInContext(field.fieldType, symbolName, fullyQualifiedName, uri, fullName)) {
+      if (this.matchesSymbolInContext(field.fieldType, symbolName, fullyQualifiedName, uri, fullName, definitionUri)) {
         references.push({ uri, range: field.fieldTypeRange });
       }
     }
 
     // Check map fields
     for (const mapField of message.maps) {
-      if (this.matchesSymbolInContext(mapField.valueType, symbolName, fullyQualifiedName, uri, fullName)) {
+      if (
+        this.matchesSymbolInContext(mapField.valueType, symbolName, fullyQualifiedName, uri, fullName, definitionUri)
+      ) {
         references.push({ uri, range: mapField.valueTypeRange });
       }
     }
@@ -1303,7 +978,9 @@ export class SemanticAnalyzer {
     // Check oneofs
     for (const oneof of message.oneofs) {
       for (const field of oneof.fields) {
-        if (this.matchesSymbolInContext(field.fieldType, symbolName, fullyQualifiedName, uri, fullName)) {
+        if (
+          this.matchesSymbolInContext(field.fieldType, symbolName, fullyQualifiedName, uri, fullName, definitionUri)
+        ) {
           references.push({ uri, range: field.fieldTypeRange });
         }
       }
@@ -1311,7 +988,7 @@ export class SemanticAnalyzer {
 
     // Check nested messages
     for (const nested of message.nestedMessages) {
-      this.findReferencesInMessage(uri, nested, symbolName, fullName, references, fullyQualifiedName);
+      this.findReferencesInMessage(uri, nested, symbolName, fullName, references, fullyQualifiedName, definitionUri);
     }
   }
 
@@ -1320,7 +997,8 @@ export class SemanticAnalyzer {
     service: ServiceDefinition,
     symbolName: string,
     references: Location[],
-    fullyQualifiedName?: string
+    fullyQualifiedName?: string,
+    definitionUri?: string
   ): void {
     // Get the file's package for context
     const file = this.workspace.files.get(uri);
@@ -1332,12 +1010,18 @@ export class SemanticAnalyzer {
       const outputType = rpc.responseType ?? rpc.outputType;
       const outputTypeRange = rpc.responseTypeRange ?? rpc.outputTypeRange;
 
-      if (inputType && this.matchesSymbolInContext(inputType, symbolName, fullyQualifiedName, uri, packageName)) {
+      if (
+        inputType &&
+        this.matchesSymbolInContext(inputType, symbolName, fullyQualifiedName, uri, packageName, definitionUri)
+      ) {
         if (inputTypeRange) {
           references.push({ uri, range: inputTypeRange });
         }
       }
-      if (outputType && this.matchesSymbolInContext(outputType, symbolName, fullyQualifiedName, uri, packageName)) {
+      if (
+        outputType &&
+        this.matchesSymbolInContext(outputType, symbolName, fullyQualifiedName, uri, packageName, definitionUri)
+      ) {
         if (outputTypeRange) {
           references.push({ uri, range: outputTypeRange });
         }
@@ -1354,24 +1038,19 @@ export class SemanticAnalyzer {
     symbolName: string,
     fullyQualifiedName: string | undefined,
     uri: string,
-    currentScope: string
+    currentScope: string,
+    definitionUri?: string
   ): boolean {
     // If no fully qualified name provided, fall back to simple matching
     if (!fullyQualifiedName) {
       return this.matchesSymbol(typeName, symbolName, fullyQualifiedName);
     }
 
-    // If typeName is already fully qualified (contains a dot or starts with dot),
-    // normalize and compare directly
-    if (typeName.includes('.')) {
-      const normalizedTypeName = typeName.startsWith('.') ? typeName.slice(1) : typeName;
-      return normalizedTypeName === fullyQualifiedName;
-    }
-
-    // For simple names, resolve to get the actual fully qualified name
+    // Dotted names may still be relative (for example Outer.Inner inside a
+    // package), so resolve all references in their containing scope.
     const resolved = this.resolveType(typeName, uri, currentScope);
     if (resolved) {
-      return resolved.fullName === fullyQualifiedName;
+      return resolved.fullName === fullyQualifiedName && (!definitionUri || resolved.location.uri === definitionUri);
     }
 
     // If resolution failed, it might be an unimported type - don't match
@@ -1450,8 +1129,8 @@ export class SemanticAnalyzer {
       return targetUri.replace('builtin:///', '');
     }
 
-    const currentPath = currentUri.replace('file://', '').replace(/\\/g, '/');
-    const targetPath = targetUri.replace('file://', '').replace(/\\/g, '/');
+    const currentPath = this.normalizeUri(currentUri).replace('file://', '');
+    const targetPath = this.normalizeUri(targetUri).replace('file://', '');
 
     // If the target sits under a google/* well-known path, prefer the canonical import
     const googleIndex = targetPath.lastIndexOf('/google/');

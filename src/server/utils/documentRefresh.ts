@@ -51,7 +51,9 @@ export function refreshDocumentAndImports(
       parsed = cachedParsed;
     }
 
-    analyzer.updateFile(uri, parsed);
+    if (analyzer.getFile(uri) !== parsed) {
+      analyzer.updateFile(uri, parsed);
+    }
     touchedUris.push(uri);
 
     // Refresh imported documents
@@ -75,7 +77,9 @@ export function refreshDocumentAndImports(
           importedParsed = cachedImported;
         }
 
-        analyzer.updateFile(importUri, importedParsed);
+        if (analyzer.getFile(importUri) !== importedParsed) {
+          analyzer.updateFile(importUri, importedParsed);
+        }
         touchedUris.push(importUri);
       } catch (importParseErr) {
         logger.debug(`Import parse failed: ${importUri}`, getErrorMessage(importParseErr));

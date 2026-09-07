@@ -8,7 +8,12 @@ import * as path from 'path';
 import { URI } from 'vscode-uri';
 import type { IProtoParser } from '../core/parserFactory';
 import type { SemanticAnalyzer } from '../core/analyzer';
-import { discoverWorkspaceFilesSync, type WorkspaceFileDiscoveryOptions } from '../../shared/workspaceFileDiscovery';
+import {
+  discoverWorkspaceFilesSync,
+  hasSymlinkedPathComponentSync,
+  WorkspacePathFilter,
+  type WorkspaceFileDiscoveryOptions,
+} from '../../shared/workspaceFileDiscovery';
 import { logger } from './logger';
 import { getErrorMessage } from './utils';
 
@@ -23,6 +28,42 @@ function toWorkspaceRelative(filePath: string, workspaceFolder: string): string 
 function isPathWithin(root: string, candidate: string): boolean {
   const relative = path.relative(path.resolve(root), path.resolve(candidate));
   return relative === '' || (!path.isAbsolute(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`));
+}
+
+function expandDiscoveryPath(value: string, folder: string): string {
+  return value
+    .replace(/\$\{workspace(?:Folder|Root)\}/g, folder)
+    .replace(/\$\{workspaceFolderBasename\}/g, path.basename(folder))
+    .replace(/\$\{env(?::|\.)([^}]+)\}/g, (_match, name: string) => process.env[name] ?? '');
+}
+
+export function isFileInWorkspaceScope(
+  uri: string,
+  workspaceFolders: readonly string[],
+  importPaths: readonly string[],
+  protoSrcsDir = '',
+  ignorePatterns: readonly string[] = []
+): boolean {
+  const parsed = URI.parse(uri);
+  if (parsed.scheme !== 'file' || !parsed.path.endsWith('.proto')) {
+    return false;
+  }
+  const filename = parsed.fsPath;
+  if (importPaths.some(root => isPathWithin(root, filename))) {
+    return true;
+  }
+  return workspaceFolders.some(folder => {
+    if (!isPathWithin(folder, filename) || hasSymlinkedPathComponentSync(folder, filename)) {
+      return false;
+    }
+    const sourceRoot = path.resolve(folder, expandDiscoveryPath(protoSrcsDir, folder));
+    if (protoSrcsDir && isPathWithin(folder, sourceRoot) && !isPathWithin(sourceRoot, filename)) {
+      return false;
+    }
+    return !new WorkspacePathFilter(folder, {
+      ignorePatterns: ignorePatterns.map(pattern => expandDiscoveryPath(pattern, folder)),
+    }).isIgnored(filename, false);
+  });
 }
 
 export function reconcileWorkspaceFiles(
@@ -101,7 +142,8 @@ export function scanWorkspaceForProtoFiles(
   parser: IProtoParser,
   analyzer: SemanticAnalyzer,
   protoSrcsDir?: string,
-  ignorePatterns: string[] = []
+  ignorePatterns: string[] = [],
+  openContents: ReadonlyMap<string, string> = new Map()
 ): Set<string> {
   logger.info(`Scanning ${workspaceFolders.length} workspace folder(s) for proto files`);
   if (ignorePatterns.length > 0) {
@@ -117,7 +159,10 @@ export function scanWorkspaceForProtoFiles(
     let scanRootExists = true;
 
     if (protoSrcsDir) {
-      const candidatePath = path.isAbsolute(protoSrcsDir) ? protoSrcsDir : path.join(folder, protoSrcsDir);
+      const expandedSourceDir = expandDiscoveryPath(protoSrcsDir, folder);
+      const candidatePath = path.isAbsolute(expandedSourceDir)
+        ? expandedSourceDir
+        : path.join(folder, expandedSourceDir);
       const resolvedCandidatePath = path.resolve(candidatePath);
       const resolvedFolder = path.resolve(folder);
       const relativePath = path.relative(resolvedFolder, resolvedCandidatePath);
@@ -142,7 +187,7 @@ export function scanWorkspaceForProtoFiles(
     const protoFiles = scanRootExists
       ? findProtoFiles(scanRoot, [], false, {
           rootDir: folder,
-          ignorePatterns,
+          ignorePatterns: ignorePatterns.map(pattern => expandDiscoveryPath(pattern, folder)),
           useIgnoreFiles: true,
         })
       : [];
@@ -167,7 +212,7 @@ export function scanWorkspaceForProtoFiles(
       const uri = URI.file(filePath).toString();
       discoveredUris.add(uri);
       try {
-        const content = fs.readFileSync(filePath, 'utf-8');
+        const content = openContents.get(uri) ?? fs.readFileSync(filePath, 'utf-8');
         const file = parser.parse(content, uri);
         analyzer.updateFile(uri, file);
         parsedFiles++;
@@ -191,7 +236,12 @@ export function scanWorkspaceForProtoFiles(
  * @param parser - Proto parser instance
  * @param analyzer - Semantic analyzer instance
  */
-export function scanImportPaths(importPaths: string[], parser: IProtoParser, analyzer: SemanticAnalyzer): void {
+export function scanImportPaths(
+  importPaths: string[],
+  parser: IProtoParser,
+  analyzer: SemanticAnalyzer,
+  openContents: ReadonlyMap<string, string> = new Map()
+): void {
   if (importPaths.length === 0) {
     return;
   }
@@ -216,8 +266,8 @@ export function scanImportPaths(importPaths: string[], parser: IProtoParser, ana
 
       for (const filePath of protoFiles) {
         try {
-          const content = fs.readFileSync(filePath, 'utf-8');
           const uri = URI.file(filePath).toString();
+          const content = openContents.get(uri) ?? fs.readFileSync(filePath, 'utf-8');
           const file = parser.parse(content, uri);
           analyzer.updateFile(uri, file);
           parsedFiles++;

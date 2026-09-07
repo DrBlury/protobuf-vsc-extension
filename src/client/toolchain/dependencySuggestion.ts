@@ -1,3 +1,4 @@
+import { addBufDependencies, readBufDependencies } from '../registry/bufDependencies';
 /**
  * Dependency Suggestion Provider
  * Suggests adding external packages to buf.yaml when imports cannot be resolved
@@ -195,21 +196,7 @@ export class DependencySuggestionProvider {
   private async getExistingDeps(bufYamlPath: string): Promise<string[]> {
     try {
       const content = await readFile(bufYamlPath);
-      const deps: string[] = [];
-
-      // Simple regex-based parsing for deps array
-      const depsMatch = content.match(/^deps:\s*\n((?:\s+-\s+.+\n?)+)/m);
-      if (depsMatch) {
-        const depsLines = depsMatch[1]!.split('\n');
-        for (const line of depsLines) {
-          const depMatch = line.match(/^\s+-\s+["']?([^"'\s]+)["']?/);
-          if (depMatch) {
-            deps.push(depMatch[1]!.trim());
-          }
-        }
-      }
-
-      return deps;
+      return readBufDependencies(content);
     } catch {
       return [];
     }
@@ -223,19 +210,7 @@ export class DependencySuggestionProvider {
       let content = await readFile(bufYamlPath);
       const modulesToAdd = suggestions.map(s => s.module);
 
-      // Check if deps section exists
-      if (content.includes('deps:')) {
-        // Add to existing deps section
-        for (const module of modulesToAdd) {
-          if (!content.includes(module)) {
-            content = content.replace(/deps:\s*\n/, `deps:\n  - ${module}\n`);
-          }
-        }
-      } else {
-        // Add new deps section
-        const depsSection = `\ndeps:\n${modulesToAdd.map(m => `  - ${m}`).join('\n')}\n`;
-        content += depsSection;
-      }
+      content = addBufDependencies(content, modulesToAdd);
 
       await writeFile(bufYamlPath, content);
       this.outputChannel.appendLine(`Added ${modulesToAdd.length} dependencies to ${bufYamlPath}`);

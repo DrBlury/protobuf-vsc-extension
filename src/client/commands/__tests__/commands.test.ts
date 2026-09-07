@@ -1,4 +1,4 @@
-import { createMockVscode } from '../../__tests__/testUtils';
+import { createMockVscode, createMockTextEditor } from '../../__tests__/testUtils';
 
 const mockVscodeModule = createMockVscode();
 
@@ -569,6 +569,91 @@ describe('Client Commands', () => {
   });
 
   describe('Renumber Commands', () => {
+    it.each([
+      ['protobuf.renumberDocument', undefined],
+      ['protobuf.renumberMessage', 'Target'],
+      ['protobuf.renumberEnum', 'TargetEnum'],
+      ['protobuf.renumberFromCursor', { line: 2, character: 3 }],
+    ])('discards stale edits from %s after the user types', async (command, argument) => {
+      const editor = createMockTextEditor();
+      mockVscode.window.activeTextEditor = editor;
+      mockClient.sendRequest.mockImplementation(async () => {
+        editor.document.version++;
+        return [{ range: { start: { line: 2, character: 3 }, end: { line: 2, character: 4 } }, newText: '1' }];
+      });
+      registerRenumberCommands(mockContext, mockClient);
+      const handler = mockVscode.commands.registerCommand.mock.calls.find(([name]) => name === command)![1];
+
+      await handler(undefined, argument);
+
+      expect(mockVscode.workspace.applyEdit).not.toHaveBeenCalled();
+      expect(mockVscode.window.showWarningMessage).toHaveBeenCalledWith(expect.stringContaining('document changed'));
+    });
+    it.each([
+      ['protobuf.renumberMessage', 'Target', REQUEST_METHODS.RENUMBER_MESSAGE],
+      ['protobuf.renumberEnum', 'TargetEnum', REQUEST_METHODS.RENUMBER_ENUM],
+      ['protobuf.renumberFromCursor', { line: 2, character: 3 }, REQUEST_METHODS.RENUMBER_FROM_POSITION],
+    ])('applies %s edits to its explicit target when another file is active', async (command, argument, request) => {
+      mockVscode.window.activeTextEditor = createMockTextEditor({ uri: 'file:///test/other.proto' });
+      const target = createMockTextEditor({ uri: 'file:///test/target.proto' }).document;
+      mockVscode.workspace.openTextDocument.mockResolvedValue(target);
+      mockClient.sendRequest.mockResolvedValue([
+        { range: { start: { line: 2, character: 3 }, end: { line: 2, character: 4 } }, newText: '1' },
+      ]);
+      registerRenumberCommands(mockContext, mockClient);
+      const handler = mockVscode.commands.registerCommand.mock.calls.find(([name]) => name === command)![1];
+
+      await handler(target.uri.toString(), argument);
+
+      expect(mockClient.sendRequest).toHaveBeenCalledWith(
+        request,
+        expect.objectContaining({ uri: target.uri.toString() })
+      );
+      const edit = mockVscode.workspace.applyEdit.mock.calls[0][0];
+      expect([...edit._edits.keys()]).toEqual([target.uri.toString()]);
+    });
+
+    it('renumbers an explicit message without requiring an active editor', async () => {
+      mockVscode.window.activeTextEditor = undefined;
+      const target = createMockTextEditor({ uri: 'file:///test/target.proto' }).document;
+      mockVscode.workspace.openTextDocument.mockResolvedValue(target);
+      mockClient.sendRequest.mockResolvedValue([]);
+      registerRenumberCommands(mockContext, mockClient);
+      const handler = mockVscode.commands.registerCommand.mock.calls.find(
+        ([name]) => name === 'protobuf.renumberMessage'
+      )![1];
+
+      await handler(target.uri.toString(), 'Target');
+
+      expect(mockClient.sendRequest).toHaveBeenCalledWith(REQUEST_METHODS.RENUMBER_MESSAGE, {
+        uri: target.uri.toString(),
+        messageName: 'Target',
+      });
+      expect(mockVscode.window.showWarningMessage).not.toHaveBeenCalled();
+    });
+
+    it('lists messages from the target document instead of using another editor cursor or text', async () => {
+      mockVscode.window.activeTextEditor = createMockTextEditor({
+        uri: 'file:///test/other.proto',
+        text: 'message Other {}',
+      });
+      const target = createMockTextEditor({ uri: 'file:///test/target.proto', text: 'message Target {}' }).document;
+      mockVscode.workspace.openTextDocument.mockResolvedValue(target);
+      mockClient.sendRequest.mockResolvedValueOnce(['Target']).mockResolvedValueOnce([]);
+      mockVscode.window.showQuickPick.mockResolvedValue('Target');
+      registerRenumberCommands(mockContext, mockClient);
+      const handler = mockVscode.commands.registerCommand.mock.calls.find(
+        ([name]) => name === 'protobuf.renumberMessage'
+      )![1];
+
+      await handler(target.uri.toString());
+
+      expect(mockClient.sendRequest).toHaveBeenNthCalledWith(1, REQUEST_METHODS.GET_MESSAGES, {
+        uri: target.uri.toString(),
+        text: 'message Target {}',
+      });
+    });
+
     it('should register all renumber commands', () => {
       const disposables = registerRenumberCommands(mockContext, mockClient);
 
@@ -649,6 +734,46 @@ describe('Client Commands', () => {
   });
 
   describe('registerAllCommands', () => {
+    it('does not apply stale migration edits after the source changes', async () => {
+      const editor = createMockTextEditor();
+      mockVscode.window.activeTextEditor = editor;
+      mockClient.sendRequest.mockImplementation(async () => {
+        editor.document.version++;
+        return [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 3 } }, newText: 'proto3' }];
+      });
+      registerAllCommands(mockContext, mockClient);
+      const handler = mockVscode.commands.registerCommand.mock.calls.find(
+        ([name]) => name === 'protobuf.migrateToProto3'
+      )![1];
+
+      await handler();
+
+      expect(mockVscode.workspace.applyEdit).not.toHaveBeenCalled();
+    });
+
+    it('discards stale organize-import edits and does not report success when applyEdit fails', async () => {
+      const editor = createMockTextEditor();
+      mockVscode.window.activeTextEditor = editor;
+      const action = { kind: { value: 'source.organizeImports' }, edit: new vscode.WorkspaceEdit() };
+      mockVscode.commands.executeCommand.mockImplementationOnce(async () => {
+        editor.document.version++;
+        return [action];
+      });
+      registerAllCommands(mockContext, mockClient);
+      const handler = mockVscode.commands.registerCommand.mock.calls.find(
+        ([name]) => name === 'protobuf.organizeImports'
+      )![1];
+      await handler();
+      expect(mockVscode.workspace.applyEdit).not.toHaveBeenCalled();
+
+      mockVscode.commands.executeCommand.mockResolvedValueOnce([action]);
+      mockVscode.workspace.applyEdit.mockResolvedValueOnce(false);
+      await handler();
+      expect(mockVscode.window.showInformationMessage).not.toHaveBeenCalled();
+      expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Could not apply import')
+      );
+    });
     it('should register all command groups', () => {
       const disposables = registerAllCommands(mockContext, mockClient);
 

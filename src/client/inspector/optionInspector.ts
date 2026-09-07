@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import type { LanguageClient } from 'vscode-languageclient/node';
 
-export class OptionInspectorProvider implements vscode.TreeDataProvider<OptionItem> {
+export class OptionInspectorProvider implements vscode.TreeDataProvider<OptionItem>, vscode.Disposable {
+  private readonly disposables: vscode.Disposable[] = [];
   private _onDidChangeTreeData: vscode.EventEmitter<OptionItem | undefined | null | void> = new vscode.EventEmitter<
     OptionItem | undefined | null | void
   >();
@@ -11,8 +12,15 @@ export class OptionInspectorProvider implements vscode.TreeDataProvider<OptionIt
 
   constructor(client: LanguageClient) {
     this.client = client;
-    vscode.window.onDidChangeActiveTextEditor(() => this.refresh());
-    vscode.workspace.onDidSaveTextDocument(() => this.refresh());
+    this.disposables.push(
+      vscode.window.onDidChangeActiveTextEditor(() => this.refresh()),
+      vscode.workspace.onDidSaveTextDocument(() => this.refresh())
+    );
+  }
+
+  dispose(): void {
+    this.disposables.forEach(disposable => disposable.dispose());
+    this._onDidChangeTreeData.dispose();
   }
 
   refresh(): void {
@@ -49,7 +57,14 @@ export class OptionInspectorProvider implements vscode.TreeDataProvider<OptionIt
       }
 
       return options.map(
-        opt => new OptionItem(`${opt.name} = ${opt.value}`, opt.parent, vscode.TreeItemCollapsibleState.None, opt.range)
+        opt =>
+          new OptionItem(
+            `${opt.name} = ${opt.value}`,
+            opt.parent,
+            vscode.TreeItemCollapsibleState.None,
+            opt.range,
+            editor.document.uri
+          )
       );
     } catch (e) {
       return [new OptionItem('Error loading options', String(e), vscode.TreeItemCollapsibleState.None)];
@@ -62,7 +77,8 @@ class OptionItem extends vscode.TreeItem {
     public override readonly label: string,
     public override readonly description: string,
     public override readonly collapsibleState: vscode.TreeItemCollapsibleState,
-    public readonly range?: { start: { line: number; character: number }; end: { line: number; character: number } }
+    public readonly range?: { start: { line: number; character: number }; end: { line: number; character: number } },
+    uri?: vscode.Uri
   ) {
     super(label, collapsibleState);
     this.tooltip = `${this.label} (${this.description})`;
@@ -73,7 +89,7 @@ class OptionItem extends vscode.TreeItem {
         command: 'vscode.open',
         title: 'Open',
         arguments: [
-          vscode.window.activeTextEditor?.document.uri,
+          uri,
           {
             selection: new vscode.Range(range.start.line, range.start.character, range.end.line, range.end.character),
           },

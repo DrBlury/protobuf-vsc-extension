@@ -705,7 +705,15 @@ export class DiagnosticsProvider {
       if (!symbol) {
         // Type not resolved via imports - check if it exists anywhere in the workspace
         const workspaceMatch = this.findTypeInWorkspace(field.fieldType, uri);
-        if (workspaceMatch) {
+        if (workspaceMatch && field.fieldType.includes('.')) {
+          this.ensureImported(
+            uri,
+            field.fieldType,
+            workspaceMatch.location.uri,
+            this.toRange(field.fieldTypeRange),
+            diagnostics
+          );
+        } else if (workspaceMatch) {
           // Type exists in workspace but not imported - show unqualified type error
           diagnostics.push({
             severity: Severity[this.settings.severity.referenceErrors],
@@ -801,7 +809,15 @@ export class DiagnosticsProvider {
       if (!symbol) {
         // Type not resolved via imports - check if it exists anywhere in the workspace
         const workspaceMatch = this.findTypeInWorkspace(mapField.valueType, uri);
-        if (workspaceMatch) {
+        if (workspaceMatch && mapField.valueType.includes('.')) {
+          this.ensureImported(
+            uri,
+            mapField.valueType,
+            workspaceMatch.location.uri,
+            this.toRange(mapField.valueTypeRange),
+            diagnostics
+          );
+        } else if (workspaceMatch) {
           // Type exists in workspace but not imported - show unqualified type error
           diagnostics.push({
             severity: Severity[this.settings.severity.referenceErrors],
@@ -1154,7 +1170,9 @@ export class DiagnosticsProvider {
           if (!inputSymbol) {
             // Type not resolved via imports - check if it exists anywhere in the workspace
             const workspaceMatch = this.findTypeInWorkspace(inputType, uri);
-            if (workspaceMatch) {
+            if (workspaceMatch && inputType.includes('.')) {
+              this.ensureImported(uri, inputType, workspaceMatch.location.uri, inputTypeRange, diagnostics);
+            } else if (workspaceMatch) {
               diagnostics.push({
                 severity: Severity[this.settings.severity.referenceErrors],
                 range: this.toRange(inputTypeRange),
@@ -1191,7 +1209,9 @@ export class DiagnosticsProvider {
           if (!outputSymbol) {
             // Type not resolved via imports - check if it exists anywhere in the workspace
             const workspaceMatch = this.findTypeInWorkspace(outputType, uri);
-            if (workspaceMatch) {
+            if (workspaceMatch && outputType.includes('.')) {
+              this.ensureImported(uri, outputType, workspaceMatch.location.uri, outputTypeRange, diagnostics);
+            } else if (workspaceMatch) {
               diagnostics.push({
                 severity: Severity[this.settings.severity.referenceErrors],
                 range: this.toRange(outputTypeRange),
@@ -1297,7 +1317,9 @@ export class DiagnosticsProvider {
         if (modifier === 'public') {
           continue; // public imports are re-exported; skip
         }
-        if (!usedTypeUris.has(imp.resolvedUri)) {
+        if (
+          !this.analyzer.getVisibleFileUris(imp.resolvedUri, false).some(exportedUri => usedTypeUris.has(exportedUri))
+        ) {
           diagnostics.push({
             severity: DiagnosticSeverity.Hint,
             range: rangeInfo
@@ -1351,7 +1373,7 @@ export class DiagnosticsProvider {
     range: Range,
     diagnostics: Diagnostic[]
   ): void {
-    const imported = new Set(this.analyzer.getImportedFileUris(currentUri));
+    const imported = new Set(this.analyzer.getVisibleFileUris(currentUri));
     imported.add(currentUri);
 
     const importsWithResolution = this.analyzer.getImportsWithResolutions(currentUri);
@@ -1413,11 +1435,8 @@ export class DiagnosticsProvider {
     typeName: string,
     currentUri: string
   ): { fullName: string; location: { uri: string } } | undefined {
-    // Only search for simple (unqualified) type names
-    if (typeName.includes('.')) {
-      return undefined;
-    }
-
+    const normalized = typeName.replace(/^\./, '');
+    const visible = new Set(this.analyzer.getVisibleFileUris(currentUri));
     const allSymbols = this.analyzer.getAllSymbols();
 
     // Find symbols that match the type name (message or enum)
@@ -1428,7 +1447,11 @@ export class DiagnosticsProvider {
       }
 
       // Match by simple name or ending with .TypeName
-      if (symbol.name === typeName || symbol.fullName.endsWith(`.${typeName}`)) {
+      if (
+        typeName.includes('.')
+          ? symbol.fullName === normalized && !visible.has(symbol.location.uri)
+          : symbol.name === typeName || symbol.fullName.endsWith(`.${typeName}`)
+      ) {
         // Only return message or enum types
         if (symbol.kind === 'message' || symbol.kind === 'enum') {
           return symbol;

@@ -399,7 +399,7 @@ describe('Message Detection', () => {
       const mainFile = parser.parse(
         `
         syntax = "proto3";
-        package main.v1;
+        package common.v1;
         import "common.proto";
         message Response {
           Error error = 1;
@@ -412,7 +412,7 @@ describe('Message Detection', () => {
       analyzer.updateFile('file:///main.proto', mainFile);
 
       // Simple name resolution should work
-      const symbol = analyzer.resolveType('Error', 'file:///main.proto', 'main.v1');
+      const symbol = analyzer.resolveType('Error', 'file:///main.proto', 'common.v1');
       expect(symbol).toBeDefined();
       expect(symbol!.fullName).toBe('common.v1.Error');
     });

@@ -105,7 +105,7 @@ message User {
       analyzer.updateFile(uri1, file1);
       analyzer.updateFile(uri2, file2);
 
-      const position: Position = { line: 0, character: 9 };
+      const position: Position = { line: 1, character: 9 };
       const lineText = 'message Test {';
       const result = provider.rename(uri1, position, lineText, 'RenamedTest');
 

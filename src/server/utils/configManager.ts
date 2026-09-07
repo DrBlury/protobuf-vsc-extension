@@ -8,6 +8,7 @@ import * as path from 'path';
 import { LogLevel } from './logger';
 import { logger } from './logger';
 import type { Settings } from './types';
+import { defaultSettings } from './types';
 import type { DiagnosticsProvider, DiagnosticsSettings } from '../providers/diagnostics';
 import type { ProtoFormatter } from '../providers/formatter';
 import type { RenumberProvider } from '../providers/renumber';
@@ -32,6 +33,33 @@ const LOG_LEVEL_MAP: Record<string, LogLevel> = {
   debug: LogLevel.DEBUG,
   verbose: LogLevel.VERBOSE,
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** LSP clients may return only overrides, or null when a setting is removed. */
+export function resolveSettings(value: unknown): Settings {
+  const supplied = isRecord(value) ? (isRecord(value.protobuf) ? value.protobuf : value) : {};
+  const merge = (defaults: Record<string, unknown>, overrides: Record<string, unknown>): Record<string, unknown> => {
+    const result = { ...overrides };
+    for (const [key, fallback] of Object.entries(defaults)) {
+      const configured = overrides[key];
+      if (isRecord(fallback)) {
+        result[key] = merge(fallback, isRecord(configured) ? configured : {});
+      } else if (Array.isArray(fallback)) {
+        result[key] = Array.isArray(configured) ? configured.filter(item => typeof item === 'string') : [...fallback];
+      } else {
+        result[key] =
+          typeof configured === typeof fallback && (typeof configured !== 'number' || Number.isFinite(configured))
+            ? configured
+            : fallback;
+      }
+    }
+    return result;
+  };
+  return { protobuf: merge(defaultSettings.protobuf, supplied) } as unknown as Settings;
+}
 
 /**
  * Check if a directory contains google well-known protos.
@@ -273,17 +301,30 @@ export function updateProvidersWithSettings(
     .map(p => p.trim())
     .filter(Boolean);
   const rawIncludePaths = [...workspaceBufIncludes, ...protoPathIncludes, ...(settings.protobuf.includes || [])];
+  const expandedIncludePaths = rawIncludePaths.flatMap(rawPath => {
+    if (!rawPath?.trim()) {
+      return [];
+    }
+    const contexts = workspaceFolders.length ? workspaceFolders.map(folder => [folder]) : [[]];
+    return contexts.map(context => {
+      const expanded = expandVariables(rawPath.trim(), context);
+      const mapping = parsePathMapping(expanded);
+      const actual = mapping?.actual ?? expanded;
+      const resolved = context[0] && !path.isAbsolute(actual) ? path.resolve(context[0], actual) : actual;
+      return mapping ? `${mapping.virtual}=${resolved}` : resolved;
+    });
+  });
 
   const includePaths: string[] = [];
   const pathMappings: Array<{ virtual: string; actual: string }> = [];
   const seenPaths = new Set<string>();
   let userHasGoogleProtos = false;
 
-  for (const rawPath of rawIncludePaths) {
+  for (const rawPath of expandedIncludePaths) {
     if (!rawPath) {
       continue;
     }
-    const expanded = expandVariables(rawPath, workspaceFolders);
+    const expanded = rawPath;
     if (!expanded) {
       continue;
     }

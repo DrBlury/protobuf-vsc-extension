@@ -1,148 +1,67 @@
-/**
- * Tests for buf format provider
- */
-
-import { BufFormatProvider } from '../bufFormat';
+import { EventEmitter } from 'events';
+import * as fs from 'fs';
 import { spawn } from 'child_process';
+import { BufFormatProvider } from '../bufFormat';
 
 jest.mock('child_process');
 
-/**
- * Helper to flush promises and advance fake timers
- */
-async function flushPromisesAndTimers(): Promise<void> {
-  for (let i = 0; i < 20; i++) {
-    jest.advanceTimersByTime(20);
-    await new Promise(resolve => setImmediate(resolve));
-  }
+function processMock() {
+  return Object.assign(new EventEmitter(), { stdout: new EventEmitter(), stderr: new EventEmitter() });
 }
 
 describe('BufFormatProvider', () => {
-  let provider: BufFormatProvider;
-  let mockSpawn: jest.MockedFunction<typeof spawn>;
+  const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
+  beforeEach(() => jest.clearAllMocks());
 
-  beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
-    provider = new BufFormatProvider();
-    mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
-    jest.clearAllMocks();
+  it('formats the unsaved buffer through an isolated temporary file and removes it', async () => {
+    const source = 'syntax = "proto3"; message Unsaved { string value = 1; }';
+    let inputPath = '';
+    mockSpawn.mockImplementation((_command, args) => {
+      inputPath = args![1]!;
+      expect(args![0]).toBe('format');
+      expect(fs.readFileSync(inputPath, 'utf8')).toBe(source);
+      const proc = processMock();
+      setImmediate(() => {
+        proc.stdout.emit('data', Buffer.from('formatted'));
+        proc.emit('close', 0);
+      });
+      return proc as ReturnType<typeof spawn>;
+    });
+    const provider = new BufFormatProvider();
+    provider.setBufPath('/tools with spaces/buf');
+    expect(await provider.format(source, '/project/unsaved.proto')).toBe('formatted');
+    expect(mockSpawn).toHaveBeenCalledWith(
+      '/tools with spaces/buf',
+      ['format', inputPath],
+      expect.objectContaining({ cwd: '/project' })
+    );
+    expect(fs.existsSync(inputPath)).toBe(false);
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
+  it('decodes UTF-8 after combining output chunks', async () => {
+    mockSpawn.mockImplementation(() => {
+      const proc = processMock();
+      setImmediate(() => {
+        const bytes = Buffer.from('// €');
+        proc.stdout.emit('data', bytes.subarray(0, 4));
+        proc.stdout.emit('data', bytes.subarray(4));
+        proc.emit('close', 0);
+      });
+      return proc as ReturnType<typeof spawn>;
+    });
+    expect(await new BufFormatProvider().format('// €')).toBe('// €');
   });
 
-  describe('setBufPath', () => {
-    it('should set buf path', () => {
-      provider.setBufPath('/usr/bin/buf');
-      expect(provider).toBeDefined();
+  it.each(['error', 'close'])('cleans up and returns null after %s', async event => {
+    let inputPath = '';
+    mockSpawn.mockImplementation((_command, args) => {
+      inputPath = args![1]!;
+      const proc = processMock();
+      setImmediate(() => proc.emit(event, event === 'error' ? new Error('ENOENT') : 1));
+      return proc as ReturnType<typeof spawn>;
     });
-  });
-
-  describe('format', () => {
-    it('should format text successfully', async () => {
-      const mockProcess = {
-        stdout: {
-          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
-            if (event === 'data') {
-              setTimeout(() => callback(Buffer.from('formatted text')), 0);
-            }
-            return mockProcess.stdout;
-          }),
-        },
-        stderr: {
-          on: jest.fn(),
-        },
-        stdin: {
-          write: jest.fn(),
-          end: jest.fn(),
-        },
-        on: jest.fn((event: string, callback: (code: number) => void) => {
-          if (event === 'close') {
-            setTimeout(() => callback(0), 10);
-          }
-          return mockProcess;
-        }),
-      } as any;
-
-      mockSpawn.mockReturnValue(mockProcess);
-
-      const resultPromise = provider.format('message Test {}');
-      await flushPromisesAndTimers();
-      const result = await resultPromise;
-      expect(result).toBe('formatted text');
-      expect(mockProcess.stdin.write).toHaveBeenCalledWith('message Test {}', 'utf8');
-      expect(mockProcess.stdin.end).toHaveBeenCalled();
-    });
-
-    it('should return null on error', async () => {
-      const mockProcess = {
-        stdout: { on: jest.fn() },
-        stderr: { on: jest.fn() },
-        stdin: { write: jest.fn(), end: jest.fn() },
-        on: jest.fn((event: string, callback: () => void) => {
-          if (event === 'error') {
-            setTimeout(() => callback(), 0);
-          }
-          return mockProcess;
-        }),
-      } as any;
-
-      mockSpawn.mockReturnValue(mockProcess);
-
-      const resultPromise = provider.format('message Test {}');
-      await flushPromisesAndTimers();
-      const result = await resultPromise;
-      expect(result).toBeNull();
-    });
-
-    it('should return null on non-zero exit code', async () => {
-      const mockProcess = {
-        stdout: { on: jest.fn() },
-        stderr: { on: jest.fn() },
-        stdin: { write: jest.fn(), end: jest.fn() },
-        on: jest.fn((event: string, callback: (code: number) => void) => {
-          if (event === 'close') {
-            setTimeout(() => callback(1), 0);
-          }
-          return mockProcess;
-        }),
-      } as any;
-
-      mockSpawn.mockReturnValue(mockProcess);
-
-      const resultPromise = provider.format('message Test {}');
-      await flushPromisesAndTimers();
-      const result = await resultPromise;
-      expect(result).toBeNull();
-    });
-
-    it('should include file path when provided', async () => {
-      const mockProcess = {
-        stdout: {
-          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
-            if (event === 'data') {
-              setTimeout(() => callback(Buffer.from('formatted')), 0);
-            }
-            return mockProcess.stdout;
-          }),
-        },
-        stderr: { on: jest.fn() },
-        stdin: { write: jest.fn(), end: jest.fn() },
-        on: jest.fn((event: string, callback: (code: number) => void) => {
-          if (event === 'close') {
-            setTimeout(() => callback(0), 10);
-          }
-          return mockProcess;
-        }),
-      } as any;
-
-      mockSpawn.mockReturnValue(mockProcess);
-
-      const formatPromise = provider.format('message Test {}', '/path/to/file.proto');
-      await flushPromisesAndTimers();
-      await formatPromise;
-      expect(mockSpawn).toHaveBeenCalledWith('buf', ['format', '--path', 'file.proto'], expect.any(Object));
-    });
+    expect(await new BufFormatProvider().format('message Test {}')).toBeNull();
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(inputPath)).toBe(false);
   });
 });

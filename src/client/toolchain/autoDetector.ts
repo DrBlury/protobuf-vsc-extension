@@ -308,7 +308,7 @@ export class AutoDetector {
   private async getVersion(cmd: string, flag: string): Promise<string | undefined> {
     return new Promise(resolve => {
       // Check if this command is a script that needs shell execution
-      const useShell = needsShellExecution(cmd);
+      const useShell = os.platform() === 'win32' && needsShellExecution(cmd);
 
       const proc = spawn(cmd, [flag], { timeout: 5000, shell: useShell });
       let output = '';

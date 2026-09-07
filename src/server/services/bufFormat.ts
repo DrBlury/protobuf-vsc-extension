@@ -1,5 +1,6 @@
-import type { ChildProcess } from 'child_process';
 import { spawn } from 'child_process';
+import * as fs from 'fs/promises';
+import * as os from 'os';
 import * as path from 'path';
 import { bufConfigProvider } from './bufConfig';
 
@@ -11,66 +12,29 @@ export class BufFormatProvider {
   }
 
   public async format(text: string, filePath?: string): Promise<string | null> {
-    return new Promise(resolve => {
-      // buf format reads from stdin if no file is specified, or we can use --path to simulate file context
-      const args = ['format'];
-      const spawnOptions: { shell?: boolean; cwd?: string } = {};
+    let tempDir: string | undefined;
+    try {
+      // buf format defaults to files on disk and does not read the editor buffer from stdin.
+      // Give it exactly one temporary source file so unsaved edits and new files are preserved.
+      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'protobuf-format-'));
+      const inputPath = path.join(tempDir, 'input.proto');
+      await fs.writeFile(inputPath, text, { encoding: 'utf8', mode: 0o600 });
+      const cwd = filePath ? bufConfigProvider.getBufConfigDir(filePath) || path.dirname(filePath) : undefined;
 
-      if (filePath) {
-        const normalizedFile = path.normalize(filePath);
-        const configDir = bufConfigProvider.getBufConfigDir(normalizedFile);
-        let cwd = configDir || path.dirname(normalizedFile);
-        let relativePath = configDir ? path.relative(configDir, normalizedFile) : path.basename(normalizedFile);
-
-        if (!relativePath) {
-          relativePath = path.basename(normalizedFile);
-        }
-
-        spawnOptions.cwd = cwd;
-
-        if (relativePath) {
-          const posixRelative = relativePath.split(path.sep).join('/');
-          args.push('--path');
-          args.push(posixRelative);
-        }
+      return await new Promise(resolve => {
+        const proc = spawn(this.bufPath, ['format', inputPath], { cwd, timeout: 30000 });
+        const chunks: Buffer[] = [];
+        proc.stdout?.on('data', (data: Buffer) => chunks.push(Buffer.from(data)));
+        proc.stderr?.on('data', () => {});
+        proc.on('close', code => resolve(code === 0 ? Buffer.concat(chunks).toString('utf8') : null));
+        proc.on('error', () => resolve(null));
+      });
+    } catch {
+      return null;
+    } finally {
+      if (tempDir) {
+        await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
       }
-
-      // Try without shell first to avoid command line length limits
-      const runFormat = (useShell: boolean): void => {
-        const opts = useShell ? { ...spawnOptions, shell: true } : spawnOptions;
-        const proc = spawn(this.bufPath, args, opts) as ChildProcess;
-        let stdout = '';
-
-        proc.stdout?.on('data', (data: Buffer) => {
-          stdout += data.toString('utf8');
-        });
-
-        proc.stderr?.on('data', (_data: Buffer) => {
-          // stderr is captured but not used
-        });
-
-        proc.on('close', code => {
-          if (code === 0) {
-            resolve(stdout);
-          } else {
-            resolve(null);
-          }
-        });
-
-        proc.on('error', () => {
-          if (!useShell) {
-            // Fallback with shell for PATH resolution
-            runFormat(true);
-          } else {
-            resolve(null);
-          }
-        });
-
-        proc.stdin?.write(text, 'utf8');
-        proc.stdin?.end();
-      };
-
-      runFormat(false);
-    });
+    }
   }
 }

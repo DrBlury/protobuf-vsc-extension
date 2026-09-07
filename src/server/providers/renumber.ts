@@ -62,18 +62,20 @@ export class RenumberProvider {
   /**
    * Renumber all fields in the entire document
    */
-  renumberDocument(text: string, uri: string): TextEdit[] {
+  renumberDocument(text: string, uri: string, includeEnums = true): TextEdit[] {
     const file = this.parser.parse(text, uri);
     const edits: TextEdit[] = [];
 
     // Renumber all messages
     for (const message of file.messages) {
-      edits.push(...this.renumberMessageFieldsRecursive(text, message));
+      edits.push(...this.renumberMessageFieldsRecursive(text, message, includeEnums));
     }
 
     // Renumber all enums
-    for (const enumDef of file.enums) {
-      edits.push(...this.renumberEnumValues(text, enumDef));
+    if (includeEnums) {
+      for (const enumDef of file.enums) {
+        edits.push(...this.renumberEnumValues(text, enumDef));
+      }
     }
 
     return edits;
@@ -103,8 +105,14 @@ export class RenumberProvider {
       return a.range.start.character - b.range.start.character;
     });
 
-    // Find fields at or after the cursor position
-    const fieldsToRenumber = allFields.filter(f => f.range.start.line >= position.line);
+    // Include the field containing the cursor and subsequent fields, even when
+    // multiple declarations share a line or a declaration spans several lines.
+    const firstField = allFields.findIndex(
+      field =>
+        field.range.end.line > position.line ||
+        (field.range.end.line === position.line && field.range.end.character >= position.character)
+    );
+    const fieldsToRenumber = firstField < 0 ? [] : allFields.slice(firstField);
 
     if (fieldsToRenumber.length === 0) {
       return [];
@@ -114,27 +122,19 @@ export class RenumberProvider {
     let nextNumber = this.settings.startNumber;
 
     // If there are fields before, continue from the last number
-    const fieldsBefore = allFields.filter(f => f.range.start.line < position.line);
+    const fieldsBefore = allFields.slice(0, firstField);
     if (fieldsBefore.length > 0) {
       const lastField = fieldsBefore[fieldsBefore.length - 1]!;
       nextNumber = lastField.number + this.settings.increment;
     }
 
     // Get reserved numbers to skip
-    const reservedNumbers = this.getReservedNumbers(message);
+    const reservedRanges = this.getReservedRanges(message);
 
     const edits: TextEdit[] = [];
 
     for (const field of fieldsToRenumber) {
-      // Skip reserved numbers if setting is enabled
-      while (this.settings.skipReservedRange && reservedNumbers.has(nextNumber)) {
-        nextNumber += this.settings.increment;
-      }
-
-      // Skip the internal reserved range
-      if (nextNumber >= FIELD_NUMBER.RESERVED_RANGE_START && nextNumber <= FIELD_NUMBER.RESERVED_RANGE_END) {
-        nextNumber = 20000;
-      }
+      nextNumber = this.skipReservedNumbers(nextNumber, reservedRanges);
 
       if (field.number !== nextNumber) {
         const edit = this.createFieldNumberEdit(lines, field, nextNumber);
@@ -175,26 +175,10 @@ export class RenumberProvider {
     }
 
     const allFields = [...message.fields, ...message.maps, ...message.oneofs.flatMap(o => o.fields)];
-
-    if (allFields.length === 0) {
-      return this.settings.startNumber;
-    }
-
-    const maxNumber = Math.max(...allFields.map(f => f.number));
-    let nextNumber = maxNumber + this.settings.increment;
-
-    // Skip reserved numbers
-    const reservedNumbers = this.getReservedNumbers(message);
-    while (this.settings.skipReservedRange && reservedNumbers.has(nextNumber)) {
-      nextNumber += this.settings.increment;
-    }
-
-    // Skip the internal reserved range
-    if (nextNumber >= FIELD_NUMBER.RESERVED_RANGE_START && nextNumber <= FIELD_NUMBER.RESERVED_RANGE_END) {
-      nextNumber = 20000;
-    }
-
-    return nextNumber;
+    const nextNumber = allFields.length
+      ? Math.max(...allFields.map(field => field.number)) + this.settings.increment
+      : this.settings.startNumber;
+    return this.skipReservedNumbers(nextNumber, this.getReservedRanges(message));
   }
 
   /**
@@ -226,19 +210,11 @@ export class RenumberProvider {
       return a.range.start.character - b.range.start.character;
     });
 
-    const reservedNumbers = this.getReservedNumbers(message);
+    const reservedRanges = this.getReservedRanges(message);
     let nextNumber = this.settings.startNumber;
 
     for (const field of allFields) {
-      // Skip reserved numbers if setting is enabled
-      while (this.settings.skipReservedRange && reservedNumbers.has(nextNumber)) {
-        nextNumber += this.settings.increment;
-      }
-
-      // Skip the internal reserved range
-      if (nextNumber >= FIELD_NUMBER.RESERVED_RANGE_START && nextNumber <= FIELD_NUMBER.RESERVED_RANGE_END) {
-        nextNumber = 20000;
-      }
+      nextNumber = this.skipReservedNumbers(nextNumber, reservedRanges);
 
       if (field.number !== nextNumber) {
         const edit = this.createFieldNumberEdit(lines, field, nextNumber);
@@ -253,19 +229,21 @@ export class RenumberProvider {
     return edits;
   }
 
-  private renumberMessageFieldsRecursive(text: string, message: MessageDefinition): TextEdit[] {
+  private renumberMessageFieldsRecursive(text: string, message: MessageDefinition, includeEnums = true): TextEdit[] {
     const edits: TextEdit[] = [];
 
     edits.push(...this.renumberMessageFields(text, message));
 
     // Recurse into nested messages
     for (const nested of message.nestedMessages) {
-      edits.push(...this.renumberMessageFieldsRecursive(text, nested));
+      edits.push(...this.renumberMessageFieldsRecursive(text, nested, includeEnums));
     }
 
     // Renumber nested enums
-    for (const nested of message.nestedEnums) {
-      edits.push(...this.renumberEnumValues(text, nested));
+    if (includeEnums) {
+      for (const nested of message.nestedEnums) {
+        edits.push(...this.renumberEnumValues(text, nested));
+      }
     }
 
     return edits;
@@ -283,10 +261,29 @@ export class RenumberProvider {
       return a.range.start.character - b.range.start.character;
     });
 
-    // First value should be 0 in proto3
+    // First value should be 0 in proto3. Enum reservations apply independently
+    // of the field-only 19000-19999 reserved range.
     let nextNumber = 0;
+    const reserved = this.settings.preserveReserved
+      ? enumDef.reserved
+          .flatMap(statement =>
+            statement.ranges.map(range => ({
+              start: range.start,
+              end: range.end === 'max' ? 2147483647 : range.end,
+            }))
+          )
+          .sort((left, right) => left.start - right.start)
+      : [];
 
     for (const value of sortedValues) {
+      for (const range of reserved) {
+        if (nextNumber >= range.start && nextNumber <= range.end) {
+          nextNumber += Math.ceil((range.end + 1 - nextNumber) / this.settings.increment) * this.settings.increment;
+        }
+      }
+      if (!Number.isSafeInteger(nextNumber) || nextNumber < 0 || nextNumber > 2147483647) {
+        throw new Error('No available enum number remains within the valid protobuf range.');
+      }
       if (value.number !== nextNumber) {
         const edit = this.createEnumValueEdit(lines, value, nextNumber);
         if (edit) {
@@ -304,70 +301,78 @@ export class RenumberProvider {
     field: FieldDefinition | MapFieldDefinition,
     newNumber: number
   ): TextEdit | null {
-    const line = lines[field.range.start.line];
-    if (!line) {
-      return null;
-    }
-
-    // Find the field number pattern: = <number>
-    const match = line.match(/=\s*(\d+)/);
-    if (!match) {
-      return null;
-    }
-
-    const numberStart = line.indexOf(match[1]!, line.indexOf('='));
-    const numberEnd = numberStart + match[1]!.length;
-
-    return {
-      range: {
-        start: { line: field.range.start.line, character: numberStart },
-        end: { line: field.range.start.line, character: numberEnd },
-      },
-      newText: newNumber.toString(),
-    };
+    return this.createNumberEdit(lines, field, newNumber);
   }
 
   private createEnumValueEdit(lines: string[], value: EnumValue, newNumber: number): TextEdit | null {
-    const line = lines[value.range.start.line];
-    if (!line) {
+    return this.createNumberEdit(lines, value, newNumber);
+  }
+
+  private createNumberEdit(
+    lines: string[],
+    node: { nameRange: Range; range: Range },
+    newNumber: number
+  ): TextEdit | null {
+    const start = node.nameRange.end;
+    const end = node.range.end;
+    const declarationLines = lines.slice(start.line, end.line + 1);
+    if (!declarationLines.length) {
       return null;
     }
-
-    // Find the value number pattern: = <number>
-    const match = line.match(/=\s*(-?\d+)/);
+    declarationLines[declarationLines.length - 1] = declarationLines[declarationLines.length - 1]!.slice(
+      0,
+      end.character
+    );
+    declarationLines[0] = declarationLines[0]!.slice(start.character);
+    // Mask comments to preserve source offsets while ignoring any '=' or
+    // digits in them. Only search the portion after this declaration's name.
+    const source = declarationLines
+      .join('\n')
+      .replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, comment => comment.replace(/[^\n]/g, ' '));
+    const match = /^\s*=\s*([+-]?(?:0[xX][0-9a-fA-F]+|\d+))\b/.exec(source);
     if (!match) {
       return null;
     }
-
-    const numberStart = line.indexOf(match[1]!, line.indexOf('='));
-    const numberEnd = numberStart + match[1]!.length;
-
+    const numberOffset = match[0].lastIndexOf(match[1]!);
+    const prefixLines = source.slice(0, numberOffset).split('\n');
+    const line = start.line + prefixLines.length - 1;
+    const character = prefixLines[prefixLines.length - 1]!.length + (prefixLines.length === 1 ? start.character : 0);
     return {
       range: {
-        start: { line: value.range.start.line, character: numberStart },
-        end: { line: value.range.start.line, character: numberEnd },
+        start: { line, character },
+        end: { line, character: character + match[1]!.length },
       },
       newText: newNumber.toString(),
     };
   }
 
-  private getReservedNumbers(message: MessageDefinition): Set<number> {
-    const reserved = new Set<number>();
-
-    if (!this.settings.preserveReserved) {
-      return reserved;
+  private getReservedRanges(message: MessageDefinition): Array<{ start: number; end: number }> {
+    const ranges = this.settings.preserveReserved
+      ? message.reserved.flatMap(reserved =>
+          reserved.ranges.map(range => ({
+            start: range.start,
+            end: range.end === 'max' ? MAX_FIELD_NUMBER : range.end,
+          }))
+        )
+      : [];
+    if (this.settings.skipReservedRange) {
+      ranges.push({ start: FIELD_NUMBER.RESERVED_RANGE_START, end: FIELD_NUMBER.RESERVED_RANGE_END });
     }
+    return ranges.sort((left, right) => left.start - right.start);
+  }
 
-    for (const r of message.reserved) {
-      for (const range of r.ranges) {
-        const end = range.end === 'max' ? MAX_FIELD_NUMBER : range.end;
-        for (let i = range.start; i <= Math.min(end, range.start + 10000); i++) {
-          reserved.add(i);
-        }
+  private skipReservedNumbers(nextNumber: number, ranges: Array<{ start: number; end: number }>): number {
+    for (const range of ranges) {
+      if (nextNumber >= range.start && nextNumber <= range.end) {
+        // Jump over intervals without expanding potentially hundreds of
+        // millions of reserved tags or truncating them to an arbitrary limit.
+        nextNumber += Math.ceil((range.end + 1 - nextNumber) / this.settings.increment) * this.settings.increment;
       }
     }
-
-    return reserved;
+    if (!Number.isSafeInteger(nextNumber) || nextNumber < 1 || nextNumber > MAX_FIELD_NUMBER) {
+      throw new Error('No available field number remains within the valid protobuf range.');
+    }
+    return nextNumber;
   }
 
   private findMessage(file: ProtoFile, name: string): MessageDefinition | null {

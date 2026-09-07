@@ -59,9 +59,13 @@ import { REQUEST_METHODS, DIAGNOSTIC_SOURCE, ERROR_CODES, TIMING, DEFAULT_POSITI
 import { normalizePath, getErrorMessage } from './utils/utils';
 import type { Settings } from './utils/types';
 import { defaultSettings } from './utils/types';
-import { scanWorkspaceForProtoFiles, scanImportPaths, reconcileWorkspaceFiles } from './utils/workspace';
-import { updateProvidersWithSettings } from './utils/configManager';
-import { debounce } from './utils/debounce';
+import {
+  scanWorkspaceForProtoFiles,
+  scanImportPaths,
+  reconcileWorkspaceFiles,
+  isFileInWorkspaceScope,
+} from './utils/workspace';
+import { updateProvidersWithSettings, resolveSettings } from './utils/configManager';
 import { ContentHashCache, simpleHash } from './utils/cache';
 import { ProviderRegistry } from './utils/providerRegistry';
 import { refreshDocumentAndImports } from './utils/documentRefresh';
@@ -112,6 +116,7 @@ const providers = new ProviderRegistry();
 
 // Configuration
 let hasConfigurationCapability = false;
+let hasWorkspaceFoldersCapability = false;
 let wellKnownCacheDir: string | undefined;
 
 // Try to find real well-known proto includes (protoc install) so navigation
@@ -128,6 +133,7 @@ let globalSettings: Settings = defaultSettings;
 let workspaceFolders: string[] = [];
 let protoSrcsDir: string = '';
 let workspaceIgnorePatterns: string[] = [];
+let configurationRevision = 0;
 
 // Cache for parsed files to avoid re-parsing unchanged content
 const parsedFileCache = new ContentHashCache<ProtoFile>();
@@ -155,16 +161,26 @@ function resolveParserPreference(config: Settings['protobuf']): ParserPreference
   return 'tree-sitter';
 }
 
-function rescanWorkspaceFiles(): void {
+function getOpenContents(): Map<string, string> {
+  return new Map(documents.all().map(document => [document.uri, document.getText()]));
+}
+
+function rescanWorkspaceFiles(previousRoots: string[] = []): void {
+  const openContents = getOpenContents();
   const discoveredUris = scanWorkspaceForProtoFiles(
     workspaceFolders,
     providers.parser,
     providers.analyzer,
     protoSrcsDir,
-    workspaceIgnorePatterns
+    workspaceIgnorePatterns,
+    openContents
   );
+  for (const uri of openContents.keys()) {
+    discoveredUris.add(uri);
+    refreshDocumentAndImports(uri, documents, providers.parser, providers.analyzer, parsedFileCache);
+  }
   const removedUris = reconcileWorkspaceFiles(
-    workspaceFolders,
+    [...workspaceFolders, ...previousRoots],
     discoveredUris,
     providers.analyzer,
     providers.analyzer.getImportPaths()
@@ -172,6 +188,7 @@ function rescanWorkspaceFiles(): void {
   for (const uri of removedUris) {
     parsedFileCache.delete(uri);
   }
+  providers.analyzer.resetProtoRoots();
 
   logger.info(`Workspace reconciliation complete: ${discoveredUris.size} discovered, ${removedUris.length} removed`);
 }
@@ -180,6 +197,7 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
   const capabilities = params.capabilities;
 
   hasConfigurationCapability = !!(capabilities.workspace && !!capabilities.workspace.configuration);
+  hasWorkspaceFoldersCapability = !!capabilities.workspace?.workspaceFolders;
 
   // Capture cache path from client initialization options
   const initOpts = params.initializationOptions as { wellKnownCachePath?: string } | undefined;
@@ -225,22 +243,41 @@ connection.onExit(() => {
 });
 
 connection.onInitialized(async () => {
+  if (hasWorkspaceFoldersCapability) {
+    connection.workspace.onDidChangeWorkspaceFolders(async event => {
+      const previousFolders = [...workspaceFolders];
+      const removed = new Set(event.removed.map(folder => normalizePath(URI.parse(folder.uri).fsPath)));
+      workspaceFolders = workspaceFolders.filter(folder => !removed.has(folder));
+      for (const folder of event.added) {
+        const uri = URI.parse(folder.uri);
+        const root = normalizePath(uri.fsPath);
+        if (uri.scheme === 'file' && !workspaceFolders.includes(root)) {
+          workspaceFolders.push(root);
+        }
+      }
+      providers.setWorkspaceRoots(workspaceFolders);
+      await handleConfigurationChange({ settings: globalSettings });
+      rescanWorkspaceFiles(previousFolders);
+      documents.all().forEach(validateDocument);
+    });
+  }
+  const revision = ++configurationRevision;
   if (hasConfigurationCapability) {
     connection.client.register(DidChangeConfigurationNotification.type, undefined);
 
     // Fetch initial configuration from the client
     try {
-      const config = await connection.workspace.getConfiguration('protobuf');
+      const rawConfig = await connection.workspace.getConfiguration('protobuf');
+      if (revision !== configurationRevision) {
+        return;
+      }
+      const config = resolveSettings(rawConfig).protobuf;
       if (config) {
         // Wrap in protobuf key to match Settings interface
         globalSettings = { protobuf: config } as Settings;
 
         // Apply settings to all providers
-        const {
-          includePaths: userIncludePaths,
-          protoSrcsDir: newProtoSrcsDir,
-          workspaceIgnorePatterns: newWorkspaceIgnorePatterns,
-        } = updateProvidersWithSettings(
+        const { includePaths: userIncludePaths } = updateProvidersWithSettings(
           globalSettings,
           providers.diagnostics,
           providers.formatter,
@@ -256,8 +293,9 @@ connection.onInitialized(async () => {
           providers.codeActions
         );
 
-        protoSrcsDir = newProtoSrcsDir;
-        workspaceIgnorePatterns = newWorkspaceIgnorePatterns;
+        // Discovery expands workspace variables separately for each root.
+        protoSrcsDir = config.protoSrcsDir;
+        workspaceIgnorePatterns = config.workspace.ignorePatterns;
 
         // Update parser preference (Tree-sitter is the default)
         const parserPreference = resolveParserPreference(config);
@@ -267,7 +305,7 @@ connection.onInitialized(async () => {
 
         // Scan user-configured import paths for proto files
         if (userIncludePaths.length > 0) {
-          scanImportPaths(userIncludePaths, providers.parser, providers.analyzer);
+          scanImportPaths(userIncludePaths, providers.parser, providers.analyzer, getOpenContents());
         }
       }
     } catch (e) {
@@ -289,6 +327,10 @@ connection.onRequest('protobuf/initTreeSitter', async (params: { wasmPath: strin
 
     // Initialize Tree-sitter in parser factory
     providers.parser.initializeTreeSitter();
+    providers.setUseTreeSitter(resolveParserPreference(globalSettings.protobuf) === 'tree-sitter');
+    parsedFileCache.clear();
+    rescanWorkspaceFiles();
+    documents.all().forEach(validateDocument);
 
     return { success: true };
   } catch (error) {
@@ -328,6 +370,12 @@ connection.onDidChangeWatchedFiles(async (params: DidChangeWatchedFilesParams) =
 
     if (uri.endsWith('.proto')) {
       needsRevalidation = true;
+      if (documents.get(uri)) {
+        // The editor owns open contents, including when the on-disk file changes
+        // or disappears. Revalidate dependants using that buffer, not disk.
+        hasFileRenameOrDelete ||= change.type !== FileChangeType.Changed;
+        continue;
+      }
       if (change.type === FileChangeType.Deleted) {
         hasFileRenameOrDelete = true;
         providers.analyzer.removeFile(uri);
@@ -402,99 +450,148 @@ connection.onDidChangeWatchedFiles(async (params: DidChangeWatchedFilesParams) =
   }
 });
 
-connection.onDidChangeConfiguration(async (change: { settings: unknown }) => {
+async function handleConfigurationChange(change: { settings: unknown }): Promise<void> {
+  const revision = ++configurationRevision;
+  let configured = change.settings;
   if (hasConfigurationCapability) {
-    const previousProtoSrcsDir = protoSrcsDir;
-    const previousIgnorePatterns = workspaceIgnorePatterns;
-    // Fetch configuration directly from the client to ensure we get the latest values
-    // This is more reliable than using change.settings which may have caching issues
     try {
-      const config = await connection.workspace.getConfiguration('protobuf');
-      if (config) {
-        // Wrap in protobuf key to match Settings interface (same as onInitialized)
-        globalSettings = { protobuf: config } as Settings;
-      } else {
-        globalSettings = defaultSettings;
-      }
+      configured = await connection.workspace.getConfiguration('protobuf');
     } catch {
-      // Fallback to change.settings if direct fetch fails
-      // change.settings may come in different formats depending on the LSP client
-      const settings = change.settings as Record<string, unknown> | undefined;
-      if (settings?.protobuf) {
-        globalSettings = settings as unknown as Settings;
-      } else if (settings) {
-        globalSettings = { protobuf: settings } as unknown as Settings;
-      } else {
-        globalSettings = defaultSettings;
-      }
-    }
-
-    // Update all providers with new settings using config manager
-    const {
-      includePaths: userIncludePaths,
-      protoSrcsDir: newProtoSrcsDir,
-      workspaceIgnorePatterns: newWorkspaceIgnorePatterns,
-    } = updateProvidersWithSettings(
-      globalSettings,
-      providers.diagnostics,
-      providers.formatter,
-      providers.renumber,
-      providers.analyzer,
-      providers.protoc,
-      providers.breaking,
-      providers.externalLinter,
-      providers.clangFormat,
-      wellKnownIncludePath,
-      wellKnownCacheDir,
-      workspaceFolders
-    );
-
-    // Update protoSrcsDir
-    protoSrcsDir = newProtoSrcsDir;
-    workspaceIgnorePatterns = newWorkspaceIgnorePatterns;
-
-    // Update parser preference (Tree-sitter is the default)
-    const config = globalSettings.protobuf;
-    const parserPreference = resolveParserPreference(config);
-    const useTreeSitter = parserPreference === 'tree-sitter';
-    providers.setUseTreeSitter(useTreeSitter);
-    logger.info(`Parser selection updated: ${parserPreference} (useTreeSitter=${useTreeSitter})`);
-
-    // Scan user-configured import paths for proto files (e.g., .buf-deps)
-    if (userIncludePaths.length > 0) {
-      scanImportPaths(userIncludePaths, providers.parser, providers.analyzer);
-    }
-
-    const discoveryConfigurationChanged =
-      previousProtoSrcsDir !== protoSrcsDir ||
-      JSON.stringify(previousIgnorePatterns) !== JSON.stringify(workspaceIgnorePatterns);
-    if (discoveryConfigurationChanged) {
-      rescanWorkspaceFiles();
+      // The notification still supplies usable overrides if the request fails.
     }
   }
+  if (revision !== configurationRevision) {
+    return;
+  }
 
-  // Revalidate all documents
+  const previousProtoSrcsDir = protoSrcsDir;
+  const previousIgnorePatterns = workspaceIgnorePatterns;
+  const previousImportPaths = providers.analyzer.getImportPaths();
+  const previousParser = resolveParserPreference(globalSettings.protobuf);
+  globalSettings = resolveSettings(configured);
+  const settings = updateProvidersWithSettings(
+    globalSettings,
+    providers.diagnostics,
+    providers.formatter,
+    providers.renumber,
+    providers.analyzer,
+    providers.protoc,
+    providers.breaking,
+    providers.externalLinter,
+    providers.clangFormat,
+    wellKnownIncludePath,
+    wellKnownCacheDir,
+    workspaceFolders,
+    providers.codeActions
+  );
+  protoSrcsDir = globalSettings.protobuf.protoSrcsDir;
+  workspaceIgnorePatterns = globalSettings.protobuf.workspace.ignorePatterns;
+  const parserPreference = resolveParserPreference(globalSettings.protobuf);
+  providers.setUseTreeSitter(parserPreference === 'tree-sitter');
+  parsedFileCache.clear();
+  logger.info(`Parser selection updated: ${parserPreference}`);
+
+  if (settings.includePaths.length > 0) {
+    scanImportPaths(settings.includePaths, providers.parser, providers.analyzer, getOpenContents());
+  }
+  const discoveryChanged =
+    previousProtoSrcsDir !== protoSrcsDir ||
+    previousParser !== parserPreference ||
+    JSON.stringify(previousIgnorePatterns) !== JSON.stringify(workspaceIgnorePatterns) ||
+    JSON.stringify(previousImportPaths) !== JSON.stringify(providers.analyzer.getImportPaths());
+  if (discoveryChanged) {
+    rescanWorkspaceFiles(previousImportPaths);
+  }
   documents.all().forEach(validateDocument);
-});
+}
 
-// Debounced validation to avoid excessive computation on rapid edits
-const debouncedValidate = debounce<[TextDocument]>((document: TextDocument) => {
-  validateDocument(document);
-}, TIMING.VALIDATION_DEBOUNCE_MS);
+connection.onDidChangeConfiguration(handleConfigurationChange);
+
+// Each document needs its own timer and validation identity: activity in one
+// editor must not cancel another, or let an older async result replace new errors.
+const validationTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const validationRuns = new Map<string, object>();
+
+function cancelValidation(uri: string): void {
+  const timer = validationTimers.get(uri);
+  if (timer !== undefined) {
+    clearTimeout(timer);
+    validationTimers.delete(uri);
+  }
+  validationRuns.delete(uri);
+}
 
 // Document events
 documents.onDidChangeContent((change: { document: TextDocument }) => {
-  debouncedValidate(change.document);
+  const { document } = change;
+  cancelValidation(document.uri);
+  validationTimers.set(
+    document.uri,
+    setTimeout(() => {
+      validationTimers.delete(document.uri);
+      void validateDocument(document);
+    }, TIMING.VALIDATION_DEBOUNCE_MS)
+  );
 });
 
 documents.onDidClose((event: { document: TextDocument }) => {
-  // Keep symbols cached so go-to-definition still works after the editor is closed
-  connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] });
+  const uri = event.document.uri;
+  cancelValidation(uri);
+  parsedFileCache.delete(uri);
+  // Closing an editor can discard unsaved changes. Keep only the saved schema
+  // in the index, and remove closed files that are no longer in discovery scope.
+  try {
+    if (
+      !isFileInWorkspaceScope(
+        uri,
+        workspaceFolders,
+        providers.analyzer.getImportPaths(),
+        protoSrcsDir,
+        workspaceIgnorePatterns
+      )
+    ) {
+      providers.analyzer.removeFile(uri);
+    } else {
+      const text = fs.readFileSync(URI.parse(uri).fsPath, 'utf8');
+      const file = providers.parser.parse(text, uri);
+      parsedFileCache.set(uri, file, simpleHash(text));
+      providers.analyzer.updateFile(uri, file);
+    }
+  } catch {
+    providers.analyzer.removeFile(uri);
+  }
+  providers.analyzer.clearImportResolutionCache();
+  connection.sendDiagnostics({ uri, diagnostics: [] });
+  for (const document of documents.all()) {
+    if (document.uri !== uri) {
+      void validateDocument(document);
+    }
+  }
 });
 
+function refreshPendingDocuments(): void {
+  for (const document of documents.all()) {
+    if (validationTimers.has(document.uri) || !providers.analyzer.getFile(document.uri)) {
+      refreshDocumentAndImports(document.uri, documents, providers.parser, providers.analyzer, parsedFileCache);
+    }
+  }
+}
+
 async function validateDocument(document: TextDocument): Promise<void> {
+  refreshPendingDocuments();
   const text = document.getText();
   const uri = document.uri;
+  const version = document.version;
+  cancelValidation(uri);
+  const run = {};
+  validationRuns.set(uri, run);
+  const isCurrent = (): boolean =>
+    validationRuns.get(uri) === run && documents.get(uri) === document && document.version === version;
+  const publish = (diagnostics: Diagnostic[]): void => {
+    if (isCurrent()) {
+      connection.sendDiagnostics({ uri, version, diagnostics });
+    }
+  };
   const startTime = Date.now();
 
   try {
@@ -518,7 +615,7 @@ async function validateDocument(document: TextDocument): Promise<void> {
 
     if (!globalSettings.protobuf.diagnostics.enabled) {
       logger.verboseWithContext('Diagnostics disabled via settings, skipping publish', { uri });
-      connection.sendDiagnostics({ uri, diagnostics: [] });
+      publish([]);
       return;
     }
 
@@ -537,8 +634,11 @@ async function validateDocument(document: TextDocument): Promise<void> {
       duration,
     });
 
-    connection.sendDiagnostics({ uri, diagnostics });
+    publish(diagnostics);
   } catch (error) {
+    if (!isCurrent()) {
+      return;
+    }
     // Clear cache entry on parse error
     parsedFileCache.delete(uri);
 
@@ -548,7 +648,7 @@ async function validateDocument(document: TextDocument): Promise<void> {
     });
 
     // Only send parse error as diagnostic if built-in diagnostics are enabled
-    if (globalSettings.protobuf.diagnostics.useBuiltIn !== false) {
+    if (globalSettings.protobuf.diagnostics.enabled && globalSettings.protobuf.diagnostics.useBuiltIn !== false) {
       const diagnostics: Diagnostic[] = [
         {
           severity: DiagnosticSeverity.Error,
@@ -561,26 +661,29 @@ async function validateDocument(document: TextDocument): Promise<void> {
           code: ERROR_CODES.PARSE_ERROR,
         },
       ];
-      connection.sendDiagnostics({ uri, diagnostics });
+      publish(diagnostics);
     } else {
       // Clear diagnostics when built-in is disabled
-      connection.sendDiagnostics({ uri, diagnostics: [] });
+      publish([]);
     }
   }
 }
 
 // Completion
 connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] => {
+  refreshPendingDocuments();
   return handleCompletion(params, documents, providers.completion);
 });
 
 // Hover
 connection.onHover((params: HoverParams) => {
+  refreshPendingDocuments();
   return handleHover(params, documents, providers.hover);
 });
 
 // Definition
 connection.onDefinition((params: DefinitionParams) => {
+  refreshPendingDocuments();
   return handleDefinition(
     params,
     documents,
@@ -593,16 +696,19 @@ connection.onDefinition((params: DefinitionParams) => {
 
 // References
 connection.onReferences((params: ReferenceParams) => {
+  refreshPendingDocuments();
   return handleReferences(params, documents, providers.references);
 });
 
 // Document Symbols
 connection.onDocumentSymbol((params: DocumentSymbolParams) => {
+  refreshPendingDocuments();
   return handleDocumentSymbols(params, providers.symbols);
 });
 
 // Workspace Symbols
 connection.onWorkspaceSymbol((params: WorkspaceSymbolParams) => {
+  refreshPendingDocuments();
   return handleWorkspaceSymbols(params, providers.symbols);
 });
 
@@ -618,6 +724,7 @@ connection.onDocumentLinks(params => {
 
 // Semantic Tokens
 connection.languages.semanticTokens.on(params => {
+  refreshPendingDocuments();
   const mode = globalSettings.protobuf?.semanticHighlighting?.enabled ?? 'textmate';
   return handleSemanticTokensFull(
     params,
@@ -629,6 +736,7 @@ connection.languages.semanticTokens.on(params => {
 
 // Inlay Hints
 connection.languages.inlayHint.on(params => {
+  refreshPendingDocuments();
   return handleInlayHints(params, documents, providers.parser);
 });
 
@@ -876,16 +984,19 @@ connection.onRequest(REQUEST_METHODS.GET_NEXT_FIELD_NUMBER, (params: { uri: stri
 
 // Rename - Prepare
 connection.onPrepareRename((params: PrepareRenameParams) => {
+  refreshPendingDocuments();
   return handlePrepareRename(params, documents, providers.rename);
 });
 
 // Rename - Execute
 connection.onRenameRequest((params: RenameParams) => {
+  refreshPendingDocuments();
   return handleRename(params, documents, providers.rename);
 });
 
 // Code Actions
 connection.onCodeAction((params: CodeActionParams): CodeAction[] => {
+  refreshPendingDocuments();
   return handleCodeActions(params, documents, providers.codeActions);
 });
 

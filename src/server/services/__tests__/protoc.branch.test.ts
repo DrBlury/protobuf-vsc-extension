@@ -217,7 +217,9 @@ describe('ProtocCompiler Branch Coverage', () => {
       const availablePromise = compiler.isAvailable();
       await flushPromisesAndTimers();
       await availablePromise;
-      expect(mockSpawn).toHaveBeenCalledWith('/path/to/protoc.sh', ['--version'], { shell: true });
+      expect(mockSpawn).toHaveBeenCalledWith('/path/to/protoc.sh', ['--version'], {
+        shell: process.platform === 'win32',
+      });
     });
 
     it('should detect batch file on Windows', async () => {
@@ -237,7 +239,7 @@ describe('ProtocCompiler Branch Coverage', () => {
       const availablePromise = compiler.isAvailable();
       await flushPromisesAndTimers();
       await availablePromise;
-      expect(mockSpawn).toHaveBeenCalledWith('protoc.bat', ['--version'], { shell: true });
+      expect(mockSpawn).toHaveBeenCalledWith('protoc.bat', ['--version'], { shell: process.platform === 'win32' });
     });
 
     it('should detect python script', async () => {
@@ -257,7 +259,9 @@ describe('ProtocCompiler Branch Coverage', () => {
       const availablePromise = compiler.isAvailable();
       await flushPromisesAndTimers();
       await availablePromise;
-      expect(mockSpawn).toHaveBeenCalledWith('/path/to/protoc.py', ['--version'], { shell: true });
+      expect(mockSpawn).toHaveBeenCalledWith('/path/to/protoc.py', ['--version'], {
+        shell: process.platform === 'win32',
+      });
     });
 
     it('should detect shebang in extensionless file', async () => {
@@ -287,7 +291,9 @@ describe('ProtocCompiler Branch Coverage', () => {
       const availablePromise = compiler.isAvailable();
       await flushPromisesAndTimers();
       await availablePromise;
-      expect(mockSpawn).toHaveBeenCalledWith('/path/to/protoc-wrapper', ['--version'], { shell: true });
+      expect(mockSpawn).toHaveBeenCalledWith('/path/to/protoc-wrapper', ['--version'], {
+        shell: process.platform === 'win32',
+      });
     });
 
     it('should not use shell for regular executable', async () => {
@@ -532,7 +538,7 @@ describe('ProtocCompiler Branch Coverage', () => {
       const args = mockSpawn.mock.calls[0][1] as string[];
       const goOutArg = args.find(arg => arg.startsWith('--go_out='));
       expect(goOutArg).toBeDefined();
-      expect(goOutArg).toMatch(/--go_out=".*Program Files \(x86\).*"/);
+      expect(goOutArg).toBe('--go_out=/path/Program Files (x86)/out');
     });
   });
 

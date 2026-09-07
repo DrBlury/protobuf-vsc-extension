@@ -25,6 +25,7 @@ export class DocumentationPanel {
   private disposables: vscode.Disposable[] = [];
   private isDisposed = false;
   private lastDocumentationData?: DocumentationData;
+  private loadVersion = 0;
 
   static createOrShow(extensionUri: vscode.Uri, client: LanguageClient, uri?: string): void {
     if (DocumentationPanel.currentPanel) {
@@ -113,6 +114,7 @@ export class DocumentationPanel {
   }
 
   private async loadDocumentation(): Promise<void> {
+    const loadVersion = ++this.loadVersion;
     if (this.isDisposed) {
       return;
     }
@@ -136,7 +138,7 @@ export class DocumentationPanel {
       });
 
       // Check again after async operation
-      if (this.isDisposed) {
+      if (this.isDisposed || this.loadVersion !== loadVersion) {
         return;
       }
 
@@ -145,11 +147,12 @@ export class DocumentationPanel {
         this.panel.title = `Docs: ${data.fileName}`;
         this.panel.webview.html = this.renderHtml(data);
       } else {
+        this.lastDocumentationData = undefined;
         this.panel.webview.html = this.renderNoFile();
       }
     } catch (error) {
       // Don't show error if panel was disposed during the request
-      if (this.isDisposed) {
+      if (this.isDisposed || this.loadVersion !== loadVersion) {
         return;
       }
       const message = error instanceof Error ? error.message : String(error);

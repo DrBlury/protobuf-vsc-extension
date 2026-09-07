@@ -9,6 +9,8 @@ export class PlaygroundManager {
   private readonly viewType = 'protobufPlayground';
   private outputChannel: vscode.OutputChannel;
   private grpcurlPath: string | undefined;
+  private serviceVersion = 0;
+  private requestVersion = 0;
 
   constructor(
     private context: vscode.ExtensionContext,
@@ -28,26 +30,22 @@ export class PlaygroundManager {
   /**
    * Get the grpcurl binary path from configuration or auto-detect.
    */
-  private async getGrpcurlPath(): Promise<string> {
+  private async getGrpcurlPath(resource?: vscode.Uri): Promise<string> {
+    const config = vscode.workspace.getConfiguration('protobuf.grpcurl', resource);
+    const configuredPath = config.get<string>('path');
+    if (configuredPath && configuredPath !== 'grpcurl') {
+      const root = resource && vscode.workspace.getWorkspaceFolder(resource)?.uri.fsPath;
+      return configuredPath
+        .replace(/\$\{workspaceFolder\}/g, root || '')
+        .replace(/\$\{env(?::|\.)([^}]+)\}/g, (_match, name: string) => process.env[name] || '');
+    }
     // Return cached path if available
     if (this.grpcurlPath) {
       return this.grpcurlPath;
     }
 
-    const config = vscode.workspace.getConfiguration('protobuf.grpcurl');
-    const configuredPath = config.get<string>('path');
     const ext = os.platform() === 'win32' ? '.exe' : '';
     const binaryName = 'grpcurl' + ext;
-
-    // 1. Check configured path
-    if (configuredPath && configuredPath !== 'grpcurl') {
-      if (await fileExists(configuredPath)) {
-        this.grpcurlPath = configuredPath;
-        this.outputChannel.appendLine(`Using configured grpcurl: ${configuredPath}`);
-        return configuredPath;
-      }
-      this.outputChannel.appendLine(`Configured grpcurl path not found: ${configuredPath}`);
-    }
 
     // 2. Check managed path (installed by extension)
     const managedPath = path.join(this.context.globalStorageUri.fsPath, 'bin', binaryName);
@@ -108,19 +106,35 @@ export class PlaygroundManager {
 
     this.panel = vscode.window.createWebviewPanel(this.viewType, 'Protobuf Playground', vscode.ViewColumn.Two, {
       enableScripts: true,
+      retainContextWhenHidden: true,
       localResourceRoots: [vscode.Uri.file(path.join(this.context.extensionPath, 'out'))],
     });
 
     this.panel.webview.html = this.getHtmlContent();
+    this.context.subscriptions.push(this.panel);
+    const activeEditor = vscode.window.activeTextEditor;
 
     this.panel.onDidDispose(() => {
       this.panel = undefined;
+      this.serviceVersion++;
+      this.requestVersion++;
     });
 
     this.panel.webview.onDidReceiveMessage(async message => {
+      if (!message || typeof message.command !== 'string') {
+        return;
+      }
       switch (message.command) {
+        case 'ready':
+          if (activeEditor?.document.languageId === 'proto') {
+            this.panel?.webview.postMessage({ command: 'setFile', file: activeEditor.document.uri.fsPath });
+            await this.listServices(activeEditor.document.uri.fsPath);
+          }
+          break;
         case 'runRequest':
-          await this.runRequest(message.data);
+          if (this.validateRequest(message.data, true)) {
+            await this.runRequest(message.data);
+          }
           break;
         case 'listServices':
           await this.listServices(message.file);
@@ -129,16 +143,47 @@ export class PlaygroundManager {
           await this.listServicesViaReflection(message.address);
           break;
         case 'runRequestViaReflection':
-          await this.runRequestViaReflection(message.data);
+          if (this.validateRequest(message.data, false)) {
+            await this.runRequestViaReflection(message.data);
+          }
           break;
       }
     });
+  }
 
-    // Initial data load if a file is active
-    const activeEditor = vscode.window.activeTextEditor;
-    if (activeEditor && activeEditor.document.languageId === 'proto') {
-      this.panel.webview.postMessage({ command: 'setFile', file: activeEditor.document.uri.fsPath });
-      this.listServices(activeEditor.document.uri.fsPath);
+  private getImportArgs(filePath: string): string[] {
+    const uri = vscode.Uri.file(filePath);
+    const root = vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath || path.dirname(filePath);
+    const includes = vscode.workspace.getConfiguration('protobuf', uri).get<string[]>('includes', []) || [];
+    const paths = new Set([path.dirname(filePath), root]);
+    for (const include of includes) {
+      paths.add(path.resolve(root, include.replace(/\$\{workspaceFolder\}/g, root)));
+    }
+    return [...paths].flatMap(include => ['-import-path', include]);
+  }
+
+  private validateRequest(data: unknown, needsFile: boolean): boolean {
+    try {
+      const request = data as Record<string, unknown> | undefined;
+      if (
+        !request ||
+        ['address', 'service', 'method'].some(
+          key => typeof request[key] !== 'string' || !request[key].trim() || request[key].startsWith('-')
+        )
+      ) {
+        throw new Error('Enter a server address, service, and method.');
+      }
+      if (needsFile && (typeof request.filePath !== 'string' || !request.filePath)) {
+        throw new Error('Open a .proto file before sending a request.');
+      }
+      if (typeof request.jsonBody !== 'string') {
+        throw new Error('Enter a JSON request body.');
+      }
+      JSON.parse(request.jsonBody);
+      return true;
+    } catch (error) {
+      this.panel?.webview.postMessage({ command: 'responseError', error: String(error) });
+      return false;
     }
   }
 
@@ -157,6 +202,7 @@ export class PlaygroundManager {
   }
 
   private async listServices(filePath: string) {
+    const reply = this.createReply('services');
     // Use grpcurl to list services if possible, or parse locally
     // For now, let's assume we can use grpcurl on the proto file
     // NOTE: This requires the proto file to be valid and imports resolvable by grpcurl
@@ -178,7 +224,7 @@ export class PlaygroundManager {
 
       if (action === 'Use Server Reflection') {
         // Update the webview to indicate server reflection mode
-        this.panel?.webview.postMessage({
+        reply({
           command: 'editionsWarning',
           message: 'Enter server address and use reflection to discover services',
           useReflection: true,
@@ -187,26 +233,21 @@ export class PlaygroundManager {
         vscode.env.openExternal(vscode.Uri.parse('https://github.com/fullstorydev/grpcurl/issues'));
       }
 
-      this.panel?.webview.postMessage({ command: 'error', message: errorMsg });
+      reply({ command: 'error', message: errorMsg });
       return;
     }
 
-    const config = vscode.workspace.getConfiguration('protobuf');
-    const includes = config.get<string[]>('includes') || [];
     const cwd = path.dirname(filePath);
 
-    const args = ['-import-path', cwd];
-    includes.forEach(inc => {
-      args.push('-import-path', inc);
-    });
+    const args = this.getImportArgs(filePath);
     args.push('-proto', filePath);
     args.push('list'); // List services
 
     try {
-      const grpcurlCmd = await this.getGrpcurlPath();
+      const grpcurlCmd = await this.getGrpcurlPath(vscode.Uri.file(filePath));
       const output = await this.runGrpcurl(grpcurlCmd, args, cwd);
       const services = output.split('\n').filter(s => s.trim().length > 0);
-      this.panel?.webview.postMessage({ command: 'servicesLoaded', services });
+      reply({ command: 'servicesLoaded', services });
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e);
       this.outputChannel.appendLine(`Failed to list services: ${errorMsg}`);
@@ -216,7 +257,7 @@ export class PlaygroundManager {
         const editionsErrorMsg =
           'grpcurl does not support Protobuf Editions syntax. ' +
           'Use server reflection by connecting to a running gRPC server, or convert to proto3 syntax.';
-        this.panel?.webview.postMessage({ command: 'error', message: editionsErrorMsg });
+        reply({ command: 'error', message: editionsErrorMsg });
 
         vscode.window
           .showWarningMessage(
@@ -225,7 +266,7 @@ export class PlaygroundManager {
           )
           .then(action => {
             if (action === 'Use Server Reflection') {
-              this.panel?.webview.postMessage({
+              reply({
                 command: 'editionsWarning',
                 message: 'Enter server address and use reflection to discover services',
                 useReflection: true,
@@ -251,7 +292,7 @@ export class PlaygroundManager {
       }
 
       // Send error to webview
-      this.panel?.webview.postMessage({ command: 'error', message: `Failed to list services: ${errorMsg}` });
+      reply({ command: 'error', message: `Failed to list services: ${errorMsg}` });
     }
   }
 
@@ -262,14 +303,10 @@ export class PlaygroundManager {
     jsonBody: string;
     filePath: string;
   }) {
-    const config = vscode.workspace.getConfiguration('protobuf');
-    const includes = config.get<string[]>('includes') || [];
+    const reply = this.createReply('request');
     const cwd = path.dirname(data.filePath);
 
-    const args = ['-import-path', cwd];
-    includes.forEach(inc => {
-      args.push('-import-path', inc);
-    });
+    const args = this.getImportArgs(data.filePath);
     args.push('-proto', data.filePath);
     args.push('-d', data.jsonBody);
     args.push('-plaintext'); // Assume plaintext for local dev, make configurable later
@@ -277,10 +314,10 @@ export class PlaygroundManager {
     args.push(`${data.service}/${data.method}`);
 
     try {
-      const grpcurlCmd = await this.getGrpcurlPath();
+      const grpcurlCmd = await this.getGrpcurlPath(vscode.Uri.file(data.filePath));
       this.outputChannel.appendLine(`Running: ${grpcurlCmd} ${args.join(' ')}`);
       const output = await this.runGrpcurl(grpcurlCmd, args, cwd);
-      this.panel?.webview.postMessage({ command: 'response', output });
+      reply({ command: 'response', output });
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e);
       // Check if grpcurl is not installed and provide helpful message
@@ -296,7 +333,7 @@ export class PlaygroundManager {
             }
           });
       }
-      this.panel?.webview.postMessage({ command: 'responseError', error: errorMsg });
+      reply({ command: 'responseError', error: errorMsg });
     }
   }
 
@@ -304,6 +341,7 @@ export class PlaygroundManager {
    * List services using server reflection (no proto file needed)
    */
   private async listServicesViaReflection(address: string) {
+    const reply = this.createReply('services');
     const args = ['-plaintext', address, 'list'];
 
     try {
@@ -311,24 +349,24 @@ export class PlaygroundManager {
       this.outputChannel.appendLine(`Listing services via reflection: ${grpcurlCmd} ${args.join(' ')}`);
       const output = await this.runGrpcurl(grpcurlCmd, args, process.cwd());
       const services = output.split('\n').filter(s => s.trim().length > 0 && !s.startsWith('grpc.'));
-      this.panel?.webview.postMessage({ command: 'servicesLoaded', services });
+      reply({ command: 'servicesLoaded', services });
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e);
       this.outputChannel.appendLine(`Failed to list services via reflection: ${errorMsg}`);
 
       if (errorMsg.includes('reflection') || errorMsg.includes('Unimplemented')) {
-        this.panel?.webview.postMessage({
+        reply({
           command: 'error',
           message:
             'Server reflection is not enabled on the target server. Enable reflection in your gRPC server configuration.',
         });
       } else if (errorMsg.includes('connection refused') || errorMsg.includes('dial tcp')) {
-        this.panel?.webview.postMessage({
+        reply({
           command: 'error',
           message: `Cannot connect to ${address}. Make sure the gRPC server is running.`,
         });
       } else {
-        this.panel?.webview.postMessage({ command: 'error', message: `Failed to list services: ${errorMsg}` });
+        reply({ command: 'error', message: `Failed to list services: ${errorMsg}` });
       }
     }
   }
@@ -337,17 +375,29 @@ export class PlaygroundManager {
    * Run a gRPC request using server reflection (no proto file needed)
    */
   private async runRequestViaReflection(data: { service: string; method: string; address: string; jsonBody: string }) {
+    const reply = this.createReply('request');
     const args = ['-plaintext', '-d', data.jsonBody, data.address, `${data.service}/${data.method}`];
 
     try {
       const grpcurlCmd = await this.getGrpcurlPath();
       this.outputChannel.appendLine(`Running via reflection: ${grpcurlCmd} ${args.join(' ')}`);
       const output = await this.runGrpcurl(grpcurlCmd, args, process.cwd());
-      this.panel?.webview.postMessage({ command: 'response', output });
+      reply({ command: 'response', output });
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e);
-      this.panel?.webview.postMessage({ command: 'responseError', error: errorMsg });
+      reply({ command: 'responseError', error: errorMsg });
     }
+  }
+
+  private createReply(kind: 'services' | 'request'): (message: unknown) => void {
+    const panel = this.panel;
+    const version = kind === 'services' ? ++this.serviceVersion : ++this.requestVersion;
+    return message => {
+      const currentVersion = kind === 'services' ? this.serviceVersion : this.requestVersion;
+      if (panel && panel === this.panel && version === currentVersion) {
+        void panel.webview.postMessage(message);
+      }
+    };
   }
 
   private runGrpcurl(grpcurlCmd: string, args: string[], cwd: string): Promise<string> {
@@ -557,6 +607,7 @@ export class PlaygroundManager {
                     });
                 }
             });
+            vscode.postMessage({ command: 'ready' });
         </script>
     </body>
     </html>`;

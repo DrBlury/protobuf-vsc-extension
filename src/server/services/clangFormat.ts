@@ -7,6 +7,7 @@ import type { SpawnOptions } from 'child_process';
 import { spawn } from 'child_process';
 import type { TextEdit, Range } from 'vscode-languageserver/node';
 import * as path from 'path';
+import { URI } from 'vscode-uri';
 import { logger } from '../utils/logger';
 
 /**
@@ -150,15 +151,14 @@ export class ClangFormatProvider {
       return null;
     }
 
-    // Detect if the text uses CRLF line endings
-    const usesCRLF = text.includes('\r\n');
-    const newlineLength = usesCRLF ? 2 : 1;
+    // Keep each line's original CR so mixed LF/CRLF documents retain exact byte offsets.
+    const offsetLines = text.split('\n');
 
     const lines = splitLines(text);
 
     // clang-format expects UTF-8 byte offsets. LSP positions are UTF-16 code units.
-    const offset = toUtf8Offset(lines, range.start.line, range.start.character, newlineLength);
-    const endOffset = toUtf8Offset(lines, range.end.line, range.end.character, newlineLength);
+    const offset = toUtf8Offset(offsetLines, range.start.line, range.start.character, 1);
+    const endOffset = toUtf8Offset(offsetLines, range.end.line, range.end.character, 1);
     const length = Math.max(0, endOffset - offset);
 
     const formatted = await this.runClangFormat(text, filePath, offset, length);
@@ -190,6 +190,7 @@ export class ClangFormatProvider {
   ): Promise<string | null> {
     return new Promise(resolve => {
       const args: string[] = [];
+      const actualPath = filePath?.startsWith('file:') ? URI.parse(filePath).fsPath : filePath;
 
       // Add style option
       if (this.settings.style) {
@@ -208,7 +209,7 @@ export class ClangFormatProvider {
 
       // Add assume filename for language detection
       if (filePath) {
-        args.push(`--assume-filename=${filePath}`);
+        args.push(`--assume-filename=${actualPath}`);
       } else {
         args.push('--assume-filename=file.proto');
       }
@@ -221,19 +222,7 @@ export class ClangFormatProvider {
 
       // Set working directory to the file's directory so clang-format can find .clang-format config
       // clang-format searches for config files starting from the working directory when reading from stdin
-      let cwd: string | undefined;
-      if (filePath) {
-        // Handle both file:// URIs and regular paths
-        let actualPath = filePath;
-        if (filePath.startsWith('file://')) {
-          actualPath = filePath.replace('file://', '');
-          // Handle Windows paths like file:///C:/...
-          if (actualPath.match(/^\/[A-Za-z]:\//)) {
-            actualPath = actualPath.substring(1);
-          }
-        }
-        cwd = path.dirname(actualPath);
-      }
+      const cwd = actualPath ? path.dirname(actualPath) : undefined;
 
       const spawnOptions: SpawnOptions = {};
       if (cwd) {
@@ -304,6 +293,9 @@ export class ClangFormatProvider {
         logger.warn(`Failed to run clang-format at "${this.settings.path}": ${err.message}`);
         resolve(null);
       });
+
+      // A formatter may exit before consuming stdin (for example after a config error).
+      proc.stdin?.on('error', () => resolve(null));
 
       // Write input to stdin with explicit UTF-8 encoding
       proc.stdin?.write(text, 'utf8');

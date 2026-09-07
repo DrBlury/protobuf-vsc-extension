@@ -17,15 +17,23 @@ export interface ProtovalidateRule {
 export class ProtovalidatePlaygroundManager {
   private panel: vscode.WebviewPanel | undefined;
   private readonly viewType = 'protovalidatePlayground';
+  private pendingRule: ProtovalidateRule | undefined;
+  private ready = false;
 
-  constructor(_context: vscode.ExtensionContext, _outputChannel: vscode.OutputChannel) {
-    // Context and output channel reserved for future use
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    _outputChannel: vscode.OutputChannel
+  ) {
+    // Output channel reserved for future use
   }
 
   public openPlayground(rule?: ProtovalidateRule) {
+    if (rule) {
+      this.pendingRule = rule;
+    }
     if (this.panel) {
       this.panel.reveal(vscode.ViewColumn.Two);
-      if (rule) {
+      if (rule && this.ready) {
         this.panel.webview.postMessage({ command: 'setRule', rule });
       }
       return;
@@ -37,13 +45,22 @@ export class ProtovalidatePlaygroundManager {
     });
 
     this.panel.webview.html = this.getHtmlContent();
+    this.context.subscriptions.push(this.panel);
 
     this.panel.onDidDispose(() => {
       this.panel = undefined;
+      this.ready = false;
+      this.pendingRule = undefined;
     });
 
     this.panel.webview.onDidReceiveMessage(async message => {
       switch (message.command) {
+        case 'ready':
+          this.ready = true;
+          if (this.pendingRule) {
+            this.panel?.webview.postMessage({ command: 'setRule', rule: this.pendingRule });
+          }
+          break;
         case 'validateData':
           await this.validateData(message.data);
           break;
@@ -59,14 +76,6 @@ export class ProtovalidatePlaygroundManager {
           break;
       }
     });
-
-    // Send initial rule if provided
-    if (rule) {
-      // Small delay to ensure webview is ready
-      setTimeout(() => {
-        this.panel?.webview.postMessage({ command: 'setRule', rule });
-      }, 100);
-    }
   }
 
   private async validateData(data: { rule: ProtovalidateRule; jsonValue: string }) {
@@ -94,7 +103,7 @@ export class ProtovalidatePlaygroundManager {
     rule: ProtovalidateRule,
     value: unknown
   ): { valid: boolean; error?: string; info?: string } {
-    const ruleText = rule.ruleText.toLowerCase();
+    const ruleText = rule.ruleText;
 
     // String validations
     if (typeof value === 'string') {
@@ -546,6 +555,7 @@ export class ProtovalidatePlaygroundManager {
                     jsonInput.value = chip.dataset.value;
                 });
             });
+            vscode.postMessage({ command: 'ready' });
         </script>
     </body>
     </html>`;

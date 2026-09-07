@@ -1,3 +1,4 @@
+import { addBufDependencies } from './bufDependencies';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { spawn } from 'child_process';
@@ -21,7 +22,7 @@ export class RegistryManager {
     }
 
     const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders) {
+    if (!workspaceFolders?.length) {
       vscode.window.showErrorMessage('No workspace open');
       return;
     }
@@ -29,40 +30,21 @@ export class RegistryManager {
     const rootPath = workspaceFolders[0]!.uri.fsPath;
     const bufYamlPath = path.join(rootPath, 'buf.yaml');
 
-    if (!(await fileExists(bufYamlPath))) {
-      const create = await vscode.window.showInformationMessage('buf.yaml not found. Create one?', 'Yes', 'No');
-      if (create === 'Yes') {
-        await this.runBufCommand(['mod', 'init'], rootPath);
-      } else {
-        return;
-      }
-    }
-
     // Add dependency
     // We can try `buf dep update` but that updates deps, doesn't add them.
     // We need to edit buf.yaml.
     try {
-      const content = await readFile(bufYamlPath);
-      // Simple regex-based insertion if we don't want to depend on a yaml parser library
-      // Look for 'deps:'
-      let newContent = content;
-      if (content.includes('deps:')) {
-        if (!content.includes(moduleName)) {
-          newContent = content.replace(/deps:\s*\n/, `deps:\n  - ${moduleName}\n`);
-          // If regex didn't match (e.g. deps: []), handle that?
-          if (newContent === content) {
-            // Try simpler append or just use string search
-            const lines = content.split('\n');
-            const depsIndex = lines.findIndex(l => l.trim().startsWith('deps:'));
-            if (depsIndex !== -1) {
-              lines.splice(depsIndex + 1, 0, `  - ${moduleName}`);
-              newContent = lines.join('\n');
-            }
-          }
+      if (!(await fileExists(bufYamlPath))) {
+        const create = await vscode.window.showInformationMessage('buf.yaml not found. Create one?', 'Yes', 'No');
+        if (create === 'Yes') {
+          await this.runBufCommand(['mod', 'init'], rootPath);
+        } else {
+          return;
         }
-      } else {
-        newContent = content + `\ndeps:\n  - ${moduleName}\n`;
       }
+
+      const content = await readFile(bufYamlPath);
+      const newContent = addBufDependencies(content, [moduleName]);
 
       await writeFile(bufYamlPath, newContent);
       this.outputChannel.appendLine(`Added ${moduleName} to buf.yaml`);

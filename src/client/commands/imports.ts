@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { CodeActionKind } from 'vscode-languageclient/node';
 import { REQUEST_METHODS, VALIDATION_MESSAGES, ERROR_MESSAGES } from '../../server/utils/constants';
+import { isDocumentUnchanged } from '../utils/textEditHelpers';
 
 interface ImportInfo {
   importPath: string;
@@ -39,6 +40,7 @@ function registerOrganizeImportsCommand(_context: vscode.ExtensionContext, _clie
     }
 
     try {
+      const version = editor.document.version;
       // Use VS Code's built-in mechanism to trigger source.organizeImports code action
       const codeActions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
         'vscode.executeCodeActionProvider',
@@ -46,6 +48,9 @@ function registerOrganizeImportsCommand(_context: vscode.ExtensionContext, _clie
         new vscode.Range(0, 0, editor.document.lineCount, 0),
         CodeActionKind.SourceOrganizeImports
       );
+      if (!isDocumentUnchanged(editor.document, version)) {
+        return;
+      }
 
       if (!codeActions || codeActions.length === 0) {
         vscode.window.showInformationMessage('Imports are already organized.');
@@ -58,8 +63,11 @@ function registerOrganizeImportsCommand(_context: vscode.ExtensionContext, _clie
       );
 
       if (organizeAction?.edit) {
-        await vscode.workspace.applyEdit(organizeAction.edit);
-        vscode.window.showInformationMessage('Imports organized successfully.');
+        if (await vscode.workspace.applyEdit(organizeAction.edit)) {
+          vscode.window.showInformationMessage('Imports organized successfully.');
+        } else {
+          vscode.window.showErrorMessage('Could not apply import changes. Run the command again.');
+        }
       } else {
         vscode.window.showInformationMessage('Imports are already organized.');
       }

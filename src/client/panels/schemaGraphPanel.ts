@@ -14,6 +14,8 @@ import type { SchemaGraph, SchemaGraphRequest, SchemaGraphScope } from '../../sh
  * - Orphan node detection
  */
 export class SchemaGraphPanel {
+  private loadVersion = 0;
+  private isDisposed = false;
   private static currentPanel: SchemaGraphPanel | undefined;
 
   private readonly panel: vscode.WebviewPanel;
@@ -56,6 +58,7 @@ export class SchemaGraphPanel {
     this.currentScope = scope;
 
     this.panel.onDidDispose(() => {
+      this.isDisposed = true;
       SchemaGraphPanel.currentPanel = undefined;
     });
 
@@ -85,11 +88,15 @@ export class SchemaGraphPanel {
   }
 
   private async loadGraph(initial: boolean): Promise<void> {
+    const loadVersion = ++this.loadVersion;
     try {
       const graph = await this.client.sendRequest<SchemaGraph>('protobuf/getSchemaGraph', {
         uri: this.sourceUri,
         scope: this.currentScope,
       });
+      if (this.isDisposed || this.loadVersion !== loadVersion) {
+        return;
+      }
 
       if (!this.initialized || initial) {
         this.panel.webview.html = this.renderHtml(graph);
@@ -98,6 +105,9 @@ export class SchemaGraphPanel {
         void this.panel.webview.postMessage({ type: 'graph-data', payload: graph });
       }
     } catch (error) {
+      if (this.isDisposed || this.loadVersion !== loadVersion) {
+        return;
+      }
       const message = error instanceof Error ? error.message : String(error);
       void this.panel.webview.postMessage({ type: 'graph-error', message });
       void vscode.window.showErrorMessage(`Failed to load protobuf schema graph: ${message}`);
@@ -175,7 +185,7 @@ export class SchemaGraphPanel {
       `script-src 'nonce-${nonce}' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com`,
     ].join('; ');
 
-    const initialData = JSON.stringify(graph);
+    const initialData = JSON.stringify(graph).replace(/</g, '\\u003c');
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -479,7 +489,7 @@ export class SchemaGraphPanel {
     <script nonce="${nonce}" src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script nonce="${nonce}">
       const vscode = acquireVsCodeApi();
-      let sourceUri = ${JSON.stringify(graph.sourceUri || '')};
+      let sourceUri = ${JSON.stringify(graph.sourceUri || '').replace(/</g, '\\u003c')};
       const scopeSelect = document.getElementById('scope');
       const refreshBtn = document.getElementById('refresh');
       const status = document.getElementById('status');
@@ -718,10 +728,8 @@ export class SchemaGraphPanel {
         const previousPackage = selectedPackage;
         const previousFile = selectedFile;
 
-        filterPackage.innerHTML = '<option value="">All Packages</option>' + 
-          packages.map(p => '<option value="' + p + '">' + p + '</option>').join('');
-        filterFile.innerHTML = '<option value="">All Files</option>' + 
-          files.map(f => '<option value="' + f + '">' + f + '</option>').join('');
+        filterPackage.replaceChildren(new Option('All Packages', ''), ...packages.map(p => new Option(p, p)));
+        filterFile.replaceChildren(new Option('All Files', ''), ...files.map(f => new Option(f, f)));
 
         if (previousPackage && packages.includes(previousPackage)) {
           filterPackage.value = previousPackage;

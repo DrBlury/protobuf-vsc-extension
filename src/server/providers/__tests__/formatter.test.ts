@@ -478,19 +478,13 @@ message DemoMessage2 {
       expect(formatted).not.toMatch(/\/\/ wow!!!;/);
     });
 
-    it('should clean up multiple semicolons', async () => {
+    it('preserves enum values, empty statements, and comments', async () => {
       formatter.updateSettings({ renumberOnFormat: true });
       const text = `enum Status {
   ACTIVE = 1 ;;;;;// wow!!!
 }`;
       const result = await formatter.formatDocument(text);
-      const formatted = result[0].newText;
-      // Should have exactly one semicolon before the comment
-      expect(formatted).toMatch(/ACTIVE = 1;\s*\/\/ wow!!!/);
-      // Should NOT have multiple semicolons
-      expect(formatted).not.toMatch(/;;;;;/);
-      // Should NOT have semicolon after the comment
-      expect(formatted).not.toMatch(/\/\/ wow!!!;/);
+      expect(result[0].newText).toContain('ACTIVE = 1 ;;;;;// wow!!!');
     });
 
     it('should actually renumber fields with gaps, not preserve them', async () => {

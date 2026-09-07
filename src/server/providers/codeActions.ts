@@ -4,8 +4,10 @@
  */
 
 import type { CodeAction, Diagnostic, Range, TextEdit, Position } from 'vscode-languageserver/node';
+import { sourceTokens } from './sourceTokens';
+import { MigrationProvider } from './migration';
 import { CodeActionKind } from 'vscode-languageserver/node';
-import type { ProtoFile } from '../core/ast';
+import type { ProtoFile, MessageDefinition } from '../core/ast';
 import type { SemanticAnalyzer } from '../core/analyzer';
 import type { RenumberProvider } from './renumber';
 import { FIELD_NUMBER } from '../utils/constants';
@@ -1319,7 +1321,7 @@ export class CodeActionsProvider {
         actions.push({
           title: 'Convert message to proto3 style',
           kind: CodeActionKind.RefactorRewrite,
-          edit: this.createProto3ConversionEdit(uri, documentText, messageMatch[2]),
+          edit: this.createProto3ConversionEdit(uri, documentText, messageMatch[2], range.start.line),
         });
       }
     }
@@ -1984,75 +1986,31 @@ export class CodeActionsProvider {
   private createProto3ConversionEdit(
     uri: string,
     documentText: string,
-    messageName: string
+    messageName: string,
+    declarationLine?: number
   ): { changes: { [uri: string]: TextEdit[] } } | undefined {
-    const lines = splitLines(documentText);
-    const edits: TextEdit[] = [];
-    let inMessage = false;
-    let braceDepth = 0;
-    let messageStartLine = -1;
-
-    // Find the message
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-      if (line.includes(`message ${messageName}`)) {
-        messageStartLine = i;
-        inMessage = true;
-        braceDepth = 0;
-      }
-
-      if (inMessage) {
-        for (const char of line) {
-          if (char === '{') {
-            braceDepth++;
-          }
-          if (char === '}') {
-            braceDepth--;
-          }
+    const file = this.analyzer.getFile(uri);
+    const findMessage = (messages: MessageDefinition[]): MessageDefinition | undefined => {
+      for (const message of messages) {
+        if (
+          message.name === messageName &&
+          (declarationLine === undefined || message.nameRange.start.line === declarationLine)
+        ) {
+          return message;
         }
-
-        // Remove 'required' modifiers
-        if (line.includes('required')) {
-          const newLine = line.replace(/\brequired\s+/, '');
-          edits.push({
-            range: {
-              start: { line: i, character: 0 },
-              end: { line: i, character: line.length },
-            },
-            newText: newLine,
-          });
-        }
-
-        // Remove default values (proto3 doesn't support them)
-        if (line.includes('=') && line.includes('[') === false) {
-          const defaultMatch = line.match(/=\s*(\d+)\s*\[default\s*=/);
-          if (defaultMatch) {
-            const newLine = line.replace(/\s*\[default\s*=[^\]]+\]/, '');
-            edits.push({
-              range: {
-                start: { line: i, character: 0 },
-                end: { line: i, character: line.length },
-              },
-              newText: newLine,
-            });
-          }
-        }
-
-        if (braceDepth === 0 && i > messageStartLine) {
-          break;
+        const nested = findMessage(message.nestedMessages);
+        if (nested) {
+          return nested;
         }
       }
-    }
-
-    if (edits.length === 0) {
+      return undefined;
+    };
+    const message = findMessage(file?.messages || []);
+    if (!message) {
       return undefined;
     }
-
-    return {
-      changes: {
-        [uri]: edits,
-      },
-    };
+    const edits = new MigrationProvider().convertFieldsToProto3([message], documentText);
+    return edits.length ? { changes: { [uri]: edits } } : undefined;
   }
 
   /**
@@ -2105,54 +2063,54 @@ export class CodeActionsProvider {
       return null;
     }
 
-    const lines = splitLines(documentText);
-    const importLines: { line: number; text: string; modifier?: string; path?: string }[] = [];
-    const otherLines: { line: number; text: string }[] = [];
-    let inImportsSection = false;
-    let lastImportLine = -1;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-      const trimmed = line.trim();
-
-      if (trimmed.startsWith('import')) {
-        inImportsSection = true;
-        lastImportLine = i;
-        const match = trimmed.match(/import\s+(?:weak|public)?\s*"([^"]+)"/);
-        if (match) {
-          const modifierMatch = trimmed.match(/import\s+(weak|public)/);
-          importLines.push({
-            line: i,
-            text: line,
-            modifier: modifierMatch ? modifierMatch[1] : undefined,
-            path: match[1],
-          });
-        }
-      } else if (
-        trimmed &&
-        (trimmed.startsWith('syntax') || trimmed.startsWith('package') || trimmed.startsWith('option'))
-      ) {
-        if (inImportsSection && lastImportLine >= 0) {
-          // End of imports section
-          break;
-        }
-        otherLines.push({ line: i, text: line });
-      } else if (
-        trimmed &&
-        (trimmed.startsWith('message') || trimmed.startsWith('enum') || trimmed.startsWith('service'))
-      ) {
-        if (inImportsSection && lastImportLine >= 0) {
-          // End of imports section
-          break;
-        }
-        otherLines.push({ line: i, text: line });
-      } else if (inImportsSection && trimmed && !trimmed.startsWith('//')) {
-        // End of imports section
-        break;
+    const tokens = sourceTokens(documentText).filter(token => token.kind !== 'comment');
+    const importLines: { text: string; modifier?: string; path: string; start: number; end: number }[] = [];
+    let depth = 0;
+    for (let index = 0; index < tokens.length; index++) {
+      const token = tokens[index]!;
+      if (token.kind !== 'code') {
+        continue;
       }
+      if (token.text === '{') {
+        depth++;
+      }
+      if (token.text === '}') {
+        depth--;
+      }
+      if (depth !== 0 || token.text !== 'import') {
+        if (importLines.length) {
+          break;
+        }
+        continue;
+      }
+      const previous = importLines[importLines.length - 1];
+      let next = index + 1;
+      const modifier = ['public', 'weak'].includes(tokens[next]?.text || '') ? tokens[next++]!.text : undefined;
+      const pathToken = tokens[next++];
+      const semicolon = tokens[next];
+      if (pathToken?.kind !== 'string' || semicolon?.text !== ';') {
+        return null;
+      }
+      let end = semicolon.end;
+      // Keep trailing comments attached to their import, including at EOF.
+      const newline = documentText.indexOf('\n', end);
+      const lineEnd = newline < 0 ? documentText.length : newline;
+      const remainder = documentText.slice(end, lineEnd);
+      const trailing = sourceTokens(remainder);
+      if (trailing.length && trailing.every(item => item.kind === 'comment')) {
+        end = lineEnd;
+      }
+      const start = previous ? previous.end : token.start;
+      importLines.push({
+        text: documentText.slice(start, end).trim(),
+        modifier,
+        path: pathToken.text.slice(1, -1),
+        start,
+        end,
+      });
+      index = next;
     }
-
-    if (importLines.length === 0) {
+    if (!importLines.length) {
       return null;
     }
 
@@ -2163,6 +2121,13 @@ export class CodeActionsProvider {
         const key = `${imp.modifier || ''}:${imp.path}`;
         if (!uniqueImports.has(key)) {
           uniqueImports.set(key, { text: imp.text, modifier: imp.modifier, path: imp.path });
+        } else {
+          const comments = sourceTokens(imp.text)
+            .filter(token => token.kind === 'comment')
+            .map(token => token.text);
+          if (comments.length) {
+            uniqueImports.get(key)!.text += '\n' + comments.join('\n');
+          }
         }
       }
     }
@@ -2219,47 +2184,23 @@ export class CodeActionsProvider {
       formattedImports = sortedImports.map(i => i.text.trim()).join('\n');
     }
 
-    // Check if anything changed by comparing the actual text in the imports section
-    // We need to get the original text including blank lines between imports
-    const firstImportLine = importLines[0]!.line;
-    const lastImportLineNum = importLines[importLines.length - 1]!.line;
-    const originalSection = lines.slice(firstImportLine, lastImportLineNum + 1).join('\n');
-
-    // Normalize both for comparison (remove trailing whitespace from each line)
-    const normalizedOriginal = originalSection
-      .split('\n')
-      .map(l => l.trimEnd())
-      .join('\n');
-    const normalizedFormatted = formattedImports
-      .split('\n')
-      .map(l => l.trimEnd())
-      .join('\n');
-
-    if (normalizedOriginal === normalizedFormatted) {
+    const first = importLines[0]!;
+    const last = importLines[importLines.length - 1]!;
+    const originalSection = documentText.slice(first.start, last.end);
+    if (originalSection === formattedImports) {
       return null;
     }
-
-    // Create edits
-    const edits: TextEdit[] = [];
-
-    // Remove old imports (as a single range to handle blank lines between them)
-    edits.push({
-      range: {
-        start: { line: firstImportLine, character: 0 },
-        end: { line: lastImportLineNum + 1, character: 0 },
+    const positionAt = (offset: number): Position => {
+      const prefix = documentText.slice(0, offset).split('\n');
+      return { line: prefix.length - 1, character: prefix[prefix.length - 1]!.length };
+    };
+    // One replacement avoids overlapping delete/insert edits and preserves inline neighbors.
+    const edits: TextEdit[] = [
+      {
+        range: { start: positionAt(first.start), end: positionAt(last.end) },
+        newText: formattedImports,
       },
-      newText: '',
-    });
-
-    // Add sorted imports
-    const insertPosition = { line: firstImportLine, character: 0 };
-    edits.push({
-      range: {
-        start: insertPosition,
-        end: insertPosition,
-      },
-      newText: formattedImports + '\n',
-    });
+    ];
 
     return {
       title: 'Organize imports (sort, dedupe, and group)',

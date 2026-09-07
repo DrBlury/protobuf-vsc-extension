@@ -102,58 +102,7 @@ export class DefinitionProvider {
     packageName: string,
     currentContext?: string
   ): { location: Location } | undefined {
-    // 1. If we're inside a message, try resolving relative to that message first
-    // This is crucial for resolving nested types correctly (e.g., B.Flags vs A.Flags)
-    if (currentContext) {
-      const symbol = this.analyzer.resolveType(typeName, uri, currentContext);
-      if (symbol) {
-        return symbol;
-      }
-    }
-
-    // 2. Try exact match using the analyzer's resolveType with package prefix
-    let symbol = this.analyzer.resolveType(typeName, uri, packageName);
-    if (symbol) {
-      return symbol;
-    }
-
-    // 3. For fully qualified names starting with a dot, strip the dot and try again
-    if (typeName.startsWith('.')) {
-      const strippedName = typeName.substring(1);
-      symbol = this.analyzer.resolveType(strippedName, uri, packageName);
-      if (symbol) {
-        return symbol;
-      }
-    }
-
-    // 4. Try to resolve by searching all accessible symbols
-    const allSymbols = this.analyzer.getAccessibleSymbols(uri);
-
-    // Try simple name match
-    for (const sym of allSymbols) {
-      if (sym.name === typeName) {
-        return sym;
-      }
-    }
-
-    // Try suffix match for qualified names (handles both "pkg.Type" and "Type" queries)
-    for (const sym of allSymbols) {
-      if (sym.fullName.endsWith(`.${typeName}`) || sym.fullName === typeName) {
-        return sym;
-      }
-    }
-
-    // 5. Handle the case where typeName might be a partial qualified name
-    // e.g., "v1.Date" when the full name is "domain.v1.Date"
-    if (typeName.includes('.')) {
-      for (const sym of allSymbols) {
-        if (sym.fullName.includes(`.${typeName}`)) {
-          return sym;
-        }
-      }
-    }
-
-    return undefined;
+    return this.analyzer.resolveType(typeName, uri, currentContext ?? packageName);
   }
 
   /**
@@ -199,7 +148,7 @@ export class DefinitionProvider {
     }
 
     const fullPath = [...parsedOption.suffixPath, wordInfo.word];
-    const fieldSymbol = this.resolveMessageFieldPath(uri, extensionType, fullPath);
+    const fieldSymbol = this.resolveMessageFieldPath(extensionType, fullPath);
     return fieldSymbol?.location ?? null;
   }
 
@@ -326,31 +275,10 @@ export class DefinitionProvider {
   }
 
   private collectAccessibleFileUris(startUri: string): string[] {
-    const visited = new Set<string>();
-    const stack = [startUri];
-
-    while (stack.length > 0) {
-      const current = stack.pop()!;
-      if (visited.has(current)) {
-        continue;
-      }
-      visited.add(current);
-
-      for (const importedUri of this.analyzer.getImportedFileUris(current)) {
-        if (!visited.has(importedUri)) {
-          stack.push(importedUri);
-        }
-      }
-    }
-
-    return Array.from(visited);
+    return this.analyzer.getVisibleFileUris(startUri);
   }
 
-  private resolveMessageFieldPath(
-    currentUri: string,
-    rootMessage: SymbolInfo,
-    pathSegments: string[]
-  ): SymbolInfo | null {
+  private resolveMessageFieldPath(rootMessage: SymbolInfo, pathSegments: string[]): SymbolInfo | null {
     if (pathSegments.length === 0) {
       return null;
     }
@@ -358,7 +286,7 @@ export class DefinitionProvider {
     let currentMessage = rootMessage;
     for (let i = 0; i < pathSegments.length; i++) {
       const segment = pathSegments[i]!;
-      const fieldSymbol = this.findFieldSymbol(currentUri, currentMessage.fullName, segment);
+      const fieldSymbol = this.findFieldSymbol(currentMessage.location.uri, currentMessage.fullName, segment);
       if (!fieldSymbol) {
         return null;
       }
@@ -367,7 +295,7 @@ export class DefinitionProvider {
         return fieldSymbol;
       }
 
-      const fieldType = this.getMessageFieldType(currentMessage.fullName, segment);
+      const fieldType = this.getMessageFieldType(currentMessage.fullName, segment, currentMessage.location.uri);
       if (!fieldType) {
         return null;
       }
@@ -394,8 +322,8 @@ export class DefinitionProvider {
     return null;
   }
 
-  private getMessageFieldType(messageFullName: string, fieldName: string): string | undefined {
-    const messageDefinition = this.analyzer.getMessageDefinition(messageFullName);
+  private getMessageFieldType(messageFullName: string, fieldName: string, uri: string): string | undefined {
+    const messageDefinition = this.analyzer.getMessageDefinition(messageFullName, uri);
     if (!messageDefinition) {
       return undefined;
     }

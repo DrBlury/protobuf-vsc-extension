@@ -307,7 +307,7 @@ export class CompletionProvider {
 
       // Determine whether to use short name or fully qualified name
       // Check if the short name can be resolved from the current context
-      const insertText = this.getInsertTextForType(symbol, currentPackage);
+      const insertText = this.getInsertTextForType(symbol, currentPackage, uri, position);
 
       completions.push({
         label: symbol.name,
@@ -330,28 +330,34 @@ export class CompletionProvider {
    * otherwise returns the fully qualified name.
    * For nested types in the same package, returns the parent-qualified name (e.g., "Outer.Inner").
    */
-  private getInsertTextForType(symbol: SymbolInfo, currentPackage: string): string {
-    // Get the package of the file where the symbol is defined
-    const symbolFile = this.analyzer.getFile(symbol.location.uri);
-    const symbolPackage = symbolFile?.package?.name || '';
-
-    // If both have no package (empty string), short name is fine
-    if (!symbolPackage && !currentPackage) {
-      return symbol.name;
-    }
-
-    // If the symbol is in the same package
-    if (symbolPackage === currentPackage) {
-      // For nested types (e.g., "test.Outer.Inner" with package "test"),
-      // return the relative path from the package: "Outer.Inner"
-      if (currentPackage && symbol.fullName.startsWith(currentPackage + '.')) {
-        return symbol.fullName.substring(currentPackage.length + 1);
+  private getInsertTextForType(symbol: SymbolInfo, currentPackage: string, uri: string, position: Position): string {
+    const symbolPackage = this.analyzer.getFile(symbol.location.uri)?.package?.name || '';
+    const candidate =
+      symbolPackage === currentPackage && currentPackage
+        ? symbol.fullName.slice(currentPackage.length + 1)
+        : symbol.fullName;
+    let scope = currentPackage;
+    const visit = (messages: MessageDefinition[], parent: string): void => {
+      for (const message of messages) {
+        const { start, end } = message.range;
+        if (
+          (position.line > start.line || (position.line === start.line && position.character >= start.character)) &&
+          (position.line < end.line || (position.line === end.line && position.character <= end.character))
+        ) {
+          scope = parent ? `${parent}.${message.name}` : message.name;
+          visit(message.nestedMessages, scope);
+          return;
+        }
       }
-      return symbol.name;
+    };
+    visit(this.analyzer.getFile(uri)?.messages ?? [], currentPackage);
+    if (this.analyzer.getVisibleFileUris(uri).includes(symbol.location.uri)) {
+      const resolved = this.analyzer.resolveType(candidate, uri, scope);
+      if (resolved?.fullName !== symbol.fullName || resolved.location.uri !== symbol.location.uri) {
+        return `.${symbol.fullName}`;
+      }
     }
-
-    // Otherwise, use fully qualified name (symbol is in a different package)
-    return symbol.fullName;
+    return candidate;
   }
 
   private getKeywordCompletions(position: Position, context: string): CompletionItem[] {

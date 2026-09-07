@@ -138,6 +138,32 @@ describe('CodegenManager', () => {
         expect(mockSpawn).not.toHaveBeenCalled();
       });
 
+      it('rejects arrays containing non-string arguments before execution', async () => {
+        setupConfig({ invalid: ['--go_out=gen', 42] });
+        mockVscode.window.showQuickPick.mockResolvedValue('invalid');
+        await manager.generateCode();
+        expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
+          expect.stringContaining('array of string arguments')
+        );
+        expect(mockSpawn).not.toHaveBeenCalled();
+      });
+
+      it('uses the selected file workspace for variables, settings, and cwd', async () => {
+        const uri = mockVscode.Uri.file('/second workspace/protos/file;literal.proto');
+        const secondFolder = { uri: mockVscode.Uri.file('/second workspace') };
+        mockVscode.workspace.getWorkspaceFolder.mockReturnValueOnce(secondFolder);
+        mockVscode.window.showQuickPick.mockResolvedValue('go');
+        mockSpawn.mockReturnValue(createMockChildProcess('', '', 0));
+        const promise = manager.generateCode(uri as never);
+        await flushPromisesAndTimers();
+        await promise;
+        expect(mockVscode.workspace.getConfiguration).toHaveBeenCalledWith('protobuf', uri);
+        expect(mockSpawn).toHaveBeenCalledWith('protoc', ['--go_out=/second workspace/gen/go', uri.fsPath], {
+          cwd: '/second workspace',
+          shell: false,
+        });
+      });
+
       it('should run protoc with substituted variables', async () => {
         mockVscode.window.showQuickPick.mockResolvedValue('go');
         const mockEditor = createMockTextEditor({
@@ -155,7 +181,7 @@ describe('CodegenManager', () => {
         expect(mockSpawn).toHaveBeenCalledWith(
           'protoc',
           ['--go_out=/test/workspace/gen/go', '/test/workspace/protos/user.proto'],
-          expect.objectContaining({ shell: true })
+          expect.objectContaining({ shell: false })
         );
       });
 

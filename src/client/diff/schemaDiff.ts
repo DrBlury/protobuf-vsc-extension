@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as os from 'os';
 import { spawn } from 'child_process';
+import { mkdtemp } from 'fs/promises';
 import { writeFile } from '../utils/fsUtils';
 
 export class SchemaDiffManager {
@@ -30,14 +31,10 @@ export class SchemaDiffManager {
 
     try {
       const fileContent = await this.getFileContentAtRef(targetUri.fsPath, gitRef);
-      if (!fileContent) {
-        vscode.window.showErrorMessage(`Could not find file at ${gitRef}`);
-        return;
-      }
 
-      // Create a temp file for the old content
-      const tmpDir = os.tmpdir();
-      const tmpPath = path.join(tmpDir, `${path.basename(targetUri.fsPath)}.${gitRef.replace(/\//g, '_')}.proto`);
+      // Keep separate diffs isolated, including schemas with the same basename.
+      const tmpDir = await mkdtemp(path.join(os.tmpdir(), 'protobuf-diff-'));
+      const tmpPath = path.join(tmpDir, path.basename(targetUri.fsPath));
       await writeFile(tmpPath, fileContent);
 
       // Open VS Code diff view
@@ -51,19 +48,20 @@ export class SchemaDiffManager {
   }
 
   private async getFileContentAtRef(filePath: string, ref: string): Promise<string> {
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
-    const searchDir = workspaceFolder ? workspaceFolder.uri.fsPath : path.dirname(filePath);
+    // Start at the file so nested repositories resolve against their own history.
+    const searchDir = path.dirname(filePath);
     const repoRoot = await this.getGitRoot(searchDir);
     const cwd = repoRoot ?? searchDir;
     const gitPath = path.relative(cwd, filePath).replace(/\\/g, '/');
 
     return new Promise((resolve, reject) => {
-      const proc = spawn('git', ['show', `${ref}:${gitPath}`], { cwd });
+      const proc = spawn('git', ['show', '--end-of-options', `${ref}:${gitPath}`], { cwd });
       let stdout = '';
       let stderr = '';
 
       proc.stdout.on('data', d => (stdout += d.toString()));
       proc.stderr.on('data', d => (stderr += d.toString()));
+      proc.on('error', reject);
 
       proc.on('close', code => {
         if (code === 0) {

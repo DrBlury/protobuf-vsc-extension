@@ -4,8 +4,8 @@
  */
 
 import type { Range, Position, TextEdit } from 'vscode-languageserver/node';
-import type { ProtoFile, MessageDefinition } from '../core/ast';
-import { BUILTIN_TYPES, PROTOBUF_KEYWORDS } from '../core/ast';
+import type { ProtoFile, MessageDefinition, GroupFieldDefinition, SymbolInfo } from '../core/ast';
+import { BUILTIN_TYPES, PROTOBUF_KEYWORDS, SymbolKind } from '../core/ast';
 import type { SemanticAnalyzer } from '../core/analyzer';
 
 export interface RenameResult {
@@ -38,21 +38,10 @@ export class RenameProvider {
       return null;
     }
 
-    // Find the symbol - use containing message scope for correct resolution
     const file = this.analyzer.getFile(uri);
-    const packageName = file?.package?.name || '';
-    const containingScope = file ? this.findContainingMessageScope(file, position, packageName) : packageName;
-    const symbol = this.analyzer.resolveType(word.text, uri, containingScope);
-
-    if (!symbol) {
-      // Check if it's a field name or other local symbol
-      const localSymbol = this.findLocalSymbol(file, word.text, position);
-      if (localSymbol) {
-        return {
-          range: word.range,
-          placeholder: word.text,
-        };
-      }
+    const localSymbol = this.findLocalSymbol(file, word.text, position);
+    const symbol = localSymbol ? undefined : this.findTypeSymbol(uri, position, lineText, word);
+    if (!localSymbol && !symbol) {
       return null;
     }
 
@@ -90,19 +79,17 @@ export class RenameProvider {
       return result;
     }
 
-    // Find the symbol - use containing message scope for correct resolution
     const file = this.analyzer.getFile(uri);
-    const packageName = file?.package?.name || '';
-    const containingScope = file ? this.findContainingMessageScope(file, position, packageName) : packageName;
-    const symbol = this.analyzer.resolveType(word.text, uri, containingScope);
-
-    if (!symbol) {
-      // Try to rename local symbol (field name)
+    if (this.findLocalSymbol(file, word.text, position)) {
       return this.renameLocalSymbol(uri, file, word.text, newName, position);
     }
 
-    // Get all references to this symbol
-    const references = this.analyzer.findReferences(symbol.name, symbol.fullName);
+    const symbol = this.findTypeSymbol(uri, position, lineText, word);
+    if (!symbol) {
+      return result;
+    }
+
+    const references = this.getRenameReferences(symbol);
 
     // Add the definition location
     this.addEdit(result.changes, symbol.location.uri, {
@@ -144,7 +131,7 @@ export class RenameProvider {
     // Search in enums
     for (const enumDef of file.enums) {
       for (const value of enumDef.values) {
-        if (value.name === name) {
+        if (value.name === name && this.containsPosition(value.nameRange, position)) {
           return { kind: 'enumValue', range: value.nameRange };
         }
       }
@@ -153,7 +140,7 @@ export class RenameProvider {
     // Search in services
     for (const service of file.services) {
       for (const rpc of service.rpcs) {
-        if (rpc.name === name) {
+        if (rpc.name === name && this.containsPosition(rpc.nameRange, position)) {
           return { kind: 'rpc', range: rpc.nameRange };
         }
       }
@@ -163,31 +150,31 @@ export class RenameProvider {
   }
 
   private findInMessage(
-    message: MessageDefinition,
+    message: MessageDefinition | GroupFieldDefinition,
     name: string,
     position: Position
   ): { kind: string; range: Range } | null {
     // Check fields
-    for (const field of message.fields) {
-      if (field.name === name) {
+    for (const field of [...message.fields, ...message.maps]) {
+      if (field.name === name && this.containsPosition(field.nameRange, position)) {
         return { kind: 'field', range: field.nameRange };
       }
     }
 
     // Check oneofs
     for (const oneof of message.oneofs) {
-      if (oneof.name === name) {
+      if (oneof.name === name && this.containsPosition(oneof.nameRange, position)) {
         return { kind: 'oneof', range: oneof.nameRange };
       }
       for (const field of oneof.fields) {
-        if (field.name === name) {
+        if (field.name === name && this.containsPosition(field.nameRange, position)) {
           return { kind: 'field', range: field.nameRange };
         }
       }
     }
 
     // Check nested messages
-    for (const nested of message.nestedMessages) {
+    for (const nested of [...message.nestedMessages, ...message.groups]) {
       const result = this.findInMessage(nested, name, position);
       if (result) {
         return result;
@@ -197,7 +184,7 @@ export class RenameProvider {
     // Check nested enums
     for (const enumDef of message.nestedEnums) {
       for (const value of enumDef.values) {
-        if (value.name === name) {
+        if (value.name === name && this.containsPosition(value.nameRange, position)) {
           return { kind: 'enumValue', range: value.nameRange };
         }
       }
@@ -214,110 +201,85 @@ export class RenameProvider {
     file: ProtoFile | undefined,
     oldName: string,
     newName: string,
-    _position: Position
+    position: Position
   ): RenameResult {
-    const result: RenameResult = {
-      changes: new Map(),
-    };
-
-    if (!file) {
-      return result;
+    const result: RenameResult = { changes: new Map() };
+    const symbol = this.findLocalSymbol(file, oldName, position);
+    if (symbol) {
+      this.addEdit(result.changes, uri, { range: symbol.range, newText: newName });
     }
-
-    // Find all occurrences of this name in the file
-    const edits: TextEdit[] = [];
-
-    // Search in messages
-    for (const message of file.messages) {
-      this.collectFieldRenames(message, oldName, newName, edits);
-    }
-
-    // Search in enums
-    for (const enumDef of file.enums) {
-      for (const value of enumDef.values) {
-        if (value.name === oldName) {
-          edits.push({
-            range: value.nameRange,
-            newText: newName,
-          });
-        }
-      }
-    }
-
-    // Search in services
-    for (const service of file.services) {
-      for (const rpc of service.rpcs) {
-        if (rpc.name === oldName) {
-          edits.push({
-            range: rpc.nameRange,
-            newText: newName,
-          });
-        }
-      }
-    }
-
-    if (edits.length > 0) {
-      result.changes.set(uri, edits);
-    }
-
     return result;
   }
 
-  private collectFieldRenames(message: MessageDefinition, oldName: string, newName: string, edits: TextEdit[]): void {
-    // Check fields
-    for (const field of message.fields) {
-      if (field.name === oldName) {
-        edits.push({
-          range: field.nameRange,
-          newText: newName,
-        });
+  private findTypeSymbol(
+    uri: string,
+    position: Position,
+    lineText: string,
+    word: { text: string; range: Range }
+  ): SymbolInfo | undefined {
+    const declaration = this.analyzer
+      .getSymbolsInFile(uri)
+      .find(symbol => symbol.name === word.text && this.containsPosition(symbol.location.range, position));
+    if (declaration) {
+      return declaration;
+    }
+
+    const file = this.analyzer.getFile(uri);
+    const packageName = file?.package?.name || '';
+    const scope = file ? this.findContainingMessageScope(file, position, packageName) : packageName;
+    let start = word.range.start.character;
+    while (start > 0 && /[a-zA-Z0-9_.]/.test(lineText[start - 1]!)) {
+      start--;
+    }
+    const typeName = lineText.slice(start, word.range.end.character);
+    const symbol = this.analyzer.resolveType(typeName, uri, scope);
+    if (!symbol || (symbol.kind !== SymbolKind.Message && symbol.kind !== SymbolKind.Enum)) {
+      return undefined;
+    }
+
+    // Only rename actual type references, never matching text in comments,
+    // string options, or unrelated declarations.
+    return this.getRenameReferences(symbol).some(
+      reference => reference.uri === uri && this.containsPosition(reference.range, position)
+    )
+      ? symbol
+      : undefined;
+  }
+
+  private getRenameReferences(symbol: SymbolInfo): Array<{ uri: string; range: Range }> {
+    const references: Array<{ uri: string; range: Range }> = [];
+    const types = new Map<string, SymbolInfo>([[symbol.fullName, symbol]]);
+    for (const candidate of this.analyzer.getAllSymbols()) {
+      if (
+        (candidate.kind === SymbolKind.Message || candidate.kind === SymbolKind.Enum) &&
+        candidate.fullName.startsWith(`${symbol.fullName}.`) &&
+        candidate.location.uri === symbol.location.uri
+      ) {
+        types.set(candidate.fullName, candidate);
       }
     }
 
-    // Check oneofs
-    for (const oneof of message.oneofs) {
-      if (oneof.name === oldName) {
-        edits.push({
-          range: oneof.nameRange,
-          newText: newName,
-        });
-      }
-      for (const field of oneof.fields) {
-        if (field.name === oldName) {
-          edits.push({
-            range: field.nameRange,
-            newText: newName,
-          });
+    for (const type of types.values()) {
+      const suffixLength = type.fullName.length - symbol.fullName.length;
+      for (const reference of this.analyzer.findReferences(type.name, type.fullName, type.location.uri)) {
+        // A reference may include a package or enclosing message prefix. Keep
+        // that prefix and only replace the identifier being renamed. References
+        // to nested types also need their explicit enclosing message updated.
+        const end = reference.range.end.character - suffixLength;
+        const start = end - symbol.name.length;
+        if (reference.range.start.line !== reference.range.end.line || start < reference.range.start.character) {
+          continue;
         }
-      }
-    }
-
-    // Check map fields
-    for (const mapField of message.maps) {
-      if (mapField.name === oldName) {
-        edits.push({
-          range: mapField.nameRange,
-          newText: newName,
+        references.push({
+          uri: reference.uri,
+          range: {
+            start: { line: reference.range.end.line, character: start },
+            end: { line: reference.range.end.line, character: end },
+          },
         });
       }
     }
-
-    // Check nested messages
-    for (const nested of message.nestedMessages) {
-      this.collectFieldRenames(nested, oldName, newName, edits);
-    }
-
-    // Check nested enums
-    for (const enumDef of message.nestedEnums) {
-      for (const value of enumDef.values) {
-        if (value.name === oldName) {
-          edits.push({
-            range: value.nameRange,
-            newText: newName,
-          });
-        }
-      }
-    }
+    return references;
   }
 
   private addEdit(changes: Map<string, TextEdit[]>, uri: string, edit: TextEdit): void {

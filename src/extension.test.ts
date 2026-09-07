@@ -222,7 +222,7 @@ jest.doMock(
 jest.doMock('child_process', () => mockChildProcess, { virtual: true });
 jest.doMock('fs', () => mockFs, { virtual: true });
 
-let mockFsUtils: jest.Mocked<typeof fsUtils>;
+const mockFsUtils = jest.requireMock('./client/utils/fsUtils') as jest.Mocked<typeof fsUtils>;
 
 // Now import the extension after mocking dependencies
 const { activate, deactivate } = require('./extension');
@@ -233,7 +233,6 @@ describe('Extension Activation', () => {
     jest.clearAllMocks();
     mockVscode.workspace.getConfiguration.mockReturnValue(mockConfiguration);
     mockVscode.workspace.getWorkspaceFolder.mockReturnValue(undefined);
-    mockFsUtils = jest.requireMock('./client/utils/fsUtils') as jest.Mocked<typeof fsUtils>;
     mockFsUtils.fileExists.mockResolvedValue(false);
     mockFsUtils.readFile.mockResolvedValue('');
     mockFsUtils.writeFile.mockResolvedValue(undefined);
@@ -247,6 +246,81 @@ describe('Extension Activation', () => {
     jest.clearAllTimers();
     jest.useRealTimers();
     jest.resetModules();
+  });
+
+  it.each([false, true])(
+    'returns save-participant edits and discards them if the document changes: %s',
+    async changes => {
+      mockVscode.window.createOutputChannel.mockReturnValue(createTestOutputChannel());
+      await activate(mockExtensionContext as any);
+      const document = {
+        languageId: 'proto',
+        version: 1,
+        isClosed: false,
+        uri: { fsPath: '/mock/workspace/test.proto', toString: () => 'file:///mock/workspace/test.proto' },
+      };
+      (mockVscode.workspace.getConfiguration as jest.Mock).mockImplementation((section: string) =>
+        createTestConfiguration((key, fallback) => {
+          if (key === 'formatOnSave') {
+            return section === 'protobuf';
+          }
+          return fallback;
+        })
+      );
+      const edits = [{ range: new MockRange(0, 0, 0, 3), newText: 'syntax' }];
+      mockVscode.commands.executeCommand.mockImplementation(async () => {
+        if (changes) {
+          document.version++;
+        }
+        return edits;
+      });
+      const waitUntil = jest.fn();
+      (mockVscode.workspace.onWillSaveTextDocument as jest.Mock).mock.calls[0][0]({ document, waitUntil });
+
+      expect(await waitUntil.mock.calls[0][0]).toEqual(changes ? [] : edits);
+      expect(mockVscode.workspace.applyEdit).not.toHaveBeenCalled();
+    }
+  );
+
+  it('runs generate-on-save using the document workspace settings and literal executable path', async () => {
+    mockVscode.window.createOutputChannel.mockReturnValue(createTestOutputChannel());
+    await activate(mockExtensionContext as any);
+    const uri = { fsPath: '/second/protos/test.proto', toString: () => 'file:///second/protos/test.proto' };
+    const document = { languageId: 'proto', uri };
+    mockVscode.workspace.getWorkspaceFolder.mockReturnValue({ uri: { fsPath: '/second' } });
+    (mockVscode.workspace.getConfiguration as jest.Mock).mockImplementation((_section: string, resource: unknown) =>
+      createTestConfiguration((key, fallback) => {
+        if (key === 'codegen.generateOnSave') {
+          return resource === uri;
+        }
+        if (key === 'buf.path') {
+          return '${workspaceFolder}/tools with spaces/buf';
+        }
+        return fallback;
+      })
+    );
+    mockFsUtils.fileExists.mockImplementation(async filePath =>
+      ['/second/buf.yml', '/second/buf.gen.yml'].includes(normalizeTestPath(filePath))
+    );
+    mockChildProcess.spawn.mockImplementation(() => ({
+      stdout: { on: jest.fn() },
+      stderr: { on: jest.fn() },
+      kill: jest.fn(),
+      on: jest.fn((event, callback) => {
+        if (event === 'close') {
+          Promise.resolve().then(() => callback(0));
+        }
+      }),
+    }));
+
+    await Promise.all(
+      (mockVscode.workspace.onDidSaveTextDocument as jest.Mock).mock.calls.map(([handler]) => handler(document))
+    );
+
+    expect(mockChildProcess.spawn).toHaveBeenCalledWith('/second/tools with spaces/buf', ['generate'], {
+      cwd: '/second',
+      shell: false,
+    });
   });
 
   it('should initialize extension without errors', async () => {

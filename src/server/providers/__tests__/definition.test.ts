@@ -182,7 +182,7 @@ package user.v1;
 import "common.proto";
 
 message User {
-  Timestamp created_at = 1;
+  common.v1.Timestamp created_at = 1;
 }`;
 
       const commonFile = parser.parse(commonContent, 'file:///common.proto');
@@ -191,7 +191,7 @@ message User {
       analyzer.updateFile('file:///common.proto', commonFile);
       analyzer.updateFile('file:///user.proto', userFile);
 
-      const lineText = '  Timestamp created_at = 1;';
+      const lineText = '  common.v1.Timestamp created_at = 1;';
       const position = { line: 5, character: 4 };
 
       const def = provider.getDefinition('file:///user.proto', position, lineText) as Location;
@@ -411,7 +411,7 @@ message Date {
 }`;
 
       const orderContent = `syntax = "proto3";
-package order.v1;
+package common.v1;
 import "common.proto";
 
 message Order {
@@ -483,7 +483,7 @@ message Data { string value = 1; }`;
 
       const mainContent = `syntax = "proto3";
 import "common.proto";
-message Container { Data data = 1; }`;
+message Container { common.Data data = 1; }`;
 
       const mainFile = parser.parse(mainContent, 'file:///main.proto');
       const commonFile = parser.parse(commonContent, 'file:///common.proto');
@@ -501,7 +501,7 @@ message Container { Data data = 1; }`;
       expect(analyzer.getImportedFileUris('file:///main.proto')).toEqual(['file:///common.proto']);
 
       // Definition should work
-      const lineText = 'message Container { Data data = 1; }';
+      const lineText = 'message Container { common.Data data = 1; }';
       const position = { line: 2, character: 21 };
       const def = provider.getDefinition('file:///main.proto', position, lineText) as Location;
 

@@ -13,6 +13,7 @@ import type { FormatterSettings, AlignmentData } from './formatter/types';
 import { DEFAULT_SETTINGS } from './formatter/types';
 import { calculateAlignmentInfo } from './formatter/alignment';
 import { getIndent, formatLine, formatLineWithAlignment, formatOptionLine } from './formatter/lineFormatting';
+import { maskNonCode } from './sourceTokens';
 import { renumberFields } from './formatter/renumber';
 
 // Re-export types for backwards compatibility
@@ -79,7 +80,10 @@ export class ProtoFormatter {
     if (this.settings.preset === 'buf' && this.bufFormat) {
       const filePath = this.getFsPathFromUri(uri);
       const formatted = await this.bufFormat.format(text, filePath);
-      if (formatted) {
+      if (formatted !== null) {
+        if (formatted === text) {
+          return [];
+        }
         const lines = splitLines(text);
         return [
           {
@@ -134,8 +138,14 @@ export class ProtoFormatter {
     // Buf doesn't support range formatting easily, fall back to minimal
 
     const lines = splitLines(text);
-    const startLine = range.start.line;
-    const endLine = range.end.line;
+    const startLine = Math.max(0, Math.min(range.start.line, lines.length - 1));
+    const endLine = Math.min(
+      lines.length - 1,
+      range.end.line - (range.end.character === 0 && range.end.line > startLine ? 1 : 0)
+    );
+    if (endLine < startLine || (range.start.line === range.end.line && range.start.character === range.end.character)) {
+      return [];
+    }
 
     // Extract the range to format
     const rangeLines = lines.slice(startLine, endLine + 1);
@@ -143,15 +153,11 @@ export class ProtoFormatter {
 
     // Determine indent level at start of range
     let indentLevel = 0;
+    const codeLines = maskNonCode(text).split('\n');
     for (let i = 0; i < startLine; i++) {
-      const line = lines[i]!.trim();
-      if (line.includes('{') && !line.includes('}')) {
-        indentLevel++;
-      }
-      if (line.startsWith('}')) {
-        indentLevel--;
-      }
+      indentLevel += (codeLines[i]!.match(/\{/g) || []).length - (codeLines[i]!.match(/\}/g) || []).length;
     }
+    indentLevel = Math.max(0, indentLevel);
 
     // Format the range
     const formatted = this.formatRangeWithIndent(rangeText, indentLevel);
@@ -176,6 +182,7 @@ export class ProtoFormatter {
     //   float value = 1;  // comment
     const preprocessedText = this.settings.preserveMultiLineFields ? text : this.joinMultiLineFieldDeclarations(text);
     const lines = splitLines(preprocessedText);
+    const codeLines = maskNonCode(preprocessedText).split('\n');
 
     // If alignment is enabled, first pass to collect alignment info
     let alignmentInfo: Map<number, AlignmentData> | undefined;
@@ -196,6 +203,7 @@ export class ProtoFormatter {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
       const trimmedLine = line.trim();
+      const codeLine = codeLines[i]!.trim();
 
       // Handle block comments
       if (inBlockComment) {
@@ -230,8 +238,8 @@ export class ProtoFormatter {
 
       // Track multi-line option blocks
       if (optionBraceDepth > 0) {
-        const openBraces = (trimmedLine.match(/\{/g) || []).length;
-        const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+        const openBraces = (codeLine.match(/\{/g) || []).length;
+        const closeBraces = (codeLine.match(/\}/g) || []).length;
 
         // Adjust indent for closing brace
         if (trimmedLine.startsWith('}') && indentLevel > 0) {
@@ -256,8 +264,8 @@ export class ProtoFormatter {
 
       // Track inline field options with braces
       if (inlineOptionBraceDepth > 0) {
-        const openBraces = (trimmedLine.match(/\{/g) || []).length;
-        const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+        const openBraces = (codeLine.match(/\{/g) || []).length;
+        const closeBraces = (codeLine.match(/\}/g) || []).length;
         let remainingClose = Math.max(0, closeBraces - openBraces);
 
         // Adjust indent for closing brace
@@ -283,8 +291,8 @@ export class ProtoFormatter {
 
       // Track multi-line field options with brackets only (no braces)
       if (inlineOptionBracketDepth > 0) {
-        const openBrackets = (trimmedLine.match(/\[/g) || []).length;
-        const closeBrackets = (trimmedLine.match(/\]/g) || []).length;
+        const openBrackets = (codeLine.match(/\[/g) || []).length;
+        const closeBrackets = (codeLine.match(/\]/g) || []).length;
         let remainingClose = Math.max(0, closeBrackets - openBrackets);
 
         // Adjust indent for closing bracket
@@ -309,9 +317,9 @@ export class ProtoFormatter {
       }
 
       // Check if this line starts an option with an opening brace
-      if (trimmedLine.startsWith('option') && trimmedLine.includes('{')) {
-        const openBraces = (trimmedLine.match(/\{/g) || []).length;
-        const closeBraces = (trimmedLine.match(/\}/g) || []).length;
+      if (trimmedLine.startsWith('option') && codeLine.includes('{')) {
+        const openBraces = (codeLine.match(/\{/g) || []).length;
+        const closeBraces = (codeLine.match(/\}/g) || []).length;
         optionBraceDepth = openBraces - closeBraces;
 
         formattedLines.push(getIndent(indentLevel, this.settings) + trimmedLine);
@@ -323,9 +331,9 @@ export class ProtoFormatter {
       }
 
       // Check if this line has inline field options with braces
-      if (trimmedLine.includes('[') && trimmedLine.includes('{')) {
-        const bracketStart = trimmedLine.indexOf('[');
-        const afterBracket = trimmedLine.slice(bracketStart);
+      if (codeLine.includes('[') && codeLine.includes('{')) {
+        const bracketStart = codeLine.indexOf('[');
+        const afterBracket = codeLine.slice(bracketStart);
         const openBraces = (afterBracket.match(/\{/g) || []).length;
         const closeBraces = (afterBracket.match(/\}/g) || []).length;
 
@@ -340,9 +348,9 @@ export class ProtoFormatter {
 
       // Check if this line has multi-line field options with brackets only (no braces inside)
       // e.g., "int32 field = 1 [" followed by "(tag1) = true," on the next line
-      if (trimmedLine.includes('[') && !trimmedLine.includes('{')) {
-        const openBrackets = (trimmedLine.match(/\[/g) || []).length;
-        const closeBrackets = (trimmedLine.match(/\]/g) || []).length;
+      if (codeLine.includes('[') && !codeLine.includes('{')) {
+        const openBrackets = (codeLine.match(/\[/g) || []).length;
+        const closeBrackets = (codeLine.match(/\]/g) || []).length;
 
         if (openBrackets > closeBrackets) {
           // Multi-line bracket option - preserve and track
@@ -367,14 +375,14 @@ export class ProtoFormatter {
       formattedLines.push(formattedLine);
 
       // Check for opening brace
-      const hasOpeningBrace = trimmedLine.includes('{') && !trimmedLine.includes('}');
-      const endsWithOpeningBrace = trimmedLine.endsWith('{');
+      const hasOpeningBrace = codeLine.includes('{') && !codeLine.includes('}');
+      const endsWithOpeningBrace = codeLine.endsWith('{');
       if (hasOpeningBrace || endsWithOpeningBrace) {
         indentLevel++;
       }
 
       // Handle single line with both braces
-      if (trimmedLine.includes('{') && trimmedLine.includes('}')) {
+      if (codeLine.includes('{') && codeLine.includes('}')) {
         // No change to indent level
       }
     }
@@ -404,11 +412,14 @@ export class ProtoFormatter {
     // Preprocess: join multi-line field declarations (unless preserveMultiLineFields is enabled)
     const preprocessedText = this.settings.preserveMultiLineFields ? text : this.joinMultiLineFieldDeclarations(text);
     const lines = splitLines(preprocessedText);
+    const codeLines = maskNonCode(preprocessedText).split('\n');
     const formattedLines: string[] = [];
     let indentLevel = startIndentLevel;
 
-    for (const line of lines) {
+    for (let index = 0; index < lines.length; index++) {
+      const line = lines[index]!;
       const trimmedLine = line.trim();
+      const codeLine = codeLines[index]!.trim();
 
       if (trimmedLine === '') {
         formattedLines.push('');
@@ -420,13 +431,13 @@ export class ProtoFormatter {
         continue;
       }
 
-      if (trimmedLine.startsWith('}') && indentLevel > 0) {
+      if (codeLine.startsWith('}') && indentLevel > 0) {
         indentLevel--;
       }
 
       formattedLines.push(formatLine(trimmedLine, indentLevel, this.settings, line));
 
-      if (trimmedLine.includes('{') && !trimmedLine.includes('}')) {
+      if (codeLine.includes('{') && !codeLine.includes('}')) {
         indentLevel++;
       }
     }
@@ -486,6 +497,7 @@ export class ProtoFormatter {
     const ranges: Array<{ start: number; end: number }> = [];
     let depth = 0;
     let current: { start: number; end: number } | null = null;
+    const codeLines = maskNonCode(lines.join('\n')).split('\n');
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
@@ -497,8 +509,8 @@ export class ProtoFormatter {
         current = { start, end: i };
       }
 
-      const openBraces = isComment ? 0 : (trimmed.match(/\{/g) || []).length;
-      const closeBraces = isComment ? 0 : (trimmed.match(/\}/g) || []).length;
+      const openBraces = (codeLines[i]!.match(/\{/g) || []).length;
+      const closeBraces = (codeLines[i]!.match(/\}/g) || []).length;
       depth += openBraces - closeBraces;
 
       if (current) {
@@ -606,7 +618,7 @@ export class ProtoFormatter {
         lineWithoutComment
       );
 
-      if (isMultiLineFieldStart) {
+      if (isMultiLineFieldStart && !trimmed.includes('//') && !trimmed.includes('/*')) {
         // Collect continuation lines until we find the semicolon
         let joinedLine = line;
         let j = i + 1;

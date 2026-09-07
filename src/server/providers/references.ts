@@ -43,7 +43,7 @@ export class ReferencesProvider {
     }
 
     // Get all references
-    const references = this.analyzer.findReferences(symbol.name, symbol.fullName);
+    const references = this.analyzer.findReferences(symbol.name, symbol.fullName, symbol.location.uri);
 
     // Optionally include the declaration
     if (includeDeclaration) {

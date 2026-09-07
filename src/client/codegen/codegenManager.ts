@@ -10,7 +10,10 @@ export class CodegenManager {
   }
 
   public async generateCode(uri?: vscode.Uri): Promise<void> {
-    const config = vscode.workspace.getConfiguration('protobuf');
+    const targetUri = uri || vscode.window.activeTextEditor?.document.uri;
+    const workspaceFolder =
+      (targetUri && vscode.workspace.getWorkspaceFolder(targetUri)) || vscode.workspace.workspaceFolders?.[0];
+    const config = vscode.workspace.getConfiguration('protobuf', targetUri);
     const profiles = config.get<Record<string, string[]>>('codegen.profiles', {});
 
     const profileNames = Object.keys(profiles);
@@ -35,27 +38,22 @@ export class CodegenManager {
     }
 
     const argsTemplate = profiles[selected];
-    if (!argsTemplate || !Array.isArray(argsTemplate)) {
+    if (!Array.isArray(argsTemplate) || !argsTemplate.every(arg => typeof arg === 'string')) {
       vscode.window.showErrorMessage(`Profile "${selected}" is invalid. It must be an array of string arguments.`);
       return;
     }
-
-    // Determine context (file or workspace)
-    const activeEditor = vscode.window.activeTextEditor;
-    const targetUri = uri || activeEditor?.document.uri;
 
     // Resolve protoc path
     const protocPath = config.get<string>('protoc.path') || 'protoc';
 
     // Substitute variables
-    const args = argsTemplate.map(arg => this.substituteVariables(arg, targetUri));
+    const args = argsTemplate.map(arg => this.substituteVariables(arg, targetUri, workspaceFolder?.uri.fsPath));
 
     // Run protoc
-    await this.runProtoc(protocPath, args);
+    await this.runProtoc(protocPath, args, workspaceFolder?.uri.fsPath);
   }
 
-  private substituteVariables(str: string, fileUri?: vscode.Uri): string {
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+  private substituteVariables(str: string, fileUri?: vscode.Uri, workspaceFolder = ''): string {
     let result = str.replace(/\${workspaceFolder}/g, workspaceFolder);
 
     if (fileUri) {
@@ -70,14 +68,14 @@ export class CodegenManager {
     return result;
   }
 
-  private async runProtoc(command: string, args: string[]): Promise<void> {
+  private async runProtoc(command: string, args: string[], cwd?: string): Promise<void> {
     this.outputChannel.show(true);
     this.outputChannel.appendLine(`Running: ${command} ${args.join(' ')}`);
 
     return new Promise(resolve => {
       const proc = cp.spawn(command, args, {
-        cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
-        shell: true,
+        cwd,
+        shell: false,
       });
 
       proc.stdout.on('data', (data: Buffer) => {
@@ -88,7 +86,11 @@ export class CodegenManager {
         this.outputChannel.append(data.toString('utf8'));
       });
 
+      let failedToStart = false;
       proc.on('close', code => {
+        if (failedToStart) {
+          return;
+        }
         if (code === 0) {
           this.outputChannel.appendLine('Codegen completed successfully.');
           vscode.window.showInformationMessage('Codegen completed successfully.');
@@ -100,6 +102,7 @@ export class CodegenManager {
       });
 
       proc.on('error', err => {
+        failedToStart = true;
         this.outputChannel.appendLine(`Failed to start process: ${err}`);
         vscode.window.showErrorMessage(`Failed to start protoc: ${err.message}`);
         resolve();

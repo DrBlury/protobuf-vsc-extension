@@ -295,7 +295,7 @@ describe('SemanticAnalyzer', () => {
       analyzer.updateFile('file:///common.proto', commonFile);
       analyzer.updateFile('file:///main.proto', mainFile);
 
-      const symbol = analyzer.resolveType('Timestamp', 'file:///main.proto', 'main.v1');
+      const symbol = analyzer.resolveType('common.v1.Timestamp', 'file:///main.proto', 'main.v1');
 
       expect(symbol).toBeDefined();
       expect(symbol!.fullName).toBe('common.v1.Timestamp');
@@ -416,7 +416,7 @@ describe('SemanticAnalyzer', () => {
         parser.parse(
           `
           syntax = "proto3";
-          package com.example.api;
+          package com.example.shared;
           import "service_a/types.proto";
           message Api {
             MyRequest request = 1;
@@ -437,7 +437,7 @@ describe('SemanticAnalyzer', () => {
         )
       );
 
-      const symbol = analyzer.resolveType('MyRequest', apiUri, 'com.example.api');
+      const symbol = analyzer.resolveType('MyRequest', apiUri, 'com.example.shared');
 
       expect(symbol).toBeDefined();
       expect(symbol!.location.uri).toBe(serviceAUri);

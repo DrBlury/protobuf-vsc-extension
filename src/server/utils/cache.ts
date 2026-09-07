@@ -3,6 +3,8 @@
  * Helps avoid redundant parsing and computation
  */
 
+import { createHash } from 'crypto';
+
 /**
  * Simple in-memory cache with TTL (time-to-live) support
  */
@@ -177,16 +179,10 @@ export class ContentHashCache<V> {
 }
 
 /**
- * Simple hash function for strings
+ * Content fingerprint for parsed document caches.
  * @param str - The string to hash
- * @returns A simple hash value
+ * @returns A stable SHA-256 fingerprint
  */
 export function simpleHash(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  return Math.abs(hash).toString(36);
+  return createHash('sha256').update(str).digest('hex');
 }

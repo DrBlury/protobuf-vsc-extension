@@ -98,12 +98,10 @@ export class ProviderRegistry {
    * Set workspace roots for providers that need them
    */
   setWorkspaceRoots(roots: string[]): void {
-    if (roots.length > 0) {
-      this.protoc.setWorkspaceRoot(roots[0]!);
-      this.breaking.setWorkspaceRoot(roots[0]!);
-      this.externalLinter.setWorkspaceRoot(roots[0]!);
-      this.analyzer.setWorkspaceRoots(roots);
-    }
+    this.protoc.setWorkspaceRoot(roots[0] ?? '');
+    this.breaking.setWorkspaceRoot(roots[0] ?? '');
+    this.externalLinter.setWorkspaceRoot(roots[0] ?? '');
+    this.analyzer.setWorkspaceRoots(roots);
   }
 
   /**

@@ -745,6 +745,9 @@ export class TreeSitterProtoParser {
    * so this method extracts all fields from the text.
    */
   private parseFields(node: Node): FieldDefinition[] {
+    if (getField(node, 'name') && getField(node, 'type') && getField(node, 'number')) {
+      return [this.parseField(node)];
+    }
     const text = getText(node);
     const fields: FieldDefinition[] = [];
 
@@ -826,6 +829,27 @@ export class TreeSitterProtoParser {
   }
 
   private parseField(node: Node): FieldDefinition {
+    const nameNode = getField(node, 'name');
+    const typeNode = getField(node, 'type');
+    const numberNode = getField(node, 'number');
+    if (nameNode && typeNode && numberNode) {
+      const modifierNode = getField(node, 'modifier');
+      const optionsNode = getField(node, 'options');
+      const options = optionsNode
+        ? this.parseFieldOptionsFromString(getText(optionsNode), nodeToRange(optionsNode))
+        : undefined;
+      return {
+        type: 'field',
+        modifier: modifierNode ? (getText(modifierNode) as FieldDefinition['modifier']) : undefined,
+        fieldType: getText(typeNode),
+        fieldTypeRange: nodeToRange(typeNode),
+        name: getText(nameNode),
+        nameRange: nodeToRange(nameNode),
+        number: this.parseIntegerLiteral(getText(numberNode)),
+        options: options?.length ? options : undefined,
+        range: nodeToRange(node),
+      };
+    }
     const text = getText(node);
     // Multi-line aware regex to capture field definitions
     // Handles: [modifier] type name = [// comment] number [// comment] [options];
@@ -1276,7 +1300,30 @@ export class TreeSitterProtoParser {
     return parts;
   }
 
+  private parseIntegerLiteral(value: string): number {
+    const sign = value.trim().startsWith('-') ? -1 : 1;
+    const unsigned = value.trim().replace(/^[+-]/, '');
+    const radix = /^0x/i.test(unsigned) ? 16 : /^0[0-7]+$/.test(unsigned) ? 8 : 10;
+    return sign * parseInt(unsigned, radix);
+  }
+
   private parseMapField(node: Node): MapFieldDefinition {
+    const nameNode = getField(node, 'name');
+    const keyNode = getField(node, 'key_type');
+    const valueNode = getField(node, 'value_type');
+    const numberNode = getField(node, 'number');
+    if (nameNode && keyNode && valueNode && numberNode) {
+      return {
+        type: 'map',
+        keyType: getText(keyNode),
+        valueType: getText(valueNode),
+        valueTypeRange: nodeToRange(valueNode),
+        name: getText(nameNode),
+        nameRange: nodeToRange(nameNode),
+        number: this.parseIntegerLiteral(getText(numberNode)),
+        range: nodeToRange(node),
+      };
+    }
     const text = getText(node);
     // Handle both decimal and hex field numbers in map fields
     // IMPORTANT: hex pattern must come FIRST in alternation to match before decimal captures the leading 0
@@ -1305,9 +1352,9 @@ export class TreeSitterProtoParser {
       type: 'map',
       keyType,
       valueType,
-      valueTypeRange: nodeToRange(node),
+      valueTypeRange: this.rangeFromOffsets(node, text, text.indexOf(valueType, text.indexOf(',')), valueType.length),
       name,
-      nameRange: nodeToRange(node),
+      nameRange: this.rangeFromOffsets(node, text, text.indexOf(name, text.indexOf('>')), name.length),
       number,
       range: nodeToRange(node),
     };
@@ -1345,7 +1392,9 @@ export class TreeSitterProtoParser {
       type: 'group',
       modifier,
       name,
-      nameRange: nodeToRange(node),
+      nameRange: getField(node, 'name')
+        ? nodeToRange(getField(node, 'name')!)
+        : this.rangeFromOffsets(node, text, text.indexOf(name, text.indexOf('group') + 5), name.length),
       number,
       fields: [],
       nestedMessages: [],
@@ -1450,7 +1499,9 @@ export class TreeSitterProtoParser {
     return {
       type: 'enum_value',
       name,
-      nameRange: nodeToRange(node),
+      nameRange: getField(node, 'name')
+        ? nodeToRange(getField(node, 'name')!)
+        : this.rangeFromOffsets(node, text, text.indexOf(name), name.length),
       number,
       options,
       range: nodeToRange(node),

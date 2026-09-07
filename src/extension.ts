@@ -20,6 +20,8 @@ import {
   type ProtovalidateRule,
 } from './client/playground/protovalidatePlaygroundManager';
 import { OptionInspectorProvider } from './client/inspector/optionInspector';
+import { addBufDependencies, readBufDependencies } from './client/registry/bufDependencies';
+import { exportBufDependencies } from './client/registry/bufExport';
 import { RegistryManager } from './client/registry/registryManager';
 import { SaveStateTracker } from './client/formatting/saveState';
 import { BinaryDecoderProvider } from './client/binary-decoder/binaryDecoder';
@@ -41,7 +43,7 @@ let registryManager: RegistryManager;
 const workspacePathFilters = new Map<string, { signature: string; filter: WorkspacePathFilter }>();
 
 // Debounce map for dependency suggestions to avoid multiple prompts
-const dependencySuggestionDebounce = new Map<string, boolean>();
+const dependencySuggestionDebounce = new Map<string, ReturnType<typeof setTimeout>>();
 const saveStateTracker = new SaveStateTracker();
 let modificationsModeWarningShown = false;
 
@@ -259,22 +261,22 @@ function getFormattingOptionsForDocument(document: vscode.TextDocument): vscode.
   };
 }
 
-async function formatDocumentIfNeeded(document: vscode.TextDocument): Promise<void> {
+async function formatDocumentIfNeeded(document: vscode.TextDocument): Promise<vscode.TextEdit[]> {
   if (!isProtoDocument(document)) {
-    return;
+    return [];
   }
 
   const protoConfig = vscode.workspace.getConfiguration('protobuf', document.uri);
   const formatOnSave = protoConfig.get<boolean>('formatOnSave', false);
   if (!formatOnSave) {
-    return;
+    return [];
   }
 
   const editorConfig = vscode.workspace.getConfiguration('editor', document.uri);
   const editorFormatOnSave = editorConfig.get<boolean>('formatOnSave', false);
   if (editorFormatOnSave) {
     // VS Code will handle formatting automatically.
-    return;
+    return [];
   }
 
   const formatMode = editorConfig.get<'file' | 'modifications' | 'modificationsIfAvailable'>(
@@ -288,9 +290,10 @@ async function formatDocumentIfNeeded(document: vscode.TextDocument): Promise<vo
       );
       modificationsModeWarningShown = true;
     }
-    return;
+    return [];
   }
 
+  const version = document.version;
   const formattingOptions = getFormattingOptionsForDocument(document);
 
   let edits: vscode.TextEdit[] | undefined;
@@ -304,23 +307,28 @@ async function formatDocumentIfNeeded(document: vscode.TextDocument): Promise<vo
     outputChannel.appendLine(
       `Failed to request proto formatting edits: ${err instanceof Error ? err.message : String(err)}`
     );
-    return;
+    return [];
   }
 
   if (!edits || edits.length === 0) {
-    return;
+    return [];
   }
 
-  const workspaceEdit = new vscode.WorkspaceEdit();
-  workspaceEdit.set(document.uri, edits);
-  const applied = await vscode.workspace.applyEdit(workspaceEdit);
-  if (!applied) {
-    throw new Error('Failed to apply formatting edits returned by proto formatter');
-  }
+  // Return save-participant edits so VS Code applies them atomically before writing.
+  // A formatter may finish after the user has continued typing.
+  return document.isClosed || document.version !== version ? [] : edits;
 }
 
 export async function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME, { log: true });
+  context.subscriptions.push(outputChannel);
+  context.subscriptions.push({
+    dispose: () => {
+      dependencySuggestionDebounce.forEach(timer => clearTimeout(timer));
+      dependencySuggestionDebounce.clear();
+      clearWorkspacePathFilters();
+    },
+  });
   outputChannel.appendLine('Activating Protobuf extension...');
   const betaFeaturesEnabled = isBetaFeaturesEnabled();
 
@@ -365,6 +373,7 @@ export async function activate(context: vscode.ExtensionContext) {
           outputChannel.appendLine(
             `Failed to run protobuf.formatOnSave for ${event.document.uri.fsPath}: ${err instanceof Error ? err.message : String(err)}`
           );
+          return [];
         })
       );
     })
@@ -382,6 +391,12 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidCloseTextDocument(document => {
       if (isProtoDocument(document)) {
         clearSaveInProgress(document.uri);
+        const key = document.uri.toString();
+        const timer = dependencySuggestionDebounce.get(key);
+        if (timer !== undefined) {
+          clearTimeout(timer);
+          dependencySuggestionDebounce.delete(key);
+        }
       }
     })
   );
@@ -414,9 +429,12 @@ export async function activate(context: vscode.ExtensionContext) {
   const autoDetectionPrompted = config.get<boolean>('autoDetection.prompted', false);
   if (!autoDetectionPrompted) {
     // Delay auto-detection to avoid impacting startup performance
-    setTimeout(() => {
-      autoDetector.detectAndPrompt();
+    const autoDetectionTimer = setTimeout(() => {
+      void autoDetector
+        .detectAndPrompt()
+        .catch(error => outputChannel.appendLine(`Tool detection failed: ${String(error)}`));
     }, 3000);
+    context.subscriptions.push({ dispose: () => clearTimeout(autoDetectionTimer) });
   }
 
   // Initialize codegen manager
@@ -563,7 +581,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
           const content = `version: v2
 deps:
-  - ${moduleName}
+  - ${JSON.stringify(moduleName)}
 lint:
   use:
     - STANDARD
@@ -577,16 +595,13 @@ breaking:
           // Add dependency to existing buf.yaml
           let content = await readFile(bufYamlPath);
 
-          if (content.includes(moduleName)) {
+          const updatedContent = addBufDependencies(content, [moduleName]);
+          if (updatedContent === content) {
             vscode.window.showInformationMessage(`Dependency '${moduleName}' already exists in buf.yaml`);
             return;
           }
 
-          if (content.includes('deps:')) {
-            content = content.replace(/deps:\s*\n/, `deps:\n  - ${moduleName}\n`);
-          } else {
-            content += `\ndeps:\n  - ${moduleName}\n`;
-          }
+          content = updatedContent;
 
           await writeFile(bufYamlPath, content);
           outputChannel.appendLine(`Added ${moduleName} to ${bufYamlPath}`);
@@ -599,7 +614,7 @@ breaking:
 
         const { spawn } = await import('child_process');
 
-        vscode.window.withProgress(
+        await vscode.window.withProgress(
           {
             location: vscode.ProgressLocation.Notification,
             title: `Adding dependency ${moduleName}...`,
@@ -685,10 +700,7 @@ breaking:
       }
 
       // Find the workspace folder containing the current file
-      const workspaceFolders = vscode.workspace.workspaceFolders;
-      const workspaceFolder = workspaceFolders?.find((folder: vscode.WorkspaceFolder) =>
-        editor.document.uri.fsPath.startsWith(folder.uri.fsPath)
-      );
+      const workspaceFolder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
 
       if (!workspaceFolder) {
         vscode.window.showWarningMessage('Could not determine workspace folder.');
@@ -699,34 +711,34 @@ breaking:
       let currentDir = path.dirname(editor.document.uri.fsPath);
       let bufYamlDir: string | null = null;
 
-      while (currentDir !== path.dirname(currentDir)) {
-        if (await fileExists(path.join(currentDir, 'buf.yaml'))) {
-          bufYamlDir = currentDir;
+      let bufYamlPath: string | undefined;
+      while (isPathWithin(workspaceFolder.uri.fsPath, currentDir)) {
+        for (const name of ['buf.yaml', 'buf.yml']) {
+          const candidate = path.join(currentDir, name);
+          if (await fileExists(candidate)) {
+            bufYamlPath = candidate;
+            bufYamlDir = currentDir;
+            break;
+          }
+        }
+        if (bufYamlPath || currentDir === path.dirname(currentDir)) {
           break;
         }
         currentDir = path.dirname(currentDir);
       }
 
-      if (!bufYamlDir) {
+      if (!bufYamlDir || !bufYamlPath) {
         vscode.window.showWarningMessage('No buf.yaml found in the file hierarchy. Create a buf.yaml first.');
         return;
       }
 
       // Parse buf.yaml to get dependencies
-      const bufYamlPath = path.join(bufYamlDir, 'buf.yaml');
-      const bufYamlContent = await readFile(bufYamlPath);
-
-      // Simple YAML parsing for deps array
-      const depsMatch = bufYamlContent.match(/^deps:\s*\n((?:\s+-\s+.+\n?)+)/m);
-      const deps: string[] = [];
-      if (depsMatch) {
-        const depsLines = depsMatch[1]!.split('\n');
-        for (const line of depsLines) {
-          const depMatch = line.match(/^\s+-\s+(.+)/);
-          if (depMatch) {
-            deps.push(depMatch[1]!.trim());
-          }
-        }
+      let deps: string[];
+      try {
+        deps = readBufDependencies(await readFile(bufYamlPath));
+      } catch (error) {
+        vscode.window.showErrorMessage(`Could not read Buf dependencies: ${String(error)}`);
+        return;
       }
 
       if (deps.length === 0) {
@@ -737,18 +749,27 @@ breaking:
       }
 
       const outputDir = '.buf-deps';
-      const terminal = vscode.window.createTerminal('Buf Export');
-      terminal.show();
-
-      // First, remove the existing .buf-deps directory, then export each dependency
-      // This ensures we only get dependencies, not source files
-      const exportCommands = deps.map(dep => `buf export ${dep} --output=${outputDir}`).join(' && ');
-      terminal.sendText(`cd "${bufYamlDir}" && rm -rf ${outputDir} && ${exportCommands}`);
+      const config = vscode.workspace.getConfiguration('protobuf', editor.document.uri);
+      const configuredBuf = config.get<string>('buf.path') || config.get<string>('externalLinter.bufPath') || 'buf';
+      const executable = configuredBuf
+        .replace(/\$\{workspaceFolder\}/g, workspaceFolder.uri.fsPath)
+        .replace(/\$\{env(?::|\.)([^}]+)\}/g, (_match, name: string) => process.env[name] || '');
+      try {
+        const directory = bufYamlDir;
+        await vscode.window.withProgress(
+          { location: vscode.ProgressLocation.Notification, title: 'Exporting Buf dependencies' },
+          () => exportBufDependencies(executable, directory, deps)
+        );
+      } catch (error) {
+        outputChannel.appendLine(`Buf export failed: ${String(error)}`);
+        vscode.window.showErrorMessage(`Buf export failed: ${String(error)}`);
+        return;
+      }
 
       // Check if the path is already in protobuf.includes
       const absoluteOutputPath = path.join(bufYamlDir, outputDir);
       const workspaceFolderPath = workspaceFolder.uri.fsPath;
-      const currentIncludes: string[] = vscode.workspace.getConfiguration('protobuf').get('includes') || [];
+      const currentIncludes: string[] = config.get('includes') || [];
 
       // Check if path is already configured (with or without ${workspaceFolder} variable)
       const isAlreadyConfigured = currentIncludes.some(includePath => {
@@ -759,17 +780,17 @@ breaking:
 
       if (isAlreadyConfigured) {
         vscode.window.showInformationMessage(
-          `Exporting ${deps.length} buf dependencies to ${outputDir}/. Path is already configured in "protobuf.includes".`
+          `Exported ${deps.length} buf dependencies to ${outputDir}/. Path is already configured in "protobuf.includes".`
         );
       } else {
         // Use ${workspaceFolder} variable in suggested path if possible for better portability
-        const suggestedPath = absoluteOutputPath.startsWith(workspaceFolderPath)
+        const suggestedPath = isPathWithin(workspaceFolderPath, absoluteOutputPath)
           ? '${workspaceFolder}' + absoluteOutputPath.slice(workspaceFolderPath.length)
           : absoluteOutputPath;
 
-        vscode.window
+        await vscode.window
           .showInformationMessage(
-            `Exporting ${deps.length} buf dependencies to ${outputDir}/. After export completes, add "${suggestedPath}" to "protobuf.includes" in settings.`,
+            `Exported ${deps.length} buf dependencies to ${outputDir}/. Add "${suggestedPath}" to "protobuf.includes" in settings.`,
             'Add to Settings',
             'Open Settings'
           )
@@ -925,6 +946,7 @@ breaking:
   // Register Option Inspector Provider
   const optionInspectorProvider = new OptionInspectorProvider(client);
   context.subscriptions.push(
+    optionInspectorProvider,
     vscode.window.registerTreeDataProvider('protobufOptionInspector', optionInspectorProvider)
   );
 
@@ -962,11 +984,15 @@ breaking:
           // Debounce to avoid multiple prompts
           const key = uri.toString();
           if (!dependencySuggestionDebounce.has(key)) {
-            dependencySuggestionDebounce.set(key, true);
-            setTimeout(async () => {
+            const timer = setTimeout(async () => {
               dependencySuggestionDebounce.delete(key);
-              await dependencySuggestionProvider.suggestDependencies(unresolvedImports, uri);
+              try {
+                await dependencySuggestionProvider.suggestDependencies(unresolvedImports, uri);
+              } catch (error) {
+                outputChannel.appendLine(`Dependency suggestion failed: ${String(error)}`);
+              }
             }, 1000);
+            dependencySuggestionDebounce.set(key, timer);
           }
         }
       }
@@ -980,7 +1006,7 @@ breaking:
         return;
       }
 
-      const config = vscode.workspace.getConfiguration('protobuf');
+      const config = vscode.workspace.getConfiguration('protobuf', document.uri);
       const generateOnSave = config.get<boolean>('codegen.generateOnSave', false);
       const legacyCompileOnSave = config.get<boolean>('protoc.compileOnSave', false);
 
@@ -1034,9 +1060,13 @@ async function runBufGenerate(uri: vscode.Uri, outputChannel: vscode.OutputChann
   let currentDir = path.dirname(uri.fsPath);
   let bufYamlDir: string | null = null;
 
-  while (currentDir !== path.dirname(currentDir)) {
-    if (await fileExists(path.join(currentDir, 'buf.yaml'))) {
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+  while (!workspaceFolder || isPathWithin(workspaceFolder.uri.fsPath, currentDir)) {
+    if ((await fileExists(path.join(currentDir, 'buf.yaml'))) || (await fileExists(path.join(currentDir, 'buf.yml')))) {
       bufYamlDir = currentDir;
+      break;
+    }
+    if (currentDir === path.dirname(currentDir)) {
       break;
     }
     currentDir = path.dirname(currentDir);
@@ -1049,13 +1079,16 @@ async function runBufGenerate(uri: vscode.Uri, outputChannel: vscode.OutputChann
 
   // Check if buf.gen.yaml exists
   const bufGenPath = path.join(bufYamlDir, 'buf.gen.yaml');
-  if (!(await fileExists(bufGenPath))) {
+  if (!(await fileExists(bufGenPath)) && !(await fileExists(path.join(bufYamlDir, 'buf.gen.yml')))) {
     outputChannel.appendLine('No buf.gen.yaml found, skipping buf generate');
     return;
   }
 
-  const config = vscode.workspace.getConfiguration('protobuf');
-  const bufPath = config.get<string>('buf.path', 'buf');
+  const config = vscode.workspace.getConfiguration('protobuf', uri);
+  const bufPath = config
+    .get<string>('buf.path', 'buf')
+    .replace(/\$\{workspaceFolder\}/g, workspaceFolder?.uri.fsPath || bufYamlDir)
+    .replace(/\$\{env(?::|\.)([^}]+)\}/g, (_match, name: string) => process.env[name] || '');
 
   outputChannel.appendLine(`Running buf generate in ${bufYamlDir}...`);
 
@@ -1064,7 +1097,7 @@ async function runBufGenerate(uri: vscode.Uri, outputChannel: vscode.OutputChann
   return new Promise(resolve => {
     const proc = spawn(bufPath, ['generate'], {
       cwd: bufYamlDir,
-      shell: true,
+      shell: false,
     });
 
     let _stdout = '';

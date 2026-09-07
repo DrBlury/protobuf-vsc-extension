@@ -175,6 +175,14 @@ describe('Cache', () => {
   });
 
   describe('simpleHash', () => {
+    it('invalidates parsed documents for identifier edits that collide in a 32-bit polynomial hash', () => {
+      const cache = new ContentHashCache<string>();
+      const before = 'syntax = "proto3"; message Aa {}';
+      const after = 'syntax = "proto3"; message BB {}';
+      cache.set('file:///test.proto', 'old AST', simpleHash(before));
+      expect(cache.get('file:///test.proto', simpleHash(after))).toBeUndefined();
+    });
+
     it('should generate hash for string', () => {
       const hash = simpleHash('test string');
       expect(hash).toBeDefined();

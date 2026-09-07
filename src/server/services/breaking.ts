@@ -138,12 +138,12 @@ export class BreakingChangeDetector {
    */
   private async getBaselineFromGit(filePath: string): Promise<string | null> {
     return new Promise(resolve => {
-      const relativePath = path.relative(this.workspaceRoot, filePath);
+      const relativePath = path.relative(this.workspaceRoot, filePath).split(path.sep).join('/');
       const ref = this.settings.againstGitRef || 'HEAD~1';
 
-      const proc = spawn('git', ['show', `${ref}:${relativePath}`], {
+      const proc = spawn('git', ['show', `${ref}:./${relativePath}`, '--'], {
         cwd: this.workspaceRoot,
-        shell: true,
+        shell: false,
       });
 
       let content = '';

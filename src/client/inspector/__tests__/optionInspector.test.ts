@@ -71,6 +71,29 @@ describe('OptionInspectorProvider', () => {
   });
 
   describe('getChildren', () => {
+    it('keeps navigation tied to the requested document when the active editor changes during loading', async () => {
+      const originalEditor = createMockTextEditor({ uri: 'file:///test/original.proto' });
+      mockVscode.window.activeTextEditor = originalEditor;
+      mockClient.sendRequest.mockImplementation(async () => {
+        mockVscode.window.activeTextEditor = createMockTextEditor({ uri: 'file:///test/other.proto' });
+        return [
+          {
+            name: 'deprecated',
+            value: true,
+            parent: 'MessageOptions',
+            range: {
+              start: { line: 2, character: 0 },
+              end: { line: 2, character: 20 },
+            },
+          },
+        ];
+      });
+
+      const children = await provider.getChildren();
+
+      expect(children[0].command?.arguments?.[0]).toBe(originalEditor.document.uri);
+    });
+
     it('should return empty array when element is provided (leaf nodes)', async () => {
       const item = new mockVscode.TreeItem('test', mockVscode.TreeItemCollapsibleState.None);
       const children = await provider.getChildren(item as never);

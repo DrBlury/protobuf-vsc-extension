@@ -212,7 +212,7 @@ describe('ClangFormatProvider', () => {
             return mockProcess.stdout;
           }),
         },
-        stdin: { write: jest.fn(), end: jest.fn() },
+        stdin: { on: jest.fn(), write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
@@ -241,7 +241,7 @@ describe('ClangFormatProvider', () => {
             return mockProcess.stdout;
           }),
         },
-        stdin: { write: jest.fn(), end: jest.fn() },
+        stdin: { on: jest.fn(), write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
@@ -275,7 +275,7 @@ describe('ClangFormatProvider', () => {
           }),
         },
         stderr: { on: jest.fn() },
-        stdin: { write: jest.fn(), end: jest.fn() },
+        stdin: { on: jest.fn(), write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
@@ -312,7 +312,7 @@ describe('ClangFormatProvider', () => {
       const mockProcess: any = {
         stdout: { on: jest.fn() },
         stderr: { on: jest.fn() },
-        stdin: { write: jest.fn(), end: jest.fn() },
+        stdin: { on: jest.fn(), write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code?: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 0);
@@ -351,7 +351,7 @@ describe('ClangFormatProvider', () => {
       const mockProcess: any = {
         stdout: { on: jest.fn() },
         stderr: { on: jest.fn() },
-        stdin: { write: jest.fn(), end: jest.fn() },
+        stdin: { on: jest.fn(), write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code?: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 0);
@@ -389,7 +389,7 @@ describe('ClangFormatProvider', () => {
       const mockProcess: any = {
         stdout: { on: jest.fn() },
         stderr: { on: jest.fn() },
-        stdin: { write: jest.fn(), end: jest.fn() },
+        stdin: { on: jest.fn(), write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code?: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 0);
@@ -430,7 +430,7 @@ describe('ClangFormatProvider', () => {
             return mockProcess.stdout;
           }),
         },
-        stdin: { write: jest.fn(), end: jest.fn() },
+        stdin: { on: jest.fn(), write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 10);
@@ -456,7 +456,7 @@ describe('ClangFormatProvider', () => {
       // Capture spawn args
       const mockProcess: any = {
         stdout: { on: jest.fn() },
-        stdin: { write: jest.fn(), end: jest.fn() },
+        stdin: { on: jest.fn(), write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code?: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 0);
@@ -489,7 +489,7 @@ describe('ClangFormatProvider', () => {
       const mockProcess: any = {
         stdout: { on: jest.fn() },
         stderr: { on: jest.fn() },
-        stdin: { write: jest.fn(), end: jest.fn() },
+        stdin: { on: jest.fn(), write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code?: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 0);
@@ -521,7 +521,7 @@ describe('ClangFormatProvider', () => {
       const mockProcess: any = {
         stdout: { on: jest.fn() },
         stderr: { on: jest.fn() },
-        stdin: { write: jest.fn(), end: jest.fn() },
+        stdin: { on: jest.fn(), write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code?: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 0);
@@ -558,7 +558,7 @@ describe('ClangFormatProvider', () => {
       const mockProcess: any = {
         stdout: { on: jest.fn() },
         stderr: { on: jest.fn() },
-        stdin: { write: jest.fn(), end: jest.fn() },
+        stdin: { on: jest.fn(), write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code?: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 0);
@@ -594,7 +594,7 @@ describe('ClangFormatProvider', () => {
       const mockProcess: any = {
         stdout: { on: jest.fn() },
         stderr: { on: jest.fn() },
-        stdin: { write: jest.fn(), end: jest.fn() },
+        stdin: { on: jest.fn(), write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code?: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 0);
@@ -630,7 +630,7 @@ describe('ClangFormatProvider', () => {
       const mockProcess: any = {
         stdout: { on: jest.fn() },
         stderr: { on: jest.fn() },
-        stdin: { write: jest.fn(), end: jest.fn() },
+        stdin: { on: jest.fn(), write: jest.fn(), end: jest.fn() },
         on: jest.fn((event: string, callback: (code?: number) => void) => {
           if (event === 'close') {
             setTimeout(() => callback(0), 0);

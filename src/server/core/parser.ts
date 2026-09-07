@@ -100,12 +100,14 @@ export class ProtoParser {
   private pos = 0;
   private lines: string[] = [];
   private lastComment: string | undefined;
+  private syntaxErrors: NonNullable<ProtoFile['syntaxErrors']> = [];
 
   parse(text: string, _uri: string): ProtoFile {
     this.lines = text.split('\n');
     this.tokens = this.tokenize(text);
     this.pos = 0;
     this.lastComment = undefined;
+    this.syntaxErrors = [];
 
     const file: ProtoFile = {
       type: 'file',
@@ -115,7 +117,7 @@ export class ProtoParser {
       enums: [],
       services: [],
       extends: [],
-      syntaxErrors: [],
+      syntaxErrors: this.syntaxErrors,
       range: {
         start: { line: 0, character: 0 },
         end: { line: this.lines.length - 1, character: this.lines[this.lines.length - 1]?.length || 0 },
@@ -763,7 +765,7 @@ export class ProtoParser {
           } else {
             // Put back modifier and parse as regular field
             this.pos--;
-            message.fields.push(this.parseField());
+            this.parseMessageField(message);
           }
           break;
         }
@@ -773,7 +775,7 @@ export class ProtoParser {
         default:
           // Handle fields - either starts with identifier (type name) or '.' (fully-qualified type)
           if (token.type === 'identifier' || (token.type === 'punctuation' && token.value === '.')) {
-            message.fields.push(this.parseField());
+            this.parseMessageField(message);
           } else {
             this.advance();
           }
@@ -784,6 +786,24 @@ export class ProtoParser {
     message.range.end = endToken.range.end;
 
     return message;
+  }
+
+  private parseMessageField(message: MessageDefinition): void {
+    try {
+      message.fields.push(this.parseField());
+    } catch (error) {
+      const lastToken = this.tokens[this.pos - 1];
+      if (lastToken?.value !== '}') {
+        throw error;
+      }
+      // An incomplete field immediately before the closing brace must not
+      // discard its entire message and already parsed nested declarations.
+      this.pos--;
+      this.syntaxErrors.push({
+        range: lastToken.range,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   private parseField(): FieldDefinition {

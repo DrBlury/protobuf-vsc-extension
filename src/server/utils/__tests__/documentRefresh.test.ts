@@ -51,27 +51,33 @@ describe('Document Refresh utilities', () => {
     expect(updateFileSpy).toHaveBeenCalled();
   });
 
-  it('should cache parsed files', () => {
+  it('should reuse parsed files without rebuilding the unchanged analyzer index', () => {
     const content = 'syntax = "proto3"; message Test {}';
     const uri = 'file:///test.proto';
     const doc = TextDocument.create(uri, 'proto', 1, content);
     documents.get.mockReturnValue(doc);
 
     const parseSpy = jest.spyOn(parser, 'parse');
+    const updateSpy = jest.spyOn(analyzer, 'updateFile');
 
     // First call should parse
     refreshDocumentAndImports(uri, documents, parser, analyzer, cache);
     expect(parseSpy).toHaveBeenCalledTimes(1);
 
-    // Second call with same content - cache.get checks hash first
-    // If hash matches, parse is not called again (cached result used)
-    // If hash doesn't match, parse is called
     parseSpy.mockClear();
+    updateSpy.mockClear();
     refreshDocumentAndImports(uri, documents, parser, analyzer, cache);
-    // With same content, hash matches, so cache.get returns cached value
-    // Parse may or may not be called depending on cache implementation
-    // We verify the function completes successfully
-    expect(analyzer.getFile(uri)).toBeDefined();
+    expect(parseSpy).not.toHaveBeenCalled();
+    expect(updateSpy).not.toHaveBeenCalled();
+
+    // A disk rescan may replace the index while the buffer is unchanged.
+    analyzer.updateFile(uri, parser.parse('message DiskVersion {}', uri));
+    parseSpy.mockClear();
+    updateSpy.mockClear();
+    refreshDocumentAndImports(uri, documents, parser, analyzer, cache);
+    expect(parseSpy).not.toHaveBeenCalled();
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+    expect(analyzer.getFile(uri)?.messages[0]?.name).toBe('Test');
   });
 
   it('should invalidate cache when content changes', () => {
@@ -122,6 +128,10 @@ describe('Document Refresh utilities', () => {
 
     expect(result).toContain(mainUri);
     expect(result).toContain(importUri);
+
+    const updateSpy = jest.spyOn(analyzer, 'updateFile');
+    refreshDocumentAndImports(mainUri, documents, parser, analyzer, cache);
+    expect(updateSpy).not.toHaveBeenCalled();
   });
 
   it('should handle parse errors gracefully', () => {

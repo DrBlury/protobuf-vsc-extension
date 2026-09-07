@@ -14,6 +14,9 @@ export function getServerCapabilities(): InitializeResult {
   return {
     capabilities: {
       textDocumentSync: TextDocumentSyncKind.Incremental,
+      workspace: {
+        workspaceFolders: { supported: true, changeNotifications: true },
+      },
       completionProvider: {
         resolveProvider: false,
         triggerCharacters: ['.', '"', '<', ' '],

@@ -1,9 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as os from 'os';
-import * as https from 'https';
+import { downloadFile } from './download';
 import { spawn } from 'child_process';
-import * as crypto from 'crypto';
 // Note: We still need Node.js fs for streaming downloads and chmod operations
 // which VS Code's abstract filesystem doesn't support
 import * as fs from 'fs';
@@ -900,85 +899,11 @@ export class ToolchainManager {
   }
 
   private async downloadFile(url: string, dest: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const file = fs.createWriteStream(dest);
-      https
-        .get(url, { headers: { 'User-Agent': 'VSCode-Protobuf-Extension' } }, response => {
-          if (response.statusCode !== 200 && response.statusCode !== 302) {
-            reject(new Error(`Failed to download ${url}: Status ${response.statusCode}`));
-            return;
-          }
-
-          if (response.statusCode === 302 && response.headers.location) {
-            this.downloadFile(response.headers.location, dest).then(resolve).catch(reject);
-            return;
-          }
-
-          response.pipe(file);
-          file.on('finish', () => {
-            file.close();
-            resolve();
-          });
-        })
-        .on('error', err => {
-          fs.unlink(dest, () => {});
-          reject(err);
-        });
-    });
+    return downloadFile(url, dest);
   }
 
-  /**
-   * Download a binary file with integrity verification
-   */
   private async downloadFileWithIntegrity(url: string, dest: string, expectedSha256: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const file = fs.createWriteStream(dest);
-      const hash = crypto.createHash('sha256');
-
-      https
-        .get(url, { headers: { 'User-Agent': 'VSCode-Protobuf-Extension' } }, response => {
-          if (response.statusCode !== 200 && response.statusCode !== 302) {
-            reject(new Error(`Failed to download ${url}: Status ${response.statusCode}`));
-            return;
-          }
-
-          if (response.statusCode === 302 && response.headers.location) {
-            this.downloadFileWithIntegrity(response.headers.location, dest, expectedSha256).then(resolve).catch(reject);
-            return;
-          }
-
-          response.on('data', chunk => {
-            hash.update(chunk);
-          });
-
-          response.pipe(file);
-
-          file.on('finish', () => {
-            file.close();
-
-            // Verify integrity
-            const calculatedHash = hash.digest('hex');
-            if (calculatedHash !== expectedSha256.toLowerCase()) {
-              fs.unlink(dest, () => {});
-              reject(
-                new Error(
-                  `Integrity verification failed for ${dest}\n` +
-                    `Expected: ${expectedSha256}\n` +
-                    `Calculated: ${calculatedHash}\n` +
-                    `This could indicate a supply chain attack or corrupted download.`
-                )
-              );
-              return;
-            }
-
-            resolve();
-          });
-        })
-        .on('error', err => {
-          fs.unlink(dest, () => {});
-          reject(err);
-        });
-    });
+    return downloadFile(url, dest, expectedSha256);
   }
 
   private async extractZip(zipPath: string, destDir: string): Promise<void> {

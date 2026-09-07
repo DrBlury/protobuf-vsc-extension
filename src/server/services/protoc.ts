@@ -105,50 +105,31 @@ function validateShellArgument(arg: string): boolean {
   return !invalidPatterns.some(pattern => pattern.test(arg));
 }
 
-/**
- * Quote a path if it contains spaces or special characters.
- * This is needed for protoc arguments where paths are passed as flag values.
- * On Windows, paths with spaces need to be quoted even when not using shell.
- */
+/** Validate paths without adding shell quotes: spawn already preserves argv boundaries. */
 function quotePathIfNeeded(pathValue: string): string {
   if (!validateShellArgument(pathValue)) {
     throw new Error(`Invalid path argument detected: ${pathValue}`);
   }
-
-  // Quote if path contains spaces, quotes, or other problematic characters
-  if (pathValue.includes(' ') || pathValue.includes('"') || pathValue.includes("'")) {
-    // Use double quotes and escape any existing double quotes
-    return `"${pathValue.replace(/"/g, '\\"')}"`;
-  }
   return pathValue;
 }
 
-/**
- * Format a --proto_path argument with proper quoting for paths with spaces.
- * Protoc expects: --proto_path="path with spaces" or --proto_path=path_without_spaces
- */
 function formatProtoPathArg(protoPath: string): string {
   return `--proto_path=${quotePathIfNeeded(protoPath)}`;
 }
 
-/**
- * Quote a protoc option value if it contains paths with spaces.
- * Handles options like --go_out=/path/with spaces/output or --plugin=protoc-gen-go=/path/with spaces/bin
- * The value after the = sign needs to be quoted if it contains spaces.
- */
 function quoteOptionIfNeeded(option: string): string {
-  // Handle --flag=value format
-  const equalsIndex = option.indexOf('=');
-  if (equalsIndex > 0) {
-    const flag = option.substring(0, equalsIndex + 1); // includes the =
-    const value = option.substring(equalsIndex + 1);
+  return quotePathIfNeeded(option);
+}
 
-    // Check if the value has spaces and needs quoting
-    if (value.includes(' ') && !value.startsWith('"') && !value.startsWith("'")) {
-      return `${flag}${quotePathIfNeeded(value)}`;
+/** Quote the executable and response-file argument only when using a shell. */
+function quoteShellArgument(value: string): string {
+  if (IS_WINDOWS) {
+    if (/["%\r\n\0]/.test(value)) {
+      throw new Error('Unsupported character in Windows shell path');
     }
+    return `"${value}"`;
   }
-  return option;
+  return "'" + value.replace(/'/g, "'\\''") + "'";
 }
 
 export interface ProtocSettings {
@@ -242,11 +223,15 @@ export class ProtocCompiler {
   async isAvailable(): Promise<boolean> {
     return new Promise(resolve => {
       // Check if this protoc is a script that needs shell execution
-      const useShell = needsShellExecution(this.settings.path);
+      const useShell = IS_WINDOWS && needsShellExecution(this.settings.path);
 
       const proc = spawn(this.settings.path, ['--version'], { shell: useShell });
 
+      let retrying = false;
       proc.on('close', (code: number | null) => {
+        if (retrying) {
+          return;
+        }
         resolve(code === 0);
       });
 
@@ -256,6 +241,7 @@ export class ProtocCompiler {
         // Don't use shell fallback for full paths as they may contain spaces
         const isSimpleCommand = !this.settings.path.includes(path.sep) && !this.settings.path.includes('/');
         if (!useShell && isSimpleCommand) {
+          retrying = true;
           const procWithShell = spawn(this.settings.path, ['--version'], { shell: true });
           procWithShell.on('close', (code: number | null) => resolve(code === 0));
           procWithShell.on('error', () => resolve(false));
@@ -299,7 +285,7 @@ export class ProtocCompiler {
   private async fetchVersion(): Promise<string | null> {
     return new Promise(resolve => {
       // Check if this protoc is a script that needs shell execution
-      const useShell = needsShellExecution(this.settings.path);
+      const useShell = IS_WINDOWS && needsShellExecution(this.settings.path);
 
       const proc = spawn(this.settings.path, ['--version'], { shell: useShell });
 
@@ -308,7 +294,11 @@ export class ProtocCompiler {
         output += data.toString('utf8');
       });
 
+      let retrying = false;
       proc.on('close', (code: number | null) => {
+        if (retrying) {
+          return;
+        }
         if (code === 0) {
           const match = output.match(/libprotoc\s+([\d.]+)/);
           resolve(match ? match[1]! : output.trim());
@@ -322,6 +312,7 @@ export class ProtocCompiler {
         // Don't use shell fallback for full paths as they may contain spaces
         const isSimpleCommand = !this.settings.path.includes(path.sep) && !this.settings.path.includes('/');
         if (!useShell && isSimpleCommand) {
+          retrying = true;
           const procWithShell = spawn(this.settings.path, ['--version'], { shell: true });
           let shellOutput = '';
           procWithShell.stdout?.on('data', (data: Buffer) => {
@@ -607,34 +598,17 @@ export class ProtocCompiler {
    * Run protoc using a response file (@argfile) to avoid command line length limits.
    * The response file contains all arguments, one per line.
    */
-  private async runProtocWithResponseFile(args: string[], cwd: string): Promise<CompilationResult> {
+  private async runProtocWithResponseFile(args: string[], cwd: string, useShell = false): Promise<CompilationResult> {
     // Create a temporary response file with cryptographically secure random name
     const tempDir = os.tmpdir();
     const randomName = crypto.randomBytes(16).toString('hex');
     const responseFilePath = path.join(tempDir, `protoc-${randomName}.txt`);
 
     try {
-      // Write arguments to the response file, one per line
-      // Arguments with spaces need to be quoted
-      const responseContent = args
-        .map(arg => {
-          if (arg.includes(' ') || arg.includes('"')) {
-            // Escape any existing quotes and wrap in quotes
-            return `"${arg.replace(/"/g, '\\"')}"`;
-          }
-          return arg;
-        })
-        .join('\n');
-
-      fs.writeFileSync(responseFilePath, responseContent, 'utf-8');
-
-      // Set secure file permissions (owner read/write only)
-      fs.chmodSync(responseFilePath, 0o600);
-
-      // Run protoc with the response file
-      // Quote the response file path if it contains spaces
-      const responseFileArg = responseFilePath.includes(' ') ? `@"${responseFilePath}"` : `@${responseFilePath}`;
-      const result = await this.runProtoc([responseFileArg], cwd);
+      // protoc response files contain one literal argument per line, without shell quoting.
+      const responseContent = args.map(quotePathIfNeeded).join('\n');
+      fs.writeFileSync(responseFilePath, responseContent, { encoding: 'utf-8', mode: 0o600 });
+      const result = await this.runProtoc([`@${responseFilePath}`], cwd, useShell);
 
       return result;
     } finally {
@@ -834,33 +808,29 @@ export class ProtocCompiler {
       .replace(/\$\{config\.(\w+)\}/g, () => ''); // Config variables would need VS Code context
   }
 
-  private async runProtoc(args: string[], cwd: string): Promise<CompilationResult> {
+  private async runProtoc(args: string[], cwd: string, useShell = false): Promise<CompilationResult> {
     const startTime = Date.now();
     const timeout = this.settings.timeout ?? DEFAULT_TIMEOUT_MS;
 
-    // Check if this protoc is a script that needs shell execution
-    const useShell = needsShellExecution(this.settings.path);
-
-    // If we need shell for scripts, use response file approach to avoid command line limits
-    if (useShell) {
-      return this.runProtocWithResponseFile(args, cwd);
+    // Executable shebang scripts run directly on POSIX. Windows batch files require cmd.exe.
+    if (!useShell && IS_WINDOWS && /\.(cmd|bat)$/i.test(this.settings.path)) {
+      return this.runProtocWithResponseFile(args, cwd, true);
     }
 
     return new Promise(resolve => {
       // Resolve the command path - avoid shell: true to bypass command line length limits
       // shell: true on Windows uses cmd.exe which has an 8191 char limit
-      const command = this.resolveCommand(this.settings.path);
+      const executable = this.resolveCommand(this.settings.path);
+      const command = useShell ? quoteShellArgument(executable) : executable;
 
       const options: SpawnOptions = {
         cwd,
         // Avoid shell: true to bypass Windows command line length limits
         // This requires the command to be a direct path to an executable
-        shell: false,
-        // On Windows, we need to handle .cmd/.bat files specially
-        windowsVerbatimArguments: IS_WINDOWS,
+        shell: useShell,
       };
 
-      const proc = spawn(command, args, options);
+      const proc = spawn(command, useShell ? args.map(quoteShellArgument) : args, options);
       this.activeProcesses.add(proc);
 
       let stdout = '';
@@ -868,6 +838,7 @@ export class ProtocCompiler {
       let stdoutTruncated = false;
       let stderrTruncated = false;
       let timedOut = false;
+      let retrying = false;
 
       // Set up timeout
       let forceKillTimeout: NodeJS.Timeout | undefined;
@@ -918,6 +889,9 @@ export class ProtocCompiler {
 
       proc.on('close', (code: number | null) => {
         cleanup();
+        if (retrying) {
+          return;
+        }
         const executionTime = Date.now() - startTime;
 
         if (timedOut) {
@@ -968,7 +942,8 @@ export class ProtocCompiler {
         // If spawn fails without shell, try with shell as fallback
         // This handles cases where the command is a shell alias or script
         if (!options.shell) {
-          this.runProtocWithShell(args, cwd).then(resolve);
+          retrying = true;
+          resolve(this.runProtocWithShell(args, cwd));
           return;
         }
 
@@ -1012,7 +987,7 @@ export class ProtocCompiler {
    */
   private async runProtocWithShell(args: string[], cwd: string): Promise<CompilationResult> {
     // Always use response file when falling back to shell to avoid length limits
-    return this.runProtocWithResponseFile(args, cwd);
+    return this.runProtocWithResponseFile(args, cwd, true);
   }
 
   /**
