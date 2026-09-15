@@ -114,6 +114,11 @@
         "language": "textproto",
         "scopeName": "source.textproto",
         "path": "./syntaxes/textproto.tmLanguage.json"
+      },
+      {
+        "scopeName": "markdown.codeblock.proto",
+        "path": "./syntaxes/proto.markdown-injection.json",
+        "injectTo": ["text.html.markdown"]
       }
     ],
     "snippets": [
