@@ -39,6 +39,7 @@ export class SchemaGraphPanel {
       {
         enableScripts: true,
         retainContextWhenHidden: true,
+        localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist', 'webview')],
       }
     );
 
@@ -47,7 +48,7 @@ export class SchemaGraphPanel {
 
   private constructor(
     panel: vscode.WebviewPanel,
-    _extensionUri: vscode.Uri,
+    private readonly extensionUri: vscode.Uri,
     client: LanguageClient,
     sourceUri: string | undefined,
     scope: SchemaGraphScope
@@ -177,12 +178,17 @@ export class SchemaGraphPanel {
   private renderHtml(graph: SchemaGraph): string {
     const webview = this.panel.webview;
     const nonce = getNonce();
+    const webviewAsset = (fileName: string): string =>
+      webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview', fileName)).toString();
+    const d3Uri = webviewAsset('d3.min.js');
+    const elkUri = webviewAsset('elk.bundled.js');
+    const jsPdfUri = webviewAsset('jspdf.umd.min.js');
     const csp = [
       "default-src 'none'",
-      `img-src ${webview.cspSource} https: data:`,
-      `style-src ${webview.cspSource} 'unsafe-inline' https://fonts.googleapis.com`,
-      `font-src ${webview.cspSource} https://fonts.gstatic.com`,
-      `script-src 'nonce-${nonce}' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com`,
+      `img-src ${webview.cspSource} data:`,
+      `style-src ${webview.cspSource} 'unsafe-inline'`,
+      `font-src ${webview.cspSource}`,
+      `script-src 'nonce-${nonce}' ${webview.cspSource}`,
     ].join('; ');
 
     const initialData = JSON.stringify(graph).replace(/</g, '\\u003c');
@@ -195,7 +201,6 @@ export class SchemaGraphPanel {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Protobuf Schema Graph</title>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600&display=swap');
       :root {
         --bg-1: #0c1021;
         --bg-2: #0f172a;
@@ -484,9 +489,9 @@ export class SchemaGraphPanel {
       <div class="context-menu-item" data-action="path-to">Find Paths To Here</div>
     </div>
 
-    <script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
-    <script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/elkjs@0.9.0/lib/elk.bundled.js"></script>
-    <script nonce="${nonce}" src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script nonce="${nonce}" src="${d3Uri}"></script>
+    <script nonce="${nonce}" src="${elkUri}"></script>
+    <script nonce="${nonce}" src="${jsPdfUri}"></script>
     <script nonce="${nonce}">
       const vscode = acquireVsCodeApi();
       let sourceUri = ${JSON.stringify(graph.sourceUri || '').replace(/</g, '\\u003c')};

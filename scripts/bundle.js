@@ -10,6 +10,11 @@ const protoWasmSource = path.join(root, 'out', 'tree-sitter', 'tree-sitter-proto
 const protoWasmTarget = path.join(distDir, 'tree-sitter', 'tree-sitter-proto.wasm');
 const webTreeSitterWasmSource = path.join(root, 'node_modules', 'web-tree-sitter', 'web-tree-sitter.wasm');
 const webTreeSitterWasmTarget = path.join(distDir, 'server', 'web-tree-sitter.wasm');
+const webviewAssets = [
+  ['d3', 'dist', 'd3.min.js'],
+  ['elkjs', 'lib', 'elk.bundled.js'],
+  ['jspdf', 'dist', 'jspdf.umd.min.js'],
+];
 
 const sharedOptions = {
   bundle: true,
@@ -41,6 +46,16 @@ async function bundle() {
   await fs.promises.mkdir(path.dirname(protoWasmTarget), { recursive: true });
   await fs.promises.copyFile(protoWasmSource, protoWasmTarget);
   await fs.promises.copyFile(webTreeSitterWasmSource, webTreeSitterWasmTarget);
+
+  const webviewDir = path.join(distDir, 'webview');
+  await fs.promises.mkdir(webviewDir, { recursive: true });
+  await Promise.all(
+    webviewAssets.map(async segments => {
+      const source = path.join(root, 'node_modules', ...segments);
+      const target = path.join(webviewDir, segments[segments.length - 1]);
+      await fs.promises.copyFile(source, target);
+    })
+  );
 }
 
 bundle().catch(error => {

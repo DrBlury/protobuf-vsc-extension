@@ -9,6 +9,11 @@ import { discoverWorkspaceFiles } from '../../shared/workspaceFileDiscovery';
 import { ProtoParser } from '../../server/core/parser';
 import type { MessageDefinition, GroupFieldDefinition } from '../../server/core/ast';
 
+const MAX_BINARY_FILE_BYTES = 16 * 1024 * 1024;
+const MAX_HEX_DUMP_BYTES = 64 * 1024;
+const MAX_PROTOC_OUTPUT_BYTES = 4 * 1024 * 1024;
+const PROTOC_TIMEOUT_MS = 30_000;
+
 /**
  * Result of binary decoding operation
  */
@@ -343,6 +348,16 @@ export class BinaryDecoderProvider implements vscode.CustomReadonlyEditorProvide
   }
 
   private async decodeBinary(uri: vscode.Uri, messageType?: string): Promise<DecodeResult> {
+    const fileSize = fs.statSync(uri.fsPath).size;
+    if (fileSize > MAX_BINARY_FILE_BYTES) {
+      throw new Error(
+        `Binary Inspector supports files up to ${MAX_BINARY_FILE_BYTES / (1024 * 1024)} MiB; this file is ${(
+          fileSize /
+          (1024 * 1024)
+        ).toFixed(1)} MiB.`
+      );
+    }
+
     const selectedType = messageType?.trim();
     const schemaUri = selectedType ? this.messageTypeIndex.get(selectedType) : undefined;
     const configurationUri = schemaUri ?? uri;
@@ -368,32 +383,66 @@ export class BinaryDecoderProvider implements vscode.CustomReadonlyEditorProvide
 
         let stdout = '';
         let stderr = '';
+        let stdoutBytes = 0;
+        let stderrBytes = 0;
+        let settled = false;
 
-        proc.stdout.on('data', d => (stdout += d.toString()));
-        proc.stderr.on('data', d => (stderr += d.toString()));
+        const finish = (error?: Error, value?: string): void => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          clearTimeout(timeout);
+          fileStream.destroy();
+          if (error) {
+            proc.kill();
+            reject(error);
+          } else {
+            resolve(value ?? '');
+          }
+        };
+
+        const timeout = setTimeout(() => {
+          finish(new Error(`protoc timed out after ${PROTOC_TIMEOUT_MS / 1000} seconds`));
+        }, PROTOC_TIMEOUT_MS);
+        timeout.unref?.();
+
+        proc.stdout.on('data', d => {
+          const chunk = Buffer.isBuffer(d) ? d : Buffer.from(d);
+          stdoutBytes += chunk.length;
+          if (stdoutBytes > MAX_PROTOC_OUTPUT_BYTES) {
+            finish(new Error(`protoc output exceeded ${MAX_PROTOC_OUTPUT_BYTES / (1024 * 1024)} MiB`));
+            return;
+          }
+          stdout += chunk.toString();
+        });
+        proc.stderr.on('data', d => {
+          const chunk = Buffer.isBuffer(d) ? d : Buffer.from(d);
+          stderrBytes += chunk.length;
+          if (stderrBytes > MAX_PROTOC_OUTPUT_BYTES) {
+            finish(new Error(`protoc error output exceeded ${MAX_PROTOC_OUTPUT_BYTES / (1024 * 1024)} MiB`));
+            return;
+          }
+          stderr += chunk.toString();
+        });
 
         proc.on('close', code => {
-          fileStream.destroy();
           if (code === 0) {
-            resolve(stdout);
+            finish(undefined, stdout);
           } else {
-            reject(new Error(stderr || `Exit code ${code}`));
+            finish(new Error(stderr || `Exit code ${code}`));
           }
         });
 
         proc.on('error', err => {
-          fileStream.destroy();
-          reject(err);
+          finish(err);
         });
         proc.stdin.on('error', err => {
-          fileStream.destroy();
-          proc.kill();
-          reject(err);
+          finish(err);
         });
         pipeline(fileStream, proc.stdin, err => {
           if (err) {
-            proc.kill();
-            reject(err);
+            finish(err);
           }
         });
       });
@@ -460,9 +509,10 @@ export class BinaryDecoderProvider implements vscode.CustomReadonlyEditorProvide
   private generateHexDump(buffer: Buffer): string {
     let output = '';
     const width = 16;
-    for (let i = 0; i < buffer.length; i += width) {
+    const displayed = buffer.subarray(0, MAX_HEX_DUMP_BYTES);
+    for (let i = 0; i < displayed.length; i += width) {
       output += i.toString(16).padStart(8, '0') + '  ';
-      const slice = buffer.subarray(i, i + width);
+      const slice = displayed.subarray(i, i + width);
       let hex = '';
       for (let j = 0; j < width; j++) {
         if (j < slice.length) {
@@ -480,6 +530,9 @@ export class BinaryDecoderProvider implements vscode.CustomReadonlyEditorProvide
         ascii += byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : '.';
       }
       output += '|' + ascii + '|\n';
+    }
+    if (buffer.length > displayed.length) {
+      output += `... hex preview truncated after ${MAX_HEX_DUMP_BYTES / 1024} KiB (${buffer.length} bytes total) ...\n`;
     }
     return output;
   }

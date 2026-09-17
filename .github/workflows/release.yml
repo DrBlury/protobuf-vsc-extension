@@ -20,18 +20,15 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      OVSX_PAT: ${{ secrets.OPEN_VSX_TOKEN }}
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: 'npm'
@@ -84,11 +81,10 @@ jobs:
 
       - name: Generate SBOM for Release
         run: |
-          npm install -g @cyclonedx/cyclonedx-npm
-          cyclonedx-npm --output-file release-sbom.json --output-format json --omit dev
+          npx --no-install cyclonedx-npm --output-file release-sbom.json --output-format json --omit dev
 
       - name: Run Grype Security Scan
-        uses: anchore/scan-action@v7
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7
         with:
           path: '.'
           fail-build: false
@@ -97,7 +93,7 @@ jobs:
           output-file: release-grype.sarif
 
       - name: Upload Release SBOM
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-sbom
           path: release-sbom.json
@@ -131,7 +127,7 @@ jobs:
           EOF
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           files: |
@@ -144,9 +140,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to Open VSX
-        if: ${{ env.OVSX_PAT != '' }}
-        run: npx --yes ovsx publish "${{ steps.version.outputs.vsix_path }}"
-
-      - name: Skip Open VSX publish
-        if: ${{ env.OVSX_PAT == '' }}
-        run: echo "OPEN_VSX_TOKEN is not configured; skipping Open VSX publish."
+        env:
+          OVSX_PAT: ${{ secrets.OPEN_VSX_TOKEN }}
+        run: |
+          if [ -z "$OVSX_PAT" ]; then
+            echo "OPEN_VSX_TOKEN is not configured; skipping Open VSX publish."
+            exit 0
+          fi
+          npx --no-install ovsx publish "${{ steps.version.outputs.vsix_path }}"

@@ -61,4 +61,37 @@ describe('DocumentationPanel asynchronous loads', () => {
 
     expect(mockVscode.window.showErrorMessage).not.toHaveBeenCalled();
   });
+
+  it('escapes file names and field options in generated HTML', async () => {
+    const client = createMockLanguageClient();
+    const panel = mockVscode.window.createWebviewPanel();
+    client.sendRequest.mockResolvedValue({
+      ...data('</title><script>alert(1)</script>.proto'),
+      messages: [
+        {
+          kind: 'message',
+          name: 'Request',
+          fullName: 'Request',
+          fields: [
+            {
+              name: 'value',
+              type: 'string',
+              number: 1,
+              options: ['deprecated = true', '</span><img src=x onerror=alert(1)>'],
+            },
+          ],
+          nestedMessages: [],
+          nestedEnums: [],
+        },
+      ],
+    } as DocumentationData);
+
+    DocumentationPanel.createOrShow({} as never, client, 'file:///test/unsafe.proto');
+    await Promise.resolve();
+
+    expect(panel.webview.html).not.toContain('</title><script>');
+    expect(panel.webview.html).not.toContain('</span><img');
+    expect(panel.webview.html).toContain('&lt;/title&gt;&lt;script&gt;');
+    expect(panel.webview.html).toContain('&lt;/span&gt;&lt;img');
+  });
 });

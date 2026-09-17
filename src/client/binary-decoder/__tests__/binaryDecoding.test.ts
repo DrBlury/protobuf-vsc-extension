@@ -9,6 +9,7 @@ import { BinaryDecoderProvider } from '../binaryDecoder';
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),
   readFileSync: jest.fn(),
+  statSync: jest.fn(),
   createReadStream: jest.fn(),
   readdirSync: jest.fn(),
 }));
@@ -35,6 +36,7 @@ describe('BinaryDecoderProvider decoding', () => {
       { appendLine: jest.fn() } as unknown as vscode.OutputChannel
     );
     (fs.readFileSync as jest.Mock).mockReturnValue(Buffer.from([8, 1]));
+    (fs.statSync as jest.Mock).mockReturnValue({ size: 2 });
     (fs.createReadStream as jest.Mock).mockImplementation(() => Readable.from([Buffer.from([8, 1])]));
     (fs.readdirSync as jest.Mock).mockReturnValue([]);
     (vscode.workspace.getWorkspaceFolder as jest.Mock).mockReturnValue({ uri: vscode.Uri.file('/workspace') });
@@ -142,5 +144,42 @@ describe('BinaryDecoderProvider decoding', () => {
 
     expect(result.rawDecode).toMatch(/write EPIPE|closed or destroyed stream/);
     expect(result.isNamed).toBe(false);
+  });
+
+  it('rejects oversized binary files before reading or starting protoc', async () => {
+    (fs.statSync as jest.Mock).mockReturnValue({ size: 16 * 1024 * 1024 + 1 });
+
+    await expect(decode()).rejects.toThrow('supports files up to 16 MiB');
+    expect(fs.readFileSync).not.toHaveBeenCalled();
+    expect(spawn).not.toHaveBeenCalled();
+  });
+
+  it('bounds protoc output and terminates the child process', async () => {
+    (spawn as jest.Mock).mockImplementation(() => {
+      process = Object.assign(new EventEmitter(), {
+        stdin: new PassThrough(),
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+        kill: jest.fn(),
+      });
+      process.stdin.on('finish', () => {
+        process.stdout.emit('data', Buffer.alloc(4 * 1024 * 1024 + 1));
+      });
+      return process;
+    });
+
+    const result = await decode();
+
+    expect(result.rawDecode).toContain('output exceeded 4 MiB');
+    expect(process.kill).toHaveBeenCalled();
+  });
+
+  it('truncates the hex preview independently of the accepted input size', () => {
+    const hexDump = (provider as unknown as { generateHexDump(buffer: Buffer): string }).generateHexDump(
+      Buffer.alloc(64 * 1024 + 32)
+    );
+
+    expect(hexDump).toContain('hex preview truncated after 64 KiB');
+    expect(hexDump).not.toContain('00010000');
   });
 });
