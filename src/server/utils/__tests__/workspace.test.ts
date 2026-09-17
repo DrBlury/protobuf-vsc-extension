@@ -22,6 +22,7 @@ const normalizeTestPath = (filePath: string): string => filePath.replace(/\\/g, 
 
 describe('Workspace utilities', () => {
   beforeEach(() => {
+    console.log(`WORKSPACE_TEST_START: ${expect.getState().currentTestName}`);
     jest.clearAllMocks();
     mockFs.lstatSync.mockReturnValue({ isSymbolicLink: () => false } as fs.Stats);
   });
