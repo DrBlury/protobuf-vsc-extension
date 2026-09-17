@@ -511,7 +511,7 @@ describe('ClangFormatProvider', () => {
 
       // Ensure cwd is set to the directory containing the file
       expect(capturedOptions).toBeDefined();
-      expect(capturedOptions.cwd).toBe('/Users/test/workspace/protos');
+      expect(capturedOptions.cwd.replace(/\\/g, '/')).toBe('/Users/test/workspace/protos');
     });
 
     it('should set cwd from file:// URI', async () => {

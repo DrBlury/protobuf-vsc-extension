@@ -116,8 +116,16 @@ describe('SchemaDiffManager', () => {
       await manager.diffSchema(mockVscode.Uri.file('/test/project/a/schema.proto') as never);
       await manager.diffSchema(mockVscode.Uri.file('/test/project/b/schema.proto') as never);
 
-      expect(mockWriteFile).toHaveBeenNthCalledWith(1, '/tmp/protobuf-diff-first/schema.proto', 'content');
-      expect(mockWriteFile).toHaveBeenNthCalledWith(2, '/tmp/protobuf-diff-second/schema.proto', 'content');
+      expect(mockWriteFile).toHaveBeenNthCalledWith(
+        1,
+        path.join('/tmp/protobuf-diff-first', 'schema.proto'),
+        'content'
+      );
+      expect(mockWriteFile).toHaveBeenNthCalledWith(
+        2,
+        path.join('/tmp/protobuf-diff-second', 'schema.proto'),
+        'content'
+      );
     });
 
     it('uses the repository containing the file when it is nested inside the workspace repository', async () => {
@@ -258,7 +266,7 @@ describe('SchemaDiffManager', () => {
 
       await manager.diffSchema(uri);
 
-      expect(mockWriteFile).toHaveBeenCalledWith('/tmp/protobuf-diff-unique/schema.proto', '');
+      expect(mockWriteFile).toHaveBeenCalledWith(path.join('/tmp/protobuf-diff-unique', 'schema.proto'), '');
       expect(mockVscode.commands.executeCommand).toHaveBeenCalledWith(
         'vscode.diff',
         expect.anything(),

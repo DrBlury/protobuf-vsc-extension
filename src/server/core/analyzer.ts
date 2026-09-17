@@ -266,8 +266,8 @@ export class SemanticAnalyzer {
 
     // Strategy 2: Relative path from current file
     const currentPath = this.normalizeUri(currentUri).replace('file://', '');
-    const currentDir = path.dirname(currentPath);
-    const resolvedPath = path.resolve(currentDir, normalizedImport).replace(/\\/g, '/');
+    const currentDir = path.posix.dirname(currentPath);
+    const resolvedPath = path.posix.resolve(currentDir, normalizedImport);
     const resolvedUri = 'file://' + resolvedPath;
 
     for (const [fileUri] of this.workspace.files) {
@@ -359,7 +359,7 @@ export class SemanticAnalyzer {
     const allPaths: string[] = [];
     for (const [fileUri] of this.workspace.files) {
       const filePath = this.normalizeUri(fileUri).replace('file://', '');
-      allPaths.push(path.dirname(filePath));
+      allPaths.push(path.posix.dirname(filePath));
     }
 
     // Add unique parent directories as potential proto roots
