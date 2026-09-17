@@ -52,7 +52,10 @@ describe('SchemaGraphPanel', () => {
         'protobufSchemaGraph',
         'Protobuf Schema Graph',
         expect.objectContaining({ viewColumn: mockVscode.ViewColumn.Beside }),
-        expect.objectContaining({ enableScripts: true })
+        expect.objectContaining({
+          enableScripts: true,
+          localResourceRoots: [expect.objectContaining({ fsPath: '/test/extension/dist/webview' })],
+        })
       );
     });
 
@@ -328,7 +331,7 @@ describe('SchemaGraphPanel', () => {
       expect(mockWebviewPanel.webview.html).toContain('Protobuf Schema Graph');
     });
 
-    it('should include D3 and ELK script references', async () => {
+    it('loads graph libraries only from packaged webview assets', async () => {
       const mockGraphData: SchemaGraph = {
         nodes: [],
         edges: [],
@@ -346,8 +349,12 @@ describe('SchemaGraphPanel', () => {
 
       await new Promise(resolve => setTimeout(resolve, 20));
 
-      expect(mockWebviewPanel.webview.html).toContain('d3@7.9.0/dist/d3.min.js');
-      expect(mockWebviewPanel.webview.html).toContain('elkjs@0.9.0/lib/elk.bundled.js');
+      expect(mockWebviewPanel.webview.html).toContain('/dist/webview/d3.min.js');
+      expect(mockWebviewPanel.webview.html).toContain('/dist/webview/elk.bundled.js');
+      expect(mockWebviewPanel.webview.html).toContain('/dist/webview/jspdf.umd.min.js');
+      expect(mockWebviewPanel.webview.html).not.toMatch(/<script[^>]+src="https:/);
+      expect(mockWebviewPanel.webview.html).not.toContain('cdn.jsdelivr.net');
+      expect(mockWebviewPanel.webview.html).not.toContain('cdnjs.cloudflare.com');
     });
   });
 

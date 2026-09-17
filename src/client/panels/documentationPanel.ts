@@ -275,7 +275,7 @@ export class DocumentationPanel {
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="${csp}">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Proto Documentation - ${data.fileName}</title>
+  <title>Proto Documentation - ${this.escapeHtml(data.fileName)}</title>
   <style>${this.getStyles()}</style>
 </head>
 <body>
@@ -418,7 +418,7 @@ export class DocumentationPanel {
     const modifier = field.modifier ? `<span class="modifier">${field.modifier}</span> ` : '';
     const options =
       field.options && field.options.length > 0
-        ? `<span class="field-options">[${field.options.join(', ')}]</span>`
+        ? `<span class="field-options">[${field.options.map(option => this.escapeHtml(option)).join(', ')}]</span>`
         : '';
 
     return /* html */ `
