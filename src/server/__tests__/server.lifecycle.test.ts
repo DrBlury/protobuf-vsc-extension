@@ -270,10 +270,11 @@ describe('language server document lifecycle', () => {
       const folder = { uri: URI.file(added).toString(), name: 'added' };
       await mockHandlers.get('workspaceFoldersChange')!({ added: [folder], removed: [] });
       expect(mockProviders.analyzer.getFile(uri)?.messages[0]?.name).toBe('Added');
-      expect(mockProviders.analyzer.getWorkspaceRoots()).toContain(added);
+      const normalizedAdded = URI.parse(folder.uri).fsPath.replace(/\\/g, '/');
+      expect(mockProviders.analyzer.getWorkspaceRoots()).toContain(normalizedAdded);
       await mockHandlers.get('workspaceFoldersChange')!({ added: [], removed: [folder] });
       expect(mockProviders.analyzer.getFile(uri)).toBeUndefined();
-      expect(mockProviders.analyzer.getWorkspaceRoots()).not.toContain(added);
+      expect(mockProviders.analyzer.getWorkspaceRoots()).not.toContain(normalizedAdded);
     } finally {
       fs.rmSync(added, { recursive: true, force: true });
     }

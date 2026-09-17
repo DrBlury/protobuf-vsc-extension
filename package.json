@@ -1049,6 +1049,6 @@
     "yaml": "^2.9.0"
   },
   "overrides": {
-    "baseline-browser-mapping": "2.10.22"
+    "baseline-browser-mapping": "2.11.20"
   }
 }

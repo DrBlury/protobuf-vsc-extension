@@ -19,6 +19,23 @@ import { URI } from 'vscode-uri';
 import { bufConfigProvider } from '../services/bufConfig';
 import { logger } from '../utils/logger';
 
+export function collectAncestorDirectories(
+  directory: string,
+  dirname: (value: string) => string = path.dirname
+): string[] {
+  const ancestors: string[] = [];
+  let current = directory;
+  while (current && current !== '.') {
+    const parent = dirname(current);
+    if (parent === current) {
+      break;
+    }
+    ancestors.push(current);
+    current = parent;
+  }
+  return ancestors;
+}
+
 export interface WorkspaceSymbols {
   // URI -> ProtoFile
   files: Map<string, ProtoFile>;
@@ -249,8 +266,8 @@ export class SemanticAnalyzer {
 
     // Strategy 2: Relative path from current file
     const currentPath = this.normalizeUri(currentUri).replace('file://', '');
-    const currentDir = path.dirname(currentPath);
-    const resolvedPath = path.resolve(currentDir, normalizedImport).replace(/\\/g, '/');
+    const currentDir = path.posix.dirname(currentPath);
+    const resolvedPath = path.posix.resolve(currentDir, normalizedImport);
     const resolvedUri = 'file://' + resolvedPath;
 
     for (const [fileUri] of this.workspace.files) {
@@ -342,19 +359,17 @@ export class SemanticAnalyzer {
     const allPaths: string[] = [];
     for (const [fileUri] of this.workspace.files) {
       const filePath = this.normalizeUri(fileUri).replace('file://', '');
-      allPaths.push(path.dirname(filePath));
+      allPaths.push(path.posix.dirname(filePath));
     }
 
     // Add unique parent directories as potential proto roots
     const seen = new Set<string>();
     for (const p of allPaths) {
-      let current = p;
-      while (current && current !== '/' && current !== '.') {
+      for (const current of collectAncestorDirectories(p)) {
         if (!seen.has(current)) {
           seen.add(current);
           this.protoRoots.add(current);
         }
-        current = path.dirname(current);
       }
     }
     if (previousRoots.size !== this.protoRoots.size || [...previousRoots].some(root => !this.protoRoots.has(root))) {

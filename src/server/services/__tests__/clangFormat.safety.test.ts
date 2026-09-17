@@ -1,5 +1,7 @@
 import { EventEmitter } from 'events';
 import { spawn } from 'child_process';
+import * as path from 'path';
+import { URI } from 'vscode-uri';
 import { ClangFormatProvider } from '../clangFormat';
 
 jest.mock('child_process');
@@ -11,15 +13,13 @@ function processMock(failInput = false) {
     stderr: new EventEmitter(),
     stdin: Object.assign(new EventEmitter(), {
       write: jest.fn(),
-      end: jest.fn(() =>
-        setImmediate(() => {
-          if (failInput) {
-            proc.stdin.emit('error', new Error('EPIPE'));
-          } else {
-            proc.emit('close', 0);
-          }
-        })
-      ),
+      end: jest.fn(() => {
+        if (failInput) {
+          proc.stdin.emit('error', new Error('EPIPE'));
+        } else {
+          proc.emit('close', 0);
+        }
+      }),
     }),
   });
   return proc as unknown as ReturnType<typeof spawn>;
@@ -36,9 +36,10 @@ it('uses real byte offsets for mixed line endings and decodes file URIs', async 
     'file:///project%20space/a.proto'
   );
   const args = mockSpawn.mock.calls[0]![1]!;
+  const decodedPath = URI.parse('file:///project%20space/a.proto').fsPath;
   expect(args).toContain(`--offset=${Buffer.byteLength('// €\nmessage A {\r\n ')}`);
-  expect(args).toContain('--assume-filename=/project space/a.proto');
-  expect(mockSpawn.mock.calls[0]![2]).toEqual({ cwd: '/project space' });
+  expect(args).toContain(`--assume-filename=${decodedPath}`);
+  expect(mockSpawn.mock.calls[0]![2]).toEqual({ cwd: path.dirname(decodedPath) });
 });
 
 it('handles a formatter closing stdin without an unhandled EPIPE', async () => {
