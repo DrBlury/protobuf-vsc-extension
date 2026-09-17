@@ -13,15 +13,13 @@ function processMock(failInput = false) {
     stderr: new EventEmitter(),
     stdin: Object.assign(new EventEmitter(), {
       write: jest.fn(),
-      end: jest.fn(() =>
-        setImmediate(() => {
-          if (failInput) {
-            proc.stdin.emit('error', new Error('EPIPE'));
-          } else {
-            proc.emit('close', 0);
-          }
-        })
-      ),
+      end: jest.fn(() => {
+        if (failInput) {
+          proc.stdin.emit('error', new Error('EPIPE'));
+        } else {
+          proc.emit('close', 0);
+        }
+      }),
     }),
   });
   return proc as unknown as ReturnType<typeof spawn>;
