@@ -543,7 +543,7 @@ describe('ClangFormatProvider', () => {
 
       // Ensure cwd is set to the directory containing the file
       expect(capturedOptions).toBeDefined();
-      expect(capturedOptions.cwd).toBe('/Users/test/workspace/protos');
+      expect(capturedOptions.cwd.replace(/\\/g, '/')).toBe('/Users/test/workspace/protos');
     });
 
     it('should use --style=file:<path> when configPath is provided', async () => {
