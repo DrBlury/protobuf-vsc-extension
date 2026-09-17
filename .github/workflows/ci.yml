@@ -88,7 +88,9 @@ jobs:
 
       - name: Run tests serially on Windows
         if: matrix.os == 'windows-latest'
-        run: npm test -- --runInBand --detectOpenHandles
+        run: |
+          npm test -- --listTests --runInBand
+          npm test -- --runInBand --detectOpenHandles
 
       - name: Run regression fixture checks
         run: npm run test:regressions
