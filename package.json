@@ -1055,14 +1055,14 @@
   "dependencies": {
     "d3": "7.9.0",
     "elkjs": "0.12.0",
-    "ignore": "^7.0.6",
+    "ignore": "^7.0.9",
     "jspdf": "4.2.1",
-    "vscode-languageclient": "^10.1.0",
-    "vscode-languageserver": "^9.0.1",
+    "vscode-languageclient": "^10.1.1",
+    "vscode-languageserver": "^10.1.1",
     "vscode-languageserver-textdocument": "^1.0.14",
     "vscode-uri": "^3.2.0",
-    "web-tree-sitter": "^0.26.13",
-    "yaml": "^2.9.0"
+    "web-tree-sitter": "^0.27.0",
+    "yaml": "^2.9.1"
   },
   "overrides": {
     "baseline-browser-mapping": "2.11.20"
