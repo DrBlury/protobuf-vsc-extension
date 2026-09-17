@@ -19,10 +19,17 @@ jest.mock('../logger', () => ({
 
 const mockFs = fs as jest.Mocked<typeof fs>;
 const normalizeTestPath = (filePath: string): string => filePath.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '');
+const mockProtoFileContent = (content: string): void => {
+  (mockFs.readFileSync as jest.Mock).mockImplementation((filePath: fs.PathOrFileDescriptor) => {
+    if (path.basename(String(filePath)) === '.gitignore') {
+      throw Object.assign(new Error('not found'), { code: 'ENOENT' });
+    }
+    return content;
+  });
+};
 
 describe('Workspace utilities', () => {
   beforeEach(() => {
-    console.log(`WORKSPACE_TEST_START: ${expect.getState().currentTestName}`);
     jest.clearAllMocks();
     mockFs.lstatSync.mockReturnValue({ isSymbolicLink: () => false } as fs.Stats);
   });
@@ -140,7 +147,7 @@ describe('Workspace utilities', () => {
     it('should scan workspace folders and parse proto files', () => {
       const protoContent = 'syntax = "proto3"; message Test {}';
       mockFs.readdirSync.mockReturnValue([{ name: 'test.proto', isDirectory: () => false, isFile: () => true }] as any);
-      mockFs.readFileSync.mockReturnValue(protoContent);
+      mockProtoFileContent(protoContent);
 
       const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
       const detectProtoRootsSpy = jest.spyOn(analyzer, 'detectProtoRoots');
@@ -154,7 +161,7 @@ describe('Workspace utilities', () => {
 
     it('should handle multiple workspace folders', () => {
       mockFs.readdirSync.mockReturnValue([{ name: 'test.proto', isDirectory: () => false, isFile: () => true }] as any);
-      mockFs.readFileSync.mockReturnValue('syntax = "proto3";');
+      mockProtoFileContent('syntax = "proto3";');
 
       scanWorkspaceForProtoFiles(['/workspace1', '/workspace2'], parser, analyzer);
 
@@ -165,7 +172,7 @@ describe('Workspace utilities', () => {
       mockFs.readdirSync.mockReturnValue([
         { name: 'invalid.proto', isDirectory: () => false, isFile: () => true },
       ] as any);
-      mockFs.readFileSync.mockReturnValue('invalid proto content');
+      mockProtoFileContent('invalid proto content');
 
       const parseSpy = jest.spyOn(parser, 'parse').mockImplementation(() => {
         throw new Error('Parse error');
@@ -194,7 +201,7 @@ describe('Workspace utilities', () => {
 
     it('should log verbose information about found files', () => {
       mockFs.readdirSync.mockReturnValue([{ name: 'test.proto', isDirectory: () => false, isFile: () => true }] as any);
-      mockFs.readFileSync.mockReturnValue('syntax = "proto3";');
+      mockProtoFileContent('syntax = "proto3";');
 
       scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer);
 
@@ -210,7 +217,7 @@ describe('Workspace utilities', () => {
     it('should scope discovery to protoSrcsDir and register it as a proto root', () => {
       const protoContent = 'syntax = "proto3"; message Test {}';
       mockFs.readdirSync.mockReturnValue([{ name: 'test.proto', isDirectory: () => false, isFile: () => true }] as any);
-      mockFs.readFileSync.mockReturnValue(protoContent);
+      mockProtoFileContent(protoContent);
       mockFs.existsSync.mockReturnValue(true);
 
       const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
@@ -244,7 +251,7 @@ describe('Workspace utilities', () => {
     it('should scan workspace root when protoSrcsDir is empty string', () => {
       const protoContent = 'syntax = "proto3"; message Test {}';
       mockFs.readdirSync.mockReturnValue([{ name: 'test.proto', isDirectory: () => false, isFile: () => true }] as any);
-      mockFs.readFileSync.mockReturnValue(protoContent);
+      mockProtoFileContent(protoContent);
 
       const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
       scanWorkspaceForProtoFiles(['/workspace'], parser, analyzer, '');
@@ -258,7 +265,7 @@ describe('Workspace utilities', () => {
       const protoContent = 'syntax = "proto3"; message Test {}';
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readdirSync.mockReturnValue([{ name: 'test.proto', isDirectory: () => false, isFile: () => true }] as any);
-      mockFs.readFileSync.mockReturnValue(protoContent);
+      mockProtoFileContent(protoContent);
 
       const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
 
@@ -272,7 +279,7 @@ describe('Workspace utilities', () => {
 
     it('should skip ignored workspace directories when patterns are configured', () => {
       const protoContent = 'syntax = "proto3"; message Test {}';
-      mockFs.readFileSync.mockReturnValue(protoContent);
+      mockProtoFileContent(protoContent);
       mockFs.readdirSync.mockImplementation((dirPath: any) => {
         const dir = normalizeTestPath(String(dirPath));
         if (dir === '/workspace') {
@@ -317,7 +324,7 @@ describe('Workspace utilities', () => {
       const protoContent = 'syntax = "proto3"; message Test {}';
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readdirSync.mockReturnValue([{ name: 'test.proto', isDirectory: () => false, isFile: () => true }] as any);
-      mockFs.readFileSync.mockReturnValue(protoContent);
+      mockProtoFileContent(protoContent);
 
       const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
       const detectProtoRootsSpy = jest.spyOn(analyzer, 'detectProtoRoots');
@@ -345,7 +352,7 @@ describe('Workspace utilities', () => {
       const protoContent = 'syntax = "proto3"; message Test {}';
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readdirSync.mockReturnValue([{ name: 'test.proto', isDirectory: () => false, isFile: () => true }] as any);
-      mockFs.readFileSync.mockReturnValue(protoContent);
+      mockProtoFileContent(protoContent);
 
       scanImportPaths(['/path1', '/path2'], parser, analyzer);
 
@@ -357,7 +364,7 @@ describe('Workspace utilities', () => {
       mockFs.readdirSync.mockReturnValue([
         { name: 'invalid.proto', isDirectory: () => false, isFile: () => true },
       ] as any);
-      mockFs.readFileSync.mockReturnValue('invalid proto content');
+      mockProtoFileContent('invalid proto content');
 
       const parseSpy = jest.spyOn(parser, 'parse').mockImplementation(() => {
         throw new Error('Parse error');
@@ -398,7 +405,7 @@ describe('Workspace utilities', () => {
           return [{ name: 'dep.proto', isDirectory: () => false, isFile: () => true }] as any;
         }
       });
-      mockFs.readFileSync.mockReturnValue(protoContent);
+      mockProtoFileContent(protoContent);
 
       const updateFileSpy = jest.spyOn(analyzer, 'updateFile');
 
