@@ -4,7 +4,7 @@
 
 import { findProtoFiles, scanWorkspaceForProtoFiles, scanImportPaths, reconcileWorkspaceFiles } from '../workspace';
 import { ProtoParser } from '../../core/parser';
-import { SemanticAnalyzer } from '../../core/analyzer';
+import { collectAncestorDirectories, SemanticAnalyzer } from '../../core/analyzer';
 import { logger } from '../logger';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -157,6 +157,13 @@ describe('Workspace utilities', () => {
       expect(updateFileSpy).toHaveBeenCalled();
       expect(detectProtoRootsSpy).toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Scanning'));
+    });
+
+    it('should stop proto-root discovery at a self-parenting Windows drive root', () => {
+      expect(collectAncestorDirectories('C:\\workspace\\protos', path.win32.dirname)).toEqual([
+        'C:\\workspace\\protos',
+        'C:\\workspace',
+      ]);
     });
 
     it('should handle multiple workspace folders', () => {

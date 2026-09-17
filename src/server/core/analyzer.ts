@@ -19,6 +19,23 @@ import { URI } from 'vscode-uri';
 import { bufConfigProvider } from '../services/bufConfig';
 import { logger } from '../utils/logger';
 
+export function collectAncestorDirectories(
+  directory: string,
+  dirname: (value: string) => string = path.dirname
+): string[] {
+  const ancestors: string[] = [];
+  let current = directory;
+  while (current && current !== '.') {
+    const parent = dirname(current);
+    if (parent === current) {
+      break;
+    }
+    ancestors.push(current);
+    current = parent;
+  }
+  return ancestors;
+}
+
 export interface WorkspaceSymbols {
   // URI -> ProtoFile
   files: Map<string, ProtoFile>;
@@ -348,13 +365,11 @@ export class SemanticAnalyzer {
     // Add unique parent directories as potential proto roots
     const seen = new Set<string>();
     for (const p of allPaths) {
-      let current = p;
-      while (current && current !== '/' && current !== '.') {
+      for (const current of collectAncestorDirectories(p)) {
         if (!seen.has(current)) {
           seen.add(current);
           this.protoRoots.add(current);
         }
-        current = path.dirname(current);
       }
     }
     if (previousRoots.size !== this.protoRoots.size || [...previousRoots].some(root => !this.protoRoots.has(root))) {
