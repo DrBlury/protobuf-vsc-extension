@@ -35,9 +35,11 @@ jobs:
 
       - name: Extract version from tag
         id: version
+        env:
+          DISPATCH_TAG: ${{ inputs.tag }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.tag }}"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG="$DISPATCH_TAG"
           else
             TAG="${GITHUB_REF_NAME}"
           fi
@@ -121,6 +123,8 @@ jobs:
           cat > release-notes.md <<'EOF'
           ## Changes
 
+          - Prevents manual release tag input from being interpreted as shell code before validation.
+          - Updates pinned CodeQL upload and Anchore scan actions to their latest compatible patch releases.
           - Updates direct and transitive dependencies to their latest compatible security-patched versions.
           - Keeps high-severity production dependency findings blocking CI and releases.
           - Includes a production CycloneDX software bill of materials and verified SHA-256 checksums alongside the downloadable VSIX.
