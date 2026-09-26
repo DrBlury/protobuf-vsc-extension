@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { parse } from 'yaml';
 
 const root = path.resolve(__dirname, '..');
 
@@ -41,5 +42,21 @@ describe('packaged security controls', () => {
     expect(workflows).not.toContain('npx --yes');
     expect(workflows).toContain('npx --no-install cyclonedx-npm');
     expect(workflows).toContain('npx --no-install ovsx');
+  });
+
+  it('passes manual release inputs to the shell as environment data', () => {
+    const releaseWorkflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'release.yml'), 'utf8');
+    const workflow = parse(releaseWorkflow) as {
+      jobs?: {
+        release?: {
+          steps?: Array<{ name?: string; env?: Record<string, string>; run?: string }>;
+        };
+      };
+    };
+    const versionStep = workflow.jobs?.release?.steps?.find(step => step.name === 'Extract version from tag');
+
+    expect(versionStep?.env?.DISPATCH_TAG).toBe('${{ inputs.tag }}');
+    expect(versionStep?.run).toContain('TAG="$DISPATCH_TAG"');
+    expect(versionStep?.run).not.toMatch(/\${{\s*(?:github\.event\.)?inputs\.tag\s*}}/);
   });
 });
