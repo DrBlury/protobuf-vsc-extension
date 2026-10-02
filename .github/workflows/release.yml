@@ -25,18 +25,13 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          persist-credentials: false
 
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: 24
-          cache: 'npm'
-
-      - name: Extract version from tag
+      - name: Resolve and verify release tag
         id: version
         env:
           DISPATCH_TAG: ${{ inputs.tag }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             TAG="$DISPATCH_TAG"
@@ -50,15 +45,44 @@ jobs:
             exit 1
           fi
 
+          TAG_REF="refs/tags/$TAG"
+          if ! git show-ref --verify --quiet "$TAG_REF"; then
+            echo "Release input must name an existing tag: $TAG"
+            exit 1
+          fi
+          if [ "$(git cat-file -t "$TAG_REF")" != "tag" ]; then
+            echo "Release tag must be annotated: $TAG"
+            exit 1
+          fi
+          COMMIT="$(git rev-parse --verify "$TAG_REF^{commit}")"
+          if ! git merge-base --is-ancestor "$COMMIT" "origin/$DEFAULT_BRANCH"; then
+            echo "Release tag must point to a commit on $DEFAULT_BRANCH: $TAG"
+            exit 1
+          fi
+
           VERSION="${TAG#v}"
           VSIX_PATH="protobuf-vsc-${VERSION}.vsix"
 
           {
             echo "tag=$TAG"
+            echo "commit=$COMMIT"
             echo "version=$VERSION"
             echo "vsix_path=$VSIX_PATH"
           } >> "$GITHUB_OUTPUT"
-          echo "Extracted version: $VERSION"
+          echo "Verified $TAG at $COMMIT on $DEFAULT_BRANCH"
+
+      - name: Checkout verified release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ steps.version.outputs.commit }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: 'npm'
 
       - name: Update package.json version
         run: |
@@ -123,10 +147,10 @@ jobs:
           cat > release-notes.md <<'EOF'
           ## Changes
 
-          - Prevents manual release tag input from being interpreted as shell code before validation.
-          - Updates pinned CodeQL upload and Anchore scan actions to their latest compatible patch releases.
-          - Updates direct and transitive dependencies to their latest compatible security-patched versions.
-          - Keeps high-severity production dependency findings blocking CI and releases.
+          - Resolves package-qualified imported types even when a field shadows the package prefix.
+          - Escapes protobuf edition metadata in live and exported documentation, with a restrictive standalone Content Security Policy.
+          - Resolves release tags to a verified immutable commit on the default branch before building.
+          - Updates compatible transitive dependencies to security-patched versions.
           - Includes a production CycloneDX software bill of materials and verified SHA-256 checksums alongside the downloadable VSIX.
           EOF
 

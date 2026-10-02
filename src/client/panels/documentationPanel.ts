@@ -291,9 +291,9 @@ export class DocumentationPanel {
       </button>
     </div>
     <div class="meta">
-      ${data.syntax ? `<span class="badge syntax">syntax: ${data.syntax}</span>` : ''}
-      ${data.edition ? `<span class="badge edition">edition: ${data.edition}</span>` : ''}
-      ${data.package ? `<span class="badge package">package: ${data.package}</span>` : ''}
+      ${this.renderMetadataBadge('syntax', data.syntax, 'syntax')}
+      ${this.renderMetadataBadge('edition', data.edition, 'edition')}
+      ${this.renderMetadataBadge('package', data.package, 'package')}
     </div>
   </header>
 
@@ -580,6 +580,14 @@ export class DocumentationPanel {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  private renderMetadataBadge(label: string, value?: string, className?: string): string {
+    if (!value) {
+      return '';
+    }
+    const classes = className ? `badge ${className}` : 'badge';
+    return `<span class="${classes}">${this.escapeHtml(label)}: ${this.escapeHtml(value)}</span>`;
   }
 
   private getStyles(): string {
@@ -1012,6 +1020,7 @@ export class DocumentationPanel {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Proto Documentation - ${this.escapeHtml(data.fileName)}</title>
   <style>
@@ -1022,9 +1031,9 @@ export class DocumentationPanel {
   <header>
     <h1>${this.escapeHtml(data.fileName)}</h1>
     <div class="meta">
-      ${data.syntax ? `<span class="badge">syntax: ${data.syntax}</span>` : ''}
-      ${data.edition ? `<span class="badge">edition: ${data.edition}</span>` : ''}
-      ${data.package ? `<span class="badge">package: ${data.package}</span>` : ''}
+      ${this.renderMetadataBadge('syntax', data.syntax)}
+      ${this.renderMetadataBadge('edition', data.edition)}
+      ${this.renderMetadataBadge('package', data.package)}
     </div>
     <p class="generated">Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
   </header>

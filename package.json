@@ -25,6 +25,13 @@
   "engines": {
     "vscode": "^1.109.0"
   },
+  "allowScripts": {
+    "@vscode/vsce-sign@2.1.0": true,
+    "esbuild@0.28.2": true,
+    "keytar@7.9.0": true,
+    "libxmljs2@0.37.0": true,
+    "tree-sitter-cli@0.26.13": true
+  },
   "categories": [
     "Programming Languages",
     "Linters",

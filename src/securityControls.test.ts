@@ -53,10 +53,12 @@ describe('packaged security controls', () => {
         };
       };
     };
-    const versionStep = workflow.jobs?.release?.steps?.find(step => step.name === 'Extract version from tag');
+    const versionStep = workflow.jobs?.release?.steps?.find(step => step.name === 'Resolve and verify release tag');
 
     expect(versionStep?.env?.DISPATCH_TAG).toBe('${{ inputs.tag }}');
     expect(versionStep?.run).toContain('TAG="$DISPATCH_TAG"');
+    expect(versionStep?.run).toContain('git cat-file -t "$TAG_REF"');
+    expect(versionStep?.run).toContain('git merge-base --is-ancestor "$COMMIT" "origin/$DEFAULT_BRANCH"');
     expect(versionStep?.run).not.toMatch(/\${{\s*(?:github\.event\.)?inputs\.tag\s*}}/);
   });
 });
