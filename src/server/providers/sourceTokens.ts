@@ -23,10 +23,19 @@ export function sourceTokens(text: string): SourceToken[] {
 }
 
 export function maskNonCode(text: string): string {
+  return maskTokens(text, token => token.kind !== 'code');
+}
+
+/** Mask comments while preserving strings, code, line breaks, and source offsets. */
+export function maskComments(text: string): string {
+  return maskTokens(text, token => token.kind === 'comment');
+}
+
+function maskTokens(text: string, shouldMask: (token: SourceToken) => boolean): string {
   const chunks: string[] = [];
   let offset = 0;
   for (const token of sourceTokens(text)) {
-    if (token.kind === 'code') {
+    if (!shouldMask(token)) {
       continue;
     }
     chunks.push(text.slice(offset, token.start), token.text.replace(/[^\r\n]/g, ' '));

@@ -43,6 +43,21 @@ message Test {
   });
 
   describe('missing semicolons', () => {
+    it('should not rewrite double slashes inside a quoted option string', () => {
+      const text = `syntax = "proto3";
+message Foo {
+  string foo = 1 [(annotation) = "some//description"];
+}`;
+      const uri = 'file:///test.proto';
+      const file = parser.parse(text, uri);
+      analyzer.updateFile(uri, file);
+
+      const range = Range.create(0, 0, 3, 1);
+      const actions = provider.getCodeActions(uri, range, { diagnostics: [] }, text);
+
+      expect(actions.find(a => a.title && a.title.includes('semicolon'))).toBeUndefined();
+    });
+
     it('should add missing semicolons', () => {
       const text = `syntax = "proto3";
 message Test {

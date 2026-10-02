@@ -4,7 +4,7 @@
  */
 
 import type { CodeAction, Diagnostic, Range, TextEdit, Position } from 'vscode-languageserver/node';
-import { sourceTokens } from './sourceTokens';
+import { maskComments, maskNonCode, sourceTokens } from './sourceTokens';
 import { MigrationProvider } from './migration';
 import { CodeActionKind } from 'vscode-languageserver/node';
 import type { ProtoFile, MessageDefinition } from '../core/ast';
@@ -310,8 +310,7 @@ export class CodeActionsProvider {
       // Skip lines if we're inside a multi-line inline option from a previous line
       if (inlineOptionDepth > 0) {
         // Count brackets and braces to track when we exit the multi-line option
-        const lineWithoutStrings = trimmed.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
-        const lineWithoutComments = lineWithoutStrings.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
+        const lineWithoutComments = maskNonCode(trimmed);
 
         const openBraces = (lineWithoutComments.match(/\{/g) || []).length;
         const closeBraces = (lineWithoutComments.match(/\}/g) || []).length;
@@ -337,15 +336,14 @@ export class CodeActionsProvider {
 
       // Allow inline comments after a semicolon or block delimiter.
       // For example: `string name = 1; // comment` is already complete.
-      const withoutLineComment = trimmed.replace(/\/\/.*$/, '').trim();
-      const withoutBlockComment = withoutLineComment.replace(/\/\*.*\*\/$/, '').trim();
-      if (withoutBlockComment.endsWith(';') || withoutBlockComment.endsWith('{') || withoutBlockComment.endsWith('}')) {
+      const withoutComments = maskComments(trimmed).trim();
+      if (withoutComments.endsWith(';') || withoutComments.endsWith('{') || withoutComments.endsWith('}')) {
         continue;
       }
 
       // Skip lines that end with '=' (with or without comment) - these are multi-line field declarations
       // e.g., "float value =" or "bool valid = // comment" where the field number is on the next line
-      if (withoutBlockComment.endsWith('=')) {
+      if (withoutComments.endsWith('=')) {
         continue;
       }
 
@@ -358,8 +356,7 @@ export class CodeActionsProvider {
 
       // Check if this line starts a multi-line inline option
       if (trimmed.includes('[') && trimmed.includes('{')) {
-        const lineWithoutStrings = trimmed.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
-        const lineWithoutComments = lineWithoutStrings.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
+        const lineWithoutComments = maskNonCode(trimmed);
 
         const openBraces = (lineWithoutComments.match(/\{/g) || []).length;
         const closeBraces = (lineWithoutComments.match(/\}/g) || []).length;
@@ -375,8 +372,7 @@ export class CodeActionsProvider {
 
       // Also check for multi-line bracket options
       if (trimmed.includes('[') && !trimmed.includes(']')) {
-        const lineWithoutStrings = trimmed.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
-        const lineWithoutComments = lineWithoutStrings.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
+        const lineWithoutComments = maskNonCode(trimmed);
 
         const openBrackets = (lineWithoutComments.match(/\[/g) || []).length;
         const closeBrackets = (lineWithoutComments.match(/\]/g) || []).length;
@@ -414,17 +410,7 @@ export class CodeActionsProvider {
       }
 
       // Check for inline comments and insert semicolon before them
-      const commentIdx = (() => {
-        const slIdx = trimmed.indexOf('//');
-        const blkIdx = trimmed.indexOf('/*');
-        if (slIdx === -1) {
-          return blkIdx;
-        }
-        if (blkIdx === -1) {
-          return slIdx;
-        }
-        return Math.min(slIdx, blkIdx);
-      })();
+      const commentIdx = sourceTokens(trimmed).find(token => token.kind === 'comment')?.start ?? -1;
 
       let newText: string;
       if (commentIdx >= 0) {
