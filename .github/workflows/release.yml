@@ -147,11 +147,7 @@ jobs:
           cat > release-notes.md <<'EOF'
           ## Changes
 
-          - Resolves package-qualified imported types even when a field shadows the package prefix.
-          - Escapes protobuf edition metadata in live and exported documentation, with a restrictive standalone Content Security Policy.
-          - Resolves release tags to a verified immutable commit on the default branch before building.
-          - Updates compatible transitive dependencies to security-patched versions.
-          - Includes a production CycloneDX software bill of materials and verified SHA-256 checksums alongside the downloadable VSIX.
+          - Preserves `//` and `/*` text inside quoted option strings when checking or fixing missing semicolons.
           EOF
 
       - name: Create GitHub Release
