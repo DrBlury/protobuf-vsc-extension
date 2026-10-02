@@ -301,6 +301,37 @@ describe('SemanticAnalyzer', () => {
       expect(symbol!.fullName).toBe('common.v1.Timestamp');
     });
 
+    it('should not let a field shadow the package prefix of an imported type', () => {
+      const importedUri = 'file:///dates.proto';
+      const mainUri = 'file:///filter.proto';
+      const importedFile = parser.parse(
+        `
+        syntax = "proto3";
+        package dates;
+        message DateFilteringDto {}
+      `,
+        importedUri
+      );
+      const mainFile = parser.parse(
+        `
+        syntax = "proto3";
+        package dates;
+        import "dates.proto";
+        message Filter {
+          optional dates.DateFilteringDto dates = 1;
+        }
+      `,
+        mainUri
+      );
+
+      analyzer.updateFile(importedUri, importedFile);
+      analyzer.updateFile(mainUri, mainFile);
+
+      expect(analyzer.resolveType('dates.DateFilteringDto', mainUri, 'dates.Filter')?.fullName).toBe(
+        'dates.DateFilteringDto'
+      );
+    });
+
     it('should prefer imported duplicate fully qualified symbols over later non-imported duplicates', () => {
       const serviceAUri = 'file:///workspace/service_a/types.proto';
       const serviceBUri = 'file:///workspace/service_b/types.proto';

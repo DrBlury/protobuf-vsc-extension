@@ -94,4 +94,31 @@ describe('DocumentationPanel asynchronous loads', () => {
     expect(panel.webview.html).toContain('&lt;/title&gt;&lt;script&gt;');
     expect(panel.webview.html).toContain('&lt;/span&gt;&lt;img');
   });
+
+  it('keeps edition markup inert in live and exported documentation', async () => {
+    const client = createMockLanguageClient();
+    const panel = mockVscode.window.createWebviewPanel();
+    const payload = `</span><script>globalThis.PWNED = true</script><span data-test="edition">`;
+    const documentation = { ...data('unsafe-edition.proto'), edition: payload };
+    client.sendRequest.mockResolvedValue(documentation);
+
+    DocumentationPanel.createOrShow({} as never, client, 'file:///test/unsafe-edition.proto');
+    await Promise.resolve();
+
+    const currentPanel = (
+      DocumentationPanel as unknown as {
+        currentPanel: { renderExportHtml(value: DocumentationData): string };
+      }
+    ).currentPanel;
+    const exported = currentPanel.renderExportHtml(documentation);
+
+    for (const html of [panel.webview.html, exported]) {
+      expect(html).not.toContain(payload);
+      expect(html).toContain('&lt;/span&gt;&lt;script&gt;globalThis.PWNED = true&lt;/script&gt;');
+    }
+    expect(exported).toContain(
+      `Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none';"`
+    );
+    expect(exported.indexOf('Content-Security-Policy')).toBeLessThan(exported.indexOf('<style>'));
+  });
 });

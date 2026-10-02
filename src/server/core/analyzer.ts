@@ -728,7 +728,9 @@ export class SemanticAnalyzer {
 
     let scope = currentPackage ?? this.workspace.files.get(currentUri)?.package?.name ?? '';
     const firstPart = typeName.split('.')[0]!;
-    const accessibleSymbols = visibleUris.flatMap(uri => this.getSymbolsInFile(uri));
+    const accessibleTypes = visibleUris
+      .flatMap(uri => this.getSymbolsInFile(uri))
+      .filter(symbol => symbol.kind === SymbolKind.Message || symbol.kind === SymbolKind.Enum);
     while (true) {
       const candidate = scope ? `${scope}.${typeName}` : typeName;
       const symbol = this.findTypeInAccessibleFilesByFullName(candidate, currentUri, importedUris);
@@ -739,7 +741,7 @@ export class SemanticAnalyzer {
       // name in an outer scope when its remaining components are absent.
       const firstCandidate = scope ? `${scope}.${firstPart}` : firstPart;
       if (
-        accessibleSymbols.some(
+        accessibleTypes.some(
           symbol => symbol.fullName === firstCandidate || symbol.fullName.startsWith(`${firstCandidate}.`)
         )
       ) {
