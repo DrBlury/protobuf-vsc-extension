@@ -34,6 +34,7 @@ import type { ProviderRegistry } from '../utils';
 import type { DiagnosticsSettings } from './diagnostics/index';
 import { DEFAULT_DIAGNOSTICS_SETTINGS, isExternalDependencyFile, Severity } from './diagnostics/index';
 import { isPascalCase, isSnakeCase, isScreamingSnakeCase } from './diagnostics/index';
+import { maskComments, maskNonCode } from './sourceTokens';
 
 const TEXT_FORMAT_EXTENSIONS = [
   FILE_EXTENSIONS.TEXTPROTO,
@@ -326,8 +327,7 @@ export class DiagnosticsProvider {
       // Skip lines if we're inside a multi-line inline option from a previous line
       if (inlineOptionDepth > 0) {
         // Count brackets and braces to track when we exit the multi-line option
-        const lineWithoutStrings = trimmed.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
-        const lineWithoutComments = lineWithoutStrings.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
+        const lineWithoutComments = maskNonCode(trimmed);
 
         const openBraces = (lineWithoutComments.match(/\{/g) || []).length;
         const closeBraces = (lineWithoutComments.match(/\}/g) || []).length;
@@ -352,23 +352,21 @@ export class DiagnosticsProvider {
       }
 
       // Allow inline comments after a semicolon: `... = 1; // comment`
-      const withoutLineComment = trimmed.replace(/\/\/.*$/, '').trim();
-      const withoutBlockComment = withoutLineComment.replace(/\/\*.*\*\/$/, '').trim();
-      if (withoutBlockComment.endsWith(';') || withoutBlockComment.endsWith('{') || withoutBlockComment.endsWith('}')) {
+      const withoutComments = maskComments(trimmed).trim();
+      if (withoutComments.endsWith(';') || withoutComments.endsWith('{') || withoutComments.endsWith('}')) {
         continue;
       }
 
       // Skip continuation lines of multi-line field declarations (e.g., "    1;  // comment")
       // These are lines that are just a field number with semicolon, continuing from a previous line
-      if (fieldContinuation.test(withoutLineComment)) {
+      if (fieldContinuation.test(withoutComments)) {
         continue;
       }
 
       // Check if this line starts a multi-line inline option
       // Pattern: field definition with `[` followed by `{` but not closed on same line
       if (trimmed.includes('[') && trimmed.includes('{')) {
-        const lineWithoutStrings = trimmed.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
-        const lineWithoutComments = lineWithoutStrings.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
+        const lineWithoutComments = maskNonCode(trimmed);
 
         const openBraces = (lineWithoutComments.match(/\{/g) || []).length;
         const closeBraces = (lineWithoutComments.match(/\}/g) || []).length;
@@ -385,8 +383,7 @@ export class DiagnosticsProvider {
 
       // Also check for multi-line bracket options like `field = 1 [\n  option\n];`
       if (trimmed.includes('[') && !trimmed.includes(']')) {
-        const lineWithoutStrings = trimmed.replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
-        const lineWithoutComments = lineWithoutStrings.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
+        const lineWithoutComments = maskNonCode(trimmed);
 
         const openBrackets = (lineWithoutComments.match(/\[/g) || []).length;
         const closeBrackets = (lineWithoutComments.match(/\]/g) || []).length;
@@ -413,8 +410,7 @@ export class DiagnosticsProvider {
       // Or with inline comments:
       //   bool valid = // test
       //       2;
-      const lineContentWithoutComment = withoutBlockComment.replace(/\/\/.*$/, '').trim();
-      if (lineContentWithoutComment.endsWith('=')) {
+      if (withoutComments.endsWith('=')) {
         // This is a multi-line field declaration - skip it, the semicolon is on a subsequent line
         continue;
       }

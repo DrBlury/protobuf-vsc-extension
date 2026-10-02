@@ -97,6 +97,22 @@ message Message2 {
   });
 
   describe('Missing semicolon detection', () => {
+    it('should not treat double slashes inside option strings as comments', async () => {
+      const content = `syntax = "proto3";
+package test.v1;
+
+message Foo {
+  string foo = 1 [(annotation) = "some//description"];
+}`;
+      const uri = 'file:///test.proto';
+      const file = providers.parser.parse(content, uri);
+      providers.analyzer.updateFile(uri, file);
+
+      const diags = await providers.diagnostics.validate(uri, file, providers, content);
+
+      expect(diags.find(d => d.message.includes('Missing semicolon'))).toBeUndefined();
+    });
+
     it('should warn when enum value is missing a semicolon', async () => {
       const content = `syntax = "proto3";
 package test.v1;
