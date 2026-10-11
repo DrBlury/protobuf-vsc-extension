@@ -553,6 +553,10 @@ Ignored file events are discarded before they reach the language server or trigg
   - **protolint**: Style and convention checking with many built-in rules
   - **api-linter**: Google API style guide enforcement (AIP compliance)
 
+  api-linter resolves imports itself. It receives the workspace root and every `protobuf.includes` path as proto paths, so add the directories that hold imports such as `google/api/annotations.proto` there.
+
+  If a linter cannot run (missing binary, bad config path, unresolved import), the error is shown instead of a clean result.
+
 #### `protobuf.externalLinter.bufPath`
 
 - **Type**: `string`

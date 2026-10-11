@@ -39,8 +39,21 @@ export interface ExternalLinterSettings {
   bufConfigPath: string;
   protolintConfigPath: string;
   apiLinterConfigPath: string;
+  /** Proto include paths, passed to linters that resolve imports themselves */
+  includePaths: string[];
   runOnSave: boolean;
 }
+
+/** Collected output of a finished linter process */
+interface LinterProcessResult {
+  stdout: string;
+  stderr: string;
+  /** Exit code, or null when the process was terminated by a signal */
+  code: number | null;
+}
+
+/** Longest stretch of linter output quoted in an error message */
+const MAX_FAILURE_OUTPUT_LENGTH = 2000;
 
 export interface LintResult {
   file: string;
@@ -62,6 +75,7 @@ const DEFAULT_SETTINGS: ExternalLinterSettings = {
   bufConfigPath: '',
   protolintConfigPath: '',
   apiLinterConfigPath: '',
+  includePaths: [],
   runOnSave: true,
 };
 
@@ -102,46 +116,116 @@ export class ExternalLinterProvider {
 
     logger.debug(`Checking if ${this.settings.linter} is available at: ${linterPath}`);
 
-    return new Promise(resolve => {
-      // Try without shell first
-      const proc = spawn(linterPath, ['--version']);
+    // Only fall back to the shell for simple command names that need PATH
+    // resolution. Full paths may contain spaces and gain nothing from a shell.
+    const isSimpleCommand = !linterPath.includes(path.sep) && !linterPath.includes('/');
 
-      proc.on('close', (code: number | null) => {
-        if (code === 0) {
-          logger.debug(`${this.settings.linter} is available`);
-          resolve(true);
-        } else {
-          logger.debug(`${this.settings.linter} exited with code ${code}, trying with shell`);
-          resolve(false);
-        }
-      });
-      proc.on('error', () => {
-        // Fallback with shell for PATH resolution, but only for simple command names
-        // Don't use shell fallback for full paths as they may contain spaces
-        const isSimpleCommand = !linterPath.includes(path.sep) && !linterPath.includes('/');
-        if (!isSimpleCommand) {
-          logger.info(`${this.settings.linter} not found at ${linterPath}. Check that the path is correct.`);
-          resolve(false);
-          return;
-        }
-        const procWithShell = spawn(linterPath, ['--version'], { shell: true });
-        procWithShell.on('close', (code: number | null) => {
-          if (code === 0) {
-            logger.debug(`${this.settings.linter} is available (via shell)`);
-            resolve(true);
-          } else {
-            logger.info(
-              `${this.settings.linter} not found or not working. Check that it is installed and the path is correct.`
-            );
-            resolve(false);
+    try {
+      const { code } = await this.runProcess(linterPath, ['--version'], undefined, isSimpleCommand);
+      if (code === 0) {
+        logger.debug(`${this.settings.linter} is available`);
+        return true;
+      }
+      logger.info(
+        `${this.settings.linter} not found or not working. Check that it is installed and the path is correct.`
+      );
+      return false;
+    } catch {
+      logger.info(
+        isSimpleCommand
+          ? `${this.settings.linter} not found. Install it or configure the correct path.`
+          : `${this.settings.linter} not found at ${linterPath}. Check that the path is correct.`
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Spawn a linter and collect its output. Falls back to shell execution for
+   * PATH resolution when the binary cannot be spawned directly, and rejects
+   * when it cannot be started at all.
+   */
+  private runProcess(
+    command: string,
+    args: string[],
+    cwd?: string,
+    allowShellFallback = true
+  ): Promise<LinterProcessResult> {
+    const run = (useShell: boolean): Promise<LinterProcessResult> =>
+      new Promise((resolve, reject) => {
+        const proc = spawn(command, args, useShell ? { cwd, shell: true } : { cwd });
+
+        let stdout = '';
+        let stderr = '';
+        let failedToStart = false;
+
+        proc.stdout?.on('data', (data: Buffer) => {
+          stdout += data.toString('utf8');
+        });
+
+        proc.stderr?.on('data', (data: Buffer) => {
+          stderr += data.toString('utf8');
+        });
+
+        proc.on('close', (code: number | null) => {
+          // Node also emits 'close' after a failed spawn. That is not a linter
+          // result, and resolving here would discard the shell fallback.
+          if (!failedToStart) {
+            resolve({ stdout, stderr, code });
           }
         });
-        procWithShell.on('error', () => {
-          logger.info(`${this.settings.linter} not found. Install it or configure the correct path.`);
-          resolve(false);
+
+        proc.on('error', (err: Error) => {
+          failedToStart = true;
+          reject(err);
         });
       });
+
+    // Try without shell first to avoid command line length limits
+    return run(false).catch((err: Error) => {
+      if (!allowShellFallback) {
+        throw err;
+      }
+      logger.debug(`${command} spawn failed, trying with shell: ${err.message}`);
+      try {
+        validateLinterArgs(args, true);
+      } catch (validationError) {
+        const message = validationError instanceof Error ? validationError.message : String(validationError);
+        throw new Error(`shell fallback blocked: ${message}. Configure an explicit path to avoid shell fallback`);
+      }
+      return run(true);
     });
+  }
+
+  /**
+   * Run the configured linter and parse its output. Rejects when the linter
+   * could not run, or failed without reporting any findings, so that a broken
+   * invocation is never mistaken for a clean result.
+   */
+  private async runAndParse(
+    command: string,
+    args: string[],
+    cwd: string,
+    parse: (output: string) => LintResult[]
+  ): Promise<LintResult[]> {
+    const linter = this.settings.linter;
+
+    let result: LinterProcessResult;
+    try {
+      result = await this.runProcess(command, args, cwd);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      throw new Error(`${linter} could not be started: ${reason}. Ensure ${linter} is installed and accessible.`);
+    }
+
+    const results = parse(result.stdout || result.stderr);
+    if (results.length === 0 && result.code !== 0) {
+      const output = (result.stderr || result.stdout).trim().slice(0, MAX_FAILURE_OUTPUT_LENGTH);
+      const status = result.code === null ? 'was terminated' : `exited with code ${result.code}`;
+      throw new Error(`${linter} ${status}${output ? `: ${output}` : ' without reporting any findings'}`);
+    }
+
+    return results;
   }
 
   /**
@@ -201,235 +285,123 @@ export class ExternalLinterProvider {
   }
 
   private async runBufLint(filePath?: string): Promise<LintResult[]> {
-    return new Promise(resolve => {
-      const args = ['lint', '--error-format=json'];
+    const args = ['lint', '--error-format=json'];
 
-      // Validate arguments before execution
-      validateLinterArgs(args);
+    // Validate arguments before execution
+    validateLinterArgs(args);
 
-      // Determine working directory for buf lint
-      // buf needs to run from the directory containing buf.yaml to properly detect the module
-      let cwd = this.workspaceRoot;
+    // Determine working directory for buf lint
+    // buf needs to run from the directory containing buf.yaml to properly detect the module
+    let cwd = this.workspaceRoot;
 
-      // If user explicitly configured a config path, use it and its directory
-      // This respects the user's preference over auto-detection
-      if (this.settings.bufConfigPath) {
-        const configArg = '--config';
-        const configPath = this.settings.bufConfigPath;
-        args.push(configArg, configPath);
+    // If user explicitly configured a config path, use it and its directory
+    // This respects the user's preference over auto-detection
+    if (this.settings.bufConfigPath) {
+      const configArg = '--config';
+      const configPath = this.settings.bufConfigPath;
+      args.push(configArg, configPath);
 
-        // Validate the config path as well
-        validateLinterArgs([configArg, configPath]);
+      // Validate the config path as well
+      validateLinterArgs([configArg, configPath]);
 
-        // Use the config file's directory as cwd for consistent behavior
-        cwd = path.dirname(path.resolve(this.workspaceRoot, this.settings.bufConfigPath));
-        logger.debug(`Using user-configured buf config: ${this.settings.bufConfigPath}`);
-      } else if (filePath) {
-        // Only auto-detect if user hasn't explicitly configured a path
-        // Find the buf.yaml for this specific file and run from its directory
-        // This ensures buf properly discovers and applies the module's lint configuration
-        const bufConfigPath = bufConfigProvider.findBufConfigPath(filePath);
-        if (bufConfigPath) {
-          cwd = path.dirname(bufConfigPath);
-          logger.debug(`Auto-detected buf config at: ${bufConfigPath}`);
-        }
+      // Use the config file's directory as cwd for consistent behavior
+      cwd = path.dirname(path.resolve(this.workspaceRoot, this.settings.bufConfigPath));
+      logger.debug(`Using user-configured buf config: ${this.settings.bufConfigPath}`);
+    } else if (filePath) {
+      // Only auto-detect if user hasn't explicitly configured a path
+      // Find the buf.yaml for this specific file and run from its directory
+      // This ensures buf properly discovers and applies the module's lint configuration
+      const bufConfigPath = bufConfigProvider.findBufConfigPath(filePath);
+      if (bufConfigPath) {
+        cwd = path.dirname(bufConfigPath);
+        logger.debug(`Auto-detected buf config at: ${bufConfigPath}`);
       }
+    }
 
-      if (filePath) {
-        args.push('--path', filePath);
-      }
+    if (filePath) {
+      args.push('--path', filePath);
+    }
 
-      logger.debug(`Running buf lint with args: ${args.join(' ')} in ${cwd}`);
+    logger.debug(`Running buf lint with args: ${args.join(' ')} in ${cwd}`);
 
-      // Try without shell first to avoid command line length limits
-      const proc = spawn(this.settings.bufPath, args, {
-        cwd,
-      });
-
-      let stdout = '';
-      let stderr = '';
-
-      proc.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString('utf8');
-      });
-
-      proc.stderr?.on('data', (data: Buffer) => {
-        stderr += data.toString('utf8');
-      });
-
-      proc.on('close', () => {
-        resolve(this.parseBufOutput(stdout || stderr));
-      });
-
-      proc.on('error', err => {
-        logger.debug(`buf spawn failed, trying with shell: ${err.message}`);
-        try {
-          validateLinterArgs(args, true);
-        } catch (validationError) {
-          const message = validationError instanceof Error ? validationError.message : String(validationError);
-          logger.warn(
-            `buf lint shell fallback blocked: ${message}. Configure an explicit buf path to avoid shell fallback.`
-          );
-          resolve([]);
-          return;
-        }
-        // Fallback with shell for PATH resolution
-        const procWithShell = spawn(this.settings.bufPath, args, {
-          cwd,
-          shell: true,
-        });
-        let shellStdout = '';
-        let shellStderr = '';
-        procWithShell.stdout?.on('data', (data: Buffer) => (shellStdout += data.toString('utf8')));
-        procWithShell.stderr?.on('data', (data: Buffer) => (shellStderr += data.toString('utf8')));
-        procWithShell.on('close', () => resolve(this.parseBufOutput(shellStdout || shellStderr)));
-        procWithShell.on('error', shellErr => {
-          logger.warn(`buf lint failed: ${shellErr.message}. Ensure buf is installed and accessible.`);
-          resolve([]);
-        });
-      });
-    });
+    return this.runAndParse(this.settings.bufPath, args, cwd, output => this.parseBufOutput(output));
   }
 
   private async runProtolint(filePath?: string): Promise<LintResult[]> {
-    return new Promise(resolve => {
-      const args = ['lint', '-reporter=json'];
+    const args = ['lint', '-reporter=json'];
 
-      if (this.settings.protolintConfigPath) {
-        args.push('-config_path', this.settings.protolintConfigPath);
-        logger.debug(`Using user-configured protolint config: ${this.settings.protolintConfigPath}`);
-      }
+    if (this.settings.protolintConfigPath) {
+      args.push('-config_path', this.settings.protolintConfigPath);
+      logger.debug(`Using user-configured protolint config: ${this.settings.protolintConfigPath}`);
+    }
 
-      if (filePath) {
-        args.push(filePath);
-      } else {
-        args.push(this.workspaceRoot);
-      }
+    if (filePath) {
+      args.push(filePath);
+    } else {
+      args.push(this.workspaceRoot);
+    }
 
-      logger.debug(`Running protolint with args: ${args.join(' ')}`);
+    logger.debug(`Running protolint with args: ${args.join(' ')}`);
 
-      // Try without shell first to avoid command line length limits
-      const proc = spawn(this.settings.protolintPath, args, {
-        cwd: this.workspaceRoot,
-      });
-
-      let stdout = '';
-      let stderr = '';
-
-      proc.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString('utf8');
-      });
-
-      proc.stderr?.on('data', (data: Buffer) => {
-        stderr += data.toString('utf8');
-      });
-
-      proc.on('close', () => {
-        resolve(this.parseProtolintOutput(stdout || stderr));
-      });
-
-      proc.on('error', err => {
-        logger.debug(`protolint spawn failed, trying with shell: ${err.message}`);
-        try {
-          validateLinterArgs(args, true);
-        } catch (validationError) {
-          const message = validationError instanceof Error ? validationError.message : String(validationError);
-          logger.warn(
-            `protolint shell fallback blocked: ${message}. Configure an explicit protolint path to avoid shell fallback.`
-          );
-          resolve([]);
-          return;
-        }
-        // Fallback with shell for PATH resolution
-        const procWithShell = spawn(this.settings.protolintPath, args, {
-          cwd: this.workspaceRoot,
-          shell: true,
-        });
-        let shellStdout = '';
-        let shellStderr = '';
-        procWithShell.stdout?.on('data', (data: Buffer) => (shellStdout += data.toString('utf8')));
-        procWithShell.stderr?.on('data', (data: Buffer) => (shellStderr += data.toString('utf8')));
-        procWithShell.on('close', () => resolve(this.parseProtolintOutput(shellStdout || shellStderr)));
-        procWithShell.on('error', shellErr => {
-          logger.warn(`protolint failed: ${shellErr.message}. Ensure protolint is installed and accessible.`);
-          resolve([]);
-        });
-      });
-    });
+    return this.runAndParse(this.settings.protolintPath, args, this.workspaceRoot, output =>
+      this.parseProtolintOutput(output)
+    );
   }
 
   private async runApiLinter(filePath?: string): Promise<LintResult[]> {
-    return new Promise(resolve => {
-      const args = ['--output-format=json'];
+    const args = ['--output-format=json'];
 
-      if (this.settings.apiLinterConfigPath) {
-        args.push('--config', this.settings.apiLinterConfigPath);
-        logger.debug(`Using user-configured api-linter config: ${this.settings.apiLinterConfigPath}`);
-      }
+    if (this.settings.apiLinterConfigPath) {
+      args.push('--config', this.settings.apiLinterConfigPath);
+      logger.debug(`Using user-configured api-linter config: ${this.settings.apiLinterConfigPath}`);
+    }
 
-      // Add proto paths for imports
-      if (this.workspaceRoot) {
-        args.push('-I', this.workspaceRoot);
-      }
+    // Add proto paths for imports
+    const protoPaths = [...new Set([...this.settings.includePaths, this.workspaceRoot].filter(Boolean))];
+    let cwd = this.workspaceRoot;
+    // For workspace-wide linting, we need to specify proto files
+    // api-linter requires explicit file paths
+    let target = '.';
 
-      if (filePath) {
-        args.push(filePath);
+    if (filePath) {
+      // api-linter resolves files against its proto paths and cannot open an
+      // absolute path, so name the file relative to the root that contains it.
+      const relative = this.relativeToProtoPath(filePath, protoPaths);
+      if (relative) {
+        target = relative;
       } else {
-        // For workspace-wide linting, we need to specify proto files
-        // api-linter requires explicit file paths
-        args.push('.');
+        cwd = path.dirname(filePath);
+        protoPaths.push(cwd);
+        target = path.basename(filePath);
       }
+    }
 
-      logger.debug(`Running api-linter with args: ${args.join(' ')}`);
+    for (const protoPath of protoPaths) {
+      args.push('-I', protoPath);
+    }
+    args.push(target);
 
-      // Try without shell first to avoid command line length limits
-      const proc = spawn(this.settings.apiLinterPath, args, {
-        cwd: this.workspaceRoot,
-      });
+    logger.debug(`Running api-linter with args: ${args.join(' ')}`);
 
-      let stdout = '';
-      let stderr = '';
+    return this.runAndParse(this.settings.apiLinterPath, args, cwd, output => this.parseApiLinterOutput(output));
+  }
 
-      proc.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString('utf8');
-      });
+  /**
+   * Express a file relative to the most specific proto path containing it,
+   * using the forward slashes protobuf expects in file names.
+   */
+  private relativeToProtoPath(filePath: string, protoPaths: string[]): string | undefined {
+    let best: string | undefined;
 
-      proc.stderr?.on('data', (data: Buffer) => {
-        stderr += data.toString('utf8');
-      });
+    for (const protoPath of protoPaths) {
+      const relative = path.relative(protoPath, filePath);
+      const isInside = relative !== '' && relative !== '..' && !relative.startsWith(`..${path.sep}`);
+      if (isInside && !path.isAbsolute(relative) && (best === undefined || relative.length < best.length)) {
+        best = relative;
+      }
+    }
 
-      proc.on('close', () => {
-        resolve(this.parseApiLinterOutput(stdout || stderr));
-      });
-
-      proc.on('error', err => {
-        // Fallback with shell for PATH resolution
-        logger.debug(`api-linter spawn failed (${err.message}), retrying with shell`);
-        try {
-          validateLinterArgs(args, true);
-        } catch (validationError) {
-          const message = validationError instanceof Error ? validationError.message : String(validationError);
-          logger.warn(
-            `api-linter shell fallback blocked: ${message}. Configure an explicit api-linter path to avoid shell fallback.`
-          );
-          resolve([]);
-          return;
-        }
-        const procWithShell = spawn(this.settings.apiLinterPath, args, {
-          cwd: this.workspaceRoot,
-          shell: true,
-        });
-        let shellStdout = '';
-        let shellStderr = '';
-        procWithShell.stdout?.on('data', (data: Buffer) => (shellStdout += data.toString('utf8')));
-        procWithShell.stderr?.on('data', (data: Buffer) => (shellStderr += data.toString('utf8')));
-        procWithShell.on('close', () => resolve(this.parseApiLinterOutput(shellStdout || shellStderr)));
-        procWithShell.on('error', shellErr => {
-          logger.warn(`api-linter failed: ${shellErr.message}. Ensure api-linter is installed and accessible.`);
-          resolve([]);
-        });
-      });
-    });
+    return best?.split(path.sep).join('/');
   }
 
   private parseBufOutput(output: string): LintResult[] {
@@ -651,35 +623,12 @@ export class ExternalLinterProvider {
   }
 
   private async getBufRules(): Promise<string[]> {
-    return new Promise(resolve => {
-      // Try without shell first
-      const proc = spawn(this.settings.bufPath, ['config', 'ls-lint-rules'], {
-        cwd: this.workspaceRoot,
-      });
-
-      let stdout = '';
-
-      proc.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString('utf8');
-      });
-
-      proc.on('close', () => {
-        const rules = stdout.split('\n').filter(r => r.trim());
-        resolve(rules);
-      });
-
-      proc.on('error', () => {
-        // Fallback with shell
-        const procWithShell = spawn(this.settings.bufPath, ['config', 'ls-lint-rules'], {
-          cwd: this.workspaceRoot,
-          shell: true,
-        });
-        let shellStdout = '';
-        procWithShell.stdout?.on('data', (data: Buffer) => (shellStdout += data.toString('utf8')));
-        procWithShell.on('close', () => resolve(shellStdout.split('\n').filter(r => r.trim())));
-        procWithShell.on('error', () => resolve([]));
-      });
-    });
+    try {
+      const { stdout } = await this.runProcess(this.settings.bufPath, ['config', 'ls-lint-rules'], this.workspaceRoot);
+      return stdout.split('\n').filter(r => r.trim());
+    } catch {
+      return [];
+    }
   }
 
   private async getProtolintRules(): Promise<string[]> {
@@ -707,59 +656,29 @@ export class ExternalLinterProvider {
   }
 
   private async getApiLinterRules(): Promise<string[]> {
-    return new Promise(resolve => {
+    let stdout: string;
+    try {
       // api-linter supports --list-rules to list all available rules
-      const proc = spawn(this.settings.apiLinterPath, ['--list-rules', '--output-format=json'], {
-        cwd: this.workspaceRoot,
-      });
+      ({ stdout } = await this.runProcess(
+        this.settings.apiLinterPath,
+        ['--list-rules', '--output-format=json'],
+        this.workspaceRoot
+      ));
+    } catch {
+      return [];
+    }
 
-      let stdout = '';
-
-      proc.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString('utf8');
-      });
-
-      proc.on('close', () => {
-        try {
-          const data = JSON.parse(stdout);
-          // api-linter --list-rules returns an array of rule objects
-          if (Array.isArray(data)) {
-            const rules = data.map((rule: { name?: string }) => rule.name || '').filter((r: string) => r);
-            resolve(rules);
-          } else {
-            resolve([]);
-          }
-        } catch {
-          // Fallback to parsing text output
-          const rules = stdout.split('\n').filter(r => r.trim());
-          resolve(rules);
-        }
-      });
-
-      proc.on('error', () => {
-        // Fallback with shell
-        const procWithShell = spawn(this.settings.apiLinterPath, ['--list-rules', '--output-format=json'], {
-          cwd: this.workspaceRoot,
-          shell: true,
-        });
-        let shellStdout = '';
-        procWithShell.stdout?.on('data', (data: Buffer) => (shellStdout += data.toString('utf8')));
-        procWithShell.on('close', () => {
-          try {
-            const data = JSON.parse(shellStdout);
-            if (Array.isArray(data)) {
-              const rules = data.map((rule: { name?: string }) => rule.name || '').filter((r: string) => r);
-              resolve(rules);
-            } else {
-              resolve([]);
-            }
-          } catch {
-            resolve(shellStdout.split('\n').filter(r => r.trim()));
-          }
-        });
-        procWithShell.on('error', () => resolve([]));
-      });
-    });
+    try {
+      const data = JSON.parse(stdout);
+      // api-linter --list-rules returns an array of rule objects
+      if (Array.isArray(data)) {
+        return data.map((rule: { name?: string }) => rule.name || '').filter((r: string) => r);
+      }
+      return [];
+    } catch {
+      // Fallback to parsing text output
+      return stdout.split('\n').filter(r => r.trim());
+    }
   }
 }
 

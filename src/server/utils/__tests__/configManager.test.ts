@@ -469,6 +469,7 @@ describe('ConfigManager', () => {
       bufConfigPath: settings.protobuf.externalLinter.bufConfigPath,
       protolintConfigPath: settings.protobuf.externalLinter.protolintConfigPath,
       apiLinterConfigPath: settings.protobuf.externalLinter.apiLinterConfigPath,
+      includePaths: [],
       runOnSave: settings.protobuf.externalLinter.runOnSave,
     });
   });

@@ -19,6 +19,11 @@ import { findEnclosingMessageName, findEnclosingEnumName, getWordAtRange } from 
 // Re-export types for external consumers
 export type { CodeActionContext, CodeActionsSettings } from './codeActions/index';
 
+/** Plain text of a diagnostic message, which newer LSP versions also allow as MarkupContent. */
+function messageText(diagnostic: { message: string | { value: string } }): string {
+  return typeof diagnostic.message === 'string' ? diagnostic.message : diagnostic.message.value;
+}
+
 export class CodeActionsProvider {
   private analyzer: SemanticAnalyzer;
   private renumberProvider: RenumberProvider;
@@ -128,7 +133,7 @@ export class CodeActionsProvider {
       // Only add this if there's no diagnostic-triggered renumber action already added
       const messageName = findEnclosingMessageName(range, documentText);
       const hasRenumberDiagnostic = context.diagnostics.some(d => {
-        const msg = d.message.toLowerCase();
+        const msg = messageText(d).toLowerCase();
         return (
           msg.includes('not strictly increasing') ||
           msg.includes('gap in field numbers') ||
@@ -423,8 +428,9 @@ export class CodeActionsProvider {
         const needsSemi = !cleanedBefore.endsWith(';');
         const fixedLine = needsSemi ? `${cleanedBefore};` : cleanedBefore;
 
-        // Calculate indentation from original line
-        const indent = line.slice(0, line.length - trimmed.length);
+        // Calculate indentation from the leading whitespace only. Trailing
+        // whitespace must not count, or it shifts content into the indent.
+        const indent = line.slice(0, line.length - line.trimStart().length);
         newText = `${indent}${fixedLine} ${comment}`;
       } else {
         // No comment: clean up any existing semicolons and add one
@@ -537,7 +543,7 @@ export class CodeActionsProvider {
 
   private getQuickFixes(uri: string, diagnostic: Diagnostic, documentText: string): CodeAction[] {
     const fixes: CodeAction[] = [];
-    const message = diagnostic.message.toLowerCase();
+    const message = messageText(diagnostic).toLowerCase();
 
     // Fix naming conventions
     if (message.includes('should be pascalcase')) {
@@ -711,7 +717,7 @@ export class CodeActionsProvider {
     }
 
     if (message.includes('expects one of:')) {
-      const match = diagnostic.message.match(/expects one of: (.*)$/i);
+      const match = messageText(diagnostic).match(/expects one of: (.*)$/i);
       const first = match?.[1]?.split(',')[0]?.trim() ?? 'SPEED';
       fixes.push(this.replaceOptionValue(uri, diagnostic, documentText, first));
     }
@@ -723,7 +729,7 @@ export class CodeActionsProvider {
       const line = lines[lineIndex] || '';
 
       // Extract the import path from the original diagnostic message (not lowercased)
-      const importMatch = diagnostic.message.match(/Import '([^']+)' cannot be resolved/i);
+      const importMatch = messageText(diagnostic).match(/Import '([^']+)' cannot be resolved/i);
       const importPath = importMatch?.[1] ?? '';
 
       // Check if this looks like a buf registry dependency import
@@ -806,7 +812,7 @@ export class CodeActionsProvider {
     // Handle unqualified type references
     if (message.includes('must be fully qualified')) {
       // Extract the fully qualified name from the message
-      const fqnMatch = diagnostic.message.match(/must be fully qualified as '([^']+)'/);
+      const fqnMatch = messageText(diagnostic).match(/must be fully qualified as '([^']+)'/);
       const fullyQualifiedName = fqnMatch?.[1];
 
       if (fullyQualifiedName) {
@@ -899,11 +905,11 @@ export class CodeActionsProvider {
     // Handle resolved BSR imports that aren't in buf.yaml dependencies
     if (message.includes('is not in buf.yaml dependencies')) {
       // Extract the suggested module from the diagnostic message
-      const moduleMatch = diagnostic.message.match(/'([^']+)' is not in buf\.yaml dependencies/);
+      const moduleMatch = messageText(diagnostic).match(/'([^']+)' is not in buf\.yaml dependencies/);
       const suggestedModule = moduleMatch?.[1] ?? null;
 
       // Extract import path from message
-      const importMatch = diagnostic.message.match(/Import '([^']+)' resolves/);
+      const importMatch = messageText(diagnostic).match(/Import '([^']+)' resolves/);
       const importPath = importMatch?.[1] ?? '';
 
       if (suggestedModule) {
@@ -960,7 +966,7 @@ export class CodeActionsProvider {
 
     // Missing import (detected by diagnostics provider)
     if (message.includes('not imported')) {
-      const importMatch = diagnostic.message.match(/import "([^"]+)"/i);
+      const importMatch = messageText(diagnostic).match(/import "([^"]+)"/i);
       const dataImportPath =
         typeof diagnostic.data === 'object' &&
         diagnostic.data !== null &&
@@ -1003,7 +1009,7 @@ export class CodeActionsProvider {
 
     // Incorrect import path for resolved type
     if (message.includes('should be imported via')) {
-      const match = diagnostic.message.match(/via "([^"]+)" .*"([^"]+)"/i);
+      const match = messageText(diagnostic).match(/via "([^"]+)" .*"([^"]+)"/i);
       const expected = match?.[1];
       const found = match?.[2];
 
@@ -1607,10 +1613,10 @@ export class CodeActionsProvider {
   private extractMissingImportPaths(diagnostics: Diagnostic[], documentText: string): string[] {
     const imports = new Set<string>();
     for (const diagnostic of diagnostics) {
-      if (!diagnostic.message.toLowerCase().includes('not imported')) {
+      if (!messageText(diagnostic).toLowerCase().includes('not imported')) {
         continue;
       }
-      const match = diagnostic.message.match(/import "([^"]+)"/i);
+      const match = messageText(diagnostic).match(/import "([^"]+)"/i);
       const dataImportPath =
         typeof diagnostic.data === 'object' &&
         diagnostic.data !== null &&
@@ -1635,7 +1641,7 @@ export class CodeActionsProvider {
 
     const unusedImportLines: TextEdit[] = [];
     for (const diagnostic of diagnostics) {
-      const msg = diagnostic.message.toLowerCase();
+      const msg = messageText(diagnostic).toLowerCase();
       if (!msg.includes('unused import')) {
         continue;
       }
