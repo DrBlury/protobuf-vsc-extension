@@ -10,6 +10,34 @@ syntax = "proto3";
   (syntax))
 
 ================================================================================
+Option strings containing comment markers
+================================================================================
+
+message Foo {
+  string foo = 1 [(annotation) = "some//description"];
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (message
+    name: (identifier)
+    body: (message_body
+      (field
+        type: (type
+          (scalar_type))
+        name: (identifier)
+        number: (int_lit)
+        options: (field_options
+          (field_option
+            name: (option_name
+              (full_ident
+                (identifier)))
+            value: (constant
+              (string
+                (string_literal)))))))))
+
+================================================================================
 Package and imports
 ================================================================================
 

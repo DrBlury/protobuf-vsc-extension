@@ -369,22 +369,10 @@ module.exports = grammar({
     string: ($) => seq($.string_literal, repeat($.string_literal)),
 
     string_literal: ($) =>
-      choice(
-        seq('"', repeat(choice($.string_escape, /[^"\\\n]/)), '"'),
-        seq("'", repeat(choice($.string_escape, /[^'\\\n]/)), "'")
-      ),
-
-    string_escape: ($) =>
-      token.immediate(
-        seq(
-          "\\",
-          choice(
-            /[abfnrtv\\'"]/, // standard escapes
-            /[0-7]{1,3}/, // octal
-            /[xX][0-9a-fA-F]{1,2}/, // hex
-            /u[0-9a-fA-F]{4}/, // unicode
-            /U[0-9a-fA-F]{8}/ // unicode
-          )
+      token(
+        choice(
+          seq('"', repeat(choice(/\\./, /[^"\\\n]/)), '"'),
+          seq("'", repeat(choice(/\\./, /[^'\\\n]/)), "'")
         )
       ),
 

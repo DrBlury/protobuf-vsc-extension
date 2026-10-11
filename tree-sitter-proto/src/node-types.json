@@ -1007,21 +1007,6 @@
     }
   },
   {
-    "type": "string_literal",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "string_escape",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "syntax",
     "named": true,
     "fields": {
@@ -1069,19 +1054,11 @@
     }
   },
   {
-    "type": "\"",
-    "named": false
-  },
-  {
     "type": "\"proto2\"",
     "named": false
   },
   {
     "type": "\"proto3\"",
-    "named": false
-  },
-  {
-    "type": "'",
     "named": false
   },
   {
@@ -1302,7 +1279,7 @@
     "named": false
   },
   {
-    "type": "string_escape",
+    "type": "string_literal",
     "named": true
   },
   {
