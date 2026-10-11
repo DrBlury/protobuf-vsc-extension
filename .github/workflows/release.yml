@@ -147,7 +147,10 @@ jobs:
           cat > release-notes.md <<'EOF'
           ## Changes
 
-          - Preserves `//` and `/*` text inside quoted option strings when checking or fixing missing semicolons.
+          - Parses `//` and `/*` inside quoted strings correctly with the default Tree-sitter parser, so option values such as `"some//description"` no longer report syntax errors.
+          - Stops the save-time semicolon fix from duplicating the start of a line that has a trailing comment followed by trailing whitespace.
+          - Runs api-linter with paths it can resolve and passes the configured include paths, so its findings are reported again.
+          - Reports external linter failures (bad config, unresolved imports, missing binary) instead of showing "Linter passed with no issues".
           EOF
 
       - name: Create GitHub Release

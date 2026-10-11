@@ -148,6 +148,45 @@ message Test {
       }
     });
 
+    it('should not duplicate identifiers when a commented line has trailing whitespace (issue #88)', () => {
+      // Trailing whitespace after the comment used to be counted as indentation,
+      // which copied the first characters of the type name into the indent.
+      const lines = [
+        'syntax = "proto3";',
+        'message ExampleMessage {',
+        '    SubscriptionShippingChargesType shippingCharges = 24 // Exists only in GRPC on purpose.    ',
+        '    RequestingAccountDetailsType requestingAccountDetails = 26 // Exists only in GRPC on purpose. ',
+        '}',
+      ];
+      const text = lines.join('\n');
+      const uri = 'file:///test.proto';
+      analyzer.updateFile(uri, parser.parse(text, uri));
+
+      const actions = provider.getCodeActions(uri, Range.create(0, 0, 4, 1), { diagnostics: [] }, text);
+      const changes = actions.find(a => a.title && a.title.includes('semicolon'))?.edit?.changes?.[uri];
+
+      expect(changes?.map(edit => edit.newText)).toEqual([
+        '    SubscriptionShippingChargesType shippingCharges = 24; // Exists only in GRPC on purpose.',
+        '    RequestingAccountDetailsType requestingAccountDetails = 26; // Exists only in GRPC on purpose.',
+      ]);
+    });
+
+    it('should leave complete commented lines with trailing whitespace untouched (issue #88)', () => {
+      const text = [
+        'syntax = "proto3";',
+        'message ExampleMessage {',
+        '    SubscriptionShippingChargesType shippingCharges = 24; // Exists only in GRPC on purpose.    ',
+        '    RequestingAccountDetailsType requestingAccountDetails = 26; // Exists only in GRPC on purpose. ',
+        '}',
+      ].join('\n');
+      const uri = 'file:///test.proto';
+      analyzer.updateFile(uri, parser.parse(text, uri));
+
+      const actions = provider.getCodeActions(uri, Range.create(0, 0, 4, 1), { diagnostics: [] }, text);
+
+      expect(actions.find(a => a.title && a.title.includes('semicolon'))).toBeUndefined();
+    });
+
     it('should NOT add semicolons to multi-line inline options', () => {
       const text = `syntax = "proto3";
 message Test {

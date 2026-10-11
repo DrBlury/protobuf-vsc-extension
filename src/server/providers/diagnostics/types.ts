@@ -2,8 +2,15 @@
  * Types and interfaces for diagnostics provider
  */
 
+import type { Diagnostic } from 'vscode-languageserver/node';
 import { DiagnosticSeverity } from 'vscode-languageserver/node';
 import type { SeveritySetting } from '../../utils/types';
+
+/**
+ * A diagnostic with a plain-text message. Newer LSP versions also allow
+ * MarkupContent there, but everything this server reports is a string.
+ */
+export type TextDiagnostic = Diagnostic & { message: string };
 
 /**
  * Settings for severities of diagnostic settings

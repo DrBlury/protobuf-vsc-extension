@@ -423,6 +423,7 @@ export function updateProvidersWithSettings(
     bufConfigPath: expandedBufConfigPath || linterSettings.bufConfigPath,
     protolintConfigPath: expandedProtolintConfigPath || linterSettings.protolintConfigPath,
     apiLinterConfigPath: expandedApiLinterConfigPath || linterSettings.apiLinterConfigPath,
+    includePaths,
     runOnSave: linterSettings.runOnSave,
   });
 

@@ -186,7 +186,7 @@ describe('ExternalLinterProvider', () => {
       expect(result).toEqual([]);
     });
 
-    it('should handle buf lint errors', async () => {
+    it('should report buf lint failures that produce no findings', async () => {
       provider.updateSettings({ enabled: true, linter: 'buf' });
       provider.setWorkspaceRoot('/workspace');
 
@@ -203,10 +203,11 @@ describe('ExternalLinterProvider', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      const resultPromise = provider.lint('/workspace/test.proto');
+      const assertion = expect(provider.lint('/workspace/test.proto')).rejects.toThrow(
+        'buf exited with code 1 without reporting any findings'
+      );
       await flushPromisesAndTimers();
-      const result = await resultPromise;
-      expect(result).toEqual([]);
+      await assertion;
     });
 
     it('should run protolint and return diagnostics', async () => {
@@ -1138,7 +1139,7 @@ describe('ExternalLinterProvider', () => {
       expect(result).toEqual([]);
     });
 
-    it('should return empty array when buf shell fallback fails', async () => {
+    it('should report a failure when buf cannot be started', async () => {
       provider.updateSettings({ enabled: true, linter: 'buf' });
       provider.setWorkspaceRoot('/workspace');
 
@@ -1156,10 +1157,11 @@ describe('ExternalLinterProvider', () => {
         return failProcess;
       });
 
-      const resultPromise = provider.lint('/workspace/test.proto');
+      const assertion = expect(provider.lint('/workspace/test.proto')).rejects.toThrow(
+        'buf could not be started: spawn failed'
+      );
       await flushPromisesAndTimers();
-      const result = await resultPromise;
-      expect(result).toEqual([]);
+      await assertion;
     });
 
     it('should run protolint via shell fallback on error', async () => {
@@ -1211,7 +1213,7 @@ describe('ExternalLinterProvider', () => {
       expect(result).toEqual([]);
     });
 
-    it('should return empty array when protolint shell fallback fails', async () => {
+    it('should report a failure when protolint cannot be started', async () => {
       provider.updateSettings({ enabled: true, linter: 'protolint' });
       provider.setWorkspaceRoot('/workspace');
 
@@ -1229,10 +1231,11 @@ describe('ExternalLinterProvider', () => {
         return failProcess;
       });
 
-      const resultPromise = provider.lint('/workspace/test.proto');
+      const assertion = expect(provider.lint('/workspace/test.proto')).rejects.toThrow(
+        'protolint could not be started: spawn failed'
+      );
       await flushPromisesAndTimers();
-      const result = await resultPromise;
-      expect(result).toEqual([]);
+      await assertion;
     });
 
     it('should run api-linter via shell fallback on error', async () => {
@@ -1284,7 +1287,7 @@ describe('ExternalLinterProvider', () => {
       expect(result).toEqual([]);
     });
 
-    it('should return empty array when api-linter shell fallback fails', async () => {
+    it('should report a failure when api-linter cannot be started', async () => {
       provider.updateSettings({ enabled: true, linter: 'api-linter' });
       provider.setWorkspaceRoot('/workspace');
 
@@ -1302,10 +1305,11 @@ describe('ExternalLinterProvider', () => {
         return failProcess;
       });
 
-      const resultPromise = provider.lint('/workspace/test.proto');
+      const assertion = expect(provider.lint('/workspace/test.proto')).rejects.toThrow(
+        'api-linter could not be started: spawn failed'
+      );
       await flushPromisesAndTimers();
-      const result = await resultPromise;
-      expect(result).toEqual([]);
+      await assertion;
     });
   });
 
@@ -1553,6 +1557,167 @@ describe('ExternalLinterProvider', () => {
       const result = await resultPromise;
       expect(result).toHaveLength(1);
       expect(result[0].message).toBe('Error in test');
+    });
+  });
+
+  describe('linter failures and api-linter paths (issue #208)', () => {
+    /**
+     * Mock a linter process. With `error` set it behaves like a failed spawn
+     * in Node, which emits 'error' and then 'close' with a negative code.
+     */
+    function mockLinterProcess(result: { stdout?: string; stderr?: string; code?: number; error?: Error }): any {
+      const stream = (text?: string) => ({
+        on: jest.fn((event: string, callback: (data: Buffer) => void) => {
+          if (event === 'data' && text) {
+            setTimeout(() => callback(Buffer.from(text)), 0);
+          }
+        }),
+      });
+      const proc: any = {
+        stdout: stream(result.stdout),
+        stderr: stream(result.stderr),
+        on: jest.fn((event: string, callback: (arg?: unknown) => void) => {
+          if (event === 'error' && result.error) {
+            setTimeout(() => callback(result.error), 0);
+          }
+          if (event === 'close') {
+            setTimeout(() => callback(result.error ? -2 : (result.code ?? 0)), 10);
+          }
+          return proc;
+        }),
+      };
+      return proc;
+    }
+
+    async function settle<T>(promise: Promise<T>): Promise<T> {
+      await flushPromisesAndTimers();
+      return promise;
+    }
+
+    const spawnFailure = Object.assign(new Error('spawn buf ENOENT'), { code: 'ENOENT' });
+
+    it('should keep shell fallback results when the failed spawn also emits close', async () => {
+      provider.updateSettings({ enabled: true, linter: 'buf' });
+      provider.setWorkspaceRoot('/workspace');
+      const finding =
+        '{"path":"test.proto","start_line":3,"start_column":1,"type":"PACKAGE_VERSION_SUFFIX","message":"Needs a version"}';
+      mockSpawn
+        .mockReturnValueOnce(mockLinterProcess({ error: spawnFailure }))
+        .mockReturnValueOnce(mockLinterProcess({ stdout: finding, code: 100 }));
+
+      const result = await settle(provider.lint('/workspace/test.proto'));
+
+      expect(mockSpawn).toHaveBeenCalledTimes(2);
+      expect(result.map(diagnostic => diagnostic.message)).toEqual(['Needs a version']);
+    });
+
+    it('should detect a linter through the shell fallback after the failed spawn closes', async () => {
+      provider.updateSettings({ enabled: true, linter: 'buf' });
+      mockSpawn
+        .mockReturnValueOnce(mockLinterProcess({ error: spawnFailure }))
+        .mockReturnValueOnce(mockLinterProcess({ code: 0 }));
+
+      expect(await settle(provider.isAvailable())).toBe(true);
+    });
+
+    it('should return findings from a linter that signals them with a non-zero exit code', async () => {
+      provider.updateSettings({ enabled: true, linter: 'protolint' });
+      provider.setWorkspaceRoot('/workspace');
+      const stderr = JSON.stringify({
+        lints: [{ filename: 'test.proto', line: 12, column: 3, message: 'Bad field name', rule: 'FIELD_NAMES' }],
+      });
+      mockSpawn.mockReturnValue(mockLinterProcess({ stderr, code: 1 }));
+
+      const result = await settle(provider.lint('/workspace/test.proto'));
+
+      expect(result.map(diagnostic => diagnostic.message)).toEqual(['Bad field name']);
+    });
+
+    it('should report a protolint failure instead of an empty result', async () => {
+      provider.updateSettings({ enabled: true, linter: 'protolint', protolintConfigPath: 'nope.yaml' });
+      provider.setWorkspaceRoot('/workspace');
+      mockSpawn.mockReturnValue(mockLinterProcess({ stderr: 'open nope.yaml: no such file or directory\n', code: 2 }));
+
+      const assertion = expect(provider.lint('/workspace/test.proto')).rejects.toThrow(
+        'protolint exited with code 2: open nope.yaml: no such file or directory'
+      );
+      await flushPromisesAndTimers();
+      await assertion;
+    });
+
+    it('should report an api-linter failure instead of an empty result', async () => {
+      provider.updateSettings({ enabled: true, linter: 'api-linter' });
+      provider.setWorkspaceRoot('/workspace');
+      const stderr =
+        '2026/10/11 22:50:15 could not resolve path "foo.proto": open foo.proto: no such file or directory';
+      mockSpawn.mockReturnValue(mockLinterProcess({ stderr, code: 1 }));
+
+      const assertion = expect(provider.lint('/workspace/api/foo.proto')).rejects.toThrow(
+        `api-linter exited with code 1: ${stderr}`
+      );
+      await flushPromisesAndTimers();
+      await assertion;
+    });
+
+    it('should show an api-linter error that names a location as a diagnostic', async () => {
+      provider.updateSettings({ enabled: true, linter: 'api-linter' });
+      provider.setWorkspaceRoot('/workspace');
+      const stderr =
+        '2026/10/11 22:50:42 api/foo.proto:3:8: open google/api/annotations.proto: no such file or directory';
+      mockSpawn.mockReturnValue(mockLinterProcess({ stderr, code: 1 }));
+
+      const result = await settle(provider.lint('/workspace/api/foo.proto'));
+
+      expect(result).toHaveLength(1);
+      expect(result[0]!.range.start).toEqual({ line: 2, character: 7 });
+      expect(result[0]!.message).toBe('open google/api/annotations.proto: no such file or directory');
+    });
+
+    it('should pass api-linter a path relative to the workspace root', async () => {
+      provider.updateSettings({ enabled: true, linter: 'api-linter' });
+      provider.setWorkspaceRoot('/workspace');
+      mockSpawn.mockReturnValue(mockLinterProcess({ stdout: '[]' }));
+
+      await settle(provider.lint('/workspace/api/foo.proto'));
+
+      const [, args, options] = mockSpawn.mock.calls[0]!;
+      expect(args).toEqual(['--output-format=json', '-I', '/workspace', 'api/foo.proto']);
+      expect(options).toEqual({ cwd: '/workspace' });
+    });
+
+    it('should name the api-linter file relative to the most specific include path', async () => {
+      provider.updateSettings({
+        enabled: true,
+        linter: 'api-linter',
+        includePaths: ['/workspace/proto', '/workspace/third_party'],
+      });
+      provider.setWorkspaceRoot('/workspace');
+      mockSpawn.mockReturnValue(mockLinterProcess({ stdout: '[]' }));
+
+      await settle(provider.lint('/workspace/proto/pkg/a.proto'));
+
+      expect(mockSpawn.mock.calls[0]![1]).toEqual([
+        '--output-format=json',
+        '-I',
+        '/workspace/proto',
+        '-I',
+        '/workspace/third_party',
+        '-I',
+        '/workspace',
+        'pkg/a.proto',
+      ]);
+    });
+
+    it('should lint a file outside every proto path from its own directory', async () => {
+      provider.updateSettings({ enabled: true, linter: 'api-linter' });
+      provider.setWorkspaceRoot('/workspace');
+      mockSpawn.mockReturnValue(mockLinterProcess({ stdout: '[]' }));
+
+      await settle(provider.lint('/elsewhere/protos/a.proto'));
+
+      const [, args, options] = mockSpawn.mock.calls[0]!;
+      expect(args).toEqual(['--output-format=json', '-I', '/workspace', '-I', '/elsewhere/protos', 'a.proto']);
+      expect(options).toEqual({ cwd: '/elsewhere/protos' });
     });
   });
 });

@@ -31,7 +31,7 @@ import { ERROR_CODES, DIAGNOSTIC_SOURCE, FILE_EXTENSIONS } from '../utils/consta
 import { logger } from '../utils/logger';
 import { bufConfigProvider } from '../services/bufConfig';
 import type { ProviderRegistry } from '../utils';
-import type { DiagnosticsSettings } from './diagnostics/index';
+import type { DiagnosticsSettings, TextDiagnostic } from './diagnostics/index';
 import { DEFAULT_DIAGNOSTICS_SETTINGS, isExternalDependencyFile, Severity } from './diagnostics/index';
 import { isPascalCase, isSnakeCase, isScreamingSnakeCase } from './diagnostics/index';
 import { maskComments, maskNonCode } from './sourceTokens';
@@ -119,7 +119,7 @@ export class DiagnosticsProvider {
     file: ProtoFile,
     providers: ProviderRegistry,
     documentText?: string
-  ): Promise<Diagnostic[]> {
+  ): Promise<TextDiagnostic[]> {
     // Skip validation for external dependency files (e.g., .buf-deps, vendor directories)
     // These are generated/exported files that should be validated by their source tools
     if (isExternalDependencyFile(uri)) {
@@ -138,7 +138,7 @@ export class DiagnosticsProvider {
     this.currentFileHasUnresolvedBufImports = importsWithResolutions.some(
       imp => !imp.resolvedUri && this.isBufRegistryImport(imp.importPath)
     );
-    const diagnostics: Diagnostic[] = [];
+    const diagnostics: TextDiagnostic[] = [];
 
     // Consume syntax errors from parser
     if (file.syntaxErrors) {

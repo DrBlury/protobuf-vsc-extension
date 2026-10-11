@@ -1047,7 +1047,7 @@ connection.onRequest(REQUEST_METHODS.RUN_EXTERNAL_LINTER, async (params: { uri: 
       error: errorMessage,
       errorInfo: {
         message: errorMessage,
-        suggestion: 'Check that your linter (buf or protolint) is installed and configured correctly.',
+        suggestion: 'Check that your linter (buf, protolint, or api-linter) is installed and configured correctly.',
         settingKey: 'protobuf.externalLinter.linter',
       },
     };
@@ -1231,7 +1231,9 @@ connection.onRequest(REQUEST_METHODS.GET_GRPC_RPCS_USING_TYPE, (params: { typeNa
   return providers.grpc.getRpcsUsingType(params.typeName);
 });
 
-connection.onRequest(
+// The handlers below return either a result or an error object. Newer
+// vscode-languageserver versions cannot infer that union, so it is spelled out.
+connection.onRequest<{ code: string } | { error: string }, void>(
   REQUEST_METHODS.GENERATE_GRPC_CLIENT_STUB,
   (params: { serviceName: string; language: 'go' | 'java' | 'python' | 'typescript'; uri?: string }) => {
     const service = providers.grpc.getService(params.serviceName, params.uri);
@@ -1242,7 +1244,7 @@ connection.onRequest(
   }
 );
 
-connection.onRequest(
+connection.onRequest<{ code: string } | { error: string }, void>(
   REQUEST_METHODS.GENERATE_GRPC_SERVER_TEMPLATE,
   (params: { serviceName: string; language: 'go' | 'java' | 'python' | 'typescript'; uri?: string }) => {
     const service = providers.grpc.getService(params.serviceName, params.uri);
@@ -1253,13 +1255,16 @@ connection.onRequest(
   }
 );
 
-connection.onRequest(REQUEST_METHODS.GET_GRPC_SERVICE_STATS, (params: { serviceName: string; uri?: string }) => {
-  const service = providers.grpc.getService(params.serviceName, params.uri);
-  if (!service) {
-    return { error: `Service ${params.serviceName} not found` };
+connection.onRequest<ReturnType<typeof providers.grpc.getServiceStats> | { error: string }, void>(
+  REQUEST_METHODS.GET_GRPC_SERVICE_STATS,
+  (params: { serviceName: string; uri?: string }) => {
+    const service = providers.grpc.getService(params.serviceName, params.uri);
+    if (!service) {
+      return { error: `Service ${params.serviceName} not found` };
+    }
+    return providers.grpc.getServiceStats(service);
   }
-  return providers.grpc.getServiceStats(service);
-});
+);
 
 connection.onRequest(REQUEST_METHODS.MIGRATE_TO_PROTO3, (params: { uri: string }) => {
   const document = documents.get(params.uri);
