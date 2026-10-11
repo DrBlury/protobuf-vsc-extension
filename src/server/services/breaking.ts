@@ -3,8 +3,9 @@
  * Compares proto files against a baseline to detect breaking API changes
  */
 
-import type { Diagnostic, Range } from 'vscode-languageserver/node';
+import type { Range } from 'vscode-languageserver/node';
 import { DiagnosticSeverity } from 'vscode-languageserver/node';
+import type { TextDiagnostic } from '../providers/diagnostics/types';
 import type {
   ProtoFile,
   MessageDefinition,
@@ -99,12 +100,12 @@ export class BreakingChangeDetector {
     currentFile: ProtoFile,
     baselineFile: ProtoFile | null,
     severityOverride?: DiagnosticSeverity
-  ): Diagnostic[] {
+  ): TextDiagnostic[] {
     if (!this.settings.enabled || !baselineFile) {
       return [];
     }
 
-    const diagnostics: Diagnostic[] = [];
+    const diagnostics: TextDiagnostic[] = [];
     const changes = this.compareFiles(currentFile, baselineFile);
 
     for (const change of changes) {
