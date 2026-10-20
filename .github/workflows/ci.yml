@@ -77,7 +77,7 @@ jobs:
         run: npm ci
 
       - name: Download tree-sitter WASM artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: tree-sitter-wasm
           path: out/tree-sitter/
@@ -85,7 +85,7 @@ jobs:
       # The parser tests load the grammar from tree-sitter-proto/. Without it
       # they fall back to the legacy parser and the default one goes untested.
       - name: Place tree-sitter WASM for parser tests
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: tree-sitter-wasm
           path: tree-sitter-proto/
@@ -117,7 +117,7 @@ jobs:
         run: npm ci
 
       - name: Download tree-sitter WASM artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: tree-sitter-wasm
           path: out/tree-sitter/
