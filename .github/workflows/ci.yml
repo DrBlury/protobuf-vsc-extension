@@ -30,6 +30,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Test TextMate grammars
+        run: npm run test:grammar
+
       - name: Cache tree-sitter WASM
         id: cache-tree-sitter
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
