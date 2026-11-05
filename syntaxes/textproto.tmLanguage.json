@@ -23,7 +23,14 @@
     "field": {
       "patterns": [
         {
-          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*:",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(:)",
+          "captures": {
+            "1": { "name": "variable.other.field.textproto" },
+            "2": { "name": "punctuation.separator.key-value.textproto" }
+          }
+        },
+        {
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(?=\\s*[{<])",
           "captures": {
             "1": { "name": "variable.other.field.textproto" }
           }
@@ -132,23 +139,23 @@
       "patterns": [
         {
           "name": "constant.numeric.hex.textproto",
-          "match": "\\b0[xX][0-9a-fA-F]+\\b"
+          "match": "(?<![\\w.])-?0[xX][0-9A-Fa-f]+(?![\\w.])"
+        },
+        {
+          "name": "constant.numeric.float.textproto",
+          "match": "(?<![\\w.])-?(?:(?:\\d+\\.\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?|\\d+[eE][+-]?\\d+)[fF]?(?![\\w.])"
+        },
+        {
+          "name": "constant.numeric.float.textproto",
+          "match": "(?<![\\w.])-?\\d+[fF](?![\\w.])"
         },
         {
           "name": "constant.numeric.octal.textproto",
-          "match": "\\b0[0-7]+\\b"
-        },
-        {
-          "name": "constant.numeric.float.textproto",
-          "match": "\\b-?\\d+\\.\\d+(?:[eE][+-]?\\d+)?\\b"
-        },
-        {
-          "name": "constant.numeric.float.textproto",
-          "match": "\\b-?\\d+[eE][+-]?\\d+\\b"
+          "match": "(?<![\\w.])-?0[0-7]+(?![\\w.])"
         },
         {
           "name": "constant.numeric.integer.textproto",
-          "match": "\\b-?\\d+\\b"
+          "match": "(?<![\\w.])-?\\d+(?![\\w.])"
         }
       ]
     },
@@ -156,19 +163,15 @@
       "patterns": [
         {
           "name": "constant.language.boolean.textproto",
-          "match": "\\b(true|false)\\b"
-        },
-        {
-          "name": "constant.language.null.textproto",
-          "match": "\\b(null)\\b"
+          "match": "\\b(?:true|True|t|false|False|f)\\b"
         },
         {
           "name": "constant.language.float.textproto",
-          "match": "\\b(inf|-inf|nan)\\b"
+          "match": "(?<![\\w.])-?(?i:inf(?:inity)?|nan)\\b"
         },
         {
           "name": "constant.language.enum.textproto",
-          "match": "\\b[A-Z][A-Z0-9_]*\\b"
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
         }
       ]
     }
