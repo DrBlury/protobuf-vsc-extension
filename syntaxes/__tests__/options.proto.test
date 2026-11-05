@@ -29,3 +29,20 @@ enum WithEnumOptions {
 //                             ^^^^ constant.language.proto
 //                                 ^ punctuation.definition.brackets.end.proto
 }
+
+option optimize_for = CODE_SIZE;
+//     ^^^^^^^^^^^^ support.other.option.proto
+//                  ^ keyword.operator.assignment.proto
+//                    ^^^^^^^^^ constant.language.enum.proto
+
+option features.field_presence = IMPLICIT;
+//                             ^ keyword.operator.assignment.proto
+//                               ^^^^^^^^ constant.language.enum.proto
+
+service WithEnumOptionValue {
+  rpc Get(Empty) returns (Empty) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+//                           ^ keyword.operator.assignment.proto
+//                             ^^^^^^^^^^^^^^^ constant.language.enum.proto
+  }
+}
