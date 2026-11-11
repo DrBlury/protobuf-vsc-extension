@@ -1,0 +1,49 @@
+# SYNTAX TEST "source.textproto" "Text format"
+
+# proto-message: Foo
+# <-------------------- comment.line.number-sign.textproto
+
+name: "x"  # trailing
+# <---- variable.other.field.textproto
+#     ^^^ string.quoted.double.textproto
+#          ^^^^^^^^^^ comment.line.number-sign.textproto
+nested {
+# <------ variable.other.field.textproto
+  id: -3
+#     ^^ constant.numeric.integer.textproto
+  hex: 0x1F
+#      ^^^^ constant.numeric.hex.textproto
+  ratio: 1.0f
+#        ^^^^ constant.numeric.float.textproto
+  half: .5
+#       ^^ constant.numeric.float.textproto
+  big: -1e5
+#      ^^^^ constant.numeric.float.textproto
+  whole: 1.
+#        ^^ constant.numeric.float.textproto
+  suffixed: 2F
+#           ^^ constant.numeric.float.textproto
+}
+angled < low: -inf high: Infinity >
+# <------ variable.other.field.textproto
+#        ^^^ variable.other.field.textproto
+#             ^^^^ constant.language.float.textproto
+#                        ^^^^^^^^ constant.language.float.textproto
+flags: [True, t, False, f]
+#       ^^^^ constant.language.boolean.textproto
+#             ^ constant.language.boolean.textproto
+#                ^^^^^ constant.language.boolean.textproto
+#                       ^ constant.language.boolean.textproto
+kind: kFooBar
+#     ^^^^^^^ constant.language.enum.textproto
+other_kind: FOO_BAR
+#           ^^^^^^^ constant.language.enum.textproto
+[com.example.ext] { a: 1 }
+#^^^^^^^^^^^^^^^ entity.name.type.extension.textproto
+#                   ^ variable.other.field.textproto
+any { [type.googleapis.com/foo.Bar] { b: 2 } }
+# <--- variable.other.field.textproto
+#      ^^^^^^^^^^^^^^^^^^^^^^^^^^^ entity.name.type.extension.textproto
+values: [FOO, BAR]
+#        ^^^ constant.language.enum.textproto
+#             ^^^ constant.language.enum.textproto

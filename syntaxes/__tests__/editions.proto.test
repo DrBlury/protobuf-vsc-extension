@@ -1,4 +1,4 @@
-// SYNTAX TEST "source.proto" "Edition 2023 features"
+// SYNTAX TEST "source.proto" "Editions features"
 
 edition = "2023";
 
@@ -12,4 +12,22 @@ message EditionMessage {
 
   int32 id = 2;
 //^^^^^ storage.type.proto
+}
+
+import option "google/protobuf/cpp_features.proto";
+// <-- keyword.control.import.proto
+//     ^^^^^^ keyword.control.import.modifier.proto
+//            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ string.quoted.double.proto
+
+export message Exported {}
+// <-- keyword.control.modifier.proto
+//     ^^^^^^^ keyword.control.message.proto
+//             ^^^^^^^^ entity.name.type.message.proto
+
+local enum Hidden {
+// <-- keyword.control.modifier.proto
+//    ^^^^ keyword.control.enum.proto
+//         ^^^^^^ entity.name.type.enum.proto
+  HIDDEN_UNSPECIFIED = 0;
+//^^^^^^^^^^^^^^^^^^ variable.other.enummember.proto
 }
