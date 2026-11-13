@@ -106,6 +106,16 @@
             "named": true
           }
         ]
+      },
+      "visibility": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "visibility",
+            "named": true
+          }
+        ]
       }
     }
   },
@@ -550,6 +560,16 @@
         "types": [
           {
             "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "visibility": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "visibility",
             "named": true
           }
         ]
@@ -1054,6 +1074,11 @@
     }
   },
   {
+    "type": "visibility",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "\"proto2\"",
     "named": false
   },
@@ -1147,6 +1172,10 @@
     "named": false
   },
   {
+    "type": "export",
+    "named": false
+  },
+  {
     "type": "extend",
     "named": false
   },
@@ -1192,6 +1221,10 @@
   },
   {
     "type": "int64",
+    "named": false
+  },
+  {
+    "type": "local",
     "named": false
   },
   {

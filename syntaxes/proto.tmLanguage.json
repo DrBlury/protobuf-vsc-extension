@@ -468,12 +468,13 @@
       ]
     },
     "message": {
-      "begin": "\\b(message)\\s+(\\w+)\\s*(\\{)?",
+      "begin": "\\b(?:(export|local)\\s+)?(message)\\s+(\\w+)\\s*(\\{)?",
       "end": "\\}",
       "beginCaptures": {
-        "1": { "name": "keyword.control.message.proto" },
-        "2": { "name": "entity.name.type.message.proto" },
-        "3": { "name": "punctuation.definition.block.proto" }
+        "1": { "name": "keyword.control.visibility.proto" },
+        "2": { "name": "keyword.control.message.proto" },
+        "3": { "name": "entity.name.type.message.proto" },
+        "4": { "name": "punctuation.definition.block.proto" }
       },
       "endCaptures": {
         "0": { "name": "punctuation.definition.block.proto" }
@@ -498,12 +499,13 @@
       ]
     },
     "enum": {
-      "begin": "\\b(enum)\\s+(\\w+)\\s*(\\{)?",
+      "begin": "\\b(?:(export|local)\\s+)?(enum)\\s+(\\w+)\\s*(\\{)?",
       "end": "\\}",
       "beginCaptures": {
-        "1": { "name": "keyword.control.enum.proto" },
-        "2": { "name": "entity.name.type.enum.proto" },
-        "3": { "name": "punctuation.definition.block.proto" }
+        "1": { "name": "keyword.control.visibility.proto" },
+        "2": { "name": "keyword.control.enum.proto" },
+        "3": { "name": "entity.name.type.enum.proto" },
+        "4": { "name": "punctuation.definition.block.proto" }
       },
       "endCaptures": {
         "0": { "name": "punctuation.definition.block.proto" }
