@@ -76,11 +76,12 @@ module.exports = grammar({
     message: ($) =>
       choice(
         seq(
+          optional(field("visibility", $.visibility)),
           "message",
           field("name", $.identifier),
           field("body", $.message_body)
         ),
-        seq("message", field("body", $.message_body))
+        seq(optional(field("visibility", $.visibility)), "message", field("body", $.message_body))
       ),
 
     message_body: ($) =>
@@ -166,9 +167,16 @@ module.exports = grammar({
     // Enum definition
     enum: ($) =>
       choice(
-        seq("enum", field("name", $.identifier), field("body", $.enum_body)),
-        seq("enum", field("body", $.enum_body))
+        seq(
+          optional(field("visibility", $.visibility)),
+          "enum",
+          field("name", $.identifier),
+          field("body", $.enum_body)
+        ),
+        seq(optional(field("visibility", $.visibility)), "enum", field("body", $.enum_body))
       ),
+
+    visibility: ($) => choice("export", "local"),
 
     enum_body: ($) =>
       seq(

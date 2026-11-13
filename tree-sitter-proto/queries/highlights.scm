@@ -10,6 +10,8 @@
   "returns"
   "message"
   "enum"
+  "export"
+  "local"
   "extend"
   "oneof"
   "optional"

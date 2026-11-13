@@ -1,0 +1,17 @@
+// SYNTAX TEST "source.proto" "Edition visibility modifiers"
+
+edition = "2026";
+
+export message ExportedMessage {
+// <----- keyword.control.visibility.proto
+//     ^^^^^^^ keyword.control.message.proto
+//             ^^^^^^^^^^^^^^^ entity.name.type.message.proto
+  string name = 1;
+}
+
+local enum LocalEnum {
+// <---- keyword.control.visibility.proto
+//    ^^^^ keyword.control.enum.proto
+//         ^^^^^^^^^ entity.name.type.enum.proto
+  LOCAL_ENUM_UNSPECIFIED = 0;
+}

@@ -10,6 +10,33 @@ syntax = "proto3";
   (syntax))
 
 ================================================================================
+Edition visibility modifiers
+================================================================================
+
+edition = "2026";
+
+export message ExportedMessage {}
+local enum LocalEnum { LOCAL_ENUM_UNSPECIFIED = 0; }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (edition
+    version: (string
+      (string_literal)))
+  (message
+    visibility: (visibility)
+    name: (identifier)
+    body: (message_body))
+  (enum
+    visibility: (visibility)
+    name: (identifier)
+    body: (enum_body
+      (enum_field
+        name: (identifier)
+        number: (int_lit)))))
+
+================================================================================
 Option strings containing comment markers
 ================================================================================
 
