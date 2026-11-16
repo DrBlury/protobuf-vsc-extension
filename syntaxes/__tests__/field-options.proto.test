@@ -19,4 +19,10 @@ message WithOptions {
 //               ^^^^^^ variable.other.field.proto
 //                        ^ constant.numeric.proto
 //                          ^ punctuation.definition.brackets.begin.proto
+
+  string legacy = 5 [ctype = CORD, features.utf8_validation = NONE];
+//                         ^ keyword.operator.assignment.proto
+//                           ^^^^ constant.language.enum.proto
+//                                                          ^ keyword.operator.assignment.proto
+//                                                            ^^^^ constant.language.enum.proto
 }

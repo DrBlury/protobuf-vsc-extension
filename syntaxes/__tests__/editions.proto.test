@@ -1,4 +1,4 @@
-// SYNTAX TEST "source.proto" "Edition 2023 features"
+// SYNTAX TEST "source.proto" "Editions features"
 
 edition = "2023";
 
@@ -13,3 +13,8 @@ message EditionMessage {
   int32 id = 2;
 //^^^^^ storage.type.proto
 }
+
+import option "google/protobuf/cpp_features.proto";
+// <-- keyword.control.import.proto
+//     ^^^^^^ keyword.control.import.modifier.proto
+//            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ string.quoted.double.proto
