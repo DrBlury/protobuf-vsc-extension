@@ -1037,7 +1037,7 @@
     "install-local": "npm run package && code --install-extension protobuf-vsc-*.vsix --force && osascript -e 'tell application \"Visual Studio Code\" to activate' -e 'tell application \"System Events\" to keystroke \"r\" using {command down, shift down}'"
   },
   "devDependencies": {
-    "@cyclonedx/cyclonedx-npm": "6.0.1",
+    "@cyclonedx/cyclonedx-npm": "7.0.0",
     "@eslint/js": "^10.0.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.6.6",
