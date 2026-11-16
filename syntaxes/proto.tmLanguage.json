@@ -66,7 +66,7 @@
       }
     },
     "import": {
-      "match": "\\b(import)\\s+(weak|public)?\\s*(\"[^\"]+\")\\s*(;)",
+      "match": "\\b(import)\\s+(weak|public|option)?\\s*(\"[^\"]+\")\\s*(;)",
       "captures": {
         "1": { "name": "keyword.control.import.proto" },
         "2": { "name": "keyword.control.import.modifier.proto" },
@@ -116,6 +116,7 @@
             "1": { "name": "punctuation.terminator.proto" }
           },
           "patterns": [
+            { "include": "#optionEnumValue" },
             { "include": "#optionName" },
             { "include": "#strings" },
             { "include": "#numbers" },
@@ -427,6 +428,7 @@
         "0": { "name": "punctuation.definition.brackets.end.proto" }
       },
       "patterns": [
+        { "include": "#optionEnumValue" },
         { "include": "#comments" },
         { "include": "#constants" },
         { "include": "#numbers" },
@@ -442,6 +444,17 @@
           "name": "punctuation.separator.proto"
         }
       ]
+    },
+    "optionEnumValue": {
+      "comment": "Enum constant assigned to an option",
+      "match": "(=)\\s*(?!(?:true|false|inf|nan|max)\\b)([A-Za-z_]\\w*)\\b",
+      "captures": {
+        "1": { "name": "keyword.operator.assignment.proto" },
+        "2": {
+          "name": "constant.language.enum.proto",
+          "patterns": [{ "include": "#optionName" }]
+        }
+      }
     },
     "subOptionValue": {
       "begin": "\\{",
